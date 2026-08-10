@@ -1,0 +1,197 @@
+from __future__ import annotations
+
+from PySide6.QtWidgets import (
+    QFileDialog,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QFormLayout,
+    QHBoxLayout,
+    QLineEdit,
+    QPushButton,
+    QSpinBox,
+    QWidget,
+)
+
+from gui.localization import SUPPORTED_LANGUAGES, tr
+
+
+class SettingsDialog(QDialog):
+    def __init__(self, settings: dict[str, object], parent=None) -> None:
+        super().__init__(parent)
+        language = str(settings.get("interface_language", "ru"))
+        self.setWindowTitle(
+            {
+                "ru": "Настройки",
+                "uk": "Налаштування",
+                "en": "Settings",
+            }.get(language, "Настройки")
+        )
+        self.history_limit = QSpinBox()
+        self.history_limit.setRange(4, 1000)
+        self.history_limit.setValue(int(settings.get("history_message_limit", 20)))
+
+        self.timeout = QSpinBox()
+        self.timeout.setRange(30, 3600)
+        self.timeout.setValue(int(settings.get("codex_timeout_seconds", 180)))
+
+        self.response_soft_warning = QSpinBox()
+        self.response_soft_warning.setRange(5, 3600)
+        self.response_soft_warning.setSuffix(" сек.")
+        self.response_soft_warning.setValue(int(settings.get("response_soft_warning_seconds", 20)))
+
+        self.response_extended_warning = QSpinBox()
+        self.response_extended_warning.setRange(6, 7200)
+        self.response_extended_warning.setSuffix(" сек.")
+        self.response_extended_warning.setValue(int(settings.get("response_extended_warning_seconds", 90)))
+
+        self.response_timeout = QSpinBox()
+        self.response_timeout.setRange(0, 10800)
+        self.response_timeout.setSuffix(" сек.")
+        self.response_timeout.setSpecialValueText(
+            {
+                "ru": "Не останавливать",
+                "uk": "Не зупиняти",
+                "en": "Do not stop",
+            }.get(language, "Не останавливать")
+        )
+        self.response_timeout.setValue(int(settings.get("response_timeout_seconds", 0)))
+
+        self.theme = QComboBox()
+        self.theme.addItems(["dark", "light"])
+        self.theme.setCurrentText(str(settings.get("theme", "dark")))
+
+        self.language = QComboBox()
+        for code, label in SUPPORTED_LANGUAGES.items():
+            self.language.addItem(label, code)
+        selected_language = str(settings.get("interface_language", "ru"))
+        language_index = self.language.findData(selected_language)
+        self.language.setCurrentIndex(language_index if language_index >= 0 else 0)
+
+        self.allow_local_tools = QCheckBox(
+            {
+                "ru": "Разрешить Codex читать и создавать файлы, а также выполнять команды",
+                "uk": "Дозволити Codex читати і створювати файли, а також виконувати команди",
+                "en": "Allow Codex to read and create files and run commands",
+            }.get(language, "Разрешить Codex читать и создавать файлы, а также выполнять команды")
+        )
+        self.allow_local_tools.setChecked(bool(settings.get("allow_local_tools", False)))
+
+        self.workspace = QLineEdit(str(settings.get("workspace_root", "")))
+        browse = QPushButton({"ru": "Выбрать", "uk": "Обрати", "en": "Browse"}.get(language, "Выбрать"))
+        browse.clicked.connect(self._browse_workspace)
+        workspace_row = QWidget()
+        workspace_layout = QHBoxLayout(workspace_row)
+        workspace_layout.setContentsMargins(0, 0, 0, 0)
+        workspace_layout.addWidget(self.workspace)
+        workspace_layout.addWidget(browse)
+
+        self.user_avatar = QLineEdit(str(settings.get("user_avatar_path", "")))
+        browse_avatar = QPushButton({"ru": "Выбрать", "uk": "Обрати", "en": "Browse"}.get(language, "Выбрать"))
+        browse_avatar.clicked.connect(self._browse_user_avatar)
+        avatar_row = QWidget()
+        avatar_layout = QHBoxLayout(avatar_row)
+        avatar_layout.setContentsMargins(0, 0, 0, 0)
+        avatar_layout.addWidget(self.user_avatar)
+        avatar_layout.addWidget(browse_avatar)
+
+        self.reduce_motion = QCheckBox(
+            {
+                "ru": "Уменьшить декоративные анимации",
+                "uk": "Зменшити декоративні анімації",
+                "en": "Reduce decorative animations",
+            }.get(language, "Уменьшить декоративные анимации")
+        )
+        self.reduce_motion.setChecked(bool(settings.get("reduce_motion", False)))
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+
+        layout = QFormLayout(self)
+        labels = {
+            "ru": {
+                "history": "Лимит краткой истории",
+                "timeout": "Тайм-аут Codex, сек.",
+                "soft_warning": "Показать предупреждение ожидания",
+                "extended_warning": "Показать расширенное предупреждение",
+                "response_timeout": "Остановить ответ автоматически",
+                "theme": "Тема",
+                "workspace": "Рабочая папка",
+                "language": "Язык интерфейса",
+            },
+            "uk": {
+                "history": "Ліміт короткої історії",
+                "timeout": "Тайм-аут Codex, сек.",
+                "soft_warning": "Показати попередження очікування",
+                "extended_warning": "Показати розширене попередження",
+                "response_timeout": "Зупинити відповідь автоматично",
+                "theme": "Тема",
+                "workspace": "Робоча папка",
+                "language": "Мова інтерфейсу",
+            },
+            "en": {
+                "history": "Short history limit",
+                "timeout": "Codex timeout, sec.",
+                "soft_warning": "Show waiting warning",
+                "extended_warning": "Show extended waiting warning",
+                "response_timeout": "Stop response automatically",
+                "theme": "Theme",
+                "workspace": "Workspace folder",
+                "language": "Interface language",
+            },
+        }.get(language)
+        if labels is None:
+            labels = {
+                "history": "Лимит краткой истории",
+                "timeout": "Тайм-аут Codex, сек.",
+                "soft_warning": "Показать предупреждение ожидания",
+                "extended_warning": "Показать расширенное предупреждение",
+                "response_timeout": "Остановить ответ автоматически",
+                "theme": "Тема",
+                "workspace": "Рабочая папка",
+                "language": "Язык интерфейса",
+            }
+        layout.addRow(labels["history"], self.history_limit)
+        layout.addRow(labels["timeout"], self.timeout)
+        layout.addRow(labels["soft_warning"], self.response_soft_warning)
+        layout.addRow(labels["extended_warning"], self.response_extended_warning)
+        layout.addRow(labels["response_timeout"], self.response_timeout)
+        layout.addRow(labels["theme"], self.theme)
+        layout.addRow(labels["workspace"], workspace_row)
+        layout.addRow({"ru": "Мой аватар", "uk": "Мій аватар", "en": "My avatar"}.get(language, "Мой аватар"), avatar_row)
+        layout.addRow(labels["language"], self.language)
+        layout.addRow(self.allow_local_tools)
+        layout.addRow(self.reduce_motion)
+        layout.addRow(buttons)
+
+    def _browse_workspace(self) -> None:
+        selected = QFileDialog.getExistingDirectory(self, tr(str(self.language.currentData()), "workspace"), self.workspace.text())
+        if selected:
+            self.workspace.setText(selected)
+
+    def _browse_user_avatar(self) -> None:
+        selected, _ = QFileDialog.getOpenFileName(
+            self,
+            {"ru": "Выбрать аватар", "uk": "Обрати аватар", "en": "Choose avatar"}.get(str(self.language.currentData()), "Выбрать аватар"),
+            self.user_avatar.text(),
+            "Images (*.png *.jpg *.jpeg *.bmp *.gif)",
+        )
+        if selected:
+            self.user_avatar.setText(selected)
+
+    def values(self) -> dict[str, object]:
+        return {
+            "history_message_limit": self.history_limit.value(),
+            "codex_timeout_seconds": self.timeout.value(),
+            "response_soft_warning_seconds": self.response_soft_warning.value(),
+            "response_extended_warning_seconds": self.response_extended_warning.value(),
+            "response_timeout_seconds": self.response_timeout.value(),
+            "theme": self.theme.currentText(),
+            "interface_language": self.language.currentData(),
+            "allow_local_tools": self.allow_local_tools.isChecked(),
+            "workspace_root": self.workspace.text().strip(),
+            "reduce_motion": self.reduce_motion.isChecked(),
+            "user_avatar_path": self.user_avatar.text().strip(),
+        }

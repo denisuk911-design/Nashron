@@ -1,0 +1,13 @@
+{
+  "history_message_limit": 20,
+  "theme": "dark",
+  "codex_timeout_seconds": 180,
+  "response_soft_warning_seconds": 20,
+  "response_extended_warning_seconds": 90,
+  "response_timeout_seconds": 0,
+  "allow_local_tools": false,
+  "workspace_root": "",
+  "reduce_motion": false,
+  "interface_language": "ru",
+  "user_avatar_path": ""
+}

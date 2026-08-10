@@ -1,0 +1,2742 @@
+from __future__ import annotations
+
+import shutil
+import sqlite3
+import json
+import uuid
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+from .management_models import AgentProfile, RoleProfile
+from .models import Conversation, Message, UserMemory
+from .provider_models import ProviderHealth, ProviderProfile
+
+
+class Database:
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+
+    def connect(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(self.path)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
+        return conn
+
+    def initialize(self) -> None:
+        with self.connect() as conn:
+            self._repair_renamed_message_foreign_keys(conn)
+            conn.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS conversations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT NOT NULL,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
+
+                CREATE TABLE IF NOT EXISTS messages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    conversation_id INTEGER NOT NULL,
+                    role TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    status TEXT NOT NULL DEFAULT 'ok',
+                    FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+                );
+
+                CREATE TABLE IF NOT EXISTS user_memories (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    content TEXT NOT NULL,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
+
+                CREATE TABLE IF NOT EXISTS app_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    event_type TEXT NOT NULL,
+                    detail TEXT,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
+                """
+            )
+            self._ensure_dynamic_message_roles(conn)
+            self._ensure_phase1_schema(conn)
+            self._ensure_usage_schema_extensions(conn)
+            self._ensure_thread_question_schema(conn)
+            self._ensure_finding_schema_extensions(conn)
+            self._ensure_artifact_finding_link_schema(conn)
+            self._ensure_skill_package_schema(conn)
+            self._ensure_knowledge_schema(conn)
+            self._ensure_standards_schema(conn)
+            self._ensure_management_schema(conn)
+            self._ensure_provider_schema(conn)
+            self._repair_renamed_message_foreign_keys(conn)
+
+    def _ensure_usage_schema_extensions(self, conn: sqlite3.Connection) -> None:
+        for table in ("knowledge_usage", "standard_usage"):
+            columns = {str(row["name"]) for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+            if "evidence" not in columns:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN evidence TEXT NOT NULL DEFAULT '{{}}'")
+
+    def _ensure_dynamic_message_roles(self, conn: sqlite3.Connection) -> None:
+        row = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'messages'"
+        ).fetchone()
+        table_sql = str(row["sql"] if row else "")
+        if "CHECK" not in table_sql.upper():
+            return
+        conn.executescript(
+            """
+            ALTER TABLE messages RENAME TO messages_old;
+            CREATE TABLE messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                conversation_id INTEGER NOT NULL,
+                role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                status TEXT NOT NULL DEFAULT 'ok',
+                FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+            );
+            INSERT INTO messages (id, conversation_id, role, content, created_at, status)
+                SELECT id, conversation_id, role, content, created_at, status FROM messages_old;
+            DROP TABLE messages_old;
+            """
+        )
+
+    def _ensure_skill_package_schema(self, conn: sqlite3.Connection) -> None:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS skill_packages (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                purpose TEXT NOT NULL DEFAULT '',
+                supported_roles TEXT NOT NULL DEFAULT '[]',
+                prerequisites TEXT NOT NULL DEFAULT '',
+                source_material TEXT NOT NULL DEFAULT '[]',
+                instructions TEXT NOT NULL DEFAULT '',
+                tools TEXT NOT NULL DEFAULT '[]',
+                expected_inputs TEXT NOT NULL DEFAULT '',
+                expected_outputs TEXT NOT NULL DEFAULT '',
+                prohibited_actions TEXT NOT NULL DEFAULT '',
+                validation_checklist TEXT NOT NULL DEFAULT '[]',
+                examples TEXT NOT NULL DEFAULT '[]',
+                negative_examples TEXT NOT NULL DEFAULT '[]',
+                qualification_tasks TEXT NOT NULL DEFAULT '[]',
+                version TEXT NOT NULL DEFAULT '0.1.0',
+                status TEXT NOT NULL DEFAULT 'DRAFT',
+                created_by TEXT NOT NULL DEFAULT 'owner',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS skill_package_events (
+                id TEXT PRIMARY KEY,
+                skill_id TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                actor TEXT NOT NULL,
+                detail TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (skill_id) REFERENCES skill_packages(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS employee_skill_assignments (
+                id TEXT PRIMARY KEY,
+                agent_id TEXT NOT NULL,
+                skill_id TEXT NOT NULL,
+                state TEXT NOT NULL DEFAULT 'ASSIGNED',
+                assigned_by TEXT NOT NULL DEFAULT 'owner',
+                evidence TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(agent_id, skill_id),
+                FOREIGN KEY (skill_id) REFERENCES skill_packages(id) ON DELETE CASCADE
+            );
+            """
+        )
+
+    def _ensure_knowledge_schema(self, conn: sqlite3.Connection) -> None:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS knowledge_cards (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                summary TEXT NOT NULL DEFAULT '',
+                content TEXT NOT NULL DEFAULT '',
+                source_type TEXT NOT NULL DEFAULT 'internal_note',
+                source_title TEXT NOT NULL DEFAULT '',
+                source_uri TEXT NOT NULL DEFAULT '',
+                source_authority TEXT NOT NULL DEFAULT 'UNVERIFIED',
+                source_hash TEXT NOT NULL DEFAULT '',
+                role_ids TEXT NOT NULL DEFAULT '[]',
+                tags TEXT NOT NULL DEFAULT '[]',
+                status TEXT NOT NULL DEFAULT 'DRAFT',
+                version TEXT NOT NULL DEFAULT '0.1.0',
+                review_notes TEXT NOT NULL DEFAULT '',
+                created_by TEXT NOT NULL DEFAULT 'owner',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS knowledge_card_events (
+                id TEXT PRIMARY KEY,
+                knowledge_id TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                actor TEXT NOT NULL,
+                detail TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (knowledge_id) REFERENCES knowledge_cards(id) ON DELETE CASCADE
+            );
+            """
+        )
+
+    def _ensure_standards_schema(self, conn: sqlite3.Connection) -> None:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS standard_cards (
+                id TEXT PRIMARY KEY,
+                code TEXT NOT NULL,
+                title TEXT NOT NULL,
+                requirement TEXT NOT NULL DEFAULT '',
+                scope TEXT NOT NULL DEFAULT '',
+                source_title TEXT NOT NULL DEFAULT '',
+                source_uri TEXT NOT NULL DEFAULT '',
+                source_hash TEXT NOT NULL DEFAULT '',
+                authority TEXT NOT NULL DEFAULT 'INTERNAL',
+                mandatory_level TEXT NOT NULL DEFAULT 'GUIDANCE',
+                role_ids TEXT NOT NULL DEFAULT '[]',
+                tags TEXT NOT NULL DEFAULT '[]',
+                status TEXT NOT NULL DEFAULT 'DRAFT',
+                version TEXT NOT NULL DEFAULT '0.1.0',
+                review_notes TEXT NOT NULL DEFAULT '',
+                created_by TEXT NOT NULL DEFAULT 'owner',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS standard_card_events (
+                id TEXT PRIMARY KEY,
+                standard_id TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                actor TEXT NOT NULL,
+                detail TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (standard_id) REFERENCES standard_cards(id) ON DELETE CASCADE
+            );
+            """
+        )
+
+    def _ensure_finding_schema_extensions(self, conn: sqlite3.Connection) -> None:
+        columns = {str(row["name"]) for row in conn.execute("PRAGMA table_info(findings)").fetchall()}
+        additions = {
+            "standard_id": "TEXT",
+            "finding_type": "TEXT NOT NULL DEFAULT 'QA_FINDING'",
+            "repeat_key": "TEXT",
+        }
+        for name, definition in additions.items():
+            if name not in columns:
+                conn.execute(f"ALTER TABLE findings ADD COLUMN {name} {definition}")
+
+    def _ensure_artifact_finding_link_schema(self, conn: sqlite3.Connection) -> None:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS artifact_finding_links (
+                id TEXT PRIMARY KEY,
+                artifact_id TEXT NOT NULL,
+                finding_id TEXT NOT NULL,
+                match_type TEXT NOT NULL,
+                confidence TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'ACTIVE',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (artifact_id, finding_id),
+                FOREIGN KEY (artifact_id) REFERENCES artifacts(id),
+                FOREIGN KEY (finding_id) REFERENCES findings(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS artifact_finding_link_events (
+                id TEXT PRIMARY KEY,
+                link_id TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                actor TEXT NOT NULL,
+                detail TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (link_id) REFERENCES artifact_finding_links(id)
+            );
+            """
+        )
+
+    def _repair_renamed_message_foreign_keys(self, conn: sqlite3.Connection) -> None:
+        conn.execute("PRAGMA writable_schema = ON")
+        messages_exists = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'messages'"
+        ).fetchone()
+        deleted_count = 0
+        if messages_exists:
+            deleted = conn.execute(
+                """
+                DELETE FROM sqlite_master
+                WHERE type = 'table'
+                  AND name = 'messages_old'
+                  AND sql LIKE 'CREATE TABLE%messages%'
+                """
+            )
+            deleted_count = max(0, deleted.rowcount)
+        rows = conn.execute(
+            """
+            SELECT name, sql
+            FROM sqlite_master
+            WHERE type = 'table'
+              AND sql LIKE '%messages_old%'
+            """
+        ).fetchall()
+        if not rows:
+            if deleted_count:
+                schema_version = int(conn.execute("PRAGMA schema_version").fetchone()[0])
+                conn.execute(f"PRAGMA schema_version = {schema_version + 1}")
+            conn.execute("PRAGMA writable_schema = OFF")
+            return
+        conn.execute(
+            """
+            UPDATE sqlite_master
+            SET sql = REPLACE(sql, 'messages_old', 'messages')
+            WHERE type = 'table'
+              AND sql LIKE '%messages_old%'
+            """
+        )
+        conn.execute("PRAGMA writable_schema = OFF")
+        schema_version = int(conn.execute("PRAGMA schema_version").fetchone()[0])
+        conn.execute(f"PRAGMA schema_version = {schema_version + 1}")
+
+    def _ensure_phase1_schema(self, conn: sqlite3.Connection) -> None:
+        self._backup_before_phase1_migration(conn)
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS schema_meta (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS projects (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                status TEXT NOT NULL DEFAULT 'ACTIVE'
+            );
+
+            CREATE TABLE IF NOT EXISTS tasks (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                state TEXT NOT NULL,
+                state_machine_version TEXT NOT NULL,
+                owner_message_id INTEGER,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (project_id) REFERENCES projects(id),
+                FOREIGN KEY (owner_message_id) REFERENCES messages(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS task_transitions (
+                id TEXT PRIMARY KEY,
+                task_id TEXT NOT NULL,
+                previous_state TEXT NOT NULL,
+                next_state TEXT NOT NULL,
+                actor TEXT NOT NULL,
+                logical_role TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                reason TEXT NOT NULL,
+                supporting_message_id INTEGER,
+                run_id TEXT,
+                artifacts_affected TEXT NOT NULL DEFAULT '[]',
+                checks_performed TEXT NOT NULL DEFAULT '[]',
+                unresolved_risks TEXT NOT NULL DEFAULT '[]',
+                owner_approval_required INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY (task_id) REFERENCES tasks(id),
+                FOREIGN KEY (supporting_message_id) REFERENCES messages(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS agent_runs (
+                id TEXT PRIMARY KEY,
+                task_id TEXT NOT NULL,
+                agent_id TEXT NOT NULL,
+                agent_key TEXT NOT NULL,
+                logical_role TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                prompt_hash TEXT,
+                context_manifest TEXT,
+                started_at TEXT NOT NULL,
+                finished_at TEXT,
+                ok INTEGER NOT NULL DEFAULT 0,
+                cancelled INTEGER NOT NULL DEFAULT 0,
+                returncode INTEGER,
+                duration_seconds REAL,
+                error TEXT,
+                raw_response TEXT,
+                parsed_response TEXT,
+                parse_errors TEXT NOT NULL DEFAULT '[]',
+                recovery_state TEXT NOT NULL DEFAULT 'IN_PROGRESS',
+                FOREIGN KEY (task_id) REFERENCES tasks(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS handoffs (
+                id TEXT PRIMARY KEY,
+                task_id TEXT NOT NULL,
+                from_run_id TEXT,
+                from_role TEXT NOT NULL,
+                to_role TEXT NOT NULL,
+                reason TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'OPEN',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (task_id) REFERENCES tasks(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS artifacts (
+                id TEXT PRIMARY KEY,
+                task_id TEXT,
+                project_id TEXT,
+                relative_path TEXT NOT NULL,
+                artifact_type TEXT,
+                media_type TEXT,
+                authoring_role TEXT,
+                created_by_run_id TEXT,
+                current_revision TEXT,
+                sha256 TEXT,
+                size INTEGER,
+                status TEXT NOT NULL DEFAULT 'DRAFT',
+                validation_status TEXT NOT NULL DEFAULT 'UNKNOWN',
+                last_modified_time TEXT,
+                supersedes_artifact_id TEXT,
+                deleted INTEGER NOT NULL DEFAULT 0
+            );
+
+            CREATE TABLE IF NOT EXISTS artifact_revisions (
+                id TEXT PRIMARY KEY,
+                artifact_id TEXT NOT NULL,
+                run_id TEXT,
+                sha256 TEXT,
+                size INTEGER,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                metadata TEXT NOT NULL DEFAULT '{}',
+                FOREIGN KEY (artifact_id) REFERENCES artifacts(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS findings (
+                id TEXT PRIMARY KEY,
+                task_id TEXT NOT NULL,
+                reviewer_run_id TEXT,
+                severity TEXT NOT NULL,
+                confidence TEXT NOT NULL,
+                affected_artifact TEXT,
+                location TEXT,
+                evidence TEXT,
+                description TEXT NOT NULL,
+                impact TEXT,
+                required_action TEXT,
+                status TEXT NOT NULL,
+                resolution TEXT,
+                resolved_by_run_id TEXT,
+                independent_recheck_status TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (task_id) REFERENCES tasks(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS finding_events (
+                id TEXT PRIMARY KEY,
+                finding_id TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                actor TEXT NOT NULL,
+                detail TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (finding_id) REFERENCES findings(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS decisions (
+                id TEXT PRIMARY KEY,
+                task_id TEXT,
+                actor TEXT NOT NULL,
+                decision_type TEXT NOT NULL,
+                detail TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS approvals (
+                id TEXT PRIMARY KEY,
+                task_id TEXT,
+                requested_by_run_id TEXT,
+                requested_action TEXT NOT NULL,
+                evidence TEXT,
+                risks TEXT,
+                owner_decision TEXT,
+                decided_at TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS skill_usage (
+                id TEXT PRIMARY KEY,
+                task_id TEXT,
+                run_id TEXT,
+                skill_id TEXT NOT NULL,
+                role TEXT NOT NULL,
+                usage_type TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS knowledge_usage (
+                id TEXT PRIMARY KEY,
+                task_id TEXT,
+                run_id TEXT,
+                knowledge_id TEXT NOT NULL,
+                role TEXT NOT NULL,
+                usage_type TEXT NOT NULL,
+                evidence TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS standard_usage (
+                id TEXT PRIMARY KEY,
+                task_id TEXT,
+                run_id TEXT,
+                standard_id TEXT NOT NULL,
+                role TEXT NOT NULL,
+                usage_type TEXT NOT NULL,
+                evidence TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS reference_design_usage (
+                id TEXT PRIMARY KEY,
+                task_id TEXT,
+                run_id TEXT,
+                reference_design_id TEXT NOT NULL,
+                role TEXT NOT NULL,
+                usage_type TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS tool_evidence (
+                id TEXT PRIMARY KEY,
+                task_id TEXT,
+                run_id TEXT,
+                tool_name TEXT NOT NULL,
+                command TEXT,
+                evidence_path TEXT,
+                result TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS audit_events (
+                id TEXT PRIMARY KEY,
+                task_id TEXT,
+                event_type TEXT NOT NULL,
+                detail TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS routing_decisions (
+                id TEXT PRIMARY KEY,
+                message_id INTEGER,
+                thread_id TEXT,
+                participation_mode TEXT NOT NULL,
+                explicit_recipients TEXT NOT NULL DEFAULT '[]',
+                inferred_recipients TEXT NOT NULL DEFAULT '[]',
+                selected_responders TEXT NOT NULL DEFAULT '[]',
+                excluded_responders TEXT NOT NULL DEFAULT '{}',
+                interruption_policy TEXT,
+                reason TEXT NOT NULL,
+                router_version TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS conversation_threads (
+                id TEXT PRIMARY KEY,
+                conversation_id INTEGER NOT NULL,
+                active_addressee_agent_id TEXT,
+                active_task_id TEXT,
+                active_topic TEXT,
+                last_user_message_id INTEGER,
+                expected_next_actor TEXT,
+                thread_status TEXT NOT NULL DEFAULT 'OPEN',
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+                FOREIGN KEY (last_user_message_id) REFERENCES messages(id) ON DELETE SET NULL
+            );
+            """
+        )
+        conn.execute(
+            "INSERT OR REPLACE INTO schema_meta (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
+            ("phase1_schema_version", "1"),
+        )
+
+    def _ensure_thread_question_schema(self, conn: sqlite3.Connection) -> None:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS thread_questions (
+                id TEXT PRIMARY KEY,
+                conversation_id INTEGER NOT NULL,
+                thread_id TEXT NOT NULL,
+                question_message_id INTEGER NOT NULL,
+                question_text TEXT NOT NULL,
+                assigned_agent_keys TEXT NOT NULL DEFAULT '[]',
+                status TEXT NOT NULL DEFAULT 'OPEN',
+                answer_message_id INTEGER,
+                answered_by_agent_key TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(question_message_id),
+                FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+                FOREIGN KEY (question_message_id) REFERENCES messages(id) ON DELETE CASCADE,
+                FOREIGN KEY (answer_message_id) REFERENCES messages(id) ON DELETE SET NULL
+            );
+            """
+        )
+        conn.execute(
+            "INSERT OR REPLACE INTO schema_meta (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
+            ("thread_question_schema_version", "1"),
+        )
+
+    def _ensure_management_schema(self, conn: sqlite3.Connection) -> None:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS role_profiles (
+                role_id TEXT PRIMARY KEY,
+                display_name TEXT NOT NULL,
+                description TEXT NOT NULL,
+                responsibilities TEXT NOT NULL DEFAULT '[]',
+                restrictions TEXT NOT NULL DEFAULT '[]',
+                schema_version TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS agent_profiles (
+                agent_id TEXT PRIMARY KEY,
+                display_name TEXT NOT NULL,
+                description TEXT NOT NULL,
+                lifecycle_state TEXT NOT NULL,
+                provider_id TEXT NOT NULL,
+                persona_id TEXT,
+                avatar_path TEXT,
+                schema_version TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS agent_role_assignments (
+                id TEXT PRIMARY KEY,
+                agent_id TEXT NOT NULL,
+                role_id TEXT NOT NULL,
+                assigned_by TEXT NOT NULL,
+                reason TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(agent_id, role_id),
+                FOREIGN KEY (agent_id) REFERENCES agent_profiles(agent_id),
+                FOREIGN KEY (role_id) REFERENCES role_profiles(role_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS agent_permissions (
+                id TEXT PRIMARY KEY,
+                agent_id TEXT NOT NULL,
+                permission_id TEXT NOT NULL,
+                granted_by TEXT NOT NULL,
+                reason TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(agent_id, permission_id),
+                FOREIGN KEY (agent_id) REFERENCES agent_profiles(agent_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS agent_permission_denies (
+                id TEXT PRIMARY KEY,
+                agent_id TEXT NOT NULL,
+                permission_id TEXT NOT NULL,
+                denied_by TEXT NOT NULL,
+                reason TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(agent_id, permission_id),
+                FOREIGN KEY (agent_id) REFERENCES agent_profiles(agent_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS management_audit_events (
+                id TEXT PRIMARY KEY,
+                actor TEXT NOT NULL,
+                object_type TEXT NOT NULL,
+                object_id TEXT NOT NULL,
+                action TEXT NOT NULL,
+                previous_value TEXT,
+                new_value TEXT,
+                files_changed TEXT NOT NULL DEFAULT '[]',
+                database_changes TEXT NOT NULL DEFAULT '[]',
+                affected_employees TEXT NOT NULL DEFAULT '[]',
+                reason TEXT,
+                approval TEXT,
+                rollback_status TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+        conn.execute(
+            "INSERT OR REPLACE INTO schema_meta (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
+            ("management_schema_version", "1.0"),
+        )
+
+    def _ensure_provider_schema(self, conn: sqlite3.Connection) -> None:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS provider_definitions (
+                provider_id TEXT PRIMARY KEY,
+                display_name TEXT NOT NULL,
+                provider_family TEXT NOT NULL,
+                adapter_id TEXT NOT NULL,
+                supported_os TEXT NOT NULL DEFAULT '[]',
+                installation_strategy TEXT NOT NULL,
+                authentication_strategy TEXT NOT NULL,
+                executable_names TEXT NOT NULL DEFAULT '[]',
+                minimum_supported_version TEXT,
+                recommended_version TEXT,
+                setup_instructions TEXT,
+                known_limitations TEXT NOT NULL DEFAULT '[]',
+                required_capabilities TEXT NOT NULL DEFAULT '[]',
+                provider_schema_version TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS provider_installations (
+                installation_id TEXT PRIMARY KEY,
+                provider_id TEXT NOT NULL,
+                executable_path TEXT,
+                detected_version TEXT,
+                installation_status TEXT NOT NULL,
+                operating_system TEXT,
+                evidence TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (provider_id) REFERENCES provider_definitions(provider_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS provider_accounts (
+                account_id TEXT PRIMARY KEY,
+                provider_id TEXT NOT NULL,
+                account_label TEXT,
+                credential_reference_id TEXT,
+                authentication_status TEXT NOT NULL,
+                last_verified_at TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (provider_id) REFERENCES provider_definitions(provider_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS provider_capabilities (
+                capability_profile_id TEXT PRIMARY KEY,
+                provider_id TEXT NOT NULL,
+                capabilities TEXT NOT NULL DEFAULT '[]',
+                capability_status TEXT NOT NULL,
+                evidence TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (provider_id) REFERENCES provider_definitions(provider_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS provider_health_checks (
+                id TEXT PRIMARY KEY,
+                provider_id TEXT NOT NULL,
+                detected_version TEXT,
+                installation_status TEXT NOT NULL,
+                authentication_status TEXT NOT NULL,
+                access_status TEXT NOT NULL,
+                health_status TEXT NOT NULL,
+                capability_status TEXT NOT NULL,
+                account_label TEXT,
+                diagnostic TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (provider_id) REFERENCES provider_definitions(provider_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS provider_install_events (
+                id TEXT PRIMARY KEY,
+                provider_id TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                detail TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS provider_auth_events (
+                id TEXT PRIMARY KEY,
+                provider_id TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                detail TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS agent_provider_assignments (
+                assignment_id TEXT PRIMARY KEY,
+                agent_id TEXT NOT NULL,
+                provider_id TEXT NOT NULL,
+                installation_id TEXT,
+                account_id TEXT,
+                capability_profile_id TEXT,
+                execution_mode TEXT NOT NULL DEFAULT 'default',
+                priority INTEGER NOT NULL DEFAULT 0,
+                fallback_provider_id TEXT,
+                status TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(agent_id, provider_id),
+                FOREIGN KEY (agent_id) REFERENCES agent_profiles(agent_id),
+                FOREIGN KEY (provider_id) REFERENCES provider_definitions(provider_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS provisioning_sessions (
+                provisioning_session_id TEXT PRIMARY KEY,
+                target_employee_draft TEXT NOT NULL DEFAULT '{}',
+                selected_provider TEXT NOT NULL,
+                current_step TEXT NOT NULL,
+                completed_steps TEXT NOT NULL DEFAULT '[]',
+                pending_user_action TEXT,
+                failure_details TEXT,
+                install_plan_hash TEXT,
+                started_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                recoverable INTEGER NOT NULL DEFAULT 1,
+                cancellation_status TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS provisioning_steps (
+                id TEXT PRIMARY KEY,
+                provisioning_session_id TEXT NOT NULL,
+                step_name TEXT NOT NULL,
+                status TEXT NOT NULL,
+                detail TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (provisioning_session_id) REFERENCES provisioning_sessions(provisioning_session_id)
+            );
+            """
+        )
+        conn.execute(
+            "INSERT OR REPLACE INTO schema_meta (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
+            ("provider_schema_version", "1.0"),
+        )
+
+    def _backup_before_phase1_migration(self, conn: sqlite3.Connection) -> None:
+        row = conn.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'tasks'").fetchone()
+        if row is not None:
+            return
+        backup_path = self.path.with_name(f"{self.path.stem}.before_phase1.sqlite3")
+        if self.path.exists() and not backup_path.exists():
+            shutil.copyfile(self.path, backup_path)
+
+    def create_conversation(self, title: str = "Новый диалог") -> int:
+        with self.connect() as conn:
+            cur = conn.execute("INSERT INTO conversations (title) VALUES (?)", (title,))
+            return int(cur.lastrowid)
+
+    def ensure_single_conversation(self, title: str = "Роман Неслышев") -> int:
+        self.initialize()
+        with self.connect() as conn:
+            rows = conn.execute("SELECT id FROM conversations ORDER BY id ASC").fetchall()
+            if not rows:
+                cur = conn.execute("INSERT INTO conversations (title) VALUES (?)", (title,))
+                return int(cur.lastrowid)
+
+            primary_id = int(rows[0]["id"])
+            if len(rows) > 1:
+                self._backup_before_single_dialog_migration()
+                extra_ids = [int(row["id"]) for row in rows[1:]]
+                placeholders = ",".join("?" for _ in extra_ids)
+                conn.execute(
+                    f"UPDATE messages SET conversation_id = ? WHERE conversation_id IN ({placeholders})",
+                    (primary_id, *extra_ids),
+                )
+                conn.execute(
+                    f"DELETE FROM conversations WHERE id IN ({placeholders})",
+                    tuple(extra_ids),
+                )
+                conn.execute(
+                    "INSERT INTO app_events (event_type, detail) VALUES (?, ?)",
+                    ("single_conversation_migration", f"merged={extra_ids}; primary={primary_id}"),
+                )
+            conn.execute(
+                "UPDATE conversations SET title = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (title, primary_id),
+            )
+            return primary_id
+
+    def _backup_before_single_dialog_migration(self) -> None:
+        backup_path = self.path.with_name(f"{self.path.stem}.before_single_dialog.sqlite3")
+        if self.path.exists() and not backup_path.exists():
+            shutil.copyfile(self.path, backup_path)
+
+    def list_conversations(self) -> list[Conversation]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT id, title, created_at, updated_at FROM conversations ORDER BY updated_at DESC, id DESC"
+            ).fetchall()
+        return [Conversation(**dict(row)) for row in rows]
+
+    def delete_conversation(self, conversation_id: int) -> None:
+        with self.connect() as conn:
+            conn.execute("DELETE FROM conversations WHERE id = ?", (conversation_id,))
+
+    def add_message(self, conversation_id: int, role: str, content: str, status: str = "ok") -> int:
+        with self.connect() as conn:
+            cur = conn.execute(
+                "INSERT INTO messages (conversation_id, role, content, created_at, status) VALUES (?, ?, ?, ?, ?)",
+                (conversation_id, role, content, datetime.now().isoformat(timespec="seconds"), status),
+            )
+            conn.execute(
+                "UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (conversation_id,),
+            )
+            return int(cur.lastrowid)
+
+    def list_messages(self, conversation_id: int, limit: int | None = None) -> list[Message]:
+        sql = (
+            "SELECT id, conversation_id, role, content, created_at, status "
+            "FROM messages WHERE conversation_id = ? ORDER BY id ASC"
+        )
+        params: tuple[object, ...] = (conversation_id,)
+        if limit is not None:
+            sql = (
+                "SELECT * FROM ("
+                "SELECT id, conversation_id, role, content, created_at, status "
+                "FROM messages WHERE conversation_id = ? ORDER BY id DESC LIMIT ?"
+                ") ORDER BY id ASC"
+            )
+            params = (conversation_id, limit)
+        with self.connect() as conn:
+            rows = conn.execute(sql, params).fetchall()
+        return [Message(**dict(row)) for row in rows]
+
+    def list_all_messages(self, limit: int | None = None) -> list[Message]:
+        sql = (
+            "SELECT id, conversation_id, role, content, created_at, status "
+            "FROM messages ORDER BY id ASC"
+        )
+        params: tuple[object, ...] = ()
+        if limit is not None:
+            sql = (
+                "SELECT * FROM ("
+                "SELECT id, conversation_id, role, content, created_at, status "
+                "FROM messages ORDER BY id DESC LIMIT ?"
+                ") ORDER BY id ASC"
+            )
+            params = (limit,)
+        with self.connect() as conn:
+            rows = conn.execute(sql, params).fetchall()
+        return [Message(**dict(row)) for row in rows]
+
+    def add_memory(self, content: str) -> int:
+        with self.connect() as conn:
+            cur = conn.execute("INSERT INTO user_memories (content) VALUES (?)", (content,))
+            return int(cur.lastrowid)
+
+    def list_memories(self) -> list[UserMemory]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT id, content, created_at FROM user_memories ORDER BY created_at DESC, id DESC"
+            ).fetchall()
+        return [UserMemory(**dict(row)) for row in rows]
+
+    def delete_memory(self, memory_id: int) -> None:
+        with self.connect() as conn:
+            conn.execute("DELETE FROM user_memories WHERE id = ?", (memory_id,))
+
+    def log_event(self, event_type: str, detail: str | None = None) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO app_events (event_type, detail) VALUES (?, ?)",
+                (event_type, detail),
+            )
+
+    def upsert_artifact(
+        self,
+        *,
+        task_id: str | None,
+        project_id: str | None,
+        relative_path: str,
+        artifact_type: str = "",
+        media_type: str = "",
+        authoring_role: str = "",
+        created_by_run_id: str | None = None,
+        sha256: str | None = None,
+        size: int | None = None,
+        status: str = "DRAFT",
+        validation_status: str = "UNKNOWN",
+        last_modified_time: str | None = None,
+        deleted: bool = False,
+        metadata: dict[str, Any] | None = None,
+    ) -> str:
+        with self.connect() as conn:
+            existing = conn.execute(
+                """
+                SELECT * FROM artifacts
+                WHERE relative_path = ?
+                  AND COALESCE(task_id, '') = COALESCE(?, '')
+                ORDER BY rowid DESC
+                LIMIT 1
+                """,
+                (relative_path, task_id),
+            ).fetchone()
+            artifact_id = str(existing["id"]) if existing is not None else f"ART-{uuid.uuid4().hex[:12].upper()}"
+            revision_id = None
+            if existing is None:
+                conn.execute(
+                    """
+                    INSERT INTO artifacts (
+                        id, task_id, project_id, relative_path, artifact_type, media_type,
+                        authoring_role, created_by_run_id, current_revision, sha256, size,
+                        status, validation_status, last_modified_time, deleted
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        artifact_id,
+                        task_id,
+                        project_id,
+                        relative_path,
+                        artifact_type,
+                        media_type,
+                        authoring_role,
+                        created_by_run_id,
+                        None,
+                        sha256,
+                        size,
+                        status,
+                        validation_status,
+                        last_modified_time,
+                        1 if deleted else 0,
+                    ),
+                )
+            else:
+                conn.execute(
+                    """
+                    UPDATE artifacts
+                    SET project_id = COALESCE(?, project_id),
+                        artifact_type = COALESCE(NULLIF(?, ''), artifact_type),
+                        media_type = COALESCE(NULLIF(?, ''), media_type),
+                        authoring_role = COALESCE(NULLIF(?, ''), authoring_role),
+                        created_by_run_id = COALESCE(?, created_by_run_id),
+                        sha256 = COALESCE(?, sha256),
+                        size = COALESCE(?, size),
+                        status = ?,
+                        validation_status = ?,
+                        last_modified_time = COALESCE(?, last_modified_time),
+                        deleted = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        project_id,
+                        artifact_type,
+                        media_type,
+                        authoring_role,
+                        created_by_run_id,
+                        sha256,
+                        size,
+                        status,
+                        validation_status,
+                        last_modified_time,
+                        1 if deleted else 0,
+                        artifact_id,
+                    ),
+                )
+            if sha256:
+                revision_id = f"AREV-{uuid.uuid4().hex[:12].upper()}"
+                conn.execute(
+                    """
+                    INSERT INTO artifact_revisions (id, artifact_id, run_id, sha256, size, metadata)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (revision_id, artifact_id, created_by_run_id, sha256, size, self._json(metadata or {})),
+                )
+                conn.execute(
+                    "UPDATE artifacts SET current_revision = ? WHERE id = ?",
+                    (revision_id, artifact_id),
+                )
+        return artifact_id
+
+    def list_artifacts(self, task_id: str | None = None, status: str | None = None, limit: int = 200) -> list[sqlite3.Row]:
+        clauses: list[str] = []
+        params: list[object] = []
+        if task_id:
+            clauses.append("task_id = ?")
+            params.append(task_id)
+        if status:
+            clauses.append("status = ?")
+            params.append(status)
+        sql = "SELECT * FROM artifacts"
+        if clauses:
+            sql += " WHERE " + " AND ".join(clauses)
+        sql += " ORDER BY relative_path ASC, id ASC LIMIT ?"
+        params.append(limit)
+        with self.connect() as conn:
+            return conn.execute(sql, tuple(params)).fetchall()
+
+    def upsert_artifact_finding_link(
+        self,
+        *,
+        artifact_id: str,
+        finding_id: str,
+        match_type: str,
+        confidence: str,
+        actor: str = "system",
+    ) -> str:
+        with self.connect() as conn:
+            existing = conn.execute(
+                """
+                SELECT id, status, match_type, confidence
+                FROM artifact_finding_links
+                WHERE artifact_id = ? AND finding_id = ?
+                """,
+                (artifact_id, finding_id),
+            ).fetchone()
+            if existing is None:
+                link_id = f"AFL-{uuid.uuid4().hex[:12].upper()}"
+                conn.execute(
+                    """
+                    INSERT INTO artifact_finding_links (
+                        id, artifact_id, finding_id, match_type, confidence, status
+                    )
+                    VALUES (?, ?, ?, ?, ?, 'ACTIVE')
+                    """,
+                    (link_id, artifact_id, finding_id, match_type, confidence),
+                )
+                self._insert_artifact_finding_link_event(conn, link_id, "CREATED", actor, f"{match_type}; {confidence}")
+                return link_id
+
+            link_id = str(existing["id"])
+            changed = (
+                str(existing["status"]) != "ACTIVE"
+                or str(existing["match_type"]) != match_type
+                or str(existing["confidence"]) != confidence
+            )
+            conn.execute(
+                """
+                UPDATE artifact_finding_links
+                SET match_type = ?, confidence = ?, status = 'ACTIVE', updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (match_type, confidence, link_id),
+            )
+            if changed:
+                self._insert_artifact_finding_link_event(conn, link_id, "UPDATED", actor, f"{match_type}; {confidence}")
+            return link_id
+
+    def list_artifact_finding_links(
+        self,
+        *,
+        artifact_id: str | None = None,
+        finding_id: str | None = None,
+        status: str | None = "ACTIVE",
+        limit: int = 500,
+    ) -> list[sqlite3.Row]:
+        clauses: list[str] = []
+        params: list[object] = []
+        if artifact_id:
+            clauses.append("artifact_id = ?")
+            params.append(artifact_id)
+        if finding_id:
+            clauses.append("finding_id = ?")
+            params.append(finding_id)
+        if status:
+            clauses.append("status = ?")
+            params.append(status)
+        sql = "SELECT * FROM artifact_finding_links"
+        if clauses:
+            sql += " WHERE " + " AND ".join(clauses)
+        sql += " ORDER BY created_at ASC, id ASC LIMIT ?"
+        params.append(limit)
+        with self.connect() as conn:
+            return conn.execute(sql, tuple(params)).fetchall()
+
+    def list_artifact_finding_link_events(self, link_id: str | None = None, limit: int = 200) -> list[sqlite3.Row]:
+        clauses: list[str] = []
+        params: list[object] = []
+        if link_id:
+            clauses.append("link_id = ?")
+            params.append(link_id)
+        sql = "SELECT * FROM artifact_finding_link_events"
+        if clauses:
+            sql += " WHERE " + " AND ".join(clauses)
+        sql += " ORDER BY created_at DESC, rowid DESC LIMIT ?"
+        params.append(limit)
+        with self.connect() as conn:
+            return conn.execute(sql, tuple(params)).fetchall()
+
+    def _insert_artifact_finding_link_event(
+        self,
+        conn: sqlite3.Connection,
+        link_id: str,
+        event_type: str,
+        actor: str,
+        detail: str | None,
+    ) -> str:
+        event_id = f"AFLE-{uuid.uuid4().hex[:12].upper()}"
+        conn.execute(
+            """
+            INSERT INTO artifact_finding_link_events (id, link_id, event_type, actor, detail)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (event_id, link_id, event_type, actor, detail),
+        )
+        return event_id
+
+    def create_finding(
+        self,
+        *,
+        task_id: str,
+        description: str,
+        severity: str,
+        confidence: str,
+        reviewer_run_id: str | None = None,
+        affected_artifact: str = "",
+        location: str = "",
+        evidence: dict[str, Any] | list[Any] | str | None = None,
+        impact: str = "",
+        required_action: str = "",
+        status: str = "OPEN",
+        standard_id: str | None = None,
+        finding_type: str = "QA_FINDING",
+        repeat_key: str = "",
+        actor: str = "owner",
+    ) -> str:
+        finding_id = f"FIND-{uuid.uuid4().hex[:12].upper()}"
+        evidence_text = evidence if isinstance(evidence, str) else self._json(evidence or {})
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO findings (
+                    id, task_id, reviewer_run_id, severity, confidence, affected_artifact,
+                    location, evidence, description, impact, required_action, status,
+                    standard_id, finding_type, repeat_key
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    finding_id,
+                    task_id,
+                    reviewer_run_id,
+                    severity,
+                    confidence,
+                    affected_artifact,
+                    location,
+                    evidence_text,
+                    description,
+                    impact,
+                    required_action,
+                    status,
+                    standard_id,
+                    finding_type,
+                    repeat_key,
+                ),
+            )
+            self._insert_finding_event(conn, finding_id, "CREATED", actor, f"{severity}; {status}")
+        return finding_id
+
+    def list_findings(self, status: str | None = None, task_id: str | None = None, limit: int = 200) -> list[sqlite3.Row]:
+        clauses: list[str] = []
+        params: list[object] = []
+        if status:
+            clauses.append("status = ?")
+            params.append(status)
+        if task_id:
+            clauses.append("task_id = ?")
+            params.append(task_id)
+        sql = "SELECT * FROM findings"
+        if clauses:
+            sql += " WHERE " + " AND ".join(clauses)
+        sql += " ORDER BY updated_at DESC, created_at DESC, id DESC LIMIT ?"
+        params.append(limit)
+        with self.connect() as conn:
+            return conn.execute(sql, tuple(params)).fetchall()
+
+    def update_finding_status(
+        self,
+        finding_id: str,
+        status: str,
+        *,
+        actor: str = "owner",
+        resolution: str = "",
+        resolved_by_run_id: str | None = None,
+        independent_recheck_status: str | None = None,
+    ) -> None:
+        with self.connect() as conn:
+            current = conn.execute("SELECT status FROM findings WHERE id = ?", (finding_id,)).fetchone()
+            if current is None:
+                raise ValueError(f"Finding not found: {finding_id}")
+            conn.execute(
+                """
+                UPDATE findings
+                SET status = ?,
+                    resolution = COALESCE(NULLIF(?, ''), resolution),
+                    resolved_by_run_id = COALESCE(?, resolved_by_run_id),
+                    independent_recheck_status = COALESCE(?, independent_recheck_status),
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (status, resolution, resolved_by_run_id, independent_recheck_status, finding_id),
+            )
+            self._insert_finding_event(
+                conn,
+                finding_id,
+                "STATUS_CHANGED",
+                actor,
+                f"{current['status']} -> {status}; {resolution}".strip("; "),
+            )
+
+    def list_finding_events(self, finding_id: str | None = None, limit: int = 100) -> list[sqlite3.Row]:
+        sql = "SELECT * FROM finding_events"
+        params: tuple[object, ...] = ()
+        if finding_id:
+            sql += " WHERE finding_id = ?"
+            params = (finding_id,)
+        sql += " ORDER BY created_at DESC, rowid DESC LIMIT ?"
+        params = (*params, limit)
+        with self.connect() as conn:
+            return conn.execute(sql, params).fetchall()
+
+    def _insert_finding_event(
+        self,
+        conn: sqlite3.Connection,
+        finding_id: str,
+        event_type: str,
+        actor: str,
+        detail: str | None,
+    ) -> str:
+        event_id = f"FEV-{uuid.uuid4().hex[:12].upper()}"
+        conn.execute(
+            """
+            INSERT INTO finding_events (id, finding_id, event_type, actor, detail)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (event_id, finding_id, event_type, actor, detail),
+        )
+        return event_id
+
+    def create_skill_package(
+        self,
+        *,
+        name: str,
+        purpose: str = "",
+        supported_roles: list[str] | None = None,
+        prerequisites: str = "",
+        source_material: list[str] | None = None,
+        instructions: str = "",
+        tools: list[str] | None = None,
+        expected_inputs: str = "",
+        expected_outputs: str = "",
+        prohibited_actions: str = "",
+        validation_checklist: list[str] | None = None,
+        examples: list[str] | None = None,
+        negative_examples: list[str] | None = None,
+        qualification_tasks: list[str] | None = None,
+        version: str = "0.1.0",
+        status: str = "DRAFT",
+        actor: str = "owner",
+    ) -> str:
+        skill_id = f"SKILL-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO skill_packages (
+                    id, name, purpose, supported_roles, prerequisites, source_material,
+                    instructions, tools, expected_inputs, expected_outputs, prohibited_actions,
+                    validation_checklist, examples, negative_examples, qualification_tasks,
+                    version, status, created_by
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    skill_id,
+                    name,
+                    purpose,
+                    self._json(supported_roles or []),
+                    prerequisites,
+                    self._json(source_material or []),
+                    instructions,
+                    self._json(tools or []),
+                    expected_inputs,
+                    expected_outputs,
+                    prohibited_actions,
+                    self._json(validation_checklist or []),
+                    self._json(examples or []),
+                    self._json(negative_examples or []),
+                    self._json(qualification_tasks or []),
+                    version,
+                    status,
+                    actor,
+                ),
+            )
+            self._insert_skill_package_event(conn, skill_id, "CREATED", actor, f"status={status}")
+        return skill_id
+
+    def list_skill_packages(self) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute(
+                """
+                SELECT * FROM skill_packages
+                ORDER BY updated_at DESC, created_at DESC, name ASC
+                """
+            ).fetchall()
+
+    def get_skill_package(self, skill_id: str) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM skill_packages WHERE id = ?", (skill_id,)).fetchone()
+
+    def update_skill_package_status(self, skill_id: str, status: str, actor: str = "owner", reason: str = "") -> None:
+        with self.connect() as conn:
+            current = conn.execute("SELECT status FROM skill_packages WHERE id = ?", (skill_id,)).fetchone()
+            if current is None:
+                raise ValueError(f"Skill package not found: {skill_id}")
+            conn.execute(
+                "UPDATE skill_packages SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (status, skill_id),
+            )
+            self._insert_skill_package_event(
+                conn,
+                skill_id,
+                "STATUS_CHANGED",
+                actor,
+                f"{current['status']} -> {status}; {reason}".strip("; "),
+            )
+
+    def assign_skill_to_agent(
+        self,
+        *,
+        agent_id: str,
+        skill_id: str,
+        state: str = "ASSIGNED",
+        actor: str = "owner",
+        reason: str = "",
+    ) -> str:
+        assignment_id = f"ESKILL-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            if conn.execute("SELECT 1 FROM skill_packages WHERE id = ?", (skill_id,)).fetchone() is None:
+                raise ValueError(f"Skill package not found: {skill_id}")
+            existing = conn.execute(
+                "SELECT id, state FROM employee_skill_assignments WHERE agent_id = ? AND skill_id = ?",
+                (agent_id, skill_id),
+            ).fetchone()
+            if existing is None:
+                conn.execute(
+                    """
+                    INSERT INTO employee_skill_assignments (id, agent_id, skill_id, state, assigned_by, evidence)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (assignment_id, agent_id, skill_id, state, actor, self._json({"reason": reason})),
+                )
+                event_detail = f"{agent_id}: {state}; {reason}".strip("; ")
+            else:
+                assignment_id = str(existing["id"])
+                conn.execute(
+                    """
+                    UPDATE employee_skill_assignments
+                    SET state = ?, assigned_by = ?, evidence = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                    """,
+                    (state, actor, self._json({"reason": reason}), assignment_id),
+                )
+                event_detail = f"{agent_id}: {existing['state']} -> {state}; {reason}".strip("; ")
+            self._insert_skill_package_event(conn, skill_id, "ASSIGNED_TO_EMPLOYEE", actor, event_detail)
+        return assignment_id
+
+    def list_employee_skill_assignments(self, agent_id: str | None = None) -> list[sqlite3.Row]:
+        sql = (
+            """
+            SELECT esa.*, sp.name, sp.status AS skill_status, sp.purpose, sp.version
+            FROM employee_skill_assignments esa
+            JOIN skill_packages sp ON sp.id = esa.skill_id
+            """
+        )
+        params: tuple[object, ...] = ()
+        if agent_id:
+            sql += " WHERE esa.agent_id = ?"
+            params = (agent_id,)
+        sql += " ORDER BY esa.updated_at DESC, sp.name ASC"
+        with self.connect() as conn:
+            return conn.execute(sql, params).fetchall()
+
+    def list_skill_package_events(self, skill_id: str | None = None, limit: int = 100) -> list[sqlite3.Row]:
+        sql = "SELECT * FROM skill_package_events"
+        params: tuple[object, ...] = ()
+        if skill_id:
+            sql += " WHERE skill_id = ?"
+            params = (skill_id,)
+        sql += " ORDER BY created_at DESC, rowid DESC LIMIT ?"
+        params = (*params, limit)
+        with self.connect() as conn:
+            return conn.execute(sql, params).fetchall()
+
+    def _insert_skill_package_event(
+        self,
+        conn: sqlite3.Connection,
+        skill_id: str,
+        event_type: str,
+        actor: str,
+        detail: str | None,
+    ) -> str:
+        event_id = f"SKLEV-{uuid.uuid4().hex[:12].upper()}"
+        conn.execute(
+            """
+            INSERT INTO skill_package_events (id, skill_id, event_type, actor, detail)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (event_id, skill_id, event_type, actor, detail),
+        )
+        return event_id
+
+    def create_knowledge_card(
+        self,
+        *,
+        title: str,
+        summary: str = "",
+        content: str = "",
+        source_type: str = "internal_note",
+        source_title: str = "",
+        source_uri: str = "",
+        source_authority: str = "UNVERIFIED",
+        source_hash: str = "",
+        role_ids: list[str] | None = None,
+        tags: list[str] | None = None,
+        status: str = "DRAFT",
+        version: str = "0.1.0",
+        review_notes: str = "",
+        actor: str = "owner",
+    ) -> str:
+        knowledge_id = f"KNOW-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO knowledge_cards (
+                    id, title, summary, content, source_type, source_title, source_uri,
+                    source_authority, source_hash, role_ids, tags, status, version,
+                    review_notes, created_by
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    knowledge_id,
+                    title,
+                    summary,
+                    content,
+                    source_type,
+                    source_title,
+                    source_uri,
+                    source_authority,
+                    source_hash,
+                    self._json(role_ids or []),
+                    self._json(tags or []),
+                    status,
+                    version,
+                    review_notes,
+                    actor,
+                ),
+            )
+            self._insert_knowledge_card_event(conn, knowledge_id, "CREATED", actor, f"status={status}")
+        return knowledge_id
+
+    def list_knowledge_cards(self, status: str | None = None) -> list[sqlite3.Row]:
+        sql = "SELECT * FROM knowledge_cards"
+        params: tuple[object, ...] = ()
+        if status:
+            sql += " WHERE status = ?"
+            params = (status,)
+        sql += " ORDER BY updated_at DESC, created_at DESC, title ASC"
+        with self.connect() as conn:
+            return conn.execute(sql, params).fetchall()
+
+    def get_knowledge_card(self, knowledge_id: str) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM knowledge_cards WHERE id = ?", (knowledge_id,)).fetchone()
+
+    def update_knowledge_card_status(self, knowledge_id: str, status: str, actor: str = "owner", reason: str = "") -> None:
+        with self.connect() as conn:
+            current = conn.execute("SELECT status FROM knowledge_cards WHERE id = ?", (knowledge_id,)).fetchone()
+            if current is None:
+                raise ValueError(f"Knowledge card not found: {knowledge_id}")
+            conn.execute(
+                "UPDATE knowledge_cards SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (status, knowledge_id),
+            )
+            self._insert_knowledge_card_event(
+                conn,
+                knowledge_id,
+                "STATUS_CHANGED",
+                actor,
+                f"{current['status']} -> {status}; {reason}".strip("; "),
+            )
+
+    def list_knowledge_card_events(self, knowledge_id: str | None = None, limit: int = 100) -> list[sqlite3.Row]:
+        sql = "SELECT * FROM knowledge_card_events"
+        params: tuple[object, ...] = ()
+        if knowledge_id:
+            sql += " WHERE knowledge_id = ?"
+            params = (knowledge_id,)
+        sql += " ORDER BY created_at DESC, rowid DESC LIMIT ?"
+        params = (*params, limit)
+        with self.connect() as conn:
+            return conn.execute(sql, params).fetchall()
+
+    def record_knowledge_usage(
+        self,
+        *,
+        knowledge_id: str,
+        role: str,
+        usage_type: str,
+        task_id: str | None = None,
+        run_id: str | None = None,
+        evidence: dict[str, Any] | None = None,
+    ) -> str:
+        usage_id = f"KUSE-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO knowledge_usage (id, task_id, run_id, knowledge_id, role, usage_type, evidence)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (usage_id, task_id, run_id, knowledge_id, role, usage_type, self._json(evidence or {})),
+            )
+        return usage_id
+
+    def list_knowledge_usage(self, limit: int = 100) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute(
+                """
+                SELECT * FROM knowledge_usage
+                ORDER BY created_at DESC, rowid DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+
+    def _insert_knowledge_card_event(
+        self,
+        conn: sqlite3.Connection,
+        knowledge_id: str,
+        event_type: str,
+        actor: str,
+        detail: str | None,
+    ) -> str:
+        event_id = f"KNEV-{uuid.uuid4().hex[:12].upper()}"
+        conn.execute(
+            """
+            INSERT INTO knowledge_card_events (id, knowledge_id, event_type, actor, detail)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (event_id, knowledge_id, event_type, actor, detail),
+        )
+        return event_id
+
+    def create_standard_card(
+        self,
+        *,
+        code: str,
+        title: str,
+        requirement: str = "",
+        scope: str = "",
+        source_title: str = "",
+        source_uri: str = "",
+        source_hash: str = "",
+        authority: str = "INTERNAL",
+        mandatory_level: str = "GUIDANCE",
+        role_ids: list[str] | None = None,
+        tags: list[str] | None = None,
+        status: str = "DRAFT",
+        version: str = "0.1.0",
+        review_notes: str = "",
+        actor: str = "owner",
+    ) -> str:
+        standard_id = f"STD-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO standard_cards (
+                    id, code, title, requirement, scope, source_title, source_uri,
+                    source_hash, authority, mandatory_level, role_ids, tags, status,
+                    version, review_notes, created_by
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    standard_id,
+                    code,
+                    title,
+                    requirement,
+                    scope,
+                    source_title,
+                    source_uri,
+                    source_hash,
+                    authority,
+                    mandatory_level,
+                    self._json(role_ids or []),
+                    self._json(tags or []),
+                    status,
+                    version,
+                    review_notes,
+                    actor,
+                ),
+            )
+            self._insert_standard_card_event(conn, standard_id, "CREATED", actor, f"status={status}")
+        return standard_id
+
+    def list_standard_cards(self, status: str | None = None) -> list[sqlite3.Row]:
+        sql = "SELECT * FROM standard_cards"
+        params: tuple[object, ...] = ()
+        if status:
+            sql += " WHERE status = ?"
+            params = (status,)
+        sql += " ORDER BY updated_at DESC, created_at DESC, code ASC"
+        with self.connect() as conn:
+            return conn.execute(sql, params).fetchall()
+
+    def update_standard_card_status(self, standard_id: str, status: str, actor: str = "owner", reason: str = "") -> None:
+        with self.connect() as conn:
+            current = conn.execute("SELECT status FROM standard_cards WHERE id = ?", (standard_id,)).fetchone()
+            if current is None:
+                raise ValueError(f"Standard card not found: {standard_id}")
+            conn.execute(
+                "UPDATE standard_cards SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (status, standard_id),
+            )
+            self._insert_standard_card_event(
+                conn,
+                standard_id,
+                "STATUS_CHANGED",
+                actor,
+                f"{current['status']} -> {status}; {reason}".strip("; "),
+            )
+
+    def list_standard_card_events(self, standard_id: str | None = None, limit: int = 100) -> list[sqlite3.Row]:
+        sql = "SELECT * FROM standard_card_events"
+        params: tuple[object, ...] = ()
+        if standard_id:
+            sql += " WHERE standard_id = ?"
+            params = (standard_id,)
+        sql += " ORDER BY created_at DESC, rowid DESC LIMIT ?"
+        params = (*params, limit)
+        with self.connect() as conn:
+            return conn.execute(sql, params).fetchall()
+
+    def record_standard_usage(
+        self,
+        *,
+        standard_id: str,
+        role: str,
+        usage_type: str,
+        task_id: str | None = None,
+        run_id: str | None = None,
+        evidence: dict[str, Any] | None = None,
+    ) -> str:
+        usage_id = f"SUSE-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO standard_usage (id, task_id, run_id, standard_id, role, usage_type, evidence)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (usage_id, task_id, run_id, standard_id, role, usage_type, self._json(evidence or {})),
+            )
+        return usage_id
+
+    def list_standard_usage(self, limit: int = 100) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute(
+                """
+                SELECT * FROM standard_usage
+                ORDER BY created_at DESC, rowid DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+
+    def _insert_standard_card_event(
+        self,
+        conn: sqlite3.Connection,
+        standard_id: str,
+        event_type: str,
+        actor: str,
+        detail: str | None,
+    ) -> str:
+        event_id = f"STDEV-{uuid.uuid4().hex[:12].upper()}"
+        conn.execute(
+            """
+            INSERT INTO standard_card_events (id, standard_id, event_type, actor, detail)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (event_id, standard_id, event_type, actor, detail),
+        )
+        return event_id
+
+    def ensure_project(self, project_id: str, title: str) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO projects (id, title) VALUES (?, ?)
+                ON CONFLICT(id) DO UPDATE SET title = excluded.title, updated_at = CURRENT_TIMESTAMP
+                """,
+                (project_id, title),
+            )
+
+    def create_task(
+        self,
+        project_id: str,
+        title: str,
+        owner_message_id: int | None,
+        state_machine_version: str,
+    ) -> str:
+        task_id = f"TASK-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO tasks (id, project_id, title, state, state_machine_version, owner_message_id)
+                VALUES (?, ?, ?, 'NEW', ?, ?)
+                """,
+                (task_id, project_id, title, state_machine_version, owner_message_id),
+            )
+        return task_id
+
+    def get_task(self, task_id: str) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+
+    def list_tasks(self, limit: int = 200) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute(
+                """
+                SELECT id, project_id, title, state, created_at, updated_at
+                FROM tasks
+                ORDER BY updated_at DESC, created_at DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+
+    def record_task_transition(
+        self,
+        *,
+        task_id: str,
+        previous_state: str,
+        next_state: str,
+        actor: str,
+        logical_role: str,
+        reason: str,
+        supporting_message_id: int | None,
+        run_id: str | None,
+        artifacts_affected: list[str],
+        checks_performed: list[str],
+        unresolved_risks: list[str],
+        owner_approval_required: bool,
+        created_at: str,
+    ) -> str:
+        transition_id = f"TRANS-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO task_transitions (
+                    id, task_id, previous_state, next_state, actor, logical_role, created_at, reason,
+                    supporting_message_id, run_id, artifacts_affected, checks_performed,
+                    unresolved_risks, owner_approval_required
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    transition_id,
+                    task_id,
+                    previous_state,
+                    next_state,
+                    actor,
+                    logical_role,
+                    created_at,
+                    reason,
+                    supporting_message_id,
+                    run_id,
+                    self._json(artifacts_affected),
+                    self._json(checks_performed),
+                    self._json(unresolved_risks),
+                    1 if owner_approval_required else 0,
+                ),
+            )
+            conn.execute(
+                "UPDATE tasks SET state = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (next_state, task_id),
+            )
+        return transition_id
+
+    def task_has_blocking_findings(self, task_id: str) -> bool:
+        with self.connect() as conn:
+            row = conn.execute(
+                """
+                SELECT 1 FROM findings
+                WHERE task_id = ?
+                  AND severity IN ('CRITICAL', 'HIGH')
+                  AND status NOT IN ('CLOSED', 'RESOLVED', 'ACCEPTED_RISK', 'REJECTED', 'DEFERRED')
+                LIMIT 1
+                """,
+                (task_id,),
+            ).fetchone()
+        return row is not None
+
+    def create_agent_run(
+        self,
+        *,
+        task_id: str,
+        agent_id: str,
+        agent_key: str,
+        logical_role: str,
+        provider: str,
+        prompt_hash: str | None,
+        started_at: str,
+    ) -> str:
+        run_id = f"RUN-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO agent_runs (
+                    id, task_id, agent_id, agent_key, logical_role, provider, prompt_hash, started_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (run_id, task_id, agent_id, agent_key, logical_role, provider, prompt_hash, started_at),
+            )
+        return run_id
+
+    def finish_agent_run(
+        self,
+        *,
+        run_id: str,
+        ok: bool,
+        cancelled: bool,
+        returncode: int | None,
+        duration_seconds: float,
+        error: str | None,
+        raw_response: str,
+        parsed_response: dict[str, Any] | None,
+        parse_errors: list[str],
+        finished_at: str,
+    ) -> None:
+        recovery_state = "CANCELLED" if cancelled else "FINISHED" if ok else "FAILED"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                UPDATE agent_runs
+                SET finished_at = ?, ok = ?, cancelled = ?, returncode = ?, duration_seconds = ?,
+                    error = ?, raw_response = ?, parsed_response = ?, parse_errors = ?, recovery_state = ?
+                WHERE id = ?
+                """,
+                (
+                    finished_at,
+                    1 if ok else 0,
+                    1 if cancelled else 0,
+                    returncode,
+                    duration_seconds,
+                    error,
+                    raw_response,
+                    self._json(parsed_response) if parsed_response is not None else None,
+                    self._json(parse_errors),
+                    recovery_state,
+                    run_id,
+                ),
+            )
+
+    def get_agent_run(self, run_id: str) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM agent_runs WHERE id = ?", (run_id,)).fetchone()
+
+    def list_task_transitions(self, task_id: str) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM task_transitions WHERE task_id = ? ORDER BY created_at ASC, id ASC",
+                (task_id,),
+            ).fetchall()
+
+    def audit_event(self, event_type: str, task_id: str | None, detail: dict[str, Any] | None = None) -> str:
+        event_id = f"AUDIT-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO audit_events (id, task_id, event_type, detail) VALUES (?, ?, ?, ?)",
+                (event_id, task_id, event_type, self._json(detail or {})),
+            )
+        return event_id
+
+    def record_routing_decision(
+        self,
+        *,
+        message_id: int | None,
+        thread_id: str | None,
+        participation_mode: str,
+        explicit_recipients: list[str],
+        inferred_recipients: list[str],
+        selected_responders: list[str],
+        excluded_responders: dict[str, str],
+        interruption_policy: str | None,
+        reason: str,
+        router_version: str,
+    ) -> str:
+        decision_id = f"ROUTE-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO routing_decisions (
+                    id, message_id, thread_id, participation_mode, explicit_recipients,
+                    inferred_recipients, selected_responders, excluded_responders,
+                    interruption_policy, reason, router_version
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    decision_id,
+                    message_id,
+                    thread_id,
+                    participation_mode,
+                    self._json(explicit_recipients),
+                    self._json(inferred_recipients),
+                    self._json(selected_responders),
+                    self._json(excluded_responders),
+                    interruption_policy,
+                    reason,
+                    router_version,
+                ),
+            )
+        return decision_id
+
+    def list_routing_decisions(self, limit: int | None = None) -> list[sqlite3.Row]:
+        sql = "SELECT * FROM routing_decisions ORDER BY created_at DESC, id DESC"
+        params: tuple[object, ...] = ()
+        if limit is not None:
+            sql += " LIMIT ?"
+            params = (limit,)
+        with self.connect() as conn:
+            return conn.execute(sql, params).fetchall()
+
+    def upsert_conversation_thread(
+        self,
+        *,
+        thread_id: str,
+        conversation_id: int,
+        active_addressee_agent_id: str | None,
+        active_task_id: str | None,
+        active_topic: str | None,
+        last_user_message_id: int | None,
+        expected_next_actor: str | None,
+        thread_status: str = "OPEN",
+    ) -> str:
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO conversation_threads (
+                    id, conversation_id, active_addressee_agent_id, active_task_id,
+                    active_topic, last_user_message_id, expected_next_actor, thread_status, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(id) DO UPDATE SET
+                    active_addressee_agent_id = excluded.active_addressee_agent_id,
+                    active_task_id = excluded.active_task_id,
+                    active_topic = excluded.active_topic,
+                    last_user_message_id = excluded.last_user_message_id,
+                    expected_next_actor = excluded.expected_next_actor,
+                    thread_status = excluded.thread_status,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (
+                    thread_id,
+                    conversation_id,
+                    active_addressee_agent_id,
+                    active_task_id,
+                    active_topic,
+                    last_user_message_id,
+                    expected_next_actor,
+                    thread_status,
+                ),
+            )
+        return thread_id
+
+    def get_conversation_thread(self, thread_id: str) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM conversation_threads WHERE id = ?", (thread_id,)).fetchone()
+
+    def get_active_conversation_thread(self, conversation_id: int) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute(
+                """
+                SELECT * FROM conversation_threads
+                WHERE conversation_id = ? AND thread_status = 'OPEN'
+                ORDER BY updated_at DESC, id DESC
+                LIMIT 1
+                """,
+                (conversation_id,),
+            ).fetchone()
+
+    def list_conversation_threads(self, limit: int | None = None) -> list[sqlite3.Row]:
+        sql = "SELECT * FROM conversation_threads ORDER BY updated_at DESC, id DESC"
+        params: tuple[object, ...] = ()
+        if limit is not None:
+            sql += " LIMIT ?"
+            params = (limit,)
+        with self.connect() as conn:
+            return conn.execute(sql, params).fetchall()
+
+    def create_thread_question(
+        self,
+        *,
+        conversation_id: int,
+        thread_id: str,
+        question_message_id: int,
+        question_text: str,
+        assigned_agent_keys: list[str],
+    ) -> str:
+        question_id = f"QUESTION-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT id FROM thread_questions WHERE question_message_id = ?",
+                (question_message_id,),
+            ).fetchone()
+            if row is not None:
+                return str(row["id"])
+            conn.execute(
+                """
+                INSERT INTO thread_questions (
+                    id, conversation_id, thread_id, question_message_id, question_text,
+                    assigned_agent_keys, status, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, 'OPEN', CURRENT_TIMESTAMP)
+                """,
+                (
+                    question_id,
+                    conversation_id,
+                    thread_id,
+                    question_message_id,
+                    question_text,
+                    self._json(assigned_agent_keys),
+                ),
+            )
+        return question_id
+
+    def mark_thread_questions_answered(
+        self,
+        *,
+        question_ids: list[str],
+        answer_message_id: int,
+        answered_by_agent_key: str,
+    ) -> None:
+        if not question_ids:
+            return
+        with self.connect() as conn:
+            conn.executemany(
+                """
+                UPDATE thread_questions
+                SET status = 'ANSWERED',
+                    answer_message_id = ?,
+                    answered_by_agent_key = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ? AND status = 'OPEN'
+                """,
+                [(answer_message_id, answered_by_agent_key, question_id) for question_id in question_ids],
+            )
+
+    def update_thread_question_status(self, question_id: str, status: str) -> bool:
+        allowed = {"OPEN", "ANSWERED", "ACCEPTED"}
+        if status not in allowed:
+            raise ValueError(f"Unsupported thread question status: {status}")
+        with self.connect() as conn:
+            cur = conn.execute(
+                """
+                UPDATE thread_questions
+                SET status = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (status, question_id),
+            )
+            return cur.rowcount > 0
+
+    def list_thread_questions(
+        self,
+        *,
+        conversation_id: int | None = None,
+        status: str | None = None,
+        limit: int | None = None,
+    ) -> list[sqlite3.Row]:
+        clauses: list[str] = []
+        params: list[object] = []
+        if conversation_id is not None:
+            clauses.append("conversation_id = ?")
+            params.append(conversation_id)
+        if status is not None:
+            clauses.append("status = ?")
+            params.append(status)
+        sql = "SELECT * FROM thread_questions"
+        if clauses:
+            sql += " WHERE " + " AND ".join(clauses)
+        sql += " ORDER BY created_at DESC, id DESC"
+        if limit is not None:
+            sql += " LIMIT ?"
+            params.append(limit)
+        with self.connect() as conn:
+            return conn.execute(sql, tuple(params)).fetchall()
+
+    def upsert_role_profile(self, role: RoleProfile) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO role_profiles (
+                    role_id, display_name, description, responsibilities, restrictions, schema_version
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(role_id) DO UPDATE SET
+                    display_name = excluded.display_name,
+                    description = excluded.description,
+                    responsibilities = excluded.responsibilities,
+                    restrictions = excluded.restrictions,
+                    schema_version = excluded.schema_version,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (
+                    role.role_id,
+                    role.display_name,
+                    role.description,
+                    self._json(role.responsibilities),
+                    self._json(role.restrictions),
+                    role.schema_version,
+                ),
+            )
+
+    def get_agent_profile(self, agent_id: str) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM agent_profiles WHERE agent_id = ?", (agent_id,)).fetchone()
+
+    def list_agent_profiles(self) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM agent_profiles ORDER BY display_name ASC").fetchall()
+
+    def list_role_profiles(self) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM role_profiles ORDER BY role_id ASC").fetchall()
+
+    def list_agent_roles(self, agent_id: str) -> list[str]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT role_id FROM agent_role_assignments WHERE agent_id = ? ORDER BY role_id ASC",
+                (agent_id,),
+            ).fetchall()
+        return [str(row["role_id"]) for row in rows]
+
+    def list_agent_permissions(self, agent_id: str) -> list[str]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT permission_id FROM agent_permissions WHERE agent_id = ? ORDER BY permission_id ASC",
+                (agent_id,),
+            ).fetchall()
+        return [str(row["permission_id"]) for row in rows]
+
+    def list_agent_permission_denies(self, agent_id: str) -> list[str]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT permission_id FROM agent_permission_denies WHERE agent_id = ? ORDER BY permission_id ASC",
+                (agent_id,),
+            ).fetchall()
+        return [str(row["permission_id"]) for row in rows]
+
+    def create_agent_profile(self, profile: AgentProfile, actor: str, reason: str) -> None:
+        with self.connect() as conn:
+            self._insert_agent_profile(conn, profile)
+            self._insert_management_audit(
+                conn,
+                actor=actor,
+                object_type="agent_profile",
+                object_id=profile.agent_id,
+                action="create",
+                previous_value=None,
+                new_value=self._json(profile.__dict__),
+                database_changes=["agent_profiles"],
+                affected_employees=[profile.agent_id],
+                reason=reason,
+            )
+
+    def create_agent_profile_with_assignments(
+        self,
+        profile: AgentProfile,
+        role_ids: list[str],
+        permissions: list[str],
+        actor: str,
+        reason: str,
+    ) -> None:
+        with self.connect() as conn:
+            self._insert_agent_profile(conn, profile)
+            for role_id in role_ids:
+                self._assign_role_to_agent(conn, profile.agent_id, role_id, actor, reason)
+            for permission in permissions:
+                self._grant_agent_permission(conn, profile.agent_id, permission, actor, reason)
+            self._insert_management_audit(
+                conn,
+                actor=actor,
+                object_type="agent_profile",
+                object_id=profile.agent_id,
+                action="create_with_assignments",
+                previous_value=None,
+                new_value=self._json(
+                    {
+                        "profile": profile.__dict__,
+                        "roles": role_ids,
+                        "permissions": permissions,
+                    }
+                ),
+                database_changes=["agent_profiles", "agent_role_assignments", "agent_permissions"],
+                affected_employees=[profile.agent_id],
+                reason=reason,
+            )
+
+    def update_agent_profile(
+        self,
+        agent_id: str,
+        *,
+        display_name: str,
+        description: str,
+        provider_id: str,
+        persona_id: str | None,
+        avatar_path: str | None,
+        expected_updated_at: str | None,
+        actor: str,
+        reason: str,
+    ) -> None:
+        with self.connect() as conn:
+            previous = conn.execute("SELECT * FROM agent_profiles WHERE agent_id = ?", (agent_id,)).fetchone()
+            if previous is None:
+                raise ValueError(f"Unknown agent profile: {agent_id}")
+            if expected_updated_at is not None and str(previous["updated_at"]) != expected_updated_at:
+                raise RuntimeError("optimistic_lock_conflict")
+            conn.execute(
+                """
+                UPDATE agent_profiles
+                SET display_name = ?, description = ?, provider_id = ?, persona_id = ?, avatar_path = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE agent_id = ?
+                """,
+                (display_name, description, provider_id, persona_id, avatar_path, agent_id),
+            )
+            self._insert_management_audit(
+                conn,
+                actor=actor,
+                object_type="agent_profile",
+                object_id=agent_id,
+                action="edit",
+                previous_value=self._json(dict(previous)),
+                new_value=self._json(
+                    {
+                        "display_name": display_name,
+                        "description": description,
+                        "provider_id": provider_id,
+                        "persona_id": persona_id,
+                        "avatar_path": avatar_path,
+                    }
+                ),
+                database_changes=["agent_profiles"],
+                affected_employees=[agent_id],
+                reason=reason,
+            )
+
+    def replace_agent_roles(self, agent_id: str, role_ids: list[str], actor: str, reason: str) -> None:
+        with self.connect() as conn:
+            previous = [
+                str(row["role_id"])
+                for row in conn.execute(
+                    "SELECT role_id FROM agent_role_assignments WHERE agent_id = ? ORDER BY role_id ASC",
+                    (agent_id,),
+                ).fetchall()
+            ]
+            conn.execute("DELETE FROM agent_role_assignments WHERE agent_id = ?", (agent_id,))
+            for role_id in role_ids:
+                self._assign_role_to_agent(conn, agent_id, role_id, actor, reason)
+            self._insert_management_audit(
+                conn,
+                actor=actor,
+                object_type="agent_profile",
+                object_id=agent_id,
+                action="replace_roles",
+                previous_value=self._json(previous),
+                new_value=self._json(role_ids),
+                database_changes=["agent_role_assignments"],
+                affected_employees=[agent_id],
+                reason=reason,
+            )
+
+    def replace_agent_permission_overrides(
+        self,
+        agent_id: str,
+        grants: list[str],
+        denies: list[str],
+        actor: str,
+        reason: str,
+    ) -> None:
+        with self.connect() as conn:
+            previous = {
+                "grants": [
+                    str(row["permission_id"])
+                    for row in conn.execute(
+                        "SELECT permission_id FROM agent_permissions WHERE agent_id = ? ORDER BY permission_id ASC",
+                        (agent_id,),
+                    ).fetchall()
+                ],
+                "denies": [
+                    str(row["permission_id"])
+                    for row in conn.execute(
+                        "SELECT permission_id FROM agent_permission_denies WHERE agent_id = ? ORDER BY permission_id ASC",
+                        (agent_id,),
+                    ).fetchall()
+                ],
+            }
+            conn.execute("DELETE FROM agent_permissions WHERE agent_id = ?", (agent_id,))
+            conn.execute("DELETE FROM agent_permission_denies WHERE agent_id = ?", (agent_id,))
+            for permission in grants:
+                self._grant_agent_permission(conn, agent_id, permission, actor, reason)
+            for permission in denies:
+                self._deny_agent_permission(conn, agent_id, permission, actor, reason)
+            self._insert_management_audit(
+                conn,
+                actor=actor,
+                object_type="agent_profile",
+                object_id=agent_id,
+                action="replace_permission_overrides",
+                previous_value=self._json(previous),
+                new_value=self._json({"grants": grants, "denies": denies}),
+                database_changes=["agent_permissions", "agent_permission_denies"],
+                affected_employees=[agent_id],
+                reason=reason,
+            )
+
+    def assign_role_to_agent(self, agent_id: str, role_id: str, actor: str, reason: str) -> None:
+        with self.connect() as conn:
+            self._assign_role_to_agent(conn, agent_id, role_id, actor, reason)
+
+    def grant_agent_permission(self, agent_id: str, permission_id: str, actor: str, reason: str) -> None:
+        with self.connect() as conn:
+            self._grant_agent_permission(conn, agent_id, permission_id, actor, reason)
+
+    def set_agent_lifecycle(self, agent_id: str, lifecycle_state: str, actor: str, reason: str) -> None:
+        with self.connect() as conn:
+            previous = conn.execute("SELECT * FROM agent_profiles WHERE agent_id = ?", (agent_id,)).fetchone()
+            if previous is None:
+                raise ValueError(f"Unknown agent profile: {agent_id}")
+            conn.execute(
+                "UPDATE agent_profiles SET lifecycle_state = ?, updated_at = CURRENT_TIMESTAMP WHERE agent_id = ?",
+                (lifecycle_state, agent_id),
+            )
+            self._insert_management_audit(
+                conn,
+                actor=actor,
+                object_type="agent_profile",
+                object_id=agent_id,
+                action="set_lifecycle",
+                previous_value=self._json(dict(previous)),
+                new_value=self._json({"lifecycle_state": lifecycle_state}),
+                database_changes=["agent_profiles"],
+                affected_employees=[agent_id],
+                reason=reason,
+            )
+
+    def list_management_audit_events(self) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM management_audit_events ORDER BY created_at ASC, id ASC"
+            ).fetchall()
+
+    def upsert_provider_definition(self, profile: ProviderProfile) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO provider_definitions (
+                    provider_id, display_name, provider_family, adapter_id, supported_os,
+                    installation_strategy, authentication_strategy, executable_names,
+                    minimum_supported_version, recommended_version, setup_instructions,
+                    known_limitations, required_capabilities, provider_schema_version
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(provider_id) DO UPDATE SET
+                    display_name = excluded.display_name,
+                    provider_family = excluded.provider_family,
+                    adapter_id = excluded.adapter_id,
+                    supported_os = excluded.supported_os,
+                    installation_strategy = excluded.installation_strategy,
+                    authentication_strategy = excluded.authentication_strategy,
+                    executable_names = excluded.executable_names,
+                    minimum_supported_version = excluded.minimum_supported_version,
+                    recommended_version = excluded.recommended_version,
+                    setup_instructions = excluded.setup_instructions,
+                    known_limitations = excluded.known_limitations,
+                    required_capabilities = excluded.required_capabilities,
+                    provider_schema_version = excluded.provider_schema_version,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (
+                    profile.provider_id,
+                    profile.display_name,
+                    profile.provider_family,
+                    profile.adapter_id,
+                    self._json(profile.supported_os),
+                    profile.installation_strategy,
+                    profile.authentication_strategy,
+                    self._json(profile.executable_names),
+                    profile.minimum_supported_version,
+                    profile.recommended_version,
+                    profile.setup_instructions,
+                    self._json(profile.known_limitations),
+                    self._json(profile.required_capabilities),
+                    profile.provider_schema_version,
+                ),
+            )
+
+    def list_provider_definitions(self) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM provider_definitions ORDER BY provider_id ASC").fetchall()
+
+    def record_provider_health_check(self, health: ProviderHealth) -> str:
+        check_id = f"PHC-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO provider_health_checks (
+                    id, provider_id, detected_version, installation_status, authentication_status,
+                    access_status, health_status, capability_status, account_label, diagnostic
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    check_id,
+                    health.provider_id,
+                    health.detected_version,
+                    health.installation_status,
+                    health.authentication_status,
+                    health.access_status,
+                    health.health_status,
+                    health.capability_status,
+                    health.account_label,
+                    self._redact_secrets(health.diagnostic),
+                ),
+            )
+            self._insert_management_audit(
+                conn,
+                actor="SYSTEM",
+                object_type="provider",
+                object_id=health.provider_id,
+                action="PROVIDER_ACCESS_CHECKED",
+                previous_value=None,
+                new_value=self._json(
+                    {
+                        "installation_status": health.installation_status,
+                        "authentication_status": health.authentication_status,
+                        "access_status": health.access_status,
+                        "health_status": health.health_status,
+                        "capability_status": health.capability_status,
+                    }
+                ),
+                database_changes=["provider_health_checks"],
+                affected_employees=[],
+                reason="lightweight provider health check",
+            )
+        return check_id
+
+    def get_latest_provider_health(self, provider_id: str) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute(
+                """
+                SELECT * FROM provider_health_checks
+                WHERE provider_id = ?
+                ORDER BY created_at DESC, id DESC
+                LIMIT 1
+                """,
+                (provider_id,),
+            ).fetchone()
+
+    def upsert_agent_provider_assignment(self, agent_id: str, provider_id: str, status: str) -> str:
+        assignment_id = f"APA-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO agent_provider_assignments (assignment_id, agent_id, provider_id, status)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(agent_id, provider_id) DO UPDATE SET
+                    status = excluded.status,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (assignment_id, agent_id, provider_id, status),
+            )
+        return assignment_id
+
+    def list_agent_provider_assignments(self, agent_id: str | None = None) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            if agent_id is None:
+                return conn.execute("SELECT * FROM agent_provider_assignments ORDER BY agent_id ASC").fetchall()
+            return conn.execute(
+                "SELECT * FROM agent_provider_assignments WHERE agent_id = ? ORDER BY priority ASC",
+                (agent_id,),
+            ).fetchall()
+
+    def create_provisioning_session(
+        self,
+        *,
+        target_employee_draft: dict[str, Any],
+        provider_id: str,
+        current_step: str,
+        install_plan_hash: str | None,
+        recoverable: bool,
+        started_at: str,
+    ) -> str:
+        session_id = f"PROV-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO provisioning_sessions (
+                    provisioning_session_id, target_employee_draft, selected_provider,
+                    current_step, install_plan_hash, started_at, recoverable
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    session_id,
+                    self._json(target_employee_draft),
+                    provider_id,
+                    current_step,
+                    install_plan_hash,
+                    started_at,
+                    1 if recoverable else 0,
+                ),
+            )
+        return session_id
+
+    def _insert_agent_profile(self, conn: sqlite3.Connection, profile: AgentProfile) -> None:
+        conn.execute(
+            """
+            INSERT INTO agent_profiles (
+                agent_id, display_name, description, lifecycle_state, provider_id,
+                persona_id, avatar_path, schema_version
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                profile.agent_id,
+                profile.display_name,
+                profile.description,
+                profile.lifecycle_state,
+                profile.provider_id,
+                profile.persona_id,
+                profile.avatar_path,
+                profile.schema_version,
+            ),
+        )
+
+    def _assign_role_to_agent(
+        self,
+        conn: sqlite3.Connection,
+        agent_id: str,
+        role_id: str,
+        actor: str,
+        reason: str,
+    ) -> None:
+        assignment_id = f"AROLE-{uuid.uuid4().hex[:12].upper()}"
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO agent_role_assignments (id, agent_id, role_id, assigned_by, reason)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (assignment_id, agent_id, role_id, actor, reason),
+        )
+
+    def _grant_agent_permission(
+        self,
+        conn: sqlite3.Connection,
+        agent_id: str,
+        permission_id: str,
+        actor: str,
+        reason: str,
+    ) -> None:
+        permission_row_id = f"APERM-{uuid.uuid4().hex[:12].upper()}"
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO agent_permissions (id, agent_id, permission_id, granted_by, reason)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (permission_row_id, agent_id, permission_id, actor, reason),
+        )
+
+    def _deny_agent_permission(
+        self,
+        conn: sqlite3.Connection,
+        agent_id: str,
+        permission_id: str,
+        actor: str,
+        reason: str,
+    ) -> None:
+        permission_row_id = f"ADENY-{uuid.uuid4().hex[:12].upper()}"
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO agent_permission_denies (id, agent_id, permission_id, denied_by, reason)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (permission_row_id, agent_id, permission_id, actor, reason),
+        )
+
+    def _insert_management_audit(
+        self,
+        conn: sqlite3.Connection,
+        *,
+        actor: str,
+        object_type: str,
+        object_id: str,
+        action: str,
+        previous_value: str | None,
+        new_value: str | None,
+        database_changes: list[str],
+        affected_employees: list[str],
+        reason: str,
+        files_changed: list[str] | None = None,
+        approval: str | None = None,
+        rollback_status: str | None = None,
+    ) -> str:
+        event_id = f"MGMT-{uuid.uuid4().hex[:12].upper()}"
+        conn.execute(
+            """
+            INSERT INTO management_audit_events (
+                id, actor, object_type, object_id, action, previous_value, new_value,
+                files_changed, database_changes, affected_employees, reason, approval, rollback_status
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                event_id,
+                actor,
+                object_type,
+                object_id,
+                action,
+                previous_value,
+                new_value,
+                self._json(files_changed or []),
+                self._json(database_changes),
+                self._json(affected_employees),
+                reason,
+                approval,
+                rollback_status,
+            ),
+        )
+        return event_id
+
+    @staticmethod
+    def _json(value: Any) -> str:
+        return json.dumps(value, ensure_ascii=False, sort_keys=True)
+
+    @staticmethod
+    def loads(value: str | None, default: Any) -> Any:
+        if not value:
+            return default
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:
+            return default
+
+    @staticmethod
+    def _redact_secrets(value: str | None) -> str:
+        if not value:
+            return ""
+        text = str(value)
+        for marker in ("api_key", "token", "secret", "authorization", "GEMINI_API_KEY"):
+            text = text.replace(marker, "[REDACTED]")
+        return text
