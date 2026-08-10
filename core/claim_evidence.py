@@ -64,7 +64,7 @@ class ClaimValidation:
 
 
 class ClaimEvidenceValidator:
-    EVIDENCE_FIELDS = ("evidence", "files_read", "files_created", "files_modified", "files_deleted", "checks")
+    EVIDENCE_FIELDS = ("evidence", "checks")
 
     def validate(self, human_text: str, envelope: dict[str, Any] | None) -> ClaimValidation:
         lowered = human_text.lower().replace("ё", "е")
@@ -76,9 +76,9 @@ class ClaimEvidenceValidator:
                 unsupported.append(phrase)
         if any(phrase in lowered for phrase in SOURCE_PHRASES) and not self._has_source_evidence(envelope):
             unsupported.append("утверждение о стандарте без источника")
-        if any(phrase in lowered for phrase in FILE_READ_PHRASES) and not self._has_any(envelope, ("files_read", "evidence")):
+        if any(phrase in lowered for phrase in FILE_READ_PHRASES) and not self._has_real_evidence(envelope, "files_read"):
             unsupported.append("чтение файла без evidence")
-        if any(phrase in lowered for phrase in FILE_CHANGED_PHRASES) and not self._has_any(envelope, ("files_created", "files_modified", "evidence")):
+        if any(phrase in lowered for phrase in FILE_CHANGED_PHRASES) and not self._has_real_evidence(envelope, "files_created", "files_modified"):
             unsupported.append("изменение файла без evidence")
         if any(phrase in lowered for phrase in SKILL_MASTERED_PHRASES):
             unsupported.append("освоение навыка не подтверждается сообщением")
@@ -93,23 +93,40 @@ class ClaimEvidenceValidator:
         if not isinstance(envelope, dict):
             return 0
         total = 0
-        for field in self.EVIDENCE_FIELDS:
-            value = envelope.get(field)
-            if isinstance(value, list):
-                total += len([item for item in value if item])
+        evidence = envelope.get("evidence")
+        if isinstance(evidence, list):
+            total += len([item for item in evidence if isinstance(item, dict) and item])
+        checks = envelope.get("checks")
+        if isinstance(checks, list):
+            total += len([item for item in checks if self._check_has_evidence(item)])
         return total
 
     def _has_source_evidence(self, envelope: dict[str, Any] | None) -> bool:
         if not isinstance(envelope, dict):
             return False
-        evidence = envelope.get("evidence")
-        if isinstance(evidence, list) and evidence:
-            return True
-        checks = envelope.get("checks")
-        return isinstance(checks, list) and any("source" in str(item).lower() or "источник" in str(item).lower() for item in checks)
+        return self._has_real_evidence(envelope, "source")
 
-    @staticmethod
-    def _has_any(envelope: dict[str, Any] | None, fields: tuple[str, ...]) -> bool:
+    @classmethod
+    def _has_real_evidence(cls, envelope: dict[str, Any] | None, *fields: str) -> bool:
         if not isinstance(envelope, dict):
             return False
-        return any(isinstance(envelope.get(field), list) and bool(envelope[field]) for field in fields)
+        evidence = envelope.get("evidence")
+        if isinstance(evidence, list) and any(isinstance(item, dict) and item for item in evidence):
+            return True
+        checks = envelope.get("checks")
+        if not isinstance(checks, list):
+            return False
+        for check in checks:
+            if isinstance(check, dict) and cls._check_has_evidence(check):
+                return True
+            text = str(check).lower()
+            if any(token in text for token in ("evidence", "source", "источник", "доказатель", "путь")):
+                return True
+        return False
+
+    @staticmethod
+    def _check_has_evidence(check: object) -> bool:
+        if not isinstance(check, dict):
+            text = str(check).lower()
+            return any(token in text for token in ("evidence", "source", "источник", "доказатель", "путь"))
+        return any(check.get(key) for key in ("evidence_path", "evidence_ids", "result", "observed", "output"))

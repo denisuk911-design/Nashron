@@ -114,7 +114,7 @@ class GeminiClient:
             self.cancel()
             duration = time.perf_counter() - started
             self.logger.error("gemini_timeout duration=%.2f", duration)
-            return CodexResult(False, "", None, duration, "Gemini CLI не ответил вовремя")
+            return CodexResult(False, "", None, duration, "Gemini CLI не ответил вовремя", timed_out=True)
         except FileNotFoundError:
             duration = time.perf_counter() - started
             return CodexResult(False, "", None, duration, "Gemini CLI не найден")

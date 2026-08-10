@@ -65,6 +65,7 @@ class CodexResult:
     duration_seconds: float
     error: str | None = None
     cancelled: bool = False
+    timed_out: bool = False
 
 
 @dataclass(frozen=True)

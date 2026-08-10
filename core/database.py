@@ -62,6 +62,7 @@ class Database:
             )
             self._ensure_dynamic_message_roles(conn)
             self._ensure_phase1_schema(conn)
+            self._ensure_run_status_schema(conn)
             self._ensure_usage_schema_extensions(conn)
             self._ensure_thread_question_schema(conn)
             self._ensure_finding_schema_extensions(conn)
@@ -78,6 +79,11 @@ class Database:
             columns = {str(row["name"]) for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
             if "evidence" not in columns:
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN evidence TEXT NOT NULL DEFAULT '{{}}'")
+
+    def _ensure_run_status_schema(self, conn: sqlite3.Connection) -> None:
+        columns = {str(row["name"]) for row in conn.execute("PRAGMA table_info(agent_runs)").fetchall()}
+        if "status" not in columns:
+            conn.execute("ALTER TABLE agent_runs ADD COLUMN status TEXT NOT NULL DEFAULT 'QUEUED'")
 
     def _ensure_dynamic_message_roles(self, conn: sqlite3.Connection) -> None:
         row = conn.execute(
@@ -1903,6 +1909,13 @@ class Database:
             )
         return run_id
 
+    def update_agent_run_status(self, run_id: str, status: str) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                "UPDATE agent_runs SET status = ? WHERE id = ?",
+                (status, run_id),
+            )
+
     def finish_agent_run(
         self,
         *,
@@ -1916,14 +1929,16 @@ class Database:
         parsed_response: dict[str, Any] | None,
         parse_errors: list[str],
         finished_at: str,
+        timed_out: bool = False,
     ) -> None:
-        recovery_state = "CANCELLED" if cancelled else "FINISHED" if ok else "FAILED"
+        recovery_state = "CANCELLED" if cancelled else "TIMED_OUT" if timed_out else "FINISHED" if ok else "FAILED"
+        status = "CANCELLED" if cancelled else "TIMED_OUT" if timed_out else "COMPLETED" if ok else "FAILED"
         with self.connect() as conn:
             conn.execute(
                 """
                 UPDATE agent_runs
                 SET finished_at = ?, ok = ?, cancelled = ?, returncode = ?, duration_seconds = ?,
-                    error = ?, raw_response = ?, parsed_response = ?, parse_errors = ?, recovery_state = ?
+                    error = ?, raw_response = ?, parsed_response = ?, parse_errors = ?, recovery_state = ?, status = ?
                 WHERE id = ?
                 """,
                 (
@@ -1937,6 +1952,7 @@ class Database:
                     self._json(parsed_response) if parsed_response is not None else None,
                     self._json(parse_errors),
                     recovery_state,
+                    status,
                     run_id,
                 ),
             )

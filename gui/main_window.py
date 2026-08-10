@@ -573,7 +573,7 @@ class MainWindow(QMainWindow):
         self.autonomous_fingerprints = []
         self.autonomous_agent_keys = self._dedupe_agents(agent_keys) if autonomy.enabled else []
         self.exchange_turn = 0
-        self.exchange_turn_limit = self._goal_turn_limit() if autonomy.enabled and autonomy.complete_on_goal else 8 if autonomy.enabled else max(2, min(3, len(agent_keys) or 1))
+        self.exchange_turn_limit = self._goal_turn_limit() if autonomy.enabled and autonomy.complete_on_goal else 8 if autonomy.enabled else len(agent_keys) or 1
         self.exchange_responded_agent_keys = set()
         self.exchange_fingerprints = []
         self.pending_contextual_handoffs = []
@@ -651,11 +651,20 @@ class MainWindow(QMainWindow):
 
     def _route_agents(self, text: str, manual: ManualRouting | None = None) -> list[str]:
         agents = self._chat_agents()
+        try:
+            configured_agents = list_chat_agents(self.database, active_only=False, include_without_chat=True)
+        except AttributeError:
+            # Lightweight test doubles and pre-Phase-A integrations may expose
+            # only the active roster. They still get the same routing policy.
+            configured_agents = agents
+        active_keys = {agent.key for agent in agents}
+        blocked_agents = [agent for agent in configured_agents if agent.key not in active_keys or agent.lifecycle_state != "ACTIVE"]
         decision = self.team_router.decide(
             text,
             agents,
             active_owner=self.last_addressed_agent_keys,
             manual=manual,
+            blocked_agents=blocked_agents,
         )
         self.last_routing_decision = decision
         if decision.selected:
@@ -752,24 +761,41 @@ class MainWindow(QMainWindow):
         return True
 
     def _agents_are_ready(self, agent_keys: list[str]) -> bool:
-        for agent_key in agent_keys:
+        ready: list[str] = []
+        for agent_key in list(agent_keys):
             route = self.agent_router.route(agent_key)
             if route.provider == "CODEX_CLI":
                 if not self.codex_client.is_available():
                     self.refresh_codex_status()
-                    QMessageBox.warning(self, "Codex CLI не найден", "Встроенный Codex CLI не найден в сборке.")
-                    return False
+                    if len(agent_keys) == 1:
+                        QMessageBox.warning(self, "Codex CLI не найден", "Встроенный Codex CLI не найден в сборке.")
+                        return False
+                    self.chat.add_message("system", "Роман пропущен: Codex CLI недоступен.")
+                    continue
                 self.refresh_codex_status()
                 if not self.codex_authorized:
-                    QMessageBox.information(self, "Нужен вход", "Откройте настройки профиля и выполните вход через ChatGPT.")
-                    return False
+                    if len(agent_keys) == 1:
+                        QMessageBox.information(self, "Нужен вход", "Откройте настройки профиля и выполните вход через ChatGPT.")
+                        return False
+                    self.chat.add_message("system", "Роман пропущен: Codex CLI не авторизован.")
+                    continue
+                ready.append(agent_key)
             elif route.provider == "GEMINI_CLI":
-                if not self._gemini_is_ready():
-                    return False
+                gemini_ready = self.gemini_client.is_available() and self.gemini_client.has_api_key()
+                if not gemini_ready:
+                    if len(agent_keys) == 1:
+                        return self._gemini_is_ready()
+                    self.chat.add_message("system", f"{agent_key} пропущен: Gemini CLI недоступен.")
+                    continue
+                ready.append(agent_key)
             else:
-                QMessageBox.warning(self, "Сотрудник недоступен", f"{route.agent_id}: провайдер {route.provider} пока не подключен к чату.")
-                return False
-        return True
+                if len(agent_keys) == 1:
+                    QMessageBox.warning(self, "Сотрудник недоступен", f"{route.agent_id}: провайдер {route.provider} пока не подключен к чату.")
+                    return False
+                self.chat.add_message("system", f"{agent_key} пропущен: провайдер {route.provider} не готов.")
+                continue
+        agent_keys[:] = ready
+        return bool(ready)
 
     def _add_user_message(self, text: str) -> int:
         message_id = self.database.add_message(self.conversation_id, "user", text)
@@ -896,10 +922,16 @@ class MainWindow(QMainWindow):
         if len(signature) < 24:
             return False
         recent = self.database.list_messages(self.conversation_id, limit=12)
+        normalized = re.sub(r"\W+", "", content.lower())
         for message in recent:
             if message.role != role:
                 continue
-            if self._signature_similarity(signature, self._content_signature(message.content)) >= 0.78:
+            previous_normalized = re.sub(r"\W+", "", message.content.lower())
+            if (
+                len(normalized) >= 60
+                and len(previous_normalized) >= 60
+                and (normalized in previous_normalized or previous_normalized in normalized)
+            ) or self._signature_similarity(signature, self._content_signature(message.content)) >= 0.72:
                 return True
         return False
 
@@ -1022,6 +1054,7 @@ class MainWindow(QMainWindow):
         )
         self.worker.delta_received.connect(self.chat.append_roman_delta)
         self.worker.status_received.connect(self.chat.set_activity_status)
+        self.worker.run_status_received.connect(lambda status, run_id=run_handle.run_id: self._record_run_status(run_id, status))
         self.worker.finished_with_result.connect(self._generation_finished)
         self.worker.start()
         self._mark_contextual_handoff_started(agent_key, run_handle.run_id)
@@ -1033,6 +1066,13 @@ class MainWindow(QMainWindow):
             agent_id_from_key(agent_key),
             bool(self.settings.get("allow_local_tools", False)),
         )
+
+    def _record_run_status(self, run_id: str, status: str) -> None:
+        try:
+            self.database.update_agent_run_status(run_id, status)
+            self.database.log_event("agent_run_status", f"{run_id}; {status}")
+        except Exception:
+            self.logger.exception("agent_run_status_not_recorded")
 
     def _any_agent_allows_local_tools(self, agent_keys: list[str]) -> bool:
         return any(self._allow_local_tools_for_agent(agent_key) for agent_key in agent_keys)
@@ -1100,8 +1140,8 @@ class MainWindow(QMainWindow):
             if handoff not in self.pending_contextual_handoffs:
                 self.pending_contextual_handoffs.append(handoff)
             self.database.log_event("contextual_handoff_scheduled", f"{author}->{next_agent}")
-        if not self.autonomous_goal:
-            self.autonomous_goal = self.pending_user_message or content
+        # A handoff is a bounded workflow edge, not a reason to turn a normal
+        # direct request into an autonomous conversation.
 
     def _contextual_handoff_target(self, author: str, content: str) -> str | None:
         if not has_handoff_intent(content):

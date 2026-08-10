@@ -182,7 +182,7 @@ class CodexClient:
             self.cancel()
             duration = time.perf_counter() - started
             self.logger.error("codex_timeout duration=%.2f", duration)
-            return CodexResult(False, "", None, duration, "Codex CLI не ответил вовремя")
+            return CodexResult(False, "", None, duration, "Codex CLI не ответил вовремя", timed_out=True)
         except FileNotFoundError:
             duration = time.perf_counter() - started
             return CodexResult(False, "", None, duration, "Codex CLI не найден")

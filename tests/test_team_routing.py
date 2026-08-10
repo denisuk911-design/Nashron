@@ -42,12 +42,11 @@ def test_two_named_employees_create_team_discussion_subset():
     assert "shushan" in decision.excluded
 
 
-def test_team_question_limits_responders_to_relevant_subset():
+def test_team_call_selects_all_active_chat_employees():
     decision = TeamRouter().decide("Команда, какие риски в документации?", _agents())
 
     assert decision.participation_mode == ParticipationMode.TEAM_DISCUSSION
-    assert len(decision.selected) <= 2
-    assert "shushan" in decision.selected
+    assert decision.selected == ["roman", "petr", "shushan"]
 
 
 def test_information_without_question_routes_to_silence():

@@ -48,8 +48,8 @@ def parse_agent_response(content: str) -> ParsedAgentResponse:
     block is returned so callers can preserve it for audit and request repair.
     """
 
-    match = STRUCTURED_BLOCK_RE.search(content)
-    if match is None:
+    structured_block = _extract_structured_block(content)
+    if structured_block is None:
         raw_object = _extract_leading_json_object(content)
         if raw_object is not None:
             raw, end_index = raw_object
@@ -92,8 +92,8 @@ def parse_agent_response(content: str) -> ParsedAgentResponse:
             )
         return ParsedAgentResponse(human_text=content.strip(), errors=["missing_structured_response"])
 
-    raw = (match.group(1) or match.group(3) or "").strip()
-    human = (content[: match.start()] + content[match.end() :]).strip()
+    raw, block_start, block_end = structured_block
+    human = (content[:block_start] + content[block_end:]).strip()
     try:
         envelope = json.loads(raw)
     except json.JSONDecodeError as exc:
@@ -113,6 +113,44 @@ def parse_agent_response(content: str) -> ParsedAgentResponse:
 
     errors = validate_agent_envelope(envelope)
     return ParsedAgentResponse(human_text=human, envelope=envelope, raw_structured=raw, errors=errors)
+
+
+def _extract_structured_block(content: str) -> tuple[str, int, int] | None:
+    """Extract a complete JSON object from a fenced audit block.
+
+    A non-greedy regex cannot parse nested JSON objects: it stops at the first
+    closing brace inside ``checks`` or ``claims``. Use the JSON decoder to find
+    the balanced object, then remove the whole fence from user-facing text.
+    """
+    decoder = json.JSONDecoder()
+    fence_re = re.compile(r"```(?:json)?[ \t]*(?:\r?\n)?", re.IGNORECASE)
+    for match in fence_re.finditer(content):
+        start = match.end()
+        try:
+            payload, relative_end = decoder.raw_decode(content[start:])
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(payload, dict):
+            continue
+        object_end = start + relative_end
+        closing = content.find("```", object_end)
+        block_end = closing + 3 if closing >= 0 else object_end
+        return content[start:object_end].strip(), match.start(), block_end
+
+    tag_re = re.compile(r"<structured_response>\s*", re.IGNORECASE)
+    for match in tag_re.finditer(content):
+        start = match.end()
+        try:
+            payload, relative_end = decoder.raw_decode(content[start:])
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(payload, dict):
+            continue
+        object_end = start + relative_end
+        closing_match = re.search(r"</structured_response>", content[object_end:], re.IGNORECASE)
+        block_end = object_end + closing_match.end() if closing_match else object_end
+        return content[start:object_end].strip(), match.start(), block_end
+    return None
 
 
 def _extract_leading_json_object(content: str) -> tuple[str, int] | None:

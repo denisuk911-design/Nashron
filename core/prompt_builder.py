@@ -209,6 +209,7 @@ class PromptBuilder:
                 "- selection_policy: контекст ниже отобран по текущей теме, роли и владельцу разговора; это не полный лог чата.",
             ]
         )
+        parts.extend(["TASK STATE AND WORK EVIDENCE:", *self._task_context_lines(task_id)])
         parts.extend(context_snapshot.prompt_lines())
 
         if peer_context.strip():
@@ -271,6 +272,28 @@ class PromptBuilder:
             ]
         )
         return "\n".join(parts)
+
+    def _task_context_lines(self, task_id: str | None) -> list[str]:
+        if not task_id:
+            return ["- текущая задача не создана"]
+        task = self.database.get_task(task_id)
+        if task is None:
+            return [f"- задача {task_id} не найдена в базе"]
+        lines = [
+            f"- task_id: {task_id}",
+            f"- state: {task['state']}",
+            f"- title: {task['title']}",
+        ]
+        transitions = self.database.list_task_transitions(task_id)[-5:]
+        lines.extend(
+            f"- transition: {row['previous_state']} -> {row['next_state']}; reason={row['reason']}"
+            for row in transitions
+        )
+        artifacts = self.database.list_artifacts(task_id=task_id, limit=12)
+        lines.extend(f"- artifact: {row['relative_path']} [{row['status']}/{row['validation_status']}]" for row in artifacts)
+        findings = self.database.list_findings(task_id=task_id, limit=12)
+        lines.extend(f"- finding: {row['severity']} {row['status']}: {row['description']}" for row in findings)
+        return lines
 
     def _effective_permissions(self, agent_profile) -> list[str]:
         if agent_profile is None:

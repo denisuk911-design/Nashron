@@ -84,6 +84,7 @@ class TaskOrchestrator:
             parsed_response=parsed.envelope,
             parse_errors=parsed.errors,
             finished_at=datetime.now().isoformat(timespec="seconds"),
+            timed_out=result.timed_out,
         )
         event_type = "agent_run_finished" if result.ok else "agent_run_failed"
         self.database.audit_event(event_type, None, {"run_id": run_id, "errors": parsed.errors})

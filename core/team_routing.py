@@ -9,11 +9,18 @@ from .agent_directory import ChatAgent, mention_tokens
 
 class ParticipationMode(StrEnum):
     DIRECT = "DIRECT"
-    TEAM_DISCUSSION = "TEAM_DISCUSSION"
+    MULTI_DIRECT = "MULTI_DIRECT"
+    TEAM_CALL = "TEAM_CALL"
+    # Backward-compatible source name used by the first routing implementation.
+    TEAM_DISCUSSION = "TEAM_CALL"
     REVIEW_REQUEST = "REVIEW_REQUEST"
-    BROADCAST = "BROADCAST"
+    GENERAL_TEAM_PING = "GENERAL_TEAM_PING"
+    INFO_ONLY = "INFO_ONLY"
+    # Backward-compatible source name for informational broadcasts.
+    BROADCAST = "INFO_ONLY"
     MANAGEMENT_COMMAND = "MANAGEMENT_COMMAND"
     CONTINUATION = "CONTINUATION"
+    WORKFLOW_HANDOFF = "WORKFLOW_HANDOFF"
 
 
 class RoutingDecisionType(StrEnum):
@@ -46,6 +53,18 @@ class ManualRouting:
 
 class TeamRouter:
     TEAM_TOKENS = ("команда", "отдел", "сотрудники", "все", "всем")
+    GENERAL_PING_TOKENS = (
+        "все тут",
+        "есть кто",
+        "есть кто живой",
+        "кто живой",
+        "кто на месте",
+        "на месте",
+        "на связи",
+        "остальные",
+        "куку",
+        "ку-ку",
+    )
     DISCUSSION_TOKENS = ("обсудите", "обсуждаем", "что думаете", "говорите между собой", "совещайтесь")
     REVIEW_TOKENS = ("проверь", "проверить", "ревью", "аудит", "отк", "оценить")
     MANAGEMENT_TOKENS = (
@@ -87,58 +106,75 @@ class TeamRouter:
         *,
         active_owner: list[str] | None = None,
         manual: ManualRouting | None = None,
+        eligible_keys: set[str] | None = None,
+        blocked_agents: list[ChatAgent] | None = None,
     ) -> TeamRoutingDecision:
         manual = manual or ManualRouting()
         active_agents = list(agents)
         active_keys = {agent.key for agent in active_agents}
+        eligible = active_keys if eligible_keys is None else active_keys & set(eligible_keys)
+        blocked_mentions = self._mentioned_agents(text, blocked_agents or [])
         if not active_agents:
-            return TeamRoutingDecision(ParticipationMode.DIRECT, ["roman"], reason="fallback_no_active_roster")
+            return TeamRoutingDecision(ParticipationMode.DIRECT, [], reason="no_active_roster")
 
         if manual.no_response:
             return self._decision(ParticipationMode.BROADCAST, [], active_agents, reason="manual_no_response")
 
         if manual.recipient_key and manual.recipient_key in active_keys:
             mode = ParticipationMode.TEAM_DISCUSSION if manual.team_discussion else ParticipationMode.DIRECT
-            selected = [manual.recipient_key]
+            selected = [manual.recipient_key] if manual.recipient_key in eligible else []
             return self._decision(mode, selected, active_agents, explicit=selected, reason="manual_recipient")
 
         mentions = self._mentioned_agents(text, active_agents)
+        if blocked_mentions and not mentions:
+            return self._decision(
+                ParticipationMode.DIRECT,
+                [],
+                active_agents,
+                explicit=blocked_mentions,
+                reason="addressed_employee_inactive_or_chat_denied",
+            )
         if manual.only_selected and manual.recipient_key:
             return self._decision(ParticipationMode.DIRECT, [], active_agents, reason="manual_recipient_not_available")
 
         if manual.team_discussion:
-            selected = mentions or self._role_relevant_subset(text, active_agents, limit=2)
-            return self._decision(ParticipationMode.TEAM_DISCUSSION, selected, active_agents, explicit=mentions, reason="manual_team_discussion")
+            selected = [key for key in (mentions or [agent.key for agent in active_agents]) if key in eligible]
+            return self._decision(ParticipationMode.TEAM_CALL, selected, active_agents, explicit=mentions, reason="manual_team_discussion")
 
         if manual.review_request:
-            selected = mentions or self._reviewers(active_agents, limit=1)
+            selected = [key for key in (mentions or self._reviewers(active_agents, limit=1)) if key in eligible]
             return self._decision(ParticipationMode.REVIEW_REQUEST, selected, active_agents, explicit=mentions, reason="manual_review_request")
 
         if mentions:
             mode = ParticipationMode.REVIEW_REQUEST if self._looks_like_review_request(text, mentions, active_agents) else ParticipationMode.DIRECT
             selected = mentions[:2] if self._looks_like_team_discussion(text) and len(mentions) > 1 else mentions[:1] if len(mentions) == 1 else mentions
+            selected = [key for key in selected if key in eligible]
             if len(selected) > 1:
-                mode = ParticipationMode.TEAM_DISCUSSION
+                mode = ParticipationMode.TEAM_CALL if self._looks_like_team_discussion(text) else ParticipationMode.MULTI_DIRECT
             return self._decision(mode, selected, active_agents, explicit=selected, reason="explicit_name_or_alias")
 
         if active_owner and self._looks_like_continuation(text):
-            selected = [key for key in active_owner if key in active_keys][:1]
+            selected = [key for key in active_owner if key in eligible][:1]
             if selected:
                 return self._decision(ParticipationMode.CONTINUATION, selected, active_agents, inferred=selected, reason="active_thread_owner")
 
         lowered = self._norm(text)
         if any(token in lowered for token in self.MANAGEMENT_TOKENS):
-            selected = self._role_relevant_subset(text, active_agents, limit=1)
+            selected = [key for key in self._role_relevant_subset(text, active_agents, limit=1) if key in eligible]
             return self._decision(ParticipationMode.MANAGEMENT_COMMAND, selected, active_agents, inferred=selected, reason="management_command")
 
         if self._looks_like_broadcast(text):
-            return self._decision(ParticipationMode.BROADCAST, [], active_agents, reason="informational_broadcast")
+            return self._decision(ParticipationMode.INFO_ONLY, [], active_agents, reason="informational_broadcast")
+
+        if self._looks_like_general_team_ping(text):
+            selected = [agent.key for agent in active_agents if agent.key in eligible]
+            return self._decision(ParticipationMode.GENERAL_TEAM_PING, selected, active_agents, reason="general_team_ping")
 
         if self._looks_like_team_discussion(text):
-            selected = self._role_relevant_subset(text, active_agents, limit=2)
-            return self._decision(ParticipationMode.TEAM_DISCUSSION, selected, active_agents, inferred=selected, reason="team_discussion_request")
+            selected = [agent.key for agent in active_agents if agent.key in eligible]
+            return self._decision(ParticipationMode.TEAM_CALL, selected, active_agents, inferred=selected, reason="team_call_request")
 
-        selected = self._role_relevant_subset(text, active_agents, limit=1)
+        selected = [key for key in self._role_relevant_subset(text, active_agents, limit=1) if key in eligible]
         return self._decision(ParticipationMode.DIRECT, selected, active_agents, inferred=selected, reason="single_responder_default")
 
     def _mentioned_agents(self, text: str, agents: list[ChatAgent]) -> list[str]:
@@ -179,7 +215,13 @@ class TeamRouter:
 
     def _looks_like_team_discussion(self, text: str) -> bool:
         lowered = self._norm(text)
-        return any(token in lowered for token in self.TEAM_TOKENS + self.DISCUSSION_TOKENS)
+        return any(self._contains_token(lowered, token) for token in self.TEAM_TOKENS) or any(
+            token in lowered for token in self.DISCUSSION_TOKENS
+        )
+
+    def _looks_like_general_team_ping(self, text: str) -> bool:
+        lowered = self._norm(text).rstrip("?!.,")
+        return any(self._contains_token(lowered, token) for token in self.GENERAL_PING_TOKENS)
 
     def _looks_like_broadcast(self, text: str) -> bool:
         lowered = self._norm(text).strip()
@@ -218,7 +260,7 @@ class TeamRouter:
         selected = self._dedupe([key for key in selected if key])
         selected_set = set(selected)
         excluded = {
-            agent.key: ("selected_other_employee" if selected else "broadcast_or_not_addressed")
+            agent.key: ("selected_other_employee" if selected else "not_addressed")
             for agent in agents
             if agent.key not in selected_set
         }

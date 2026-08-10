@@ -76,10 +76,18 @@ class ConversationThreadService:
 
         mode = ParticipationMode(str(decision.participation_mode))
         if decision.selected:
-            if mode in {ParticipationMode.DIRECT, ParticipationMode.CONTINUATION, ParticipationMode.REVIEW_REQUEST, ParticipationMode.MANAGEMENT_COMMAND}:
+            if mode in {
+                ParticipationMode.DIRECT,
+                ParticipationMode.CONTINUATION,
+                ParticipationMode.REVIEW_REQUEST,
+                ParticipationMode.MANAGEMENT_COMMAND,
+            }:
                 active_addressee_agent_id = agent_id_from_key(decision.selected[0])
-                expected_next_actor = decision.selected[0]
-            elif mode == ParticipationMode.TEAM_DISCUSSION:
+                expected_next_actor = ",".join(decision.selected)
+            elif mode == ParticipationMode.MULTI_DIRECT:
+                active_addressee_agent_id = None
+                expected_next_actor = ",".join(decision.selected)
+            elif mode in {ParticipationMode.TEAM_CALL, ParticipationMode.GENERAL_TEAM_PING}:
                 active_addressee_agent_id = None
                 expected_next_actor = ",".join(decision.selected)
         elif mode == ParticipationMode.BROADCAST:

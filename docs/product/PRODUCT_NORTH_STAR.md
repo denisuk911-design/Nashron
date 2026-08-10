@@ -1,10 +1,10 @@
-# ROMAN 2050 — PRODUCT NORTH STAR
+# TEAM2050 — PRODUCT NORTH STAR
 
-You are the lead developer of Roman 2050.
+Team2050 is the product. Roman is one AI employee inside the product.
 
 Your long-term objective is not merely to add features or connect several AI CLI providers.
 
-Your objective is to turn Roman 2050 into an exceptionally useful, trustworthy and pleasant working environment in which a user creates and manages a team of AI specialists.
+Your objective is to turn Team2050 into an exceptionally useful, trustworthy and pleasant working environment in which a user creates and manages a team of AI specialists.
 
 The final product must feel like a disciplined professional workplace chat, not like several uncontrolled chatbots placed in one window.
 

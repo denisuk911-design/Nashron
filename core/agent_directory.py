@@ -38,6 +38,7 @@ class ChatAgent:
     persona_id: str | None
     description: str
     avatar_path: str | None
+    lifecycle_state: str = "ACTIVE"
 
     @property
     def primary_role(self) -> str:
@@ -56,14 +57,18 @@ def agent_id_from_key(agent_key: str) -> str:
     return agent_key if agent_key.startswith("agent-") else f"agent-{agent_key}"
 
 
-def list_chat_agents(database: Database, active_only: bool = True) -> list[ChatAgent]:
+def list_chat_agents(
+    database: Database,
+    active_only: bool = True,
+    include_without_chat: bool = False,
+) -> list[ChatAgent]:
     agents: list[ChatAgent] = []
     for row in database.list_agent_profiles():
         if active_only and str(row["lifecycle_state"]) != "ACTIVE":
             continue
         agent_id = str(row["agent_id"])
         roles = database.list_agent_roles(agent_id)
-        if "CHAT" not in effective_permissions_for_agent(database, agent_id):
+        if not include_without_chat and "CHAT" not in effective_permissions_for_agent(database, agent_id):
             continue
         agents.append(
             ChatAgent(
@@ -75,6 +80,7 @@ def list_chat_agents(database: Database, active_only: bool = True) -> list[ChatA
                 persona_id=str(row["persona_id"]) if row["persona_id"] else None,
                 description=str(row["description"] or ""),
                 avatar_path=str(row["avatar_path"]) if row["avatar_path"] else None,
+                lifecycle_state=str(row["lifecycle_state"]),
             )
         )
     return agents
