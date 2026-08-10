@@ -225,6 +225,11 @@ class MainWindow(QMainWindow):
         self.director_button.setToolTip("Центр управления командой")
         self.director_button.clicked.connect(self.show_director_console_preview)
         top_layout.addWidget(self.director_button)
+        self.routing_debug_button = QPushButton("Маршрут")
+        self.routing_debug_button.setObjectName("smallAction")
+        self.routing_debug_button.setToolTip("Почему выбран этот сотрудник")
+        self.routing_debug_button.clicked.connect(self.show_routing_diagnostic)
+        top_layout.addWidget(self.routing_debug_button)
         self.top_settings_button = QToolButton()
         self.top_settings_button.setText("⚙")
         self.top_settings_button.setToolTip("Настройки")
@@ -727,6 +732,9 @@ class MainWindow(QMainWindow):
             f"Причина: {decision.reason}\n"
             "Резервный выбор Roman: не использован"
         )
+
+    def show_routing_diagnostic(self) -> None:
+        QMessageBox.information(self, "Диагностика маршрута", self.explain_last_routing_decision())
 
     def _persist_thread_from_last_decision(self, message_id: int | None, task_id: str | None, topic: str) -> None:
         decision = self.last_routing_decision
