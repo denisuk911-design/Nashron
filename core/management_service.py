@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import uuid
 from dataclasses import dataclass, field
@@ -238,6 +239,7 @@ class ManagementService:
             provider_id=provider_id,
             persona_id=persona_id,
             avatar_path=avatar_path,
+            aliases=self._aliases_from_row(current),
         )
         self.config_repository.write_json_atomic(
             f"employees/{agent_id}/profile.json",
@@ -254,6 +256,7 @@ class ManagementService:
                 expected_updated_at=expected_updated_at,
                 actor=actor_role,
                 reason=reason,
+                aliases=list(profile.aliases),
             )
             self.database.replace_agent_roles(agent_id, roles, actor_role, reason)
             self.database.replace_agent_permission_overrides(agent_id, permission_grants, permission_denies, actor_role, reason)
@@ -431,7 +434,16 @@ class ManagementService:
             "provider_id": profile.provider_id,
             "persona_id": profile.persona_id,
             "avatar_path": profile.avatar_path,
+            "aliases": list(profile.aliases),
             "roles": roles,
             "permission_grants": grants,
             "permission_denies": denies,
         }
+
+    @staticmethod
+    def _aliases_from_row(row) -> tuple[str, ...]:
+        try:
+            raw = json.loads(str(row["aliases"] or "[]"))
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+            return ()
+        return tuple(str(alias).strip() for alias in raw if str(alias).strip()) if isinstance(raw, list) else ()

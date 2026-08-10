@@ -164,6 +164,7 @@ class AgentProfile:
     provider_id: str
     persona_id: str | None = None
     avatar_path: str | None = None
+    aliases: tuple[str, ...] = ()
     schema_version: str = MANAGEMENT_SCHEMA_VERSION
 
 
@@ -235,6 +236,7 @@ DEFAULT_AGENT_PROFILES = [
         lifecycle_state="ACTIVE",
         provider_id="CODEX_CLI",
         persona_id="roman_2050",
+        aliases=("Роман",),
     ),
     AgentProfile(
         agent_id="agent-petr",
@@ -243,5 +245,6 @@ DEFAULT_AGENT_PROFILES = [
         lifecycle_state="ACTIVE",
         provider_id="GEMINI_CLI",
         persona_id="petr_2050",
+        aliases=("Петр", "Пётр"),
     ),
 ]

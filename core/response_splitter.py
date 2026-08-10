@@ -15,11 +15,20 @@ class ResponsePart:
 
 class ResponseSplitter:
     @staticmethod
-    def split(text: str, default_role: str) -> list[ResponsePart]:
+    def split(text: str, default_role: str, speaker_aliases: dict[str, str] | None = None) -> list[ResponsePart]:
         text = text.strip()
         if not text:
             return []
-        matches = list(_SPEAKER_RE.finditer(text))
+        aliases = {str(label).strip().lower().replace("ё", "е"): role for label, role in (speaker_aliases or {}).items() if str(label).strip()}
+        if aliases:
+            labels = sorted(aliases, key=len, reverse=True)
+            speaker_re = re.compile(
+                rf"(?<![\wА-Яа-яЁё])(?P<label>{'|'.join(re.escape(label) for label in labels)})\s*:",
+                re.IGNORECASE,
+            )
+            matches = list(speaker_re.finditer(text))
+        else:
+            matches = list(_SPEAKER_RE.finditer(text))
         if not matches:
             return [ResponsePart(default_role, text)]
 
@@ -34,7 +43,8 @@ class ResponseSplitter:
             content = text[start:end].strip(" \n\r\t-—")
             if not content:
                 continue
-            parts.append(ResponsePart(ResponseSplitter._role_for(match.group(1)), content))
+            label = match.groupdict().get("label") or match.group(1)
+            parts.append(ResponsePart(ResponseSplitter._role_for(label, aliases), content))
         return ResponseSplitter._merge_neighbors(parts)
 
     @staticmethod
@@ -42,8 +52,11 @@ class ResponseSplitter:
         return len({_role.group(1).lower().replace("ё", "е") for _role in _SPEAKER_RE.finditer(text)}) > 1
 
     @staticmethod
-    def _role_for(label: str) -> str:
-        return "petr" if label.lower().replace("ё", "е") == "петр" else "roman"
+    def _role_for(label: str, aliases: dict[str, str] | None = None) -> str:
+        normalized = label.lower().replace("ё", "е")
+        if aliases and normalized in aliases:
+            return aliases[normalized]
+        return "petr" if normalized == "петр" else "roman"
 
     @staticmethod
     def _merge_neighbors(parts: list[ResponsePart]) -> list[ResponsePart]:

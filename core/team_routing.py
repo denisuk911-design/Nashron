@@ -108,11 +108,13 @@ class TeamRouter:
         manual: ManualRouting | None = None,
         eligible_keys: set[str] | None = None,
         blocked_agents: list[ChatAgent] | None = None,
+        recently_answered: set[str] | None = None,
     ) -> TeamRoutingDecision:
         manual = manual or ManualRouting()
         active_agents = list(agents)
         active_keys = {agent.key for agent in active_agents}
         eligible = active_keys if eligible_keys is None else active_keys & set(eligible_keys)
+        recently_answered = set(recently_answered or ())
         blocked_mentions = self._mentioned_agents(text, blocked_agents or [])
         if not active_agents:
             return TeamRoutingDecision(ParticipationMode.DIRECT, [], reason="no_active_roster")
@@ -153,7 +155,7 @@ class TeamRouter:
                 mode = ParticipationMode.TEAM_CALL if self._looks_like_team_discussion(text) else ParticipationMode.MULTI_DIRECT
             return self._decision(mode, selected, active_agents, explicit=selected, reason="explicit_name_or_alias")
 
-        if active_owner and self._looks_like_continuation(text):
+        if active_owner and self._looks_like_continuation(text) and not self._looks_like_general_team_ping(text):
             selected = [key for key in active_owner if key in eligible][:1]
             if selected:
                 return self._decision(ParticipationMode.CONTINUATION, selected, active_agents, inferred=selected, reason="active_thread_owner")
@@ -167,24 +169,38 @@ class TeamRouter:
             return self._decision(ParticipationMode.INFO_ONLY, [], active_agents, reason="informational_broadcast")
 
         if self._looks_like_general_team_ping(text):
-            selected = [agent.key for agent in active_agents if agent.key in eligible]
-            return self._decision(ParticipationMode.GENERAL_TEAM_PING, selected, active_agents, reason="general_team_ping")
+            selected = [
+                agent.key
+                for agent in active_agents
+                if agent.key in eligible and (not self._looks_like_remaining_ping(text) or agent.key not in recently_answered)
+            ]
+            reason = "remaining_team_ping" if self._looks_like_remaining_ping(text) else "general_team_ping"
+            return self._decision(ParticipationMode.GENERAL_TEAM_PING, selected, active_agents, reason=reason)
 
         if self._looks_like_team_discussion(text):
             selected = [agent.key for agent in active_agents if agent.key in eligible]
             return self._decision(ParticipationMode.TEAM_CALL, selected, active_agents, inferred=selected, reason="team_call_request")
 
         selected = [key for key in self._role_relevant_subset(text, active_agents, limit=1) if key in eligible]
-        return self._decision(ParticipationMode.DIRECT, selected, active_agents, inferred=selected, reason="single_responder_default")
+        if selected:
+            return self._decision(ParticipationMode.DIRECT, selected, active_agents, inferred=selected, reason="role_relevant_default")
+        return self._decision(
+            ParticipationMode.DIRECT,
+            [],
+            active_agents,
+            reason="no_explicit_recipient_or_relevant_role",
+        )
 
     def _mentioned_agents(self, text: str, agents: list[ChatAgent]) -> list[str]:
         lowered = self._norm(text)
-        found: list[str] = []
+        matches_by_token: dict[str, list[str]] = {}
         for agent in agents:
             for token in sorted(mention_tokens(agent), key=len, reverse=True):
                 if token and self._contains_token(lowered, token):
-                    found.append(agent.key)
+                    matches_by_token.setdefault(token, []).append(agent.key)
                     break
+        ambiguous = {token for token, keys in matches_by_token.items() if len(set(keys)) > 1}
+        found = [key for token, keys in matches_by_token.items() if token not in ambiguous for key in keys]
         return self._dedupe(found)
 
     def _role_relevant_subset(self, text: str, agents: list[ChatAgent], limit: int) -> list[str]:
@@ -197,14 +213,11 @@ class TeamRouter:
             scored.append((-score, index, agent.key))
         scored.sort()
         selected = [key for score, _index, key in scored if score < 0][:limit]
-        if selected:
-            return selected
-        roman = next((agent.key for agent in agents if agent.key == "roman"), None)
-        return [roman or agents[0].key]
+        return selected
 
     def _reviewers(self, agents: list[ChatAgent], limit: int) -> list[str]:
         reviewers = [agent.key for agent in agents if "QA_ENGINEER" in agent.roles or "VERIFICATION_ENGINEER" in agent.roles]
-        return reviewers[:limit] or [agents[0].key]
+        return reviewers[:limit]
 
     def _looks_like_review_request(self, text: str, mentions: list[str], agents: list[ChatAgent]) -> bool:
         lowered = self._norm(text)
@@ -222,6 +235,10 @@ class TeamRouter:
     def _looks_like_general_team_ping(self, text: str) -> bool:
         lowered = self._norm(text).rstrip("?!.,")
         return any(self._contains_token(lowered, token) for token in self.GENERAL_PING_TOKENS)
+
+    def _looks_like_remaining_ping(self, text: str) -> bool:
+        lowered = self._norm(text).rstrip("?!.,")
+        return lowered.startswith("остальные")
 
     def _looks_like_broadcast(self, text: str) -> bool:
         lowered = self._norm(text).strip()

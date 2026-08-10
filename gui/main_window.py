@@ -144,6 +144,7 @@ class MainWindow(QMainWindow):
         self.worker: GenerateWorker | None = None
         self.current_agent_key = "roman"
         self.pending_agent_keys: list[str] = []
+        self.authorized_worker_keys: set[str] = set()
         self.pending_user_message = ""
         self.last_peer_context = ""
         self.last_addressed_agent_keys: list[str] = self.thread_service.owner_keys()
@@ -557,6 +558,7 @@ class MainWindow(QMainWindow):
             self.database.log_event("stale_worker_cleared", self.current_agent_key)
             self.worker = None
             self.pending_agent_keys = []
+            self.authorized_worker_keys = set()
             self._stop_response_latency_timers()
             self.chat.set_busy(False)
 
@@ -578,7 +580,8 @@ class MainWindow(QMainWindow):
         self.exchange_fingerprints = []
         self.pending_contextual_handoffs = []
         self.live_guidance = []
-        self.pending_agent_keys = agent_keys
+        self.pending_agent_keys = list(agent_keys)
+        self.authorized_worker_keys = set(agent_keys)
         self.pending_user_message = self.autonomous_goal or text
         self.last_peer_context = ""
         self.chat.set_goal_status(self.autonomous_active and self.autonomous_complete_on_goal, self.autonomous_goal, self.autonomous_turn)
@@ -599,6 +602,7 @@ class MainWindow(QMainWindow):
             self.logger.exception("chat_generation_start_failure_not_logged")
         self.worker = None
         self.pending_agent_keys = []
+        self.authorized_worker_keys = set()
         self.pending_user_message = ""
         self.last_peer_context = ""
         self.pending_contextual_handoffs = []
@@ -615,7 +619,12 @@ class MainWindow(QMainWindow):
             self.database.log_event("stale_worker_after_send_cleared", self.current_agent_key)
             self.worker = None
         if not self.pending_agent_keys:
-            self.pending_agent_keys = self._route_agents(self.pending_user_message, self._manual_routing())
+            # The routing decision is authoritative. A delayed watchdog must
+            # never create a second decision and silently fall back to Roman.
+            self.database.log_event("generation_restart_skipped_without_authorized_worker", str(message_id))
+            self.pending_user_message = ""
+            self.chat.set_busy(False)
+            return
         self.database.log_event(
             "generation_restart_after_silent_send",
             f"message_id={message_id}; agents={','.join(self.pending_agent_keys)}",
@@ -651,6 +660,8 @@ class MainWindow(QMainWindow):
 
     def _route_agents(self, text: str, manual: ManualRouting | None = None) -> list[str]:
         agents = self._chat_agents()
+        self.last_routing_text = text
+        self.last_routing_owner_before = list(self.last_addressed_agent_keys)
         try:
             configured_agents = list_chat_agents(self.database, active_only=False, include_without_chat=True)
         except AttributeError:
@@ -665,15 +676,16 @@ class MainWindow(QMainWindow):
             active_owner=self.last_addressed_agent_keys,
             manual=manual,
             blocked_agents=blocked_agents,
+            recently_answered=getattr(self, "exchange_responded_agent_keys", set()),
         )
         self.last_routing_decision = decision
         if decision.selected:
-            self.last_addressed_agent_keys = decision.selected
+            self.last_addressed_agent_keys = list(decision.selected)
         self.database.log_event(
             "chat_route_decision",
             f"{decision.participation_mode}; selected={','.join(decision.selected)}; reason={decision.reason}",
         )
-        return decision.selected
+        return list(decision.selected)
 
     def _record_last_routing_decision(self, message_id: int | None) -> None:
         decision = self.last_routing_decision
@@ -691,9 +703,30 @@ class MainWindow(QMainWindow):
                 interruption_policy=None,
                 reason=decision.reason,
                 router_version=decision.router_version,
+                normalized_text=" ".join(getattr(self, "last_routing_text", "").lower().replace("ё", "е").split()),
+                detected_recipient_tokens=decision.explicit_recipients,
+                continuation_owner_before=getattr(self, "last_routing_owner_before", []),
+                continuation_owner_after=list(decision.selected),
+                fallback_used=False,
             )
         except Exception:
             self.logger.exception("routing_decision_not_recorded")
+
+    def explain_last_routing_decision(self) -> str:
+        decision = self.last_routing_decision
+        if decision is None:
+            return "Решение маршрутизатора ещё не создано."
+        names = {agent.key: agent.display_name for agent in self._chat_agents()}
+        selected = ", ".join(names.get(key, key) for key in decision.selected) or "никто"
+        explicit = ", ".join(names.get(key, key) for key in decision.explicit_recipients) or "не найден"
+        return (
+            f"Фраза: {getattr(self, 'last_routing_text', '')}\n"
+            f"Явный адресат: {explicit}\n"
+            f"Выбранный сотрудник: {selected}\n"
+            f"Режим: {decision.participation_mode}\n"
+            f"Причина: {decision.reason}\n"
+            "Резервный выбор Roman: не использован"
+        )
 
     def _persist_thread_from_last_decision(self, message_id: int | None, task_id: str | None, topic: str) -> None:
         decision = self.last_routing_decision
@@ -980,16 +1013,20 @@ class MainWindow(QMainWindow):
                             f"Цель остановлена защитным лимитом ({turn_limit} ходов), чтобы не уйти в бесконечный цикл. Цель не отмечена выполненной: {goal}",
                         )
                     return
-                next_agent = "petr" if self.current_agent_key == "roman" else "roman"
                 active_keys = [agent.key for agent in self._chat_agents()]
                 cycle_keys = [key for key in getattr(self, "autonomous_agent_keys", []) if key in active_keys] or active_keys
-                if cycle_keys:
-                    try:
-                        current_index = cycle_keys.index(self.current_agent_key)
-                        next_agent = cycle_keys[(current_index + 1) % len(cycle_keys)]
-                    except ValueError:
-                        next_agent = cycle_keys[0]
+                if not cycle_keys:
+                    self.pending_user_message = ""
+                    self.chat.set_busy(False)
+                    self.database.log_event("autonomous_cycle_skipped_without_active_agents", None)
+                    return
+                try:
+                    current_index = cycle_keys.index(self.current_agent_key)
+                    next_agent = cycle_keys[(current_index + 1) % len(cycle_keys)]
+                except ValueError:
+                    next_agent = cycle_keys[0]
                 self.pending_agent_keys = [next_agent]
+                self.authorized_worker_keys.add(next_agent)
                 QTimer.singleShot(250, self._start_next_agent_run)
                 return
             self.worker = None
@@ -1000,6 +1037,15 @@ class MainWindow(QMainWindow):
             self.refresh_codex_status()
             return
         agent_key = self.pending_agent_keys.pop(0)
+        if not self._worker_agent_is_authorized(agent_key):
+            self.database.log_event(
+                "worker_selection_rejected",
+                f"{agent_key}; selected={','.join(sorted(self.authorized_worker_keys))}",
+            )
+            self.pending_agent_keys = []
+            self.pending_user_message = ""
+            self.chat.set_busy(False)
+            return
         if not self.autonomous_active:
             if self.exchange_turn >= self.exchange_turn_limit or agent_key in self.exchange_responded_agent_keys:
                 self.database.log_event("exchange_turn_suppressed", agent_key)
@@ -1134,6 +1180,9 @@ class MainWindow(QMainWindow):
             return
         if next_agent not in self.pending_agent_keys:
             self.pending_agent_keys.append(next_agent)
+            if not hasattr(self, "authorized_worker_keys"):
+                self.authorized_worker_keys = set()
+            self.authorized_worker_keys.add(next_agent)
             handoff = (author, next_agent)
             if not hasattr(self, "pending_contextual_handoffs"):
                 self.pending_contextual_handoffs = []
@@ -1165,6 +1214,11 @@ class MainWindow(QMainWindow):
             self.pending_contextual_handoffs.pop(index)
             self.database.log_event("contextual_handoff_started", f"{author}->{target}; run={run_id}")
             return
+
+    def _worker_agent_is_authorized(self, agent_key: str) -> bool:
+        if self.autonomous_active:
+            return agent_key in {agent.key for agent in self._chat_agents()}
+        return agent_key in getattr(self, "authorized_worker_keys", set())
 
     def _identity_is_ready(self) -> bool:
         if not self.identity_ok:
@@ -1236,7 +1290,7 @@ class MainWindow(QMainWindow):
                 self.database.log_event("exchange_repeated_content_suppressed", agent_key)
                 content = ""
             if content:
-                parts = ResponseSplitter.split(content, agent_key)
+                parts = ResponseSplitter.split(content, agent_key, self._response_speaker_aliases())
                 if len(parts) == 1 and parts[0].role == agent_key:
                     final_content = parts[0].content
                     if self._is_recent_duplicate_message(agent_key, final_content):
@@ -1322,6 +1376,15 @@ class MainWindow(QMainWindow):
         self.database.add_message(conversation_id, "system", warning, status="warning")
         self.database.log_event("unsupported_claim_warning", warning[:500])
         self.chat.add_message("system", warning)
+
+    def _response_speaker_aliases(self) -> dict[str, str]:
+        aliases: dict[str, str] = {}
+        for agent in self._chat_agents():
+            aliases[agent.key] = agent.key
+            aliases[agent.display_name] = agent.key
+            for alias in agent.aliases:
+                aliases[alias] = agent.key
+        return aliases
 
     @staticmethod
     def _display_text_from_parsed_response(parsed_response: ParsedAgentResponse) -> str:

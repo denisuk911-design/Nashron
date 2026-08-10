@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 import re
 
 from .database import Database
@@ -39,6 +40,7 @@ class ChatAgent:
     description: str
     avatar_path: str | None
     lifecycle_state: str = "ACTIVE"
+    aliases: tuple[str, ...] = ()
 
     @property
     def primary_role(self) -> str:
@@ -70,6 +72,11 @@ def list_chat_agents(
         roles = database.list_agent_roles(agent_id)
         if not include_without_chat and "CHAT" not in effective_permissions_for_agent(database, agent_id):
             continue
+        try:
+            raw_aliases = json.loads(str(row["aliases"] or "[]"))
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+            raw_aliases = []
+        aliases = tuple(str(alias).strip() for alias in raw_aliases if str(alias).strip()) if isinstance(raw_aliases, list) else ()
         agents.append(
             ChatAgent(
                 key=agent_key_from_id(agent_id),
@@ -81,6 +88,7 @@ def list_chat_agents(
                 description=str(row["description"] or ""),
                 avatar_path=str(row["avatar_path"]) if row["avatar_path"] else None,
                 lifecycle_state=str(row["lifecycle_state"]),
+                aliases=aliases,
             )
         )
     return agents
@@ -132,4 +140,15 @@ def mention_tokens(agent: ChatAgent) -> set[str]:
                     tokens.add(f"{stem}{suffix}")
     if agent.persona_id:
         tokens.add(agent.persona_id.lower())
+    for alias in agent.aliases:
+        normalized = " ".join(str(alias).lower().replace("ё", "е").split())
+        if normalized:
+            tokens.add(normalized)
+    # Safe normalized-name form: the short prefix still uses token boundaries
+    # and must resolve to an unambiguous employee in the current roster.
+    first_name = agent.display_name.lower().replace("ё", "е").split()[0] if agent.display_name.split() else ""
+    if len(first_name) >= 5 and re.fullmatch(r"[а-я]+", first_name):
+        tokens.add(first_name[:4])
+    if len(first_name) >= 6 and re.fullmatch(r"[а-я]+", first_name):
+        tokens.add(first_name[:3])
     return tokens

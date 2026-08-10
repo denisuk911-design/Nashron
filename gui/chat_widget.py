@@ -118,11 +118,11 @@ class ChatWidget(QWidget):
         self.recipient_selector = QComboBox()
         self.recipient_selector.setObjectName("routingSelector")
         self.recipient_selector.setToolTip("Кому адресовано сообщение")
-        self.recipient_selector.addItem("Авто", None)
+        self.recipient_selector.addItem("Кому: Авто", None)
         self.mode_selector = QComboBox()
         self.mode_selector.setObjectName("routingSelector")
         self.mode_selector.setToolTip("Режим участия сотрудников")
-        self.mode_selector.addItem("Авто", "auto")
+        self.mode_selector.addItem("Режим: Авто", "auto")
         self.mode_selector.addItem("Цель", "goal")
         self.mode_selector.addItem("Только выбранный", "selected")
         self.mode_selector.addItem("Обсуждение команды", "team")
@@ -173,7 +173,7 @@ class ChatWidget(QWidget):
         current_key = self.recipient_selector.currentData() if hasattr(self, "recipient_selector") else None
         self.recipient_selector.blockSignals(True)
         self.recipient_selector.clear()
-        self.recipient_selector.addItem("Авто", None)
+        self.recipient_selector.addItem("Кому: Авто", None)
         for key, label in sorted(labels.items(), key=lambda item: item[1].lower()):
             self.recipient_selector.addItem(label, key)
         if current_key:

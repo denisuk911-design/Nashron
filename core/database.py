@@ -554,6 +554,11 @@ class Database:
                 interruption_policy TEXT,
                 reason TEXT NOT NULL,
                 router_version TEXT NOT NULL,
+                normalized_text TEXT NOT NULL DEFAULT '',
+                detected_recipient_tokens TEXT NOT NULL DEFAULT '[]',
+                continuation_owner_before TEXT NOT NULL DEFAULT '[]',
+                continuation_owner_after TEXT NOT NULL DEFAULT '[]',
+                fallback_used INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
             );
@@ -573,6 +578,16 @@ class Database:
             );
             """
         )
+        columns = {str(row["name"]) for row in conn.execute("PRAGMA table_info(routing_decisions)").fetchall()}
+        for name, definition in (
+            ("normalized_text", "TEXT NOT NULL DEFAULT ''"),
+            ("detected_recipient_tokens", "TEXT NOT NULL DEFAULT '[]'"),
+            ("continuation_owner_before", "TEXT NOT NULL DEFAULT '[]'"),
+            ("continuation_owner_after", "TEXT NOT NULL DEFAULT '[]'"),
+            ("fallback_used", "INTEGER NOT NULL DEFAULT 0"),
+        ):
+            if name not in columns:
+                conn.execute(f"ALTER TABLE routing_decisions ADD COLUMN {name} {definition}")
         conn.execute(
             "INSERT OR REPLACE INTO schema_meta (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
             ("phase1_schema_version", "1"),
@@ -627,6 +642,7 @@ class Database:
                 provider_id TEXT NOT NULL,
                 persona_id TEXT,
                 avatar_path TEXT,
+                aliases TEXT NOT NULL DEFAULT '[]',
                 schema_version TEXT NOT NULL,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -684,6 +700,9 @@ class Database:
             );
             """
         )
+        columns = {str(row["name"]) for row in conn.execute("PRAGMA table_info(agent_profiles)").fetchall()}
+        if "aliases" not in columns:
+            conn.execute("ALTER TABLE agent_profiles ADD COLUMN aliases TEXT NOT NULL DEFAULT '[]'")
         conn.execute(
             "INSERT OR REPLACE INTO schema_meta (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
             ("management_schema_version", "1.0"),
@@ -1990,6 +2009,11 @@ class Database:
         interruption_policy: str | None,
         reason: str,
         router_version: str,
+        normalized_text: str = "",
+        detected_recipient_tokens: list[str] | None = None,
+        continuation_owner_before: list[str] | None = None,
+        continuation_owner_after: list[str] | None = None,
+        fallback_used: bool = False,
     ) -> str:
         decision_id = f"ROUTE-{uuid.uuid4().hex[:12].upper()}"
         with self.connect() as conn:
@@ -1998,9 +2022,11 @@ class Database:
                 INSERT INTO routing_decisions (
                     id, message_id, thread_id, participation_mode, explicit_recipients,
                     inferred_recipients, selected_responders, excluded_responders,
-                    interruption_policy, reason, router_version
+                    interruption_policy, reason, router_version, normalized_text,
+                    detected_recipient_tokens, continuation_owner_before,
+                    continuation_owner_after, fallback_used
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     decision_id,
@@ -2014,6 +2040,11 @@ class Database:
                     interruption_policy,
                     reason,
                     router_version,
+                    normalized_text,
+                    self._json(detected_recipient_tokens or []),
+                    self._json(continuation_owner_before or []),
+                    self._json(continuation_owner_after or []),
+                    1 if fallback_used else 0,
                 ),
             )
         return decision_id
@@ -2315,20 +2346,22 @@ class Database:
         expected_updated_at: str | None,
         actor: str,
         reason: str,
+        aliases: list[str] | tuple[str, ...] | None = None,
     ) -> None:
         with self.connect() as conn:
             previous = conn.execute("SELECT * FROM agent_profiles WHERE agent_id = ?", (agent_id,)).fetchone()
             if previous is None:
                 raise ValueError(f"Unknown agent profile: {agent_id}")
+            stored_aliases = previous["aliases"] if aliases is None and "aliases" in previous.keys() else self._json(list(aliases or []))
             if expected_updated_at is not None and str(previous["updated_at"]) != expected_updated_at:
                 raise RuntimeError("optimistic_lock_conflict")
             conn.execute(
                 """
                 UPDATE agent_profiles
-                SET display_name = ?, description = ?, provider_id = ?, persona_id = ?, avatar_path = ?, updated_at = CURRENT_TIMESTAMP
+                SET display_name = ?, description = ?, provider_id = ?, persona_id = ?, avatar_path = ?, aliases = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE agent_id = ?
                 """,
-                (display_name, description, provider_id, persona_id, avatar_path, agent_id),
+                (display_name, description, provider_id, persona_id, avatar_path, stored_aliases, agent_id),
             )
             self._insert_management_audit(
                 conn,
@@ -2344,6 +2377,7 @@ class Database:
                         "provider_id": provider_id,
                         "persona_id": persona_id,
                         "avatar_path": avatar_path,
+                        "aliases": json.loads(stored_aliases) if isinstance(stored_aliases, str) else list(stored_aliases),
                     }
                 ),
                 database_changes=["agent_profiles"],
@@ -2624,9 +2658,9 @@ class Database:
             """
             INSERT INTO agent_profiles (
                 agent_id, display_name, description, lifecycle_state, provider_id,
-                persona_id, avatar_path, schema_version
+                persona_id, avatar_path, aliases, schema_version
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 profile.agent_id,
@@ -2636,6 +2670,7 @@ class Database:
                 profile.provider_id,
                 profile.persona_id,
                 profile.avatar_path,
+                self._json(list(profile.aliases)),
                 profile.schema_version,
             ),
         )
