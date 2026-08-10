@@ -72,7 +72,86 @@ class Database:
             self._ensure_standards_schema(conn)
             self._ensure_management_schema(conn)
             self._ensure_provider_schema(conn)
+            self._ensure_work_context_schema(conn)
             self._repair_renamed_message_foreign_keys(conn)
+
+    def _ensure_work_context_schema(self, conn: sqlite3.Connection) -> None:
+        """Persistent task intent, artifact handoff and provider contracts."""
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS active_work_contexts (
+                conversation_id INTEGER PRIMARY KEY,
+                thread_id TEXT NOT NULL,
+                task_id TEXT,
+                task_title TEXT NOT NULL DEFAULT '',
+                task_goal TEXT NOT NULL DEFAULT '',
+                current_owner_agent_id TEXT,
+                previous_owner_agent_id TEXT,
+                active_artifact_ids TEXT NOT NULL DEFAULT '[]',
+                primary_artifact_id TEXT,
+                artifact_type TEXT NOT NULL DEFAULT '',
+                source_agent_id TEXT,
+                current_operation TEXT NOT NULL DEFAULT 'UNKNOWN',
+                expected_output_type TEXT NOT NULL DEFAULT '',
+                unresolved_questions TEXT NOT NULL DEFAULT '[]',
+                last_completed_action TEXT NOT NULL DEFAULT '',
+                last_user_intent TEXT NOT NULL DEFAULT 'UNKNOWN',
+                handoff_state TEXT NOT NULL DEFAULT 'NONE',
+                status TEXT NOT NULL DEFAULT 'CURRENT',
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS artifact_payloads (
+                artifact_id TEXT PRIMARY KEY,
+                title TEXT NOT NULL DEFAULT '',
+                content TEXT NOT NULL DEFAULT '',
+                source_agent_id TEXT,
+                source_message_id INTEGER,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (artifact_id) REFERENCES artifacts(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS work_handoffs (
+                id TEXT PRIMARY KEY,
+                conversation_id INTEGER NOT NULL,
+                task_id TEXT,
+                from_agent_id TEXT,
+                to_agent_id TEXT NOT NULL,
+                artifact_ids TEXT NOT NULL DEFAULT '[]',
+                requested_operation TEXT NOT NULL,
+                expected_output TEXT NOT NULL DEFAULT '',
+                expected_output_type TEXT NOT NULL DEFAULT '',
+                user_instruction TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'PENDING',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                superseded_at TEXT,
+                FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS execution_contracts (
+                id TEXT PRIMARY KEY,
+                conversation_id INTEGER NOT NULL,
+                task_id TEXT,
+                run_id TEXT,
+                agent_id TEXT NOT NULL,
+                role TEXT NOT NULL,
+                user_instruction TEXT NOT NULL,
+                intent TEXT NOT NULL,
+                input_artifact_ids TEXT NOT NULL DEFAULT '[]',
+                required_operation TEXT NOT NULL,
+                expected_output TEXT NOT NULL DEFAULT '',
+                expected_output_type TEXT NOT NULL DEFAULT '',
+                allowed_tools TEXT NOT NULL DEFAULT '[]',
+                required_evidence TEXT NOT NULL DEFAULT '[]',
+                completion_criteria TEXT NOT NULL DEFAULT '[]',
+                forbidden_substitutions TEXT NOT NULL DEFAULT '[]',
+                clarification_required INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'ACTIVE',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
 
     def _ensure_usage_schema_extensions(self, conn: sqlite3.Connection) -> None:
         for table in ("knowledge_usage", "standard_usage"):
@@ -1099,6 +1178,156 @@ class Database:
         params.append(limit)
         with self.connect() as conn:
             return conn.execute(sql, tuple(params)).fetchall()
+
+    def get_artifact(self, artifact_id: str) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM artifacts WHERE id = ?", (artifact_id,)).fetchone()
+
+    def upsert_artifact_payload(
+        self,
+        *,
+        artifact_id: str,
+        title: str,
+        content: str,
+        source_agent_id: str | None = None,
+        source_message_id: int | None = None,
+    ) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO artifact_payloads (artifact_id, title, content, source_agent_id, source_message_id)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(artifact_id) DO UPDATE SET
+                    title = excluded.title,
+                    content = excluded.content,
+                    source_agent_id = excluded.source_agent_id,
+                    source_message_id = excluded.source_message_id
+                """,
+                (artifact_id, title, content, source_agent_id, source_message_id),
+            )
+
+    def get_artifact_payload(self, artifact_id: str) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM artifact_payloads WHERE artifact_id = ?", (artifact_id,)).fetchone()
+
+    def get_active_work_context(self, conversation_id: int) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM active_work_contexts WHERE conversation_id = ?",
+                (conversation_id,),
+            ).fetchone()
+
+    def upsert_active_work_context(self, *, conversation_id: int, values: dict[str, Any]) -> None:
+        fields = {
+            "thread_id": str(values.get("thread_id") or f"conversation-{conversation_id}"),
+            "task_id": values.get("task_id"),
+            "task_title": str(values.get("task_title") or ""),
+            "task_goal": str(values.get("task_goal") or ""),
+            "current_owner_agent_id": values.get("current_owner_agent_id"),
+            "previous_owner_agent_id": values.get("previous_owner_agent_id"),
+            "active_artifact_ids": self._json(values.get("active_artifact_ids") or []),
+            "primary_artifact_id": values.get("primary_artifact_id"),
+            "artifact_type": str(values.get("artifact_type") or ""),
+            "source_agent_id": values.get("source_agent_id"),
+            "current_operation": str(values.get("current_operation") or "UNKNOWN"),
+            "expected_output_type": str(values.get("expected_output_type") or ""),
+            "unresolved_questions": self._json(values.get("unresolved_questions") or []),
+            "last_completed_action": str(values.get("last_completed_action") or ""),
+            "last_user_intent": str(values.get("last_user_intent") or "UNKNOWN"),
+            "handoff_state": str(values.get("handoff_state") or "NONE"),
+            "status": str(values.get("status") or "CURRENT"),
+        }
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO active_work_contexts (
+                    conversation_id, thread_id, task_id, task_title, task_goal,
+                    current_owner_agent_id, previous_owner_agent_id, active_artifact_ids,
+                    primary_artifact_id, artifact_type, source_agent_id, current_operation,
+                    expected_output_type, unresolved_questions, last_completed_action,
+                    last_user_intent, handoff_state, status, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(conversation_id) DO UPDATE SET
+                    thread_id=excluded.thread_id, task_id=excluded.task_id, task_title=excluded.task_title,
+                    task_goal=excluded.task_goal, current_owner_agent_id=excluded.current_owner_agent_id,
+                    previous_owner_agent_id=excluded.previous_owner_agent_id, active_artifact_ids=excluded.active_artifact_ids,
+                    primary_artifact_id=excluded.primary_artifact_id, artifact_type=excluded.artifact_type,
+                    source_agent_id=excluded.source_agent_id, current_operation=excluded.current_operation,
+                    expected_output_type=excluded.expected_output_type, unresolved_questions=excluded.unresolved_questions,
+                    last_completed_action=excluded.last_completed_action, last_user_intent=excluded.last_user_intent,
+                    handoff_state=excluded.handoff_state, status=excluded.status, updated_at=CURRENT_TIMESTAMP
+                """,
+                (
+                    conversation_id,
+                    fields["thread_id"], fields["task_id"], fields["task_title"], fields["task_goal"],
+                    fields["current_owner_agent_id"], fields["previous_owner_agent_id"], fields["active_artifact_ids"],
+                    fields["primary_artifact_id"], fields["artifact_type"], fields["source_agent_id"], fields["current_operation"],
+                    fields["expected_output_type"], fields["unresolved_questions"], fields["last_completed_action"],
+                    fields["last_user_intent"], fields["handoff_state"], fields["status"],
+                ),
+            )
+
+    def create_work_handoff(self, *, values: dict[str, Any]) -> str:
+        handoff_id = f"HANDOFF-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO work_handoffs (
+                    id, conversation_id, task_id, from_agent_id, to_agent_id, artifact_ids,
+                    requested_operation, expected_output, expected_output_type, user_instruction, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    handoff_id, values["conversation_id"], values.get("task_id"), values.get("from_agent_id"),
+                    values["to_agent_id"], self._json(values.get("artifact_ids") or []),
+                    values.get("requested_operation") or "UNKNOWN", values.get("expected_output") or "",
+                    values.get("expected_output_type") or "", values.get("user_instruction") or "", values.get("status") or "PENDING",
+                ),
+            )
+        return handoff_id
+
+    def list_work_handoffs(self, conversation_id: int, limit: int = 20) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM work_handoffs WHERE conversation_id = ? ORDER BY created_at DESC, id DESC LIMIT ?",
+                (conversation_id, limit),
+            ).fetchall()
+
+    def update_work_handoff_status(self, handoff_id: str, status: str) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                "UPDATE work_handoffs SET status = ?, superseded_at = CASE WHEN ? = 'SUPERSEDED' THEN CURRENT_TIMESTAMP ELSE superseded_at END WHERE id = ?",
+                (status, status, handoff_id),
+            )
+
+    def create_execution_contract(self, *, values: dict[str, Any]) -> str:
+        contract_id = f"CONTRACT-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO execution_contracts (
+                    id, conversation_id, task_id, run_id, agent_id, role, user_instruction, intent,
+                    input_artifact_ids, required_operation, expected_output, expected_output_type,
+                    allowed_tools, required_evidence, completion_criteria, forbidden_substitutions,
+                    clarification_required, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    contract_id, values["conversation_id"], values.get("task_id"), values.get("run_id"),
+                    values["agent_id"], values.get("role") or "", values.get("user_instruction") or "",
+                    values.get("intent") or "UNKNOWN", self._json(values.get("input_artifact_ids") or []),
+                    values.get("required_operation") or "UNKNOWN", values.get("expected_output") or "",
+                    values.get("expected_output_type") or "", self._json(values.get("allowed_tools") or []),
+                    self._json(values.get("required_evidence") or []), self._json(values.get("completion_criteria") or []),
+                    self._json(values.get("forbidden_substitutions") or []), 1 if values.get("clarification_required") else 0,
+                    values.get("status") or "ACTIVE",
+                ),
+            )
+        return contract_id
+
+    def get_execution_contract(self, contract_id: str) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM execution_contracts WHERE id = ?", (contract_id,)).fetchone()
 
     def upsert_artifact_finding_link(
         self,

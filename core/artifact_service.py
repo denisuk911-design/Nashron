@@ -86,6 +86,42 @@ class ArtifactService:
             self.reconcile_finding_links(task_id=resolved_task_id, actor="artifact_import")
         return created
 
+    def register_chat_artifact(
+        self,
+        *,
+        content: str,
+        title: str,
+        artifact_type: str,
+        task_id: str | None,
+        run_id: str | None,
+        source_agent_id: str,
+        source_message_id: int | None = None,
+    ) -> str:
+        """Register a useful chat result before it becomes a filesystem file."""
+        artifact_key = f"chat://{source_agent_id}/{(title or artifact_type).strip().lower().replace(' ', '-')[:80]}"
+        artifact_id = self.database.upsert_artifact(
+            task_id=task_id,
+            project_id=self.project_id,
+            relative_path=artifact_key,
+            artifact_type=artifact_type.upper(),
+            media_type="text/plain",
+            authoring_role=source_agent_id,
+            created_by_run_id=run_id,
+            size=len(content.encode("utf-8")),
+            status="OBSERVED",
+            validation_status="VERIFIED",
+            last_modified_time=datetime.now().isoformat(timespec="seconds"),
+            metadata={"artifact_kind": "CHAT_ARTIFACT", "title": title},
+        )
+        self.database.upsert_artifact_payload(
+            artifact_id=artifact_id,
+            title=title,
+            content=content,
+            source_agent_id=source_agent_id,
+            source_message_id=source_message_id,
+        )
+        return artifact_id
+
     def list_artifacts(self, task_id: str | None = None, status: str | None = None) -> list[Artifact]:
         return [self._artifact_from_row(row) for row in self.database.list_artifacts(task_id=task_id, status=status)]
 

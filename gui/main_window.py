@@ -65,6 +65,16 @@ from core.tool_access import agent_can_use_local_tools
 from core.task_orchestrator import TaskOrchestrator
 from core.task_state_service import TaskStateService
 from core.workspace_service import WorkspaceService
+from core.work_context_service import (
+    ActiveWorkContext,
+    AgentExecutionContract,
+    ArtifactReferentResolver,
+    IntentResolver,
+    IntentType,
+    OutputValidator,
+    UserIntent,
+    WorkContextService,
+)
 from gui.chat_widget import ChatWidget
 from gui.director_console import DirectorConsoleDialog
 from gui.login_dialog import show_install_instructions
@@ -141,6 +151,13 @@ class MainWindow(QMainWindow):
         self.conversation_id = self.database.ensure_single_conversation()
         self.thread_service = ConversationThreadService(self.database, self.conversation_id)
         self.thread_question_service = ThreadQuestionService(self.database, self.conversation_id)
+        self.work_context_service = WorkContextService(self.database, self.conversation_id, self.thread_service.thread_id)
+        self.intent_resolver = IntentResolver()
+        self.artifact_referent_resolver = ArtifactReferentResolver(self.database)
+        self.output_validator = OutputValidator()
+        self.current_work_intent = UserIntent(IntentType.UNKNOWN, IntentType.UNKNOWN.value)
+        self.current_work_reference = None
+        self.current_execution_contract: AgentExecutionContract | None = None
         self.worker: GenerateWorker | None = None
         self.current_agent_key = "roman"
         self.pending_agent_keys: list[str] = []
@@ -182,6 +199,7 @@ class MainWindow(QMainWindow):
         self.apply_theme()
         self._first_start_checks()
         self.load_conversation()
+        self._refresh_work_context_strip()
         self._update_workspace_status()
 
     def _build_ui(self) -> None:
@@ -230,12 +248,23 @@ class MainWindow(QMainWindow):
         self.routing_debug_button.setToolTip("Почему выбран этот сотрудник")
         self.routing_debug_button.clicked.connect(self.show_routing_diagnostic)
         top_layout.addWidget(self.routing_debug_button)
+        self.work_context_button = QPushButton("Контекст")
+        self.work_context_button.setObjectName("smallAction")
+        self.work_context_button.setToolTip("Показать текущую задачу и рабочий артефакт")
+        self.work_context_button.clicked.connect(self.show_work_context_diagnostic)
+        top_layout.addWidget(self.work_context_button)
         self.top_settings_button = QToolButton()
         self.top_settings_button.setText("⚙")
         self.top_settings_button.setToolTip("Настройки")
         self.top_settings_button.clicked.connect(self.open_settings)
         top_layout.addWidget(self.top_settings_button)
         outer.addWidget(top)
+
+        self.work_context_label = QLabel()
+        self.work_context_label.setObjectName("workContextStrip")
+        self.work_context_label.setWordWrap(True)
+        self.work_context_label.setMinimumHeight(28)
+        outer.addWidget(self.work_context_label)
 
         self.chat_panel = self._build_chat_panel()
         outer.addWidget(self.chat_panel, 1)
@@ -526,6 +555,8 @@ class MainWindow(QMainWindow):
             self.database.log_event("local_tools_enabled_for_request", ",".join(agent_keys))
         self.chat.reset_stream()
         message_id = self._add_user_message(text)
+        if not self._prepare_work_context(text, message_id, agent_keys):
+            return
         if self._prepare_generation_state(text, message_id, agent_keys, autonomy):
             self._record_last_routing_decision(message_id)
             self._persist_thread_from_last_decision(message_id, self.task_orchestrator.current_task_id, text)
@@ -551,6 +582,8 @@ class MainWindow(QMainWindow):
         if self._any_agent_allows_local_tools(agent_keys):
             self.database.log_event("local_tools_enabled_for_request", ",".join(agent_keys))
         self.chat.reset_stream()
+        if not self._prepare_work_context(text, message_id, agent_keys):
+            return
         if self._prepare_generation_state(text, None, agent_keys, autonomy):
             self._record_last_routing_decision(message_id)
             self._persist_thread_from_last_decision(message_id, self.task_orchestrator.current_task_id, text)
@@ -569,7 +602,13 @@ class MainWindow(QMainWindow):
 
     def _prepare_generation_state(self, text: str, message_id: int | None, agent_keys: list[str], autonomy) -> bool:
         try:
-            self.task_orchestrator.start_user_task(text, message_id)
+            context = self.work_context_service.get() if hasattr(self, "work_context_service") else None
+            if context is not None and context.task_id:
+                self.task_orchestrator.current_task_id = context.task_id
+            else:
+                task_id = self.task_orchestrator.start_user_task(text, message_id)
+                if hasattr(self, "work_context_service"):
+                    self.work_context_service.bind_task(task_id, text[:160])
         except Exception as exc:
             self._report_generation_start_failure(exc)
             return False
@@ -590,7 +629,76 @@ class MainWindow(QMainWindow):
         self.pending_user_message = self.autonomous_goal or text
         self.last_peer_context = ""
         self.chat.set_goal_status(self.autonomous_active and self.autonomous_complete_on_goal, self.autonomous_goal, self.autonomous_turn)
+        self._refresh_work_context_strip()
         return True
+
+    def _prepare_work_context(self, text: str, message_id: int | None, agent_keys: list[str]) -> bool:
+        if not hasattr(self, "work_context_service"):
+            return True
+        names: dict[str, list[str]] = {}
+        for agent in self._chat_agents():
+            names[agent.key] = [agent.display_name, *agent.aliases]
+        intent = self.intent_resolver.resolve(text, names)
+        previous = self.work_context_service.get()
+        reference = self.artifact_referent_resolver.resolve(text, previous)
+        needs_artifact = intent.intent in {IntentType.FORMAT, IntentType.REVIEW, IntentType.MODIFY, IntentType.INSPECT}
+        if needs_artifact and not reference.primary_artifact_id:
+            message = "Не найден рабочий артефакт. Укажите файл или объект, который нужно обработать."
+            self.database.add_message(self.conversation_id, "system", message, status="warning")
+            self.chat.add_message("system", message)
+            self.database.log_event("work_context_clarification_required", text[:240])
+            return False
+        self.current_work_intent = intent
+        self.current_work_reference = reference
+        self.work_context_service.apply_command(
+            text=text,
+            intent=intent,
+            reference=reference,
+            selected_agent_keys=agent_keys,
+        )
+        self.database.log_event(
+            "work_context_command_resolved",
+            f"intent={intent.intent.value}; artifacts={','.join(reference.artifact_ids) or 'none'}; agents={','.join(agent_keys)}",
+        )
+        self._refresh_work_context_strip()
+        return True
+
+    def _refresh_work_context_strip(self) -> None:
+        label = getattr(self, "work_context_label", None)
+        service = getattr(self, "work_context_service", None)
+        if label is None or service is None:
+            return
+        context = service.get()
+        if context is None:
+            label.setText("Текущая задача: нет активной задачи")
+            return
+        owner = context.current_owner_agent_id or "не назначен"
+        artifact = context.primary_artifact_id or "не выбран"
+        label.setText(
+            f"Текущая задача: {context.task_title or context.task_goal or 'без названия'}  ·  "
+            f"Исполнитель: {owner}  ·  Объект: {artifact}  ·  "
+            f"Операция: {context.current_operation}"
+        )
+
+    def show_work_context_diagnostic(self) -> None:
+        service = getattr(self, "work_context_service", None)
+        if service is None:
+            QMessageBox.information(self, "Рабочий контекст", "Рабочий контекст пока не создан.")
+            return
+        context = service.get()
+        if context is None:
+            QMessageBox.information(self, "Рабочий контекст", "Активной задачи нет.")
+            return
+        handoffs = self.database.list_work_handoffs(self.conversation_id, limit=3)
+        handoff_text = "\n".join(
+            f"- {row['from_agent_id'] or 'пользователь'} -> {row['to_agent_id']}; {row['requested_operation']}; {row['status']}"
+            for row in reversed(handoffs)
+        ) or "- нет"
+        contract = self.current_execution_contract
+        text = "\n".join(
+            ["ТЕКУЩАЯ ЗАДАЧА", *context.to_lines(), "", "ПОСЛЕДНИЕ ПЕРЕДАЧИ", handoff_text, "", "КОНТРАК", *(contract.to_lines() if contract else ["- активного контракта нет"])]
+        )
+        QMessageBox.information(self, "Рабочий контекст", text)
 
     def _goal_turn_limit(self) -> int:
         try:
@@ -1077,6 +1185,22 @@ class MainWindow(QMainWindow):
             self._report_generation_start_failure(exc)
             return
         client = self._client_for_agent(agent_key)
+        context = self.work_context_service.get() if hasattr(self, "work_context_service") else None
+        contract = None
+        if context is not None and hasattr(self, "work_context_service"):
+            try:
+                contract = self.work_context_service.create_contract(
+                    context=context,
+                    intent=getattr(self, "current_work_intent", UserIntent(IntentType.UNKNOWN, IntentType.UNKNOWN.value)),
+                    user_instruction=self.pending_user_message,
+                    agent_id=run_handle.agent_id,
+                    role=run_handle.role,
+                    run_id=run_handle.run_id,
+                    allowed_tools=["READ_WORKSPACE", "WRITE_WORKSPACE", "CREATE_DOCUMENTS", "RUN_COMMANDS"] if allow_tools else [],
+                )
+                self.current_execution_contract = contract
+            except Exception:
+                self.logger.exception("execution_contract_not_created")
         self.chat.reset_stream()
         self.chat.set_stream_role(agent_key)
         self.chat.set_busy(True, self.pending_user_message)
@@ -1105,6 +1229,8 @@ class MainWindow(QMainWindow):
             task_id=run_handle.task_id,
             participation_mode=str(self.last_routing_decision.participation_mode) if self.last_routing_decision else "DIRECT",
             thread_context_lines=self.thread_service.prompt_lines(),
+            active_work_context_lines=context.to_lines() if context is not None else [],
+            execution_contract_lines=contract.to_lines() if contract is not None else [],
         )
         self.worker.delta_received.connect(self.chat.append_roman_delta)
         self.worker.status_received.connect(self.chat.set_activity_status)
@@ -1316,7 +1442,8 @@ class MainWindow(QMainWindow):
                         self._mark_thread_questions_answered(agent_key, message_id)
                         claim_validation = self.claim_validator.validate(final_content, parsed_response.envelope)
                         self._show_claim_warning_if_needed(conversation_id, claim_validation.warning)
-                        self._import_structured_artifacts(worker, parsed_response, agent_key)
+                        registered_artifacts = self._import_structured_artifacts(worker, parsed_response, agent_key)
+                        self._record_work_result(worker, agent_key, final_content, parsed_response, message_id, registered_artifacts)
                         self._import_structured_findings(worker, parsed_response, agent_key)
                         self._import_structured_usage(worker, parsed_response, agent_key)
                         if not claim_validation.blocks_skill_update:
@@ -1341,7 +1468,8 @@ class MainWindow(QMainWindow):
                         self._mark_thread_questions_answered(agent_key, message_id)
                         claim_validation = self.claim_validator.validate(clean_part, parsed_response.envelope)
                         self._show_claim_warning_if_needed(conversation_id, claim_validation.warning)
-                        self._import_structured_artifacts(worker, parsed_response, agent_key)
+                        registered_artifacts = self._import_structured_artifacts(worker, parsed_response, agent_key)
+                        self._record_work_result(worker, agent_key, clean_part, parsed_response, message_id, registered_artifacts)
                         self._import_structured_findings(worker, parsed_response, agent_key)
                         self._import_structured_usage(worker, parsed_response, agent_key)
                         if not claim_validation.blocks_skill_update:
@@ -1384,6 +1512,65 @@ class MainWindow(QMainWindow):
         self.database.add_message(conversation_id, "system", warning, status="warning")
         self.database.log_event("unsupported_claim_warning", warning[:500])
         self.chat.add_message("system", warning)
+
+    def _record_work_result(
+        self,
+        worker: GenerateWorker | None,
+        agent_key: str,
+        content: str,
+        parsed_response: ParsedAgentResponse,
+        message_id: int,
+        registered_artifacts: list[str],
+    ) -> None:
+        service = getattr(self, "work_context_service", None)
+        if service is None:
+            return
+        context = service.get()
+        if context is None:
+            return
+        artifact_ids = list(registered_artifacts)
+        # A BOM first appears as a chat result in the common workflow. Keep it
+        # addressable instead of forcing the next agent to guess from history.
+        if (
+            context.current_operation == IntentType.CREATE.value
+            and "bom" in (self.pending_user_message or "").lower()
+            and not any(
+                row is not None and str(row["artifact_type"] or "").upper() == "BOM"
+                for item in artifact_ids
+                for row in [self.database.get_artifact(item)]
+            )
+        ):
+            title = "DC_DC_5V_Buck BOM" if "ap63205" in content.lower() else "BOM из сообщения"
+            try:
+                artifact_ids.append(
+                    self.artifact_service.register_chat_artifact(
+                        content=content,
+                        title=title,
+                        artifact_type="BOM",
+                        task_id=worker.task_id if worker is not None else context.task_id,
+                        run_id=worker.run_id if worker is not None else None,
+                        source_agent_id=agent_key,
+                        source_message_id=message_id,
+                    )
+                )
+            except Exception:
+                self.logger.exception("chat_artifact_not_registered")
+        rows = [row for item in artifact_ids if (row := self.database.get_artifact(item)) is not None]
+        contract = getattr(self, "current_execution_contract", None)
+        validation = self.output_validator.validate(contract, content, rows) if contract is not None else None
+        if validation is not None and not validation.accepted:
+            self.database.log_event("work_output_rejected", f"{agent_key}; {validation.code}")
+            warning = f"Результат {agent_key} не принят: {validation.message}"
+            self.database.add_message(self.conversation_id, "system", warning, status="warning")
+            self.chat.add_message("system", warning)
+        elif validation is not None:
+            self.database.log_event("work_output_validated", f"{agent_key}; {validation.code}")
+        service.record_result(
+            artifact_ids=(artifact_ids if validation is None or validation.accepted else list(context.active_artifact_ids)),
+            action=f"{agent_key}: {context.current_operation}",
+            validation=validation or type("Validation", (), {"accepted": True, "code": "OK"})(),
+        )
+        self._refresh_work_context_strip()
 
     def _response_speaker_aliases(self) -> dict[str, str]:
         aliases: dict[str, str] = {}

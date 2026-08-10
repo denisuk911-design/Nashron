@@ -51,6 +51,8 @@ class PromptBuilder:
         run_id: str | None = None,
         participation_mode: str = "DIRECT",
         thread_context_lines: list[str] | None = None,
+        active_work_context_lines: list[str] | None = None,
+        execution_contract_lines: list[str] | None = None,
     ) -> str:
         agent_profile = get_chat_agent(self.database, agent_key)
         agent = agent_spec_from_profile(agent_profile) if agent_profile is not None else AGENTS.get(agent_key, ROMAN)
@@ -135,6 +137,12 @@ class PromptBuilder:
 
         parts = [
             system_prompt.strip(),
+            "",
+            "ACTIVE WORK CONTEXT (authoritative application state; it outranks role habits and stale chat history):",
+            *(active_work_context_lines or ["- no active work context"]),
+            "",
+            "AGENT EXECUTION CONTRACT (follow this contract before composing a reply):",
+            *(execution_contract_lines or ["- no contract supplied"]),
             "",
             "КОМАНДНАЯ РАБОТА:",
             f"Сейчас отвечает {agent.display_name} через {agent.engine_name}.",
