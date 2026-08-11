@@ -26,6 +26,12 @@ TEXT = {
         "agent_id": "ID сотрудника",
         "status": "Статус",
         "provider": "Провайдер",
+        "findings": "Замечания",
+        "organization_owner": "Владелец организации",
+        "management_repository": "Служебное хранилище",
+        "providers_available": "Провайдеры доступны",
+        "providers_unavailable": "Провайдеры недоступны",
+        "delete_permanently": "Удалить навсегда",
         "persona": "Профиль общения",
         "rights": "Права",
         "readiness": "Готовность",
@@ -40,6 +46,9 @@ TEXT = {
         "description": "Описание",
         "avatar": "Аватар",
         "generate_id": "Сгенерировать ID",
+        "generate_personality": "Сгенерировать личность",
+        "generate_personality_hint": "Заполнить имя, пол, биографию и аватар одной кнопкой. Поля можно изменить вручную.",
+        "gender": "Пол",
         "role": "Роль",
         "select_roles": "Выберите одну или несколько ролей",
         "inherited_permissions": "Права от роли",
@@ -135,6 +144,12 @@ TEXT = {
         "agent_id": "ID співробітника",
         "status": "Стан",
         "provider": "Провайдер",
+        "findings": "Зауваження",
+        "organization_owner": "Власник організації",
+        "management_repository": "Службове сховище",
+        "providers_available": "Провайдери доступні",
+        "providers_unavailable": "Провайдери недоступні",
+        "delete_permanently": "Видалити назавжди",
         "persona": "Профіль спілкування",
         "rights": "Права",
         "readiness": "Готовність",
@@ -149,6 +164,9 @@ TEXT = {
         "description": "Опис",
         "avatar": "Аватар",
         "generate_id": "Згенерувати ID",
+        "generate_personality": "Згенерувати особистість",
+        "generate_personality_hint": "Заповнити ім'я, стать, біографію та аватар однією кнопкою. Поля можна змінити вручну.",
+        "gender": "Стать",
         "role": "Роль",
         "select_roles": "Оберіть одну або кілька ролей",
         "inherited_permissions": "Права від ролі",
@@ -244,6 +262,12 @@ TEXT = {
         "agent_id": "Employee ID",
         "status": "Status",
         "provider": "Provider",
+        "findings": "Findings",
+        "organization_owner": "Organization owner",
+        "management_repository": "Management storage",
+        "providers_available": "Providers available",
+        "providers_unavailable": "Providers unavailable",
+        "delete_permanently": "Delete permanently",
         "persona": "Persona",
         "rights": "Permissions",
         "readiness": "Readiness",
@@ -258,6 +282,9 @@ TEXT = {
         "description": "Description",
         "avatar": "Avatar",
         "generate_id": "Generate ID",
+        "generate_personality": "Generate personality",
+        "generate_personality_hint": "Fill in name, gender, biography and avatar with one click. Fields remain editable.",
+        "gender": "Gender",
         "role": "Role",
         "select_roles": "Select one or more roles",
         "inherited_permissions": "Inherited permissions",
@@ -377,6 +404,61 @@ STATUS_LABELS_I18N = {
     "ru": {"DRAFT": "Черновик", "ACTIVE": "Активен", "SUSPENDED": "Приостановлен", "DISABLED": "Отключен", "ARCHIVED": "Архив"},
     "uk": {"DRAFT": "Чернетка", "ACTIVE": "Активний", "SUSPENDED": "Призупинений", "DISABLED": "Вимкнений", "ARCHIVED": "Архів"},
     "en": {"DRAFT": "Draft", "ACTIVE": "Active", "SUSPENDED": "Suspended", "DISABLED": "Disabled", "ARCHIVED": "Archived"},
+}
+
+
+WORKFLOW_LABELS_I18N = {
+    "ru": {
+        "ASSIGNED": "Назначен",
+        "STUDYING": "Изучается",
+        "PRACTICED": "Отработан",
+        "DEMONSTRATED": "Подтверждён работой",
+        "REVIEWED": "Проверен",
+        "REQUIRES_RETRAINING": "Нужно переобучение",
+        "NEEDS_REVIEW": "Нужна проверка",
+        "REJECTED": "Отклонено",
+        "SUSPENDED": "Приостановлено",
+        "IN_REWORK": "На доработке",
+        "READY_FOR_RECHECK": "Готово к перепроверке",
+        "RESOLVED": "Исправлено",
+        "ACCEPTED_RISK": "Риск принят",
+        "DRAFT": "Черновик",
+        "ACTIVE": "Активно",
+    },
+    "uk": {
+        "ASSIGNED": "Призначено",
+        "STUDYING": "Вивчається",
+        "PRACTICED": "Відпрацьовано",
+        "DEMONSTRATED": "Підтверджено роботою",
+        "REVIEWED": "Перевірено",
+        "REQUIRES_RETRAINING": "Потрібне перенавчання",
+        "NEEDS_REVIEW": "Потрібна перевірка",
+        "REJECTED": "Відхилено",
+        "SUSPENDED": "Призупинено",
+        "IN_REWORK": "На доопрацюванні",
+        "READY_FOR_RECHECK": "Готово до повторної перевірки",
+        "RESOLVED": "Виправлено",
+        "ACCEPTED_RISK": "Ризик прийнято",
+        "DRAFT": "Чернетка",
+        "ACTIVE": "Активно",
+    },
+    "en": {
+        "ASSIGNED": "Assigned",
+        "STUDYING": "Studying",
+        "PRACTICED": "Practiced",
+        "DEMONSTRATED": "Demonstrated in work",
+        "REVIEWED": "Reviewed",
+        "REQUIRES_RETRAINING": "Retraining required",
+        "NEEDS_REVIEW": "Needs review",
+        "REJECTED": "Rejected",
+        "SUSPENDED": "Suspended",
+        "IN_REWORK": "In rework",
+        "READY_FOR_RECHECK": "Ready for recheck",
+        "RESOLVED": "Resolved",
+        "ACCEPTED_RISK": "Risk accepted",
+        "DRAFT": "Draft",
+        "ACTIVE": "Active",
+    },
 }
 
 
@@ -503,7 +585,13 @@ def role_label(language: str, role_id: str) -> str:
 
 def status_label(language: str, status: str) -> str:
     language = normalize_language(language)
-    return STATUS_LABELS_I18N.get(language, {}).get(status, status)
+    labels = STATUS_LABELS_I18N.get(language, {})
+    return labels.get(status, WORKFLOW_LABELS_I18N.get(language, {}).get(status, status))
+
+
+def workflow_label(language: str, value: str) -> str:
+    language = normalize_language(language)
+    return WORKFLOW_LABELS_I18N.get(language, {}).get(value, value.replace("_", " ").title())
 
 
 def readiness_label(language: str, readiness: str) -> str:

@@ -210,6 +210,7 @@ class MainWindow(QMainWindow):
         self.current_work_reference = None
         self.current_execution_contract: AgentExecutionContract | None = None
         self.worker: GenerateWorker | None = None
+        self.active_workers: dict[str, GenerateWorker] = {}
         self.current_agent_key = "roman"
         self.pending_agent_keys: list[str] = []
         self.authorized_worker_keys: set[str] = set()
@@ -413,13 +414,24 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        self.chat = ChatWidget()
+        self.chat = ChatWidget(str(self.settings.get("interface_language", "ru")))
         self._refresh_chat_agents()
         self.chat.send_requested.connect(self.send_message)
         self.chat.stop_requested.connect(self.stop_generation)
         self.chat.attach_requested.connect(self.attach_file)
+        self.chat.copy_requested.connect(self.copy_chat_to_clipboard)
         layout.addWidget(self.chat, 1)
         return panel
+
+    def copy_chat_to_clipboard(self) -> None:
+        from PySide6.QtWidgets import QApplication
+
+        text = self.chat.transcript_text(selected_only=True)
+        if not text:
+            return
+        application = QApplication.instance()
+        if application is not None:
+            application.clipboard().setText(text)
 
     def _build_inspector_panel(self) -> QWidget:
         panel = QWidget()
@@ -759,6 +771,8 @@ class MainWindow(QMainWindow):
             QTimer.singleShot(1200, lambda mid=message_id: self._ensure_generation_started(mid))
 
     def _clear_dead_worker(self) -> None:
+        if getattr(self, "active_workers", {}):
+            return
         if self.worker is not None and not self.worker.isRunning():
             self.database.log_event("stale_worker_cleared", self.current_agent_key)
             self.worker = None
@@ -1194,7 +1208,11 @@ class MainWindow(QMainWindow):
             self.queued_user_message = (text, message_id)
         self.interrupting_current_run = True
         self.cancellation_in_progress = True
-        self.worker.cancel()
+        workers = list(self.active_workers.values())
+        if self.worker is not None and self.worker not in workers:
+            workers.append(self.worker)
+        for worker in workers:
+            worker.cancel()
         self.database.log_event("agent_interrupted_by_user", self.current_agent_key)
 
     def _stop_autonomous(self, add_user_message: bool = False, text: str = "стоп") -> None:
@@ -1290,6 +1308,18 @@ class MainWindow(QMainWindow):
         return len(left_words & right_words) / len(left_words | right_words)
 
     def _start_next_agent_run(self) -> None:
+        if not hasattr(self, "active_workers"):
+            self.active_workers = {}
+        if self.active_workers:
+            return
+        if self._should_run_team_in_parallel():
+            agent_keys = list(self.pending_agent_keys)
+            self.pending_agent_keys = []
+            self.chat.send_button.setVisible(False)
+            self.chat.stop_button.setVisible(True)
+            for agent_key in agent_keys:
+                self._launch_agent_run(agent_key, parallel=True)
+            return
         if not self.pending_agent_keys:
             if self.autonomous_active:
                 turn_limit = self.exchange_turn_limit or (self._goal_turn_limit() if self.autonomous_complete_on_goal else 8)
@@ -1331,6 +1361,18 @@ class MainWindow(QMainWindow):
             self.refresh_codex_status()
             return
         agent_key = self.pending_agent_keys.pop(0)
+        self._launch_agent_run(agent_key, parallel=False)
+
+    def _should_run_team_in_parallel(self) -> bool:
+        if self.autonomous_active or len(self.pending_agent_keys) < 2:
+            return False
+        decision = self.last_routing_decision
+        if decision is None:
+            return False
+        mode = getattr(decision.participation_mode, "value", str(decision.participation_mode))
+        return mode in {"TEAM_CALL", "GENERAL_TEAM_PING", "MULTI_DIRECT"}
+
+    def _launch_agent_run(self, agent_key: str, parallel: bool = False) -> None:
         if not self._worker_agent_is_authorized(agent_key):
             self.database.log_event(
                 "worker_selection_rejected",
@@ -1338,7 +1380,8 @@ class MainWindow(QMainWindow):
             )
             self.pending_agent_keys = []
             self.pending_user_message = ""
-            self.chat.set_busy(False)
+            if not parallel:
+                self.chat.set_busy(False)
             return
         if not self.autonomous_active:
             if self.exchange_turn >= self.exchange_turn_limit or agent_key in self.exchange_responded_agent_keys:
@@ -1348,7 +1391,8 @@ class MainWindow(QMainWindow):
                 self.pending_user_message = ""
                 self.last_peer_context = ""
                 self.pending_contextual_handoffs = []
-                self.chat.set_busy(False)
+                if not parallel:
+                    self.chat.set_busy(False)
                 self.refresh_codex_status()
                 return
         self.current_agent_key = agent_key
@@ -1379,9 +1423,12 @@ class MainWindow(QMainWindow):
                 self.current_execution_contract = contract
             except Exception:
                 self.logger.exception("execution_contract_not_created")
-        self.chat.reset_stream()
-        self.chat.set_stream_role(agent_key)
-        self.chat.set_busy(True, self.pending_user_message)
+        if parallel:
+            self.chat.start_agent_typing(agent_key)
+        else:
+            self.chat.reset_stream()
+            self.chat.set_stream_role(agent_key)
+            self.chat.set_busy(True, self.pending_user_message)
         builder = PromptBuilder(
             self.paths.system_prompt_path,
             self.identity_service,
@@ -1392,7 +1439,7 @@ class MainWindow(QMainWindow):
             self.knowledge_service,
             self.standards_service,
         )
-        self.worker = GenerateWorker(
+        worker = GenerateWorker(
             builder,
             client,
             self.conversation_id,
@@ -1412,13 +1459,66 @@ class MainWindow(QMainWindow):
             organization_id=getattr(self, "active_organization_id", None),
             conversation_mode=getattr(self, "conversation_mode", ConversationMode.SOCIAL).value,
         )
-        self.worker.delta_received.connect(self.chat.append_roman_delta)
-        self.worker.status_received.connect(self.chat.set_activity_status)
-        self.worker.run_status_received.connect(lambda status, run_id=run_handle.run_id: self._record_run_status(run_id, status))
-        self.worker.finished_with_result.connect(self._generation_finished)
-        self.worker.start()
+        if parallel:
+            worker.status_received.connect(lambda status, key=agent_key: self.chat.set_agent_activity_status(key, status))
+            worker.run_status_received.connect(lambda status, run_id=run_handle.run_id: self._record_run_status(run_id, status))
+            worker.finished_with_result.connect(
+                lambda result, key=agent_key, current_worker=worker: self._generation_finished_parallel(key, current_worker, result)
+            )
+            self.active_workers[agent_key] = worker
+        else:
+            self.worker = worker
+            worker.delta_received.connect(self.chat.append_roman_delta)
+            worker.status_received.connect(self.chat.set_activity_status)
+            worker.run_status_received.connect(lambda status, run_id=run_handle.run_id: self._record_run_status(run_id, status))
+            worker.finished_with_result.connect(self._generation_finished)
+        worker.start()
         self._mark_contextual_handoff_started(agent_key, run_handle.run_id)
-        self._start_response_latency_timers(agent_key)
+        if not parallel:
+            self._start_response_latency_timers(agent_key)
+
+    def _generation_finished_parallel(self, agent_key: str, worker: GenerateWorker, result) -> None:
+        self.active_workers.pop(agent_key, None)
+        self.chat.stop_agent_typing(agent_key)
+        raw_response = result.content if result.ok else (result.error or "")
+        if worker.run_id is not None:
+            self.task_orchestrator.finish_run(worker.run_id, result, raw_response)
+        self.exchange_responded_agent_keys.add(agent_key)
+        if result.ok:
+            parsed_response = parse_agent_response(result.content)
+            content = ResponseCleaner.clean(self._display_text_from_parsed_response(parsed_response))
+            if not content:
+                content = ResponseCleaner.clean(self._display_text_from_raw_response(result.content))
+            if content and not self._is_recent_duplicate_message(agent_key, content):
+                message_id = self.database.add_message(self.conversation_id, agent_key, content)
+                self.chat.add_message(agent_key, content, message_id)
+                self._mark_thread_questions_answered(agent_key, message_id)
+                claim_validation = self.claim_validator.validate(content, parsed_response.envelope)
+                self._show_claim_warning_if_needed(self.conversation_id, claim_validation.warning)
+                registered_artifacts = self._import_structured_artifacts(worker, parsed_response, agent_key)
+                self._record_work_result(worker, agent_key, content, parsed_response, message_id, registered_artifacts)
+                self._import_structured_findings(worker, parsed_response, agent_key)
+                self._import_structured_usage(worker, parsed_response, agent_key)
+                if not claim_validation.blocks_skill_update:
+                    self.skill_service.learn_from_exchange(agent_key, self.pending_user_message, content)
+                    self.skill_service.improve_from_context(agent_key, self.autonomous_goal or self.pending_user_message, content)
+        elif result.cancelled:
+            # A deliberate stop is not a provider failure and should not add noise to the chat.
+            pass
+        else:
+            content = result.error or f"Не удалось получить ответ: {agent_key}"
+            self.database.add_message(self.conversation_id, agent_key, content, status="error")
+            self.chat.add_message(agent_key, content)
+        if self.active_workers:
+            self.worker = next(iter(self.active_workers.values()))
+            return
+        self.worker = None
+        self.pending_user_message = ""
+        self.last_peer_context = ""
+        self.pending_contextual_handoffs = []
+        self._stop_response_latency_timers()
+        self.chat.set_busy(False)
+        self.refresh_codex_status()
 
     def _allow_local_tools_for_agent(self, agent_key: str) -> bool:
         return agent_can_use_local_tools(
@@ -1856,14 +1956,18 @@ class MainWindow(QMainWindow):
         self.exchange_responded_agent_keys = set()
         self.exchange_fingerprints = []
         self.queued_user_message = None
-        self.interrupting_current_run = self.worker is not None
-        self.cancellation_in_progress = self.worker is not None
+        workers = list(self.active_workers.values())
+        if self.worker is not None and self.worker not in workers:
+            workers.append(self.worker)
+        self.interrupting_current_run = bool(workers)
+        self.cancellation_in_progress = bool(workers)
         self.chat.discard_stream()
         self._stop_response_latency_timers()
-        if self.worker is not None:
+        if workers:
             self.pending_agent_keys = []
             self.pending_contextual_handoffs = []
-            self.worker.cancel()
+            for worker in workers:
+                worker.cancel()
             self.database.log_event("agent_cancel_requested", self.current_agent_key)
         else:
             self.cancellation_in_progress = False
@@ -1955,6 +2059,7 @@ class MainWindow(QMainWindow):
             self.product_metrics_service = ProductMetricsService(self.database, self.skill_progress_service)
             self._update_workspace_status()
         self.apply_theme()
+        self.chat.set_language(str(self.settings.get("interface_language", "ru")))
         self._refresh_chat_agents()
         self.refresh_codex_status()
 

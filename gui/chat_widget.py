@@ -22,6 +22,17 @@ from core.response_cleaner import ResponseCleaner
 from gui.chat.message_widget import MessageWidget
 
 
+class MessageList(QListWidget):
+    copy_requested = Signal()
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        if event.key() == Qt.Key_C and event.modifiers() & Qt.ControlModifier:
+            self.copy_requested.emit()
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
+
 class MessageInput(QTextEdit):
     send_requested = Signal()
 
@@ -37,12 +48,15 @@ class ChatWidget(QWidget):
     send_requested = Signal(str)
     stop_requested = Signal()
     attach_requested = Signal()
+    copy_requested = Signal()
 
-    def __init__(self) -> None:
+    def __init__(self, language: str = "ru") -> None:
         super().__init__()
+        self.language = language if language in {"ru", "uk", "en"} else "ru"
         self._typing_item: QListWidgetItem | None = None
         self._typing_label: QLabel | None = None
         self._typing_frame = 0
+        self._parallel_typing: dict[str, dict[str, object]] = {}
         self._stream_item: QListWidgetItem | None = None
         self._stream_widget: MessageWidget | None = None
         self._stream_role = "roman"
@@ -66,13 +80,15 @@ class ChatWidget(QWidget):
         self.typewriter_timer.setInterval(16)
         self.typewriter_timer.timeout.connect(self._flush_typewriter)
 
-        self.messages = QListWidget()
+        self.messages = MessageList()
         self.messages.setObjectName("messageList")
         self.messages.setWordWrap(True)
         self.messages.setUniformItemSizes(False)
+        self.messages.setSelectionMode(QListWidget.ExtendedSelection)
         self.messages.setVerticalScrollMode(QListWidget.ScrollPerPixel)
         self.messages.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.messages.verticalScrollBar().rangeChanged.connect(self._on_scroll_range_changed)
+        self.messages.copy_requested.connect(self.copy_requested.emit)
 
         self.input = MessageInput()
         self.input.setObjectName("messageInput")
@@ -134,6 +150,11 @@ class ChatWidget(QWidget):
         self.mode_selector.addItem("Без ответа", "silent")
         toolbar.addWidget(self.recipient_selector)
         toolbar.addWidget(self.mode_selector)
+        self.copy_button = QPushButton("Копировать чат")
+        self.copy_button.setObjectName("smallAction")
+        self.copy_button.setToolTip("Скопировать выбранные сообщения с именами и временем")
+        self.copy_button.clicked.connect(self.copy_requested.emit)
+        toolbar.addWidget(self.copy_button)
         toolbar.addStretch(1)
         toolbar.addWidget(self.stop_button)
         composer_layout.addLayout(toolbar)
@@ -144,19 +165,72 @@ class ChatWidget(QWidget):
         layout.addWidget(self.messages, 1)
         layout.addWidget(self.goal_banner)
         layout.addWidget(composer)
+        self.set_language(self.language)
+
+    def set_language(self, language: str) -> None:
+        self.language = language if language in {"ru", "uk", "en"} else "ru"
+        labels = {
+            "ru": {
+                "placeholder": "Напишите в отдел...",
+                "copy": "Копировать чат",
+                "copy_tip": "Скопировать выбранные сообщения с именами и временем",
+                "recipient": "Кому: Авто",
+                "recipient_tip": "Кому адресовано сообщение",
+                "mode_tip": "Режим участия сотрудников",
+                "modes": [("Режим: Авто", "auto"), ("Цель", "goal"), ("Работа", "work"), ("Общение", "social"), ("Обсуждение", "discussion"), ("Только выбранный", "selected"), ("Обсуждение команды", "team"), ("Проверка", "review"), ("Без ответа", "silent")],
+            },
+            "uk": {
+                "placeholder": "Напишіть у відділ...",
+                "copy": "Копіювати чат",
+                "copy_tip": "Скопіювати вибрані повідомлення з іменами й часом",
+                "recipient": "Кому: Авто",
+                "recipient_tip": "Кому адресоване повідомлення",
+                "mode_tip": "Режим участі співробітників",
+                "modes": [("Режим: Авто", "auto"), ("Мета", "goal"), ("Робота", "work"), ("Спілкування", "social"), ("Обговорення", "discussion"), ("Лише вибраний", "selected"), ("Обговорення команди", "team"), ("Перевірка", "review"), ("Без відповіді", "silent")],
+            },
+            "en": {
+                "placeholder": "Write to the department...",
+                "copy": "Copy chat",
+                "copy_tip": "Copy selected messages with names and timestamps",
+                "recipient": "To: Auto",
+                "recipient_tip": "Who the message is addressed to",
+                "mode_tip": "Employee participation mode",
+                "modes": [("Mode: Auto", "auto"), ("Goal", "goal"), ("Work", "work"), ("Social", "social"), ("Discussion", "discussion"), ("Selected only", "selected"), ("Team discussion", "team"), ("Review", "review"), ("No response", "silent")],
+            },
+        }[self.language]
+        self.input.setPlaceholderText(labels["placeholder"])
+        self.copy_button.setText(labels["copy"])
+        self.copy_button.setToolTip(labels["copy_tip"])
+        self.recipient_selector.setToolTip(labels["recipient_tip"])
+        current_recipient = self.recipient_selector.currentData()
+        self.recipient_selector.setItemText(0, labels["recipient"])
+        if current_recipient is not None:
+            index = self.recipient_selector.findData(current_recipient)
+            if index >= 0:
+                self.recipient_selector.setCurrentIndex(index)
+        current_mode = self.mode_selector.currentData()
+        self.mode_selector.blockSignals(True)
+        self.mode_selector.clear()
+        for label, value in labels["modes"]:
+            self.mode_selector.addItem(label, value)
+        index = self.mode_selector.findData(current_mode or "auto")
+        self.mode_selector.setCurrentIndex(index if index >= 0 else 0)
+        self.mode_selector.blockSignals(False)
+        self.mode_selector.setToolTip(labels["mode_tip"])
 
     def add_message(self, role: str, content: str, message_id: int | None = None, created_at: str = "") -> QListWidgetItem:
         should_follow = self._should_follow_output()
         item = QListWidgetItem()
+        timestamp = created_at or datetime.now().strftime("%H:%M")
         widget = MessageWidget(
             role,
             content,
-            created_at or datetime.now().strftime("%H:%M"),
+            timestamp,
             self._agent_labels.get(role),
             self._agent_avatars.get(role),
             self._agent_titles.get(role),
         )
-        item.setData(Qt.UserRole, {"id": message_id, "role": role, "content": content})
+        item.setData(Qt.UserRole, {"id": message_id, "role": role, "content": content, "created_at": timestamp})
         item.setData(Qt.UserRole + 1, role)
         self.messages.addItem(item)
         self.messages.setItemWidget(item, widget)
@@ -164,6 +238,27 @@ class ChatWidget(QWidget):
         self._resize_message_widgets()
         self._follow_output_if_needed(should_follow)
         return item
+
+    def transcript_text(self, selected_only: bool = True) -> str:
+        items = self.messages.selectedItems() if selected_only else []
+        if not items:
+            items = [self.messages.item(index) for index in range(self.messages.count())]
+        lines: list[str] = []
+        for item in items:
+            data = item.data(Qt.UserRole)
+            if not isinstance(data, dict):
+                continue
+            content = str(data.get("content") or "").strip()
+            if not content:
+                continue
+            role = str(data.get("role") or "")
+            name = self._agent_labels.get(role, role)
+            title = self._agent_titles.get(role, "")
+            timestamp = str(data.get("created_at") or "")
+            suffix = f" ({title})" if title else ""
+            prefix = f"[{timestamp}] " if timestamp else ""
+            lines.append(f"{prefix}{name}{suffix}:\n{content}")
+        return "\n\n".join(lines)
 
     def set_agent_labels(
         self,
@@ -219,6 +314,7 @@ class ChatWidget(QWidget):
 
     def clear_messages(self) -> None:
         self.stop_typing_indicator()
+        self.stop_all_agent_typing()
         self.typewriter_timer.stop()
         self._stream_item = None
         self._stream_widget = None
@@ -241,6 +337,45 @@ class ChatWidget(QWidget):
             self.start_typing_indicator(mood_source)
         else:
             self.stop_typing_indicator()
+            self.stop_all_agent_typing()
+
+    def start_agent_typing(self, agent_key: str) -> None:
+        self.stop_agent_typing(agent_key)
+        item = QListWidgetItem()
+        item.setFlags(Qt.NoItemFlags)
+        label = QLabel()
+        label.setObjectName("typingBubble")
+        label.setMinimumHeight(34)
+        label.setTextFormat(Qt.PlainText)
+        self.messages.addItem(item)
+        self.messages.setItemWidget(item, label)
+        self._parallel_typing[agent_key] = {"item": item, "label": label, "status": "", "frame": 0}
+        if not self.typing_timer.isActive():
+            self.typing_timer.start()
+        self._advance_typing()
+
+    def set_agent_activity_status(self, agent_key: str, status: str) -> None:
+        if agent_key not in self._parallel_typing:
+            self.start_agent_typing(agent_key)
+        state = self._parallel_typing.get(agent_key)
+        if state is not None:
+            state["status"] = status.strip()
+            self._advance_typing()
+
+    def stop_agent_typing(self, agent_key: str) -> None:
+        state = self._parallel_typing.pop(agent_key, None)
+        if state is not None:
+            item = state.get("item")
+            if isinstance(item, QListWidgetItem):
+                row = self.messages.row(item)
+                if row >= 0:
+                    self.messages.takeItem(row)
+        if not self._parallel_typing and self._typing_item is None:
+            self.typing_timer.stop()
+
+    def stop_all_agent_typing(self) -> None:
+        for agent_key in list(self._parallel_typing):
+            self.stop_agent_typing(agent_key)
 
     def focus_input_later(self) -> None:
         QTimer.singleShot(0, lambda: self.input.setFocus(Qt.OtherFocusReason))
@@ -274,12 +409,23 @@ class ChatWidget(QWidget):
         self._typing_label = None
 
     def _advance_typing(self) -> None:
-        if self._typing_label is None:
-            return
-        dots = " •" * (1 + self._typing_frame % 3)
-        self._typing_label.setText(f"{self._agent_short_name()} печатает{dots}")
-        if self._typing_item is not None:
-            self._typing_item.setSizeHint(self._typing_label.sizeHint() + QSize(0, 10))
+        if self._typing_label is not None:
+            dots = " •" * (1 + self._typing_frame % 3)
+            self._typing_label.setText(f"{self._agent_short_name()} набирает сообщение{dots}")
+            if self._typing_item is not None:
+                self._typing_item.setSizeHint(self._typing_label.sizeHint() + QSize(0, 10))
+        for agent_key, state in self._parallel_typing.items():
+            label = state.get("label")
+            item = state.get("item")
+            if not isinstance(label, QLabel) or not isinstance(item, QListWidgetItem):
+                continue
+            frame = int(state.get("frame") or 0)
+            dots = " •" * (1 + frame % 3)
+            name = self._agent_labels.get(agent_key, agent_key)
+            status = str(state.get("status") or "набирает сообщение")
+            label.setText(f"{name}: {status}{dots}")
+            item.setSizeHint(label.sizeHint() + QSize(0, 10))
+            state["frame"] = frame + 1
         self._typing_frame += 1
 
     def set_stream_role(self, role: str) -> None:

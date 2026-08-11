@@ -45,6 +45,7 @@ from core.management_models import (
     AgentProfile,
 )
 from core.artifact_service import ArtifactService
+from core.employee_identity import generate_identity
 from core.finding_service import FINDING_CONFIDENCE, FINDING_SEVERITIES, FindingService
 from core.management_service import EmployeeSummary, ManagementService
 from core.knowledge_service import KNOWLEDGE_STATUSES, SOURCE_AUTHORITIES, KnowledgeService
@@ -54,7 +55,7 @@ from core.skill_progress_service import SkillProgressService
 from core.skill_package_service import SkillPackageService
 from core.standards_service import MANDATORY_LEVELS, STANDARD_AUTHORITIES, StandardsService
 from core.universal_platform_service import UniversalPlatformService
-from gui.localization import permission_label, readiness_label, role_label, status_label, tr
+from gui.localization import permission_label, readiness_label, role_label, status_label, tr, workflow_label
 
 
 STATUS_LABELS = {
@@ -117,7 +118,7 @@ class DirectorConsoleDialog(QDialog):
         self.roles_tab = RolesTab(management_service, language, self)
         self.permissions_tab = PermissionsTab(management_service, language, self)
         self.providers_tab = ProvidersTab(provider_registry, provider_health_service, provider_provisioning_service, management_service, language, self)
-        self.skills_tab = SkillProgressTab(skill_progress_service, skill_package_service, management_service, self)
+        self.skills_tab = SkillProgressTab(skill_progress_service, skill_package_service, management_service, language, self)
         self.knowledge_tab = KnowledgeTab(knowledge_service, self)
         self.standards_tab = StandardsTab(standards_service, self)
         self.artifacts_tab = ArtifactsTab(artifact_service, self)
@@ -136,7 +137,7 @@ class DirectorConsoleDialog(QDialog):
         self.tabs.addTab(self.knowledge_tab, "Знания")
         self.tabs.addTab(self.standards_tab, "Стандарты")
         self.tabs.addTab(self.artifacts_tab, "Артефакты")
-        self.tabs.addTab(self.findings_tab, "Findings")
+        self.tabs.addTab(self.findings_tab, tr(language, "findings"))
         self.tabs.addTab(self.diagnostics_tab, "Диагностика")
         self.tabs.addTab(self.audit_tab, tr(language, "audit"))
 
@@ -144,7 +145,7 @@ class DirectorConsoleDialog(QDialog):
         close.rejected.connect(self.reject)
 
         layout = QVBoxLayout(self)
-        header = QLabel(f"{tr(language, 'owner')}: ORGANIZATION_OWNER")
+        header = QLabel(tr(language, "organization_owner"))
         header.setObjectName("sectionTitle")
         layout.addWidget(header)
         layout.addWidget(self.tabs, 1)
@@ -492,6 +493,7 @@ class OverviewTab(QWidget):
         self.service = service
         self.provider_health_service = provider_health_service
         self.console = console
+        self.language = console.language
         self.grid = QGridLayout()
         self.recent = QTextEdit()
         self.recent.setReadOnly(True)
@@ -523,11 +525,11 @@ class OverviewTab(QWidget):
             ("Отключены", counts.get("DISABLED", 0)),
             ("Архив", counts.get("ARCHIVED", 0)),
             ("Настроенные роли", len(self.service.list_roles())),
-            ("Provider доступны", available),
-            ("Provider недоступны", unavailable),
+            (tr(self.language, "providers_available"), available),
+            (tr(self.language, "providers_unavailable"), unavailable),
             ("Рискованные конфигурации", len([item for item in employees if item.warnings])),
             ("База данных", "OK"),
-            ("Management repository", "OK"),
+            (tr(self.language, "management_repository"), "OK"),
         ]
         for index, (title, value) in enumerate(cards):
             card = QGroupBox(title)
@@ -606,7 +608,7 @@ class EmployeesTab(QWidget):
         suspend = QPushButton(tr(language, "suspend"))
         reactivate = QPushButton(tr(language, "reactivate"))
         archive = QPushButton(tr(language, "archive"))
-        delete = QPushButton("Удалить навсегда")
+        delete = QPushButton(tr(language, "delete_permanently"))
         add.clicked.connect(self.add_employee)
         open_button.clicked.connect(self._show_selected_detail)
         edit.clicked.connect(self.edit_employee)
@@ -753,12 +755,14 @@ class SkillProgressTab(QWidget):
         service: SkillProgressService | None,
         package_service: SkillPackageService | None,
         management_service: ManagementService,
+        language: str = "ru",
         parent=None,
     ) -> None:
         super().__init__(parent)
         self.service = service
         self.package_service = package_service
         self.management_service = management_service
+        self.language = language
         self.package_table = QTableWidget(0, 6)
         self.package_table.setHorizontalHeaderLabels(["Навык", "Статус", "Версия", "Назначено", "Назначение", "Обновлен"])
         self.package_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
@@ -830,7 +834,7 @@ class SkillProgressTab(QWidget):
             values = [
                 row.employee_name,
                 row.skill_title,
-                row.status,
+                workflow_label(self.language, row.status),
                 row.evidence_summary,
                 str(row.tasks_completed),
                 str(row.reviews_passed),
@@ -848,7 +852,7 @@ class SkillProgressTab(QWidget):
                         [
                             f"Сотрудник: {row.employee_name} ({row.agent_id})",
                             f"Навык: {row.skill_title}",
-                            f"Уровень: {row.status}",
+                            f"Уровень: {workflow_label(self.language, row.status)}",
                             f"Подтверждения: {row.evidence_summary}",
                             f"Следующий шаг: {row.next_required_step}",
                             f"Достоверность: {row.confidence}",
@@ -884,13 +888,15 @@ class SkillProgressTab(QWidget):
         assignments = self.package_service.list_assignments()
         by_skill: dict[str, list[str]] = {}
         for assignment in assignments:
-            by_skill.setdefault(assignment.skill_id, []).append(f"{assignment.agent_id}: {assignment.state}")
+            by_skill.setdefault(assignment.skill_id, []).append(
+                f"{assignment.agent_id}: {workflow_label(self.language, assignment.state)}"
+            )
         self.package_table.setRowCount(len(packages))
         for row_index, package in enumerate(packages):
             assigned = by_skill.get(package.skill_id, [])
             values = [
                 package.name,
-                package.status,
+                workflow_label(self.language, package.status),
                 package.version,
                 str(len(assigned)),
                 "; ".join(assigned) or "нет",
@@ -900,7 +906,7 @@ class SkillProgressTab(QWidget):
                 [
                     f"ID: {package.skill_id}",
                     f"Название: {package.name}",
-                    f"Статус: {package.status}",
+                    f"Статус: {workflow_label(self.language, package.status)}",
                     f"Версия: {package.version}",
                     f"Назначения: {'; '.join(assigned) or 'нет'}",
                     f"Назначаемые роли: {', '.join(package.supported_roles) or 'не указаны'}",
@@ -1046,7 +1052,7 @@ class SkillAssignmentDialog(QDialog):
             self.employee.addItem(f"{item.display_name} ({item.agent_id})", item.agent_id)
         self.skill_state = QComboBox()
         for state in ("ASSIGNED", "STUDYING", "PRACTICED", "DEMONSTRATED", "REVIEWED", "REQUIRES_RETRAINING"):
-            self.skill_state.addItem(state, state)
+            self.skill_state.addItem(workflow_label(getattr(parent, "language", "ru"), state), state)
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
@@ -2273,6 +2279,14 @@ class IdentityPage(QWizardPage):
         self.display_name = QLineEdit()
         self.description = QTextEdit()
         self.description.setFixedHeight(80)
+        self.gender = QComboBox()
+        gender_labels = {
+            "ru": [("Случайный", "random"), ("Женский", "female"), ("Мужской", "male")],
+            "uk": [("Випадковий", "random"), ("Жіночий", "female"), ("Чоловічий", "male")],
+            "en": [("Random", "random"), ("Female", "female"), ("Male", "male")],
+        }
+        for label, value in gender_labels.get(language, gender_labels["ru"]):
+            self.gender.addItem(label, value)
         self.avatar = QLineEdit()
         self.avatar_choice = QComboBox()
         self._load_avatar_choices()
@@ -2290,16 +2304,21 @@ class IdentityPage(QWizardPage):
         self.lifecycle.setCurrentIndex(0)
         generate = QPushButton(tr(language, "generate_id"))
         generate.clicked.connect(self.generate_id)
+        generate_personality = QPushButton(tr(language, "generate_personality"))
+        generate_personality.setToolTip(tr(language, "generate_personality_hint"))
+        generate_personality.clicked.connect(self.generate_personality)
         self.display_name.textChanged.connect(self.generate_id_if_empty)
         row = QHBoxLayout()
         row.addWidget(self.agent_id)
         row.addWidget(generate)
         form = QFormLayout(self)
         form.addRow(tr(language, "name"), self.display_name)
+        form.addRow(tr(language, "gender"), self.gender)
         form.addRow(tr(language, "agent_id"), row)
         form.addRow(tr(language, "description"), self.description)
         form.addRow(tr(language, "avatar"), avatar_row)
         form.addRow("", self.avatar)
+        form.addRow("", generate_personality)
         form.addRow(tr(language, "status"), self.lifecycle)
         self._apply_avatar_choice()
 
@@ -2309,6 +2328,21 @@ class IdentityPage(QWizardPage):
 
     def generate_id(self) -> None:
         self.agent_id.setText(self.service.generate_agent_id(self.display_name.text()))
+
+    def generate_personality(self) -> None:
+        identity = generate_identity(
+            self.language,
+            str(self.gender.currentData() or "random"),
+            self.avatar_dir,
+        )
+        self.display_name.setText(identity.name)
+        self.description.setPlainText(identity.biography)
+        if identity.avatar_path:
+            self.avatar.setText(identity.avatar_path)
+            index = self.avatar_choice.findData(identity.avatar_path)
+            if index >= 0:
+                self.avatar_choice.setCurrentIndex(index)
+        self.generate_id()
 
     def selected_avatar_path(self) -> str | None:
         return self.avatar.text().strip() or None

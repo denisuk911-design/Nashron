@@ -111,3 +111,20 @@ def test_goal_mode_and_banner_are_visible():
 
     widget.set_goal_status(False)
     assert widget.goal_banner.isHidden()
+
+
+def test_transcript_copy_contains_author_time_and_selected_messages():
+    app()
+    widget = ChatWidget()
+    widget.set_agent_labels({"roman": "Роман"}, titles={"roman": "Инженер"})
+    first = widget.add_message("user", "Проверь схему", created_at="10:01")
+    second = widget.add_message("roman", "Проверяю", created_at="10:02")
+    first.setSelected(True)
+    second.setSelected(True)
+
+    transcript = widget.transcript_text()
+
+    assert "[10:01]" in transcript
+    assert "Роман (Инженер)" in transcript
+    assert "Проверь схему" in transcript
+    assert "Проверяю" in transcript

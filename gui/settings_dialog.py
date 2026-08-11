@@ -59,8 +59,15 @@ class SettingsDialog(QDialog):
         self.response_timeout.setValue(int(settings.get("response_timeout_seconds", 0)))
 
         self.theme = QComboBox()
-        self.theme.addItems(["dark", "light"])
-        self.theme.setCurrentText(str(settings.get("theme", "dark")))
+        theme_labels = {
+            "ru": [("Тёмная", "dark"), ("Светлая", "light")],
+            "uk": [("Темна", "dark"), ("Світла", "light")],
+            "en": [("Dark", "dark"), ("Light", "light")],
+        }.get(language, [("Тёмная", "dark"), ("Светлая", "light")])
+        for label, value in theme_labels:
+            self.theme.addItem(label, value)
+        theme_index = self.theme.findData(str(settings.get("theme", "dark")))
+        self.theme.setCurrentIndex(theme_index if theme_index >= 0 else 0)
 
         self.language = QComboBox()
         for code, label in SUPPORTED_LANGUAGES.items():
@@ -70,9 +77,14 @@ class SettingsDialog(QDialog):
         self.language.setCurrentIndex(language_index if language_index >= 0 else 0)
 
         self.general_response = QComboBox()
-        self.general_response.addItem("Один подходящий сотрудник", "SINGLE")
-        self.general_response.addItem("Небольшая группа", "SMALL_GROUP")
-        self.general_response.addItem("Все сотрудники", "ALL")
+        response_labels = {
+            "ru": ("Один подходящий сотрудник", "Небольшая группа", "Все сотрудники"),
+            "uk": ("Один відповідний співробітник", "Невелика група", "Усі співробітники"),
+            "en": ("One suitable employee", "Small group", "All employees"),
+        }.get(language, ("Один подходящий сотрудник", "Небольшая группа", "Все сотрудники"))
+        self.general_response.addItem(response_labels[0], "SINGLE")
+        self.general_response.addItem(response_labels[1], "SMALL_GROUP")
+        self.general_response.addItem(response_labels[2], "ALL")
         response_index = self.general_response.findData(str(settings.get("general_chat_response", "SINGLE")))
         self.general_response.setCurrentIndex(response_index if response_index >= 0 else 0)
 
@@ -169,7 +181,10 @@ class SettingsDialog(QDialog):
         layout.addRow(labels["workspace"], workspace_row)
         layout.addRow({"ru": "Мой аватар", "uk": "Мій аватар", "en": "My avatar"}.get(language, "Мой аватар"), avatar_row)
         layout.addRow(labels["language"], self.language)
-        layout.addRow("Ответ на общие сообщения", self.general_response)
+        layout.addRow(
+            {"ru": "Ответ на общие сообщения", "uk": "Відповідь на загальні повідомлення", "en": "Response to general messages"}.get(language, "Ответ на общие сообщения"),
+            self.general_response,
+        )
         layout.addRow(self.allow_local_tools)
         layout.addRow(self.reduce_motion)
         layout.addRow(buttons)
@@ -196,7 +211,7 @@ class SettingsDialog(QDialog):
             "response_soft_warning_seconds": self.response_soft_warning.value(),
             "response_extended_warning_seconds": self.response_extended_warning.value(),
             "response_timeout_seconds": self.response_timeout.value(),
-            "theme": self.theme.currentText(),
+            "theme": self.theme.currentData(),
             "interface_language": self.language.currentData(),
             "allow_local_tools": self.allow_local_tools.isChecked(),
             "workspace_root": self.workspace.text().strip(),
