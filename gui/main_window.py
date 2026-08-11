@@ -97,8 +97,6 @@ class MainWindow(QMainWindow):
 
         self.database = Database(self.paths.database_path)
         self.database.initialize()
-        self.universal_platform_service = UniversalPlatformService(self.database)
-        self.universal_platform_service.seed_demo_fixtures()
         self.agent_router = AgentRouter(self.database)
         self.team_router = TeamRouter()
         self.task_state_service = TaskStateService(self.database)
@@ -107,6 +105,13 @@ class MainWindow(QMainWindow):
         self.management_repository = ConfigurationRepository(self.paths.management_config_dir)
         self.management_service = ManagementService(self.database, self.management_repository)
         self.management_service.ensure_foundations()
+        self.universal_platform_service = UniversalPlatformService(
+            self.database,
+            management_service=self.management_service,
+            workspace_root=self.paths.workspace_root,
+            conversation_id=self.conversation_id,
+        )
+        self.universal_platform_service.seed_demo_fixtures()
         self.memory_service = MemoryService(self.database)
         self.skill_service = SkillService(self.paths.skills_path)
         self.skill_package_service = SkillPackageService(self.database)
@@ -182,6 +187,7 @@ class MainWindow(QMainWindow):
         self.pending_contextual_handoffs: list[tuple[str, str]] = []
         self.queued_user_message: tuple[str, int] | None = None
         self.interrupting_current_run = False
+        self.cancellation_in_progress = False
         self.live_guidance: list[str] = []
         self.identity_ok = False
         self.codex_authorized = False
@@ -468,7 +474,8 @@ class MainWindow(QMainWindow):
                 self.chat.add_message(message.role, self._display_text_from_raw_response(message.content), message.id, message.created_at[11:16])
 
     def _chat_agents(self) -> list[ChatAgent]:
-        return list_chat_agents(self.database)
+        active_organization_id = self.database.get_active_organization_id()
+        return list_chat_agents(self.database, organization_id=active_organization_id)
 
     def _refresh_chat_agents(self) -> None:
         agents = self._chat_agents()
@@ -534,6 +541,10 @@ class MainWindow(QMainWindow):
         if self.worker is not None:
             if is_stop_command(text):
                 self._interrupt_with_user_message(text)
+            elif self.cancellation_in_progress or self.interrupting_current_run:
+                message_id = self._add_user_message(text)
+                self.queued_user_message = (text, message_id)
+                self.database.log_event("message_queued_during_cancellation", self.current_agent_key)
             else:
                 self._add_live_guidance(text)
             return
@@ -598,6 +609,7 @@ class MainWindow(QMainWindow):
         if self.worker is not None and not self.worker.isRunning():
             self.database.log_event("stale_worker_cleared", self.current_agent_key)
             self.worker = None
+            self.cancellation_in_progress = False
             self.pending_agent_keys = []
             self.authorized_worker_keys = set()
             self._stop_response_latency_timers()
@@ -1020,6 +1032,7 @@ class MainWindow(QMainWindow):
             message_id = self._add_user_message(text)
             self.queued_user_message = (text, message_id)
         self.interrupting_current_run = True
+        self.cancellation_in_progress = True
         self.worker.cancel()
         self.database.log_event("agent_interrupted_by_user", self.current_agent_key)
 
@@ -1038,6 +1051,7 @@ class MainWindow(QMainWindow):
         self.pending_contextual_handoffs = []
         self.queued_user_message = None
         self.interrupting_current_run = False
+        self.cancellation_in_progress = False
         self.chat.set_busy(False)
         self.database.log_event("autonomous_conversation_stopped", None)
 
@@ -1388,6 +1402,7 @@ class MainWindow(QMainWindow):
         if self.interrupting_current_run:
             self.worker = None
             self.interrupting_current_run = False
+            self.cancellation_in_progress = False
             queued = self.queued_user_message
             self.queued_user_message = None
             if queued is not None and not is_stop_command(queued[0]):
@@ -1499,6 +1514,7 @@ class MainWindow(QMainWindow):
             if not result.cancelled:
                 self.chat.add_message(agent_key, content)
         self.worker = None
+        self.cancellation_in_progress = False
         if not result.ok and self.conversation_id == conversation_id:
             self._clear_goal_state()
             self.pending_agent_keys = []
@@ -1677,7 +1693,8 @@ class MainWindow(QMainWindow):
         self.exchange_responded_agent_keys = set()
         self.exchange_fingerprints = []
         self.queued_user_message = None
-        self.interrupting_current_run = False
+        self.interrupting_current_run = self.worker is not None
+        self.cancellation_in_progress = self.worker is not None
         self.chat.discard_stream()
         self._stop_response_latency_timers()
         if self.worker is not None:
@@ -1686,6 +1703,7 @@ class MainWindow(QMainWindow):
             self.worker.cancel()
             self.database.log_event("agent_cancel_requested", self.current_agent_key)
         else:
+            self.cancellation_in_progress = False
             self.pending_agent_keys = []
             self.pending_user_message = ""
             self.last_peer_context = ""

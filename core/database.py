@@ -74,6 +74,7 @@ class Database:
             self._ensure_provider_schema(conn)
             self._ensure_work_context_schema(conn)
             self._ensure_universal_schema(conn)
+            self._ensure_organization_expansion_schema(conn)
             self._repair_renamed_message_foreign_keys(conn)
 
     def _ensure_universal_schema(self, conn: sqlite3.Connection) -> None:
@@ -216,6 +217,104 @@ class Database:
         conn.execute(
             "INSERT OR REPLACE INTO schema_meta (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
             ("universal_schema_version", "1.0"),
+        )
+
+    def _ensure_organization_expansion_schema(self, conn: sqlite3.Connection) -> None:
+        """Add operational organization metadata without rewriting existing data."""
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS management_models (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                description TEXT NOT NULL DEFAULT '',
+                category TEXT NOT NULL DEFAULT '',
+                structure_type TEXT NOT NULL DEFAULT '',
+                decision_model TEXT NOT NULL DEFAULT '',
+                responsibility_model TEXT NOT NULL DEFAULT '',
+                workflow_style TEXT NOT NULL DEFAULT '',
+                recommended_team_size TEXT NOT NULL DEFAULT '',
+                advantages TEXT NOT NULL DEFAULT '[]',
+                limitations TEXT NOT NULL DEFAULT '[]',
+                source_rationale TEXT NOT NULL DEFAULT '',
+                version TEXT NOT NULL DEFAULT '1.0.0',
+                status TEXT NOT NULL DEFAULT 'ACTIVE',
+                created_by TEXT NOT NULL DEFAULT 'owner',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS responsibility_models (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                description TEXT NOT NULL DEFAULT '',
+                accountabilities TEXT NOT NULL DEFAULT '[]',
+                source_rationale TEXT NOT NULL DEFAULT '',
+                version TEXT NOT NULL DEFAULT '1.0.0',
+                status TEXT NOT NULL DEFAULT 'ACTIVE',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS organization_workspaces (
+                id TEXT PRIMARY KEY,
+                organization_id TEXT NOT NULL UNIQUE,
+                conversation_id INTEGER,
+                workspace_path TEXT NOT NULL DEFAULT '',
+                routing_config TEXT NOT NULL DEFAULT '{}',
+                status TEXT NOT NULL DEFAULT 'PROVISIONING',
+                is_active INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+                FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE SET NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS organization_activation_events (
+                id TEXT PRIMARY KEY,
+                organization_id TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                status TEXT NOT NULL,
+                detail TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
+            );
+            """
+        )
+        for table, columns in {
+            "organizations": {
+                "management_model_id": "TEXT",
+                "domain_package": "TEXT NOT NULL DEFAULT ''",
+                "responsibility_model_id": "TEXT",
+                "active_template_id": "TEXT",
+            },
+            "organization_templates": {
+                "management_model_id": "TEXT",
+                "domain_package": "TEXT NOT NULL DEFAULT ''",
+                "responsibility_model_id": "TEXT",
+                "team_size_variants": "TEXT NOT NULL DEFAULT '{}'",
+                "catalog_category": "TEXT NOT NULL DEFAULT 'Other'",
+                "review_required": "INTEGER NOT NULL DEFAULT 0",
+                "research_required": "INTEGER NOT NULL DEFAULT 0",
+                "learning_support": "INTEGER NOT NULL DEFAULT 0",
+            },
+            "organization_members": {
+                "provider_id": "TEXT NOT NULL DEFAULT 'UNAVAILABLE'",
+                "assignment_mode": "TEXT NOT NULL DEFAULT 'AUTO_CREATE'",
+                "provisioning_status": "TEXT NOT NULL DEFAULT 'UNASSIGNED'",
+                "missing_reason": "TEXT NOT NULL DEFAULT ''",
+                "functional_manager_member_id": "TEXT",
+                "project_manager_member_id": "TEXT",
+                "required_capabilities": "TEXT NOT NULL DEFAULT '[]'",
+                "permissions": "TEXT NOT NULL DEFAULT '[]'",
+                "recommended_tools": "TEXT NOT NULL DEFAULT '[]'",
+            },
+        }.items():
+            existing = {str(row["name"]) for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+            for name, definition in columns.items():
+                if name not in existing:
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
+        conn.execute(
+            "INSERT OR REPLACE INTO schema_meta (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
+            ("organization_expansion_schema_version", "1.0"),
         )
 
     def _ensure_work_context_schema(self, conn: sqlite3.Connection) -> None:
@@ -2896,12 +2995,153 @@ class Database:
         with self.connect() as conn:
             return conn.execute("SELECT * FROM professions WHERE id = ?", (profession_id,)).fetchone()
 
+    def create_management_model(self, values: dict[str, Any]) -> str:
+        model_id = values.get("id") or f"MGMT-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO management_models (
+                    id, name, description, category, structure_type, decision_model,
+                    responsibility_model, workflow_style, recommended_team_size,
+                    advantages, limitations, source_rationale, version, status, created_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    model_id, values["name"], values.get("description", ""), values.get("category", ""),
+                    values.get("structure_type", ""), values.get("decision_model", ""),
+                    values.get("responsibility_model", ""), values.get("workflow_style", ""),
+                    values.get("recommended_team_size", ""), self._json(values.get("advantages", [])),
+                    self._json(values.get("limitations", [])), values.get("source_rationale", ""),
+                    values.get("version", "1.0.0"), values.get("status", "ACTIVE"), values.get("created_by", "owner"),
+                ),
+            )
+        return str(model_id)
+
+    def list_management_models(self) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM management_models ORDER BY name ASC").fetchall()
+
+    def get_management_model(self, model_id: str) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM management_models WHERE id = ?", (model_id,)).fetchone()
+
+    def create_responsibility_model(self, values: dict[str, Any]) -> str:
+        model_id = values.get("id") or f"RESP-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO responsibility_models (id, name, description, accountabilities, source_rationale, version, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (model_id, values["name"], values.get("description", ""), self._json(values.get("accountabilities", [])),
+                 values.get("source_rationale", ""), values.get("version", "1.0.0"), values.get("status", "ACTIVE")),
+            )
+        return str(model_id)
+
+    def list_responsibility_models(self) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM responsibility_models ORDER BY name ASC").fetchall()
+
+    def create_organization_department(self, values: dict[str, Any]) -> str:
+        department_id = values.get("id") or f"DEPT-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO organization_departments (id, organization_id, name, description) VALUES (?, ?, ?, ?)",
+                (department_id, values["organization_id"], values["name"], values.get("description", "")),
+            )
+        return str(department_id)
+
+    def list_organization_departments(self, organization_id: str) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM organization_departments WHERE organization_id = ? ORDER BY name ASC", (organization_id,)
+            ).fetchall()
+
+    def create_organization_workspace(self, values: dict[str, Any]) -> str:
+        workspace_id = values.get("id") or f"OWS-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO organization_workspaces (
+                    id, organization_id, conversation_id, workspace_path, routing_config, status, is_active
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(organization_id) DO UPDATE SET conversation_id=excluded.conversation_id,
+                    workspace_path=excluded.workspace_path, routing_config=excluded.routing_config,
+                    status=excluded.status, is_active=excluded.is_active, updated_at=CURRENT_TIMESTAMP
+                """,
+                (workspace_id, values["organization_id"], values.get("conversation_id"), values.get("workspace_path", ""),
+                 self._json(values.get("routing_config", {})), values.get("status", "READY"), 1 if values.get("is_active") else 0),
+            )
+        return str(workspace_id)
+
+    def set_active_organization(self, organization_id: str) -> None:
+        with self.connect() as conn:
+            conn.execute("UPDATE organization_workspaces SET is_active = 0, updated_at = CURRENT_TIMESTAMP")
+            conn.execute(
+                "UPDATE organization_workspaces SET is_active = 1, updated_at = CURRENT_TIMESTAMP WHERE organization_id = ?",
+                (organization_id,),
+            )
+
+    def get_active_organization_id(self) -> str | None:
+        with self.connect() as conn:
+            row = conn.execute("SELECT organization_id FROM organization_workspaces WHERE is_active = 1 LIMIT 1").fetchone()
+        return str(row["organization_id"]) if row is not None else None
+
+    def get_organization_workspace(self, organization_id: str) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM organization_workspaces WHERE organization_id = ?", (organization_id,)).fetchone()
+
+    def create_organization_activation_event(self, organization_id: str, event_type: str, status: str, detail: dict[str, Any] | None = None) -> str:
+        event_id = f"OAE-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO organization_activation_events (id, organization_id, event_type, status, detail) VALUES (?, ?, ?, ?, ?)",
+                (event_id, organization_id, event_type, status, self._json(detail or {})),
+            )
+        return event_id
+
+    def list_organization_activation_events(self, organization_id: str) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM organization_activation_events WHERE organization_id = ? ORDER BY created_at ASC, id ASC",
+                (organization_id,),
+            ).fetchall()
+
+    def organization_dashboard(self, organization_id: str) -> dict[str, Any]:
+        with self.connect() as conn:
+            employees = conn.execute(
+                "SELECT COUNT(*) AS count FROM organization_members WHERE organization_id = ? AND status = 'ACTIVE'",
+                (organization_id,),
+            ).fetchone()["count"]
+            active_tasks = conn.execute(
+                "SELECT COUNT(*) AS count FROM tasks WHERE state IN ('OPEN', 'IN_PROGRESS', 'BLOCKED')"
+            ).fetchone()["count"]
+            findings = conn.execute(
+                "SELECT COUNT(*) AS count FROM findings WHERE status IN ('OPEN', 'PENDING_REVIEW')"
+            ).fetchone()["count"]
+            org = conn.execute("SELECT * FROM organizations WHERE id = ?", (organization_id,)).fetchone()
+        return {
+            "organization_id": organization_id,
+            "name": str(org["name"]) if org else "",
+            "status": str(org["status"]) if org else "UNKNOWN",
+            "employees": int(employees or 0),
+            "active_tasks": int(active_tasks or 0),
+            "pending_review": int(findings or 0),
+        }
+
     def create_organization(self, values: dict[str, Any]) -> str:
         organization_id = values.get("id") or f"ORG-{uuid.uuid4().hex[:12].upper()}"
         with self.connect() as conn:
             conn.execute(
-                "INSERT INTO organizations (id, name, purpose, description, status, created_by) VALUES (?, ?, ?, ?, ?, ?)",
-                (organization_id, values["name"], values.get("purpose", ""), values.get("description", ""), values.get("status", "ACTIVE"), values.get("created_by", "owner")),
+                """
+                INSERT INTO organizations (
+                    id, name, purpose, description, status, created_by,
+                    management_model_id, domain_package, responsibility_model_id, active_template_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (organization_id, values["name"], values.get("purpose", ""), values.get("description", ""),
+                 values.get("status", "ACTIVE"), values.get("created_by", "owner"), values.get("management_model_id"),
+                 values.get("domain_package", ""), values.get("responsibility_model_id"), values.get("active_template_id")),
             )
         return str(organization_id)
 
@@ -2961,6 +3201,19 @@ class Database:
                  values.get("source_rationale", ""), values.get("version", "1.0.0"), self._json(values.get("limitations", [])),
                  values.get("status", "ACTIVE"), values.get("created_by", "owner")),
             )
+            conn.execute(
+                """
+                UPDATE organization_templates
+                SET management_model_id = ?, domain_package = ?, responsibility_model_id = ?,
+                    team_size_variants = ?, catalog_category = ?, review_required = ?,
+                    research_required = ?, learning_support = ?
+                WHERE id = ?
+                """,
+                (values.get("management_model_id"), values.get("domain_package", ""), values.get("responsibility_model_id"),
+                 self._json(values.get("team_size_variants", {})), values.get("catalog_category", "Other"),
+                 1 if values.get("review_required") else 0, 1 if values.get("research_required") else 0,
+                 1 if values.get("learning_support") else 0, template_id),
+            )
         return str(template_id)
 
     def list_organization_templates(self) -> list[sqlite3.Row]:
@@ -2977,17 +3230,29 @@ class Database:
             conn.execute(
                 """
                 INSERT INTO organization_members (id, organization_id, department_id, agent_id, profession_id,
-                    role_id, position, responsibilities, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    role_id, position, responsibilities, status, provider_id, assignment_mode,
+                    provisioning_status, missing_reason, functional_manager_member_id, project_manager_member_id,
+                    required_capabilities, permissions, recommended_tools)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (member_id, values["organization_id"], values.get("department_id"), values.get("agent_id"), values.get("profession_id"),
-                 values.get("role_id"), values.get("position", ""), self._json(values.get("responsibilities", [])), values.get("status", "ACTIVE")),
+                 values.get("role_id"), values.get("position", ""), self._json(values.get("responsibilities", [])), values.get("status", "ACTIVE"),
+                 values.get("provider_id", "UNAVAILABLE"), values.get("assignment_mode", "AUTO_CREATE"), values.get("provisioning_status", "UNASSIGNED"),
+                 values.get("missing_reason", ""), values.get("functional_manager_member_id"), values.get("project_manager_member_id"),
+                 self._json(values.get("required_capabilities", [])), self._json(values.get("permissions", [])), self._json(values.get("recommended_tools", []))),
             )
         return str(member_id)
 
     def list_organization_members(self, organization_id: str) -> list[sqlite3.Row]:
         with self.connect() as conn:
             return conn.execute("SELECT * FROM organization_members WHERE organization_id = ? ORDER BY id ASC", (organization_id,)).fetchall()
+
+    def list_organization_agent_ids(self, organization_id: str) -> set[str]:
+        return {
+            str(row["agent_id"])
+            for row in self.list_organization_members(organization_id)
+            if row["agent_id"]
+        }
 
     def upsert_agent_runtime_state(self, agent_id: str, values: dict[str, Any]) -> None:
         with self.connect() as conn:

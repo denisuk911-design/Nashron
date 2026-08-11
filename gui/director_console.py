@@ -58,19 +58,19 @@ from gui.localization import permission_label, readiness_label, role_label, stat
 
 
 STATUS_LABELS = {
-    "DRAFT": "Р§РµСЂРЅРѕРІРёРє",
-    "ACTIVE": "РђРєС‚РёРІРµРЅ",
-    "SUSPENDED": "РџСЂРёРѕСЃС‚Р°РЅРѕРІР»РµРЅ",
-    "DISABLED": "РћС‚РєР»СЋС‡РµРЅ",
-    "ARCHIVED": "РђСЂС…РёРІ",
+    "DRAFT": "Черновик",
+    "ACTIVE": "Активен",
+    "SUSPENDED": "Приостановлен",
+    "DISABLED": "Отключен",
+    "ARCHIVED": "Архив",
 }
 
 PROVIDER_LABELS = {
     "CODEX_CLI": "Codex CLI",
     "GEMINI_CLI": "Gemini CLI",
     "CLAUDE_CLI": "Claude CLI",
-    "FUTURE_PROVIDER": "Р‘СѓРґСѓС‰РёР№ provider",
-    "UNAVAILABLE": "РќРµ РЅР°СЃС‚СЂРѕРµРЅ",
+    "FUTURE_PROVIDER": "Будущий provider",
+    "UNAVAILABLE": "Не настроен",
 }
 
 
@@ -108,7 +108,7 @@ class DirectorConsoleDialog(QDialog):
         self.universal_platform_service = universal_platform_service
         self.language = language
         self.avatar_dir = Path(avatar_dir) if avatar_dir else None
-        self.setWindowTitle("РљРѕРјР°РЅРґР°")
+        self.setWindowTitle("Команда")
         self.resize(1120, 760)
         self.tabs = QTabWidget()
 
@@ -132,12 +132,12 @@ class DirectorConsoleDialog(QDialog):
         self.tabs.addTab(self.roles_tab, tr(language, "roles"))
         self.tabs.addTab(self.permissions_tab, tr(language, "permissions"))
         self.tabs.addTab(self.providers_tab, tr(language, "providers"))
-        self.tabs.addTab(self.skills_tab, "РќР°РІС‹РєРё")
-        self.tabs.addTab(self.knowledge_tab, "Р—РЅР°РЅРёСЏ")
-        self.tabs.addTab(self.standards_tab, "РЎС‚Р°РЅРґР°СЂС‚С‹")
-        self.tabs.addTab(self.artifacts_tab, "РђСЂС‚РµС„Р°РєС‚С‹")
+        self.tabs.addTab(self.skills_tab, "Навыки")
+        self.tabs.addTab(self.knowledge_tab, "Знания")
+        self.tabs.addTab(self.standards_tab, "Стандарты")
+        self.tabs.addTab(self.artifacts_tab, "Артефакты")
         self.tabs.addTab(self.findings_tab, "Findings")
-        self.tabs.addTab(self.diagnostics_tab, "Р”РёР°РіРЅРѕСЃС‚РёРєР°")
+        self.tabs.addTab(self.diagnostics_tab, "Диагностика")
         self.tabs.addTab(self.audit_tab, tr(language, "audit"))
 
         close = QDialogButtonBox(QDialogButtonBox.Close)
@@ -169,7 +169,7 @@ class DirectorConsoleDialog(QDialog):
 
 
 class UniversalPlatformTab(QWidget):
-    """Small U1 no-code control surface for generic platform objects."""
+    """No-code catalog and operational organization activation surface."""
 
     def __init__(self, service: UniversalPlatformService | None, parent=None) -> None:
         super().__init__(parent)
@@ -177,19 +177,27 @@ class UniversalPlatformTab(QWidget):
         self.professions = QListWidget()
         self.organizations = QListWidget()
         self.templates = QListWidget()
+        self.template_search = QLineEdit()
+        self.template_search.setPlaceholderText("Поиск пресетов: разработка, кухня, маленькая команда...")
+        self.organization_dashboard = QTextEdit()
+        self.organization_dashboard.setReadOnly(True)
+        self.organization_dashboard.setMinimumHeight(150)
+        self.organization_dashboard.setPlainText("В этой организации пока нет сотрудников.\nСоздайте команду из пресета или добавьте сотрудников.")
         self.professions.setMinimumWidth(280)
         self.organizations.setMinimumWidth(280)
         self.templates.setMinimumWidth(360)
         create_profession = QPushButton("Создать профессию")
         create_organization = QPushButton("Создать организацию")
         create_template = QPushButton("Создать шаблон")
-        instantiate = QPushButton("Создать из шаблона")
+        instantiate = QPushButton("Создать команду из пресета")
         seed = QPushButton("Загрузить демонстрационные шаблоны")
         create_profession.clicked.connect(self.create_profession)
         create_organization.clicked.connect(self.create_organization)
         create_template.clicked.connect(self.create_template)
         instantiate.clicked.connect(self.instantiate_template)
         seed.clicked.connect(self.seed_fixtures)
+        self.template_search.textChanged.connect(self.refresh)
+        self.organizations.currentItemChanged.connect(self._show_organization_dashboard)
         actions = QHBoxLayout()
         for button in (create_profession, create_organization, create_template, instantiate, seed):
             actions.addWidget(button)
@@ -199,10 +207,15 @@ class UniversalPlatformTab(QWidget):
         columns.addLayout(self._column("Шаблоны", self.templates), 1)
         note = QLabel("Профессия, организация и шаблон хранятся отдельно от AI-провайдера. Роли и workflow задаются данными, а не кодом.")
         note.setWordWrap(True)
+        dashboard_title = QLabel("МОЯ ОРГАНИЗАЦИЯ")
+        dashboard_title.setObjectName("sectionTitle")
         layout = QVBoxLayout(self)
         layout.addWidget(note)
         layout.addLayout(actions)
+        layout.addWidget(self.template_search)
         layout.addLayout(columns, 1)
+        layout.addWidget(dashboard_title)
+        layout.addWidget(self.organization_dashboard)
 
     @staticmethod
     def _column(title: str, widget: QListWidget) -> QVBoxLayout:
@@ -220,8 +233,14 @@ class UniversalPlatformTab(QWidget):
         for item in self.service.list_professions():
             self.professions.addItem(f"{item.name} · {item.status}")
         for item in self.service.list_organizations():
-            self.organizations.addItem(f"{item.name} · {item.purpose}")
+            row = QListWidgetItem(f"{item.name} · {item.status}")
+            row.setData(Qt.UserRole, item.organization_id)
+            self.organizations.addItem(row)
+        query = self.template_search.text().strip().lower()
         for item in self.service.list_templates():
+            searchable = " ".join((item.name, item.purpose, item.catalog_category, item.domain_package)).lower()
+            if query and query not in searchable:
+                continue
             row = QListWidgetItem(f"{item.name} · {item.recommended_team_size}")
             row.setData(Qt.UserRole, item.template_id)
             self.templates.addItem(row)
@@ -252,6 +271,35 @@ class UniversalPlatformTab(QWidget):
         except Exception as exc:
             QMessageBox.warning(self, "Организация не создана", str(exc))
 
+    def _show_organization_dashboard(self, current, _previous=None) -> None:
+        if self.service is None or current is None:
+            self.organization_dashboard.setPlainText("В этой организации пока нет сотрудников.\nСоздайте команду из пресета или добавьте сотрудников.")
+            return
+        organization_id = str(current.data(Qt.UserRole) or "")
+        data = self.service.organization_dashboard(organization_id)
+        members = data.get("members", [])
+        lines = [
+            f"Название: {data.get('name', '')}",
+            f"Статус: {data.get('status', '')}",
+            f"Сотрудники: {data.get('employees', 0)}",
+            f"Активные задачи: {data.get('active_tasks', 0)}",
+            f"Ожидают проверки: {data.get('pending_review', 0)}",
+            "",
+            "СОСТАВ",
+        ]
+        lines.extend(f"- {item.get('position') or 'Специалист'} · {item.get('provider_id') or 'UNAVAILABLE'} · {item.get('provisioning_status') or 'UNASSIGNED'}" for item in members)
+        department_names = {str(row["id"]): str(row["name"]) for row in self.service.database.list_organization_departments(organization_id)}
+        departments: dict[str, list[str]] = {}
+        for item in members:
+            department_id = str(item.get("department_id") or "")
+            departments.setdefault(department_names.get(department_id, "Команда"), []).append(str(item.get("position") or "Специалист"))
+        lines.extend(["", "СТРУКТУРА"])
+        for department, positions in departments.items():
+            lines.append(f"{department}")
+            lines.extend(f"  └─ {position}" for position in positions)
+        lines.extend(["", "Следующие действия: открыть чат, назначить AI-движки, настроить workflow и проверить права."])
+        self.organization_dashboard.setPlainText("\n".join(lines))
+
     def create_template(self) -> None:
         if self.service is None:
             return
@@ -278,12 +326,19 @@ class UniversalPlatformTab(QWidget):
         if item is None:
             QMessageBox.information(self, "Шаблон", "Выберите шаблон.")
             return
-        name, ok = QInputDialog.getText(self, "Создать организацию", "Название организации:")
-        if not ok or not name.strip():
-            return
         try:
-            self.service.instantiate_template(str(item.data(Qt.UserRole)), name)
+            template = next(template for template in self.service.list_templates() if template.template_id == str(item.data(Qt.UserRole)))
+            wizard = OrganizationActivationWizard(self.service, template, self)
+            if wizard.exec() != QDialog.Accepted:
+                return
+            activation = wizard.activation
+            summary = f"Команда создана: {activation.organization.name}\nСотрудников: {len(activation.employee_ids)}\nСтатус: {activation.status}"
+            if activation.missing_providers:
+                summary += "\n\nТребуется AI-движок:\n- " + "\n- ".join(activation.missing_providers)
+            QMessageBox.information(self, "Организация готова", summary)
             self.refresh()
+            if self.organizations.count():
+                self.organizations.setCurrentRow(self.organizations.count() - 1)
         except Exception as exc:
             QMessageBox.warning(self, "Организация не создана", str(exc))
 
@@ -291,6 +346,103 @@ class UniversalPlatformTab(QWidget):
         if self.service is not None:
             self.service.seed_demo_fixtures()
             self.refresh()
+
+
+class OrganizationActivationWizard(QWizard):
+    def __init__(self, service: UniversalPlatformService, template, parent=None) -> None:
+        super().__init__(parent)
+        self.service = service
+        self.template = template
+        self.activation = None
+        self.setWindowTitle("Создать организацию")
+        self.setMinimumSize(720, 560)
+
+        identity = QWizardPage()
+        identity.setTitle("Шаг 1. Название и размер")
+        self.organization_name = QLineEdit()
+        self.organization_name.setPlaceholderText("Например: Команда разработки продукта")
+        self.team_size = QComboBox()
+        for value in ("MINI", "STANDARD", "EXTENDED"):
+            self.team_size.addItem(value, value)
+        self.team_size.setCurrentText("STANDARD")
+        form = QFormLayout(identity)
+        form.addRow("Название организации", self.organization_name)
+        form.addRow("Размер команды", self.team_size)
+        form.addRow("Пресет", QLabel(f"{template.name}\n{template.purpose}"))
+        self.addPage(identity)
+
+        roster = QWizardPage()
+        roster.setTitle("Шаг 2. Сотрудники и AI-движки")
+        self.provider_boxes: dict[str, QComboBox] = {}
+        self.mode_boxes: dict[str, QComboBox] = {}
+        self.existing_boxes: dict[str, QComboBox] = {}
+        roster_layout = QVBoxLayout(roster)
+        roster_layout.addWidget(QLabel("Сотрудники будут созданы организационно. Для выполнения задач назначьте Codex, Gemini или другой подключённый движок."))
+        for role in template.roles:
+            position = str(role.get("position") or role.get("role") or "Специалист")
+            row = QHBoxLayout()
+            row.addWidget(QLabel(position), 2)
+            provider = QComboBox()
+            for value, label in (("UNAVAILABLE", "Назначить позже"), ("CODEX_CLI", "Codex CLI"), ("GEMINI_CLI", "Gemini CLI"), ("CLAUDE_CLI", "Claude CLI")):
+                provider.addItem(label, value)
+            self.provider_boxes[position] = provider
+            mode = QComboBox()
+            mode.addItem("Создать нового", "CREATE")
+            mode.addItem("Использовать существующего", "EXISTING")
+            self.mode_boxes[position] = mode
+            existing = QComboBox()
+            existing.addItem("Выберите сотрудника", "")
+            for employee in service.database.list_agent_profiles():
+                existing.addItem(str(employee["display_name"]), str(employee["agent_id"]))
+            self.existing_boxes[position] = existing
+            existing.setEnabled(False)
+            mode.currentIndexChanged.connect(lambda _index, key=position: self.existing_boxes[key].setEnabled(self.mode_boxes[key].currentData() == "EXISTING"))
+            row.addWidget(provider, 1)
+            row.addWidget(mode, 1)
+            row.addWidget(existing, 1)
+            roster_layout.addLayout(row)
+        roster_layout.addStretch(1)
+        self.addPage(roster)
+
+        workflow = QWizardPage()
+        workflow.setTitle("Шаг 3. Workflow и структура")
+        workflow_layout = QVBoxLayout(workflow)
+        structure = [f"Пресет: {template.name}", f"Категория: {template.catalog_category}", f"Размер: {template.recommended_team_size}", "", "Состав:"]
+        structure.extend(f"  {index}. {role.get('position') or role.get('role')}" for index, role in enumerate(template.roles, start=1))
+        structure.extend(["", "Workflow: роли выполняются по шагам, результат передаётся следующему ответственному."])
+        workflow_layout.addWidget(QLabel("\n".join(structure)))
+        workflow_layout.addStretch(1)
+        self.addPage(workflow)
+
+        confirmation = QWizardPage()
+        confirmation.setTitle("Шаг 4. Подтверждение")
+        confirmation_layout = QVBoxLayout(confirmation)
+        confirmation_layout.addWidget(QLabel("После подтверждения создаются сотрудники, роли, workspace, routing и связь с workflow. Неназначенный AI-движок не устанавливается автоматически."))
+        confirmation_layout.addStretch(1)
+        self.addPage(confirmation)
+
+    def accept(self) -> None:
+        if not self.organization_name.text().strip():
+            QMessageBox.warning(self, "Не указано название", "Введите название организации.")
+            return
+        assignments = {position: str(box.currentData()) for position, box in self.provider_boxes.items()}
+        existing = {
+            position: str(box.currentData())
+            for position, box in self.existing_boxes.items()
+            if self.mode_boxes[position].currentData() == "EXISTING" and box.currentData()
+        }
+        try:
+            self.activation = self.service.activate_template(
+                self.template.template_id,
+                self.organization_name.text().strip(),
+                team_size=str(self.team_size.currentData()),
+                provider_assignments=assignments,
+                use_existing_agents=existing,
+            )
+        except Exception as exc:
+            QMessageBox.critical(self, "Активация не завершена", str(exc))
+            return
+        super().accept()
 
 
 class OverviewTab(QWidget):
@@ -304,7 +456,7 @@ class OverviewTab(QWidget):
         self.recent.setReadOnly(True)
         layout = QVBoxLayout(self)
         layout.addLayout(self.grid)
-        layout.addWidget(QLabel("РџРѕСЃР»РµРґРЅРёРµ РґРµР№СЃС‚РІРёСЏ"))
+        layout.addWidget(QLabel("Последние действия"))
         layout.addWidget(self.recent, 1)
 
     def refresh(self) -> None:
@@ -325,15 +477,15 @@ class OverviewTab(QWidget):
             elif status in ("NOT_READY", "BLOCKED"):
                 unavailable += 1
         cards = [
-            ("РђРєС‚РёРІРЅС‹Рµ СЃРѕС‚СЂСѓРґРЅРёРєРё", counts.get("ACTIVE", 0)),
-            ("РџСЂРёРѕСЃС‚Р°РЅРѕРІР»РµРЅС‹", counts.get("SUSPENDED", 0)),
-            ("РћС‚РєР»СЋС‡РµРЅС‹", counts.get("DISABLED", 0)),
-            ("РђСЂС…РёРІ", counts.get("ARCHIVED", 0)),
-            ("РќР°СЃС‚СЂРѕРµРЅРЅС‹Рµ СЂРѕР»Рё", len(self.service.list_roles())),
-            ("Provider РґРѕСЃС‚СѓРїРЅС‹", available),
-            ("Provider РЅРµРґРѕСЃС‚СѓРїРЅС‹", unavailable),
-            ("Р РёСЃРєРѕРІР°РЅРЅС‹Рµ РєРѕРЅС„РёРіСѓСЂР°С†РёРё", len([item for item in employees if item.warnings])),
-            ("Р‘Р°Р·Р° РґР°РЅРЅС‹С…", "OK"),
+            ("Активные сотрудники", counts.get("ACTIVE", 0)),
+            ("Приостановлены", counts.get("SUSPENDED", 0)),
+            ("Отключены", counts.get("DISABLED", 0)),
+            ("Архив", counts.get("ARCHIVED", 0)),
+            ("Настроенные роли", len(self.service.list_roles())),
+            ("Provider доступны", available),
+            ("Provider недоступны", unavailable),
+            ("Рискованные конфигурации", len([item for item in employees if item.warnings])),
+            ("База данных", "OK"),
             ("Management repository", "OK"),
         ]
         for index, (title, value) in enumerate(cards):
@@ -345,7 +497,7 @@ class OverviewTab(QWidget):
             self.grid.addWidget(card, index // 4, index % 4)
         events = self.service.list_audit_events()[-8:]
         lines = [f"{row['created_at']} | {row['actor']} | {row['action']} | {row['object_id']}" for row in events]
-        self.recent.setPlainText("\n".join(lines) if lines else "Р”РµР№СЃС‚РІРёР№ РїРѕРєР° РЅРµС‚.")
+        self.recent.setPlainText("\n".join(lines) if lines else "Действий пока нет.")
 
 
 class EmployeesTab(QWidget):
@@ -460,7 +612,7 @@ class EmployeesTab(QWidget):
                 ", ".join(role_label(self.language, role) for role in employee.roles),
                 PROVIDER_LABELS.get(employee.provider_id, employee.provider_id),
                 employee.persona_id or tr(self.language, "not_set"),
-                f"{len(employee.effective_permissions)} РїСЂР°РІ",
+                f"{len(employee.effective_permissions)} прав",
                 readiness_label(self.language, readiness),
             ]
             for column, value in enumerate(values):
@@ -484,7 +636,7 @@ class EmployeesTab(QWidget):
             return
         employee = self.service.get_employee(agent_id)
         if employee is None:
-            self.detail.setPlainText("РџСЂРѕС„РёР»СЊ РЅРµ РЅР°Р№РґРµРЅ.")
+            self.detail.setPlainText("Профиль не найден.")
             return
         readiness = self.provider_provisioning_service.readiness_for_employee(employee.agent_id)
         self.detail.setPlainText(format_employee_detail(employee, self.service, readiness, self.language))
@@ -513,7 +665,7 @@ class EmployeesTab(QWidget):
         agent_id = self.selected_agent_id()
         if not agent_id:
             return
-        reason, ok = QInputDialog.getText(self, "РџСЂРёС‡РёРЅР°", tr(self.language, "reason"))
+        reason, ok = QInputDialog.getText(self, "Причина", tr(self.language, "reason"))
         if not ok or not reason.strip():
             return
         try:
@@ -526,7 +678,7 @@ class EmployeesTab(QWidget):
                 else:
                     self.service.reactivate_agent(agent_id, OWNER_ROLE, reason.strip())
             elif target_state == "ARCHIVED":
-                reply = QMessageBox.question(self, "РђСЂС…РёРІРёСЂРѕРІР°С‚СЊ", "РСЃС‚РѕСЂРёСЏ СЃРѕС…СЂР°РЅРёС‚СЃСЏ. РђСЂС…РёРІРёСЂРѕРІР°С‚СЊ СЃРѕС‚СЂСѓРґРЅРёРєР°?")
+                reply = QMessageBox.question(self, "Архивировать", "История сохранится. Архивировать сотрудника?")
                 if reply != QMessageBox.Yes:
                     return
                 self.service.archive_agent(agent_id, OWNER_ROLE, reason.strip())
@@ -549,7 +701,7 @@ class SkillProgressTab(QWidget):
         self.package_service = package_service
         self.management_service = management_service
         self.package_table = QTableWidget(0, 6)
-        self.package_table.setHorizontalHeaderLabels(["РќР°РІС‹Рє", "РЎС‚Р°С‚СѓСЃ", "Р’РµСЂСЃРёСЏ", "РќР°Р·РЅР°С‡РµРЅРѕ", "РќР°Р·РЅР°С‡РµРЅРёРµ", "РћР±РЅРѕРІР»РµРЅ"])
+        self.package_table.setHorizontalHeaderLabels(["Навык", "Статус", "Версия", "Назначено", "Назначение", "Обновлен"])
         self.package_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.package_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.package_table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -558,17 +710,17 @@ class SkillProgressTab(QWidget):
         self.table = QTableWidget(0, 11)
         self.table.setHorizontalHeaderLabels(
             [
-                "РЎРѕС‚СЂСѓРґРЅРёРє",
-                "РќР°РІС‹Рє",
-                "РЈСЂРѕРІРµРЅСЊ",
-                "РџРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ",
-                "Р—Р°РґР°С‡",
-                "Р РµРІСЊСЋ",
-                "РљРІР°Р»РёС„РёРєР°С†РёСЏ",
-                "РџРѕСЃР»РµРґРЅРёР№ СЂРµР·СѓР»СЊС‚Р°С‚",
-                "РЎР»РµРґСѓСЋС‰РёР№ С€Р°Рі",
-                "Р”РѕСЃС‚РѕРІРµСЂРЅРѕСЃС‚СЊ",
-                "РЁРєР°Р»Р°",
+                "Сотрудник",
+                "Навык",
+                "Уровень",
+                "Подтверждения",
+                "Задач",
+                "Ревью",
+                "Квалификация",
+                "Последний результат",
+                "Следующий шаг",
+                "Достоверность",
+                "Шкала",
             ]
         )
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
@@ -577,21 +729,21 @@ class SkillProgressTab(QWidget):
         self.detail = QTextEdit()
         self.detail.setReadOnly(True)
         self.table.itemSelectionChanged.connect(self._show_selected_detail)
-        refresh = QPushButton("РћР±РЅРѕРІРёС‚СЊ")
+        refresh = QPushButton("Обновить")
         refresh.clicked.connect(self.refresh)
-        create_button = QPushButton("РЎРѕР·РґР°С‚СЊ РїР°РєРµС‚ РЅР°РІС‹РєР°")
+        create_button = QPushButton("Создать пакет навыка")
         create_button.clicked.connect(self._create_package)
-        activate_button = QPushButton("РђРєС‚РёРІРёСЂРѕРІР°С‚СЊ")
+        activate_button = QPushButton("Активировать")
         activate_button.clicked.connect(lambda: self._set_selected_package_status("ACTIVE"))
-        suspend_button = QPushButton("РџСЂРёРѕСЃС‚Р°РЅРѕРІРёС‚СЊ")
+        suspend_button = QPushButton("Приостановить")
         suspend_button.clicked.connect(lambda: self._set_selected_package_status("SUSPENDED"))
-        assign_button = QPushButton("РќР°Р·РЅР°С‡РёС‚СЊ СЃРѕС‚СЂСѓРґРЅРёРєСѓ")
+        assign_button = QPushButton("Назначить сотруднику")
         assign_button.clicked.connect(self._assign_selected_package)
-        evidence_button = QPushButton("РџРѕРєР°Р·Р°С‚СЊ РґРѕРєР°Р·Р°С‚РµР»СЊСЃС‚РІР°")
+        evidence_button = QPushButton("Показать доказательства")
         evidence_button.clicked.connect(self._show_selected_detail)
 
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel("РџР°РєРµС‚ РЅР°РІС‹РєР° СѓРїСЂР°РІР»СЏРµС‚СЃСЏ РІР»Р°РґРµР»СЊС†РµРј. РќР°Р·РЅР°С‡РµРЅРёРµ СЃРѕС‚СЂСѓРґРЅРёРєСѓ РЅРµ РїРѕРІС‹С€Р°РµС‚ СѓСЂРѕРІРµРЅСЊ: РїСЂРѕРіСЂРµСЃСЃ СЂР°СЃС‚РµС‚ С‚РѕР»СЊРєРѕ РѕС‚ Р·Р°РґР°С‡, Р°СЂС‚РµС„Р°РєС‚РѕРІ Рё СЂРµРІСЊСЋ."))
+        layout.addWidget(QLabel("Пакет навыка управляется владельцем. Назначение сотруднику не повышает уровень: прогресс растет только от задач, артефактов и ревью."))
         layout.addWidget(self.package_table, 1)
         buttons = QHBoxLayout()
         buttons.addWidget(refresh)
@@ -602,16 +754,16 @@ class SkillProgressTab(QWidget):
         buttons.addWidget(evidence_button)
         buttons.addStretch(1)
         layout.addLayout(buttons)
-        layout.addWidget(QLabel("Evidence-РїСЂРѕРіСЂРµСЃСЃ СЃРѕС‚СЂСѓРґРЅРёРєРѕРІ"))
+        layout.addWidget(QLabel("Evidence-прогресс сотрудников"))
         layout.addWidget(self.table, 2)
-        layout.addWidget(QLabel("Р”РѕРєР°Р·Р°С‚РµР»СЊСЃС‚РІР° Рё РѕСЃРЅРѕРІР°РЅРёРµ СЂР°СЃС‡РµС‚Р°"))
+        layout.addWidget(QLabel("Доказательства и основание расчета"))
         layout.addWidget(self.detail, 1)
 
     def refresh(self) -> None:
         self._refresh_packages()
         if self.service is None:
             self.table.setRowCount(0)
-            self.detail.setPlainText("Р Р°СЃС‡РµС‚ РЅР°РІС‹РєРѕРІ РЅРµРґРѕСЃС‚СѓРїРµРЅ.")
+            self.detail.setPlainText("Расчет навыков недоступен.")
             return
         rows = self.service.list_progress()
         self.table.setRowCount(len(rows))
@@ -624,7 +776,7 @@ class SkillProgressTab(QWidget):
                 str(row.tasks_completed),
                 str(row.reviews_passed),
                 row.qualification,
-                row.last_demonstrated or "РЅРµС‚",
+                row.last_demonstrated or "нет",
                 row.next_required_step,
                 row.confidence,
                 "",
@@ -635,14 +787,14 @@ class SkillProgressTab(QWidget):
                     Qt.UserRole,
                     "\n".join(
                         [
-                            f"РЎРѕС‚СЂСѓРґРЅРёРє: {row.employee_name} ({row.agent_id})",
-                            f"РќР°РІС‹Рє: {row.skill_title}",
-                            f"РЈСЂРѕРІРµРЅСЊ: {row.status}",
-                            f"РџРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ: {row.evidence_summary}",
-                            f"РЎР»РµРґСѓСЋС‰РёР№ С€Р°Рі: {row.next_required_step}",
-                            f"Р”РѕСЃС‚РѕРІРµСЂРЅРѕСЃС‚СЊ: {row.confidence}",
-                            f"РџСЂРѕС†РµРЅС‚: {row.percent}%",
-                            f"РћР±РЅРѕРІР»РµРЅ: {row.updated_at or 'РЅРµС‚'}",
+                            f"Сотрудник: {row.employee_name} ({row.agent_id})",
+                            f"Навык: {row.skill_title}",
+                            f"Уровень: {row.status}",
+                            f"Подтверждения: {row.evidence_summary}",
+                            f"Следующий шаг: {row.next_required_step}",
+                            f"Достоверность: {row.confidence}",
+                            f"Процент: {row.percent}%",
+                            f"Обновлен: {row.updated_at or 'нет'}",
                             "",
                             row.basis,
                         ]
@@ -657,13 +809,13 @@ class SkillProgressTab(QWidget):
         if rows:
             self.table.selectRow(0)
         else:
-            self.detail.setPlainText("РќР°РІС‹РєРѕРІ РїРѕРєР° РЅРµС‚.")
+            self.detail.setPlainText("Навыков пока нет.")
 
     def _show_selected_detail(self) -> None:
         items = self.table.selectedItems()
         if not items:
             return
-        self.detail.setPlainText(str(items[0].data(Qt.UserRole) or "РќРµС‚ РґР°РЅРЅС‹С…."))
+        self.detail.setPlainText(str(items[0].data(Qt.UserRole) or "Нет данных."))
 
     def _refresh_packages(self) -> None:
         if self.package_service is None:
@@ -682,28 +834,28 @@ class SkillProgressTab(QWidget):
                 package.status,
                 package.version,
                 str(len(assigned)),
-                "; ".join(assigned) or "РЅРµС‚",
-                package.updated_at or "РЅРµС‚",
+                "; ".join(assigned) or "нет",
+                package.updated_at or "нет",
             ]
             detail = "\n".join(
                 [
                     f"ID: {package.skill_id}",
-                    f"РќР°Р·РІР°РЅРёРµ: {package.name}",
-                    f"РЎС‚Р°С‚СѓСЃ: {package.status}",
-                    f"Р’РµСЂСЃРёСЏ: {package.version}",
-                    f"РќР°Р·РЅР°С‡РµРЅРёСЏ: {'; '.join(assigned) or 'РЅРµС‚'}",
-                    f"РќР°Р·РЅР°С‡Р°РµРјС‹Рµ СЂРѕР»Рё: {', '.join(package.supported_roles) or 'РЅРµ СѓРєР°Р·Р°РЅС‹'}",
-                    f"Р¦РµР»СЊ: {package.purpose or 'РЅРµ СѓРєР°Р·Р°РЅР°'}",
-                    f"Р’С…РѕРґС‹: {package.expected_inputs or 'РЅРµ СѓРєР°Р·Р°РЅС‹'}",
-                    f"Р’С‹С…РѕРґС‹: {package.expected_outputs or 'РЅРµ СѓРєР°Р·Р°РЅС‹'}",
-                    f"Р—Р°РїСЂРµС‰РµРЅРѕ: {package.prohibited_actions or 'РЅРµ СѓРєР°Р·Р°РЅРѕ'}",
-                    "Р§РµРє-Р»РёСЃС‚:",
+                    f"Название: {package.name}",
+                    f"Статус: {package.status}",
+                    f"Версия: {package.version}",
+                    f"Назначения: {'; '.join(assigned) or 'нет'}",
+                    f"Назначаемые роли: {', '.join(package.supported_roles) or 'не указаны'}",
+                    f"Цель: {package.purpose or 'не указана'}",
+                    f"Входы: {package.expected_inputs or 'не указаны'}",
+                    f"Выходы: {package.expected_outputs or 'не указаны'}",
+                    f"Запрещено: {package.prohibited_actions or 'не указано'}",
+                    "Чек-лист:",
                     *[f"- {item}" for item in package.validation_checklist],
-                    "РљРІР°Р»РёС„РёРєР°С†РёРѕРЅРЅС‹Рµ Р·Р°РґР°С‡Рё:",
+                    "Квалификационные задачи:",
                     *[f"- {item}" for item in package.qualification_tasks],
                     "",
-                    "РРЅСЃС‚СЂСѓРєС†РёРё:",
-                    package.instructions or "РЅРµ СѓРєР°Р·Р°РЅС‹",
+                    "Инструкции:",
+                    package.instructions or "не указаны",
                 ]
             )
             for column, value in enumerate(values):
@@ -716,18 +868,18 @@ class SkillProgressTab(QWidget):
         items = self.package_table.selectedItems()
         if not items:
             return
-        self.detail.setPlainText(str(items[0].data(Qt.UserRole + 1) or "РќРµС‚ РґР°РЅРЅС‹С…."))
+        self.detail.setPlainText(str(items[0].data(Qt.UserRole + 1) or "Нет данных."))
 
     def _selected_skill_id(self) -> str | None:
         items = self.package_table.selectedItems()
         if not items:
-            QMessageBox.information(self, "РќР°РІС‹Рє", "Р’С‹Р±РµСЂРёС‚Рµ РїР°РєРµС‚ РЅР°РІС‹РєР°.")
+            QMessageBox.information(self, "Навык", "Выберите пакет навыка.")
             return None
         return str(items[0].data(Qt.UserRole) or "")
 
     def _create_package(self) -> None:
         if self.package_service is None:
-            QMessageBox.warning(self, "РќР°РІС‹РєРё", "РЈРїСЂР°РІР»РµРЅРёРµ РїР°РєРµС‚Р°РјРё РЅР°РІС‹РєРѕРІ РЅРµРґРѕСЃС‚СѓРїРЅРѕ.")
+            QMessageBox.warning(self, "Навыки", "Управление пакетами навыков недоступно.")
             return
         dialog = SkillPackageDialog(self)
         if dialog.exec() != QDialog.Accepted:
@@ -735,7 +887,7 @@ class SkillProgressTab(QWidget):
         try:
             self.package_service.create_package(**dialog.values(), actor=OWNER_ROLE)
         except Exception as exc:
-            QMessageBox.warning(self, "РќР°РІС‹Рє РЅРµ СЃРѕР·РґР°РЅ", str(exc))
+            QMessageBox.warning(self, "Навык не создан", str(exc))
             return
         self.refresh()
 
@@ -746,9 +898,9 @@ class SkillProgressTab(QWidget):
         if not skill_id:
             return
         try:
-            self.package_service.update_status(skill_id, status, actor=OWNER_ROLE, reason="РёР·РјРµРЅРµРЅРѕ С‡РµСЂРµР· Director Console")
+            self.package_service.update_status(skill_id, status, actor=OWNER_ROLE, reason="изменено через Director Console")
         except Exception as exc:
-            QMessageBox.warning(self, "РЎС‚Р°С‚СѓСЃ РЅРµ РёР·РјРµРЅРµРЅ", str(exc))
+            QMessageBox.warning(self, "Статус не изменен", str(exc))
             return
         self.refresh()
 
@@ -760,7 +912,7 @@ class SkillProgressTab(QWidget):
             return
         employees = self.management_service.list_employees()
         if not employees:
-            QMessageBox.information(self, "РќР°Р·РЅР°С‡РµРЅРёРµ", "РќРµС‚ СЃРѕС‚СЂСѓРґРЅРёРєРѕРІ РґР»СЏ РЅР°Р·РЅР°С‡РµРЅРёСЏ.")
+            QMessageBox.information(self, "Назначение", "Нет сотрудников для назначения.")
             return
         dialog = SkillAssignmentDialog(employees, self)
         if dialog.exec() != QDialog.Accepted:
@@ -771,10 +923,10 @@ class SkillProgressTab(QWidget):
                 skill_id,
                 state=dialog.state(),
                 actor=OWNER_ROLE,
-                reason="РЅР°Р·РЅР°С‡РµРЅРѕ С‡РµСЂРµР· Director Console",
+                reason="назначено через Director Console",
             )
         except Exception as exc:
-            QMessageBox.warning(self, "РќР°РІС‹Рє РЅРµ РЅР°Р·РЅР°С‡РµРЅ", str(exc))
+            QMessageBox.warning(self, "Навык не назначен", str(exc))
             return
         self.refresh()
 
@@ -782,7 +934,7 @@ class SkillProgressTab(QWidget):
 class SkillPackageDialog(QDialog):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("РЎРѕР·РґР°С‚СЊ РїР°РєРµС‚ РЅР°РІС‹РєР°")
+        self.setWindowTitle("Создать пакет навыка")
         self.name = QLineEdit()
         self.purpose = QTextEdit()
         self.purpose.setFixedHeight(54)
@@ -800,15 +952,15 @@ class SkillPackageDialog(QDialog):
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout = QFormLayout(self)
-        layout.addRow("РќР°Р·РІР°РЅРёРµ", self.name)
-        layout.addRow("Р¦РµР»СЊ", self.purpose)
-        layout.addRow("Р РѕР»Рё С‡РµСЂРµР· Р·Р°РїСЏС‚СѓСЋ", self.roles)
-        layout.addRow("РРЅСЃС‚СЂСѓРєС†РёРё", self.instructions)
-        layout.addRow("РћР¶РёРґР°РµРјС‹Рµ РІС…РѕРґС‹", self.expected_inputs)
-        layout.addRow("РћР¶РёРґР°РµРјС‹Рµ РІС‹С…РѕРґС‹", self.expected_outputs)
-        layout.addRow("Р—Р°РїСЂРµС‰РµРЅРЅС‹Рµ РґРµР№СЃС‚РІРёСЏ", self.prohibited_actions)
-        layout.addRow("Р§РµРє-Р»РёСЃС‚, РїРѕ СЃС‚СЂРѕРєРµ", self.validation)
-        layout.addRow("РљРІР°Р»РёС„РёРєР°С†РёРѕРЅРЅС‹Рµ Р·Р°РґР°С‡Рё", self.qualification)
+        layout.addRow("Название", self.name)
+        layout.addRow("Цель", self.purpose)
+        layout.addRow("Роли через запятую", self.roles)
+        layout.addRow("Инструкции", self.instructions)
+        layout.addRow("Ожидаемые входы", self.expected_inputs)
+        layout.addRow("Ожидаемые выходы", self.expected_outputs)
+        layout.addRow("Запрещенные действия", self.prohibited_actions)
+        layout.addRow("Чек-лист, по строке", self.validation)
+        layout.addRow("Квалификационные задачи", self.qualification)
         layout.addRow(buttons)
 
     def values(self) -> dict[str, object]:
@@ -829,7 +981,7 @@ class SkillPackageDialog(QDialog):
 class SkillAssignmentDialog(QDialog):
     def __init__(self, employees: list[EmployeeSummary], parent=None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("РќР°Р·РЅР°С‡РёС‚СЊ РЅР°РІС‹Рє")
+        self.setWindowTitle("Назначить навык")
         self.employee = QComboBox()
         for item in employees:
             self.employee.addItem(f"{item.display_name} ({item.agent_id})", item.agent_id)
@@ -840,8 +992,8 @@ class SkillAssignmentDialog(QDialog):
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout = QFormLayout(self)
-        layout.addRow("РЎРѕС‚СЂСѓРґРЅРёРє", self.employee)
-        layout.addRow("РЎРѕСЃС‚РѕСЏРЅРёРµ", self.skill_state)
+        layout.addRow("Сотрудник", self.employee)
+        layout.addRow("Состояние", self.skill_state)
         layout.addRow(buttons)
 
     def agent_id(self) -> str:
@@ -874,15 +1026,15 @@ class KnowledgeTab(QWidget):
         self.detail = QTextEdit()
         self.detail.setReadOnly(True)
 
-        refresh = QPushButton("РћР±РЅРѕРІРёС‚СЊ")
+        refresh = QPushButton("Обновить")
         refresh.clicked.connect(self.refresh)
-        create = QPushButton("Р”РѕР±Р°РІРёС‚СЊ РєР°СЂС‚РѕС‡РєСѓ")
+        create = QPushButton("Добавить карточку")
         create.clicked.connect(self._create_card)
-        activate = QPushButton("РђРєС‚РёРІРёСЂРѕРІР°С‚СЊ")
+        activate = QPushButton("Активировать")
         activate.clicked.connect(lambda: self._set_selected_status("ACTIVE"))
-        review = QPushButton("РќР° СЂРµРІСЊСЋ")
+        review = QPushButton("На ревью")
         review.clicked.connect(lambda: self._set_selected_status("NEEDS_REVIEW"))
-        reject = QPushButton("РћС‚РєР»РѕРЅРёС‚СЊ")
+        reject = QPushButton("Отклонить")
         reject.clicked.connect(lambda: self._set_selected_status("REJECTED"))
 
         layout = QVBoxLayout(self)
@@ -893,13 +1045,13 @@ class KnowledgeTab(QWidget):
             buttons.addWidget(button)
         buttons.addStretch(1)
         layout.addLayout(buttons)
-        layout.addWidget(QLabel("РљР°СЂС‚РѕС‡РєР° Рё Р°СѓРґРёС‚"))
+        layout.addWidget(QLabel("Карточка и аудит"))
         layout.addWidget(self.detail, 1)
 
     def refresh(self) -> None:
         if self.service is None:
             self.table.setRowCount(0)
-            self.detail.setPlainText("РЎРµСЂРІРёСЃ Р·РЅР°РЅРёР№ РЅРµРґРѕСЃС‚СѓРїРµРЅ.")
+            self.detail.setPlainText("Сервис знаний недоступен.")
             return
         cards = self.service.list_cards()
         usage_counts = self.service.usage_counts_by_card()
@@ -910,11 +1062,11 @@ class KnowledgeTab(QWidget):
                 card.title,
                 card.status,
                 card.source_authority,
-                card.source_title or card.source_uri or "РЅРµ СѓРєР°Р·Р°РЅ",
-                ", ".join(card.role_ids) or "РІСЃРµ",
-                ", ".join(card.tags) or "РЅРµС‚",
+                card.source_title or card.source_uri or "не указан",
+                ", ".join(card.role_ids) or "все",
+                ", ".join(card.tags) or "нет",
                 card.version,
-                card.updated_at or "РЅРµС‚",
+                card.updated_at or "нет",
                 str(counts.supplied if counts else 0),
                 str(counts.applied if counts else 0),
                 str(counts.ignored if counts else 0),
@@ -923,24 +1075,24 @@ class KnowledgeTab(QWidget):
             detail = "\n".join(
                 [
                     f"ID: {card.knowledge_id}",
-                    f"РќР°Р·РІР°РЅРёРµ: {card.title}",
-                    f"РЎС‚Р°С‚СѓСЃ: {card.status}",
-                    f"РќР°РґРµР¶РЅРѕСЃС‚СЊ РёСЃС‚РѕС‡РЅРёРєР°: {card.source_authority}",
-                    f"РўРёРї РёСЃС‚РѕС‡РЅРёРєР°: {card.source_type}",
-                    f"РСЃС‚РѕС‡РЅРёРє: {card.source_title or 'РЅРµ СѓРєР°Р·Р°РЅ'}",
-                    f"РЎСЃС‹Р»РєР°/РїСѓС‚СЊ: {card.source_uri or 'РЅРµ СѓРєР°Р·Р°РЅ'}",
-                    f"РҐСЌС€: {card.source_hash or 'РЅРµ СѓРєР°Р·Р°РЅ'}",
-                    f"Р РѕР»Рё: {', '.join(card.role_ids) or 'РІСЃРµ'}",
-                    f"РўРµРіРё: {', '.join(card.tags) or 'РЅРµС‚'}",
-                    f"Р’РµСЂСЃРёСЏ: {card.version}",
-                    f"Р—Р°РјРµС‚РєРё СЂРµРІСЊСЋ: {card.review_notes or 'РЅРµС‚'}",
+                    f"Название: {card.title}",
+                    f"Статус: {card.status}",
+                    f"Надежность источника: {card.source_authority}",
+                    f"Тип источника: {card.source_type}",
+                    f"Источник: {card.source_title or 'не указан'}",
+                    f"Ссылка/путь: {card.source_uri or 'не указан'}",
+                    f"Хэш: {card.source_hash or 'не указан'}",
+                    f"Роли: {', '.join(card.role_ids) or 'все'}",
+                    f"Теги: {', '.join(card.tags) or 'нет'}",
+                    f"Версия: {card.version}",
+                    f"Заметки ревью: {card.review_notes or 'нет'}",
                     f"Использование: SUPPLIED={counts.supplied if counts else 0}; APPLIED={counts.applied if counts else 0}; IGNORED={counts.ignored if counts else 0}; MISAPPLIED={counts.misapplied if counts else 0}",
                     "",
-                    "РљСЂР°С‚РєРѕ:",
-                    card.summary or "РЅРµ Р·Р°РїРѕР»РЅРµРЅРѕ",
+                    "Кратко:",
+                    card.summary or "не заполнено",
                     "",
-                    "РЎРѕРґРµСЂР¶Р°РЅРёРµ:",
-                    card.content or "РЅРµ Р·Р°РїРѕР»РЅРµРЅРѕ",
+                    "Содержание:",
+                    card.content or "не заполнено",
                 ]
             )
             for column, value in enumerate(values):
@@ -951,12 +1103,12 @@ class KnowledgeTab(QWidget):
         if cards:
             self.table.selectRow(0)
         else:
-            self.detail.setPlainText("РљР°СЂС‚РѕС‡РµРє Р·РЅР°РЅРёР№ РїРѕРєР° РЅРµС‚.")
+            self.detail.setPlainText("Карточек знаний пока нет.")
 
     def _selected_knowledge_id(self) -> str | None:
         items = self.table.selectedItems()
         if not items:
-            QMessageBox.information(self, "Р—РЅР°РЅРёСЏ", "Р’С‹Р±РµСЂРёС‚Рµ РєР°СЂС‚РѕС‡РєСѓ.")
+            QMessageBox.information(self, "Знания", "Выберите карточку.")
             return None
         return str(items[0].data(Qt.UserRole) or "")
 
@@ -964,12 +1116,12 @@ class KnowledgeTab(QWidget):
         items = self.table.selectedItems()
         if not items:
             return
-        detail = str(items[0].data(Qt.UserRole + 1) or "РќРµС‚ РґР°РЅРЅС‹С….")
+        detail = str(items[0].data(Qt.UserRole + 1) or "Нет данных.")
         knowledge_id = str(items[0].data(Qt.UserRole) or "")
         if self.service is not None and knowledge_id:
             events = self.service.list_events(knowledge_id)
             if events:
-                detail += "\n\nРђСѓРґРёС‚:\n" + "\n".join(f"- {event.created_at}: {event.event_type}; {event.detail}" for event in events[:12])
+                detail += "\n\nАудит:\n" + "\n".join(f"- {event.created_at}: {event.event_type}; {event.detail}" for event in events[:12])
         self.detail.setPlainText(detail)
 
     def _create_card(self) -> None:
@@ -981,7 +1133,7 @@ class KnowledgeTab(QWidget):
         try:
             self.service.create_card(**dialog.values(), actor=OWNER_ROLE)
         except Exception as exc:
-            QMessageBox.warning(self, "Р—РЅР°РЅРёРµ РЅРµ СЃРѕР·РґР°РЅРѕ", str(exc))
+            QMessageBox.warning(self, "Знание не создано", str(exc))
             return
         self.refresh()
 
@@ -992,9 +1144,9 @@ class KnowledgeTab(QWidget):
         if not knowledge_id:
             return
         try:
-            self.service.update_status(knowledge_id, status, actor=OWNER_ROLE, reason="РёР·РјРµРЅРµРЅРѕ С‡РµСЂРµР· Director Console")
+            self.service.update_status(knowledge_id, status, actor=OWNER_ROLE, reason="изменено через Director Console")
         except Exception as exc:
-            QMessageBox.warning(self, "РЎС‚Р°С‚СѓСЃ РЅРµ РёР·РјРµРЅРµРЅ", str(exc))
+            QMessageBox.warning(self, "Статус не изменен", str(exc))
             return
         self.refresh()
 
@@ -1002,7 +1154,7 @@ class KnowledgeTab(QWidget):
 class KnowledgeCardDialog(QDialog):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Р”РѕР±Р°РІРёС‚СЊ РєР°СЂС‚РѕС‡РєСѓ Р·РЅР°РЅРёР№")
+        self.setWindowTitle("Добавить карточку знаний")
         self.title = QLineEdit()
         self.summary = QTextEdit()
         self.summary.setFixedHeight(64)
@@ -1022,16 +1174,16 @@ class KnowledgeCardDialog(QDialog):
         buttons.rejected.connect(self.reject)
 
         layout = QFormLayout(self)
-        layout.addRow("РќР°Р·РІР°РЅРёРµ", self.title)
-        layout.addRow("РљСЂР°С‚РєРѕ", self.summary)
-        layout.addRow("РЎРѕРґРµСЂР¶Р°РЅРёРµ", self.content)
-        layout.addRow("РўРёРї РёСЃС‚РѕС‡РЅРёРєР°", self.source_type)
-        layout.addRow("РќР°Р·РІР°РЅРёРµ РёСЃС‚РѕС‡РЅРёРєР°", self.source_title)
-        layout.addRow("РЎСЃС‹Р»РєР°/РїСѓС‚СЊ", self.source_uri)
-        layout.addRow("РќР°РґРµР¶РЅРѕСЃС‚СЊ РёСЃС‚РѕС‡РЅРёРєР°", self.source_authority)
-        layout.addRow("Р РѕР»Рё С‡РµСЂРµР· Р·Р°РїСЏС‚СѓСЋ", self.roles)
-        layout.addRow("РўРµРіРё С‡РµСЂРµР· Р·Р°РїСЏС‚СѓСЋ", self.tags)
-        layout.addRow("Р—Р°РјРµС‚РєРё СЂРµРІСЊСЋ", self.review_notes)
+        layout.addRow("Название", self.title)
+        layout.addRow("Кратко", self.summary)
+        layout.addRow("Содержание", self.content)
+        layout.addRow("Тип источника", self.source_type)
+        layout.addRow("Название источника", self.source_title)
+        layout.addRow("Ссылка/путь", self.source_uri)
+        layout.addRow("Надежность источника", self.source_authority)
+        layout.addRow("Роли через запятую", self.roles)
+        layout.addRow("Теги через запятую", self.tags)
+        layout.addRow("Заметки ревью", self.review_notes)
         layout.addRow(buttons)
 
     def values(self) -> dict[str, object]:
@@ -1065,15 +1217,15 @@ class StandardsTab(QWidget):
         self.detail = QTextEdit()
         self.detail.setReadOnly(True)
 
-        refresh = QPushButton("РћР±РЅРѕРІРёС‚СЊ")
+        refresh = QPushButton("Обновить")
         refresh.clicked.connect(self.refresh)
-        create = QPushButton("Р”РѕР±Р°РІРёС‚СЊ СЃС‚Р°РЅРґР°СЂС‚")
+        create = QPushButton("Добавить стандарт")
         create.clicked.connect(self._create_card)
-        activate = QPushButton("РђРєС‚РёРІРёСЂРѕРІР°С‚СЊ")
+        activate = QPushButton("Активировать")
         activate.clicked.connect(lambda: self._set_selected_status("ACTIVE"))
-        suspend = QPushButton("РџСЂРёРѕСЃС‚Р°РЅРѕРІРёС‚СЊ")
+        suspend = QPushButton("Приостановить")
         suspend.clicked.connect(lambda: self._set_selected_status("SUSPENDED"))
-        reject = QPushButton("РћС‚РєР»РѕРЅРёС‚СЊ")
+        reject = QPushButton("Отклонить")
         reject.clicked.connect(lambda: self._set_selected_status("REJECTED"))
 
         layout = QVBoxLayout(self)
@@ -1084,13 +1236,13 @@ class StandardsTab(QWidget):
             buttons.addWidget(button)
         buttons.addStretch(1)
         layout.addLayout(buttons)
-        layout.addWidget(QLabel("РўСЂРµР±РѕРІР°РЅРёРµ Рё Р°СѓРґРёС‚"))
+        layout.addWidget(QLabel("Требование и аудит"))
         layout.addWidget(self.detail, 1)
 
     def refresh(self) -> None:
         if self.service is None:
             self.table.setRowCount(0)
-            self.detail.setPlainText("РЎРµСЂРІРёСЃ СЃС‚Р°РЅРґР°СЂС‚РѕРІ РЅРµРґРѕСЃС‚СѓРїРµРЅ.")
+            self.detail.setPlainText("Сервис стандартов недоступен.")
             return
         cards = self.service.list_cards()
         usage_counts = self.service.usage_counts_by_card()
@@ -1102,11 +1254,11 @@ class StandardsTab(QWidget):
                 card.title,
                 card.status,
                 card.mandatory_level,
-                card.source_title or card.source_uri or "РЅРµ СѓРєР°Р·Р°РЅ",
-                ", ".join(card.role_ids) or "РІСЃРµ",
-                ", ".join(card.tags) or "РЅРµС‚",
+                card.source_title or card.source_uri or "не указан",
+                ", ".join(card.role_ids) or "все",
+                ", ".join(card.tags) or "нет",
                 card.version,
-                card.updated_at or "РЅРµС‚",
+                card.updated_at or "нет",
                 str(counts.supplied if counts else 0),
                 str(counts.applied if counts else 0),
                 str(counts.ignored if counts else 0),
@@ -1115,23 +1267,23 @@ class StandardsTab(QWidget):
             detail = "\n".join(
                 [
                     f"ID: {card.standard_id}",
-                    f"РљРѕРґ: {card.code}",
-                    f"РќР°Р·РІР°РЅРёРµ: {card.title}",
-                    f"РЎС‚Р°С‚СѓСЃ: {card.status}",
-                    f"РћР±СЏР·Р°С‚РµР»СЊРЅРѕСЃС‚СЊ: {card.mandatory_level}",
+                    f"Код: {card.code}",
+                    f"Название: {card.title}",
+                    f"Статус: {card.status}",
+                    f"Обязательность: {card.mandatory_level}",
                     f"Authority: {card.authority}",
-                    f"РСЃС‚РѕС‡РЅРёРє: {card.source_title or 'РЅРµ СѓРєР°Р·Р°РЅ'}",
-                    f"РЎСЃС‹Р»РєР°/РїСѓС‚СЊ: {card.source_uri or 'РЅРµ СѓРєР°Р·Р°РЅ'}",
-                    f"РҐСЌС€: {card.source_hash or 'РЅРµ СѓРєР°Р·Р°РЅ'}",
-                    f"Р РѕР»Рё: {', '.join(card.role_ids) or 'РІСЃРµ'}",
-                    f"РўРµРіРё: {', '.join(card.tags) or 'РЅРµС‚'}",
-                    f"Р’РµСЂСЃРёСЏ: {card.version}",
-                    f"РћР±Р»Р°СЃС‚СЊ РїСЂРёРјРµРЅРµРЅРёСЏ: {card.scope or 'РЅРµ СѓРєР°Р·Р°РЅР°'}",
-                    f"Р—Р°РјРµС‚РєРё СЂРµРІСЊСЋ: {card.review_notes or 'РЅРµС‚'}",
+                    f"Источник: {card.source_title or 'не указан'}",
+                    f"Ссылка/путь: {card.source_uri or 'не указан'}",
+                    f"Хэш: {card.source_hash or 'не указан'}",
+                    f"Роли: {', '.join(card.role_ids) or 'все'}",
+                    f"Теги: {', '.join(card.tags) or 'нет'}",
+                    f"Версия: {card.version}",
+                    f"Область применения: {card.scope or 'не указана'}",
+                    f"Заметки ревью: {card.review_notes or 'нет'}",
                     f"Использование: SUPPLIED={counts.supplied if counts else 0}; APPLIED={counts.applied if counts else 0}; IGNORED={counts.ignored if counts else 0}; MISAPPLIED={counts.misapplied if counts else 0}",
                     "",
-                    "РўСЂРµР±РѕРІР°РЅРёРµ:",
-                    card.requirement or "РЅРµ Р·Р°РїРѕР»РЅРµРЅРѕ",
+                    "Требование:",
+                    card.requirement or "не заполнено",
                 ]
             )
             for column, value in enumerate(values):
@@ -1142,12 +1294,12 @@ class StandardsTab(QWidget):
         if cards:
             self.table.selectRow(0)
         else:
-            self.detail.setPlainText("РЎС‚Р°РЅРґР°СЂС‚РѕРІ РїРѕРєР° РЅРµС‚.")
+            self.detail.setPlainText("Стандартов пока нет.")
 
     def _selected_standard_id(self) -> str | None:
         items = self.table.selectedItems()
         if not items:
-            QMessageBox.information(self, "РЎС‚Р°РЅРґР°СЂС‚С‹", "Р’С‹Р±РµСЂРёС‚Рµ СЃС‚Р°РЅРґР°СЂС‚.")
+            QMessageBox.information(self, "Стандарты", "Выберите стандарт.")
             return None
         return str(items[0].data(Qt.UserRole) or "")
 
@@ -1155,12 +1307,12 @@ class StandardsTab(QWidget):
         items = self.table.selectedItems()
         if not items:
             return
-        detail = str(items[0].data(Qt.UserRole + 1) or "РќРµС‚ РґР°РЅРЅС‹С….")
+        detail = str(items[0].data(Qt.UserRole + 1) or "Нет данных.")
         standard_id = str(items[0].data(Qt.UserRole) or "")
         if self.service is not None and standard_id:
             events = self.service.list_events(standard_id)
             if events:
-                detail += "\n\nРђСѓРґРёС‚:\n" + "\n".join(f"- {event.created_at}: {event.event_type}; {event.detail}" for event in events[:12])
+                detail += "\n\nАудит:\n" + "\n".join(f"- {event.created_at}: {event.event_type}; {event.detail}" for event in events[:12])
         self.detail.setPlainText(detail)
 
     def _create_card(self) -> None:
@@ -1172,7 +1324,7 @@ class StandardsTab(QWidget):
         try:
             self.service.create_card(**dialog.values(), actor=OWNER_ROLE)
         except Exception as exc:
-            QMessageBox.warning(self, "РЎС‚Р°РЅРґР°СЂС‚ РЅРµ СЃРѕР·РґР°РЅ", str(exc))
+            QMessageBox.warning(self, "Стандарт не создан", str(exc))
             return
         self.refresh()
 
@@ -1183,9 +1335,9 @@ class StandardsTab(QWidget):
         if not standard_id:
             return
         try:
-            self.service.update_status(standard_id, status, actor=OWNER_ROLE, reason="РёР·РјРµРЅРµРЅРѕ С‡РµСЂРµР· Director Console")
+            self.service.update_status(standard_id, status, actor=OWNER_ROLE, reason="изменено через Director Console")
         except Exception as exc:
-            QMessageBox.warning(self, "РЎС‚Р°С‚СѓСЃ РЅРµ РёР·РјРµРЅРµРЅ", str(exc))
+            QMessageBox.warning(self, "Статус не изменен", str(exc))
             return
         self.refresh()
 
@@ -1193,7 +1345,7 @@ class StandardsTab(QWidget):
 class StandardCardDialog(QDialog):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Р”РѕР±Р°РІРёС‚СЊ СЃС‚Р°РЅРґР°СЂС‚")
+        self.setWindowTitle("Добавить стандарт")
         self.code = QLineEdit()
         self.title = QLineEdit()
         self.requirement = QTextEdit()
@@ -1215,17 +1367,17 @@ class StandardCardDialog(QDialog):
         buttons.rejected.connect(self.reject)
 
         layout = QFormLayout(self)
-        layout.addRow("РљРѕРґ", self.code)
-        layout.addRow("РќР°Р·РІР°РЅРёРµ", self.title)
-        layout.addRow("РўСЂРµР±РѕРІР°РЅРёРµ", self.requirement)
-        layout.addRow("РћР±Р»Р°СЃС‚СЊ РїСЂРёРјРµРЅРµРЅРёСЏ", self.scope)
-        layout.addRow("РСЃС‚РѕС‡РЅРёРє", self.source_title)
-        layout.addRow("РЎСЃС‹Р»РєР°/РїСѓС‚СЊ", self.source_uri)
+        layout.addRow("Код", self.code)
+        layout.addRow("Название", self.title)
+        layout.addRow("Требование", self.requirement)
+        layout.addRow("Область применения", self.scope)
+        layout.addRow("Источник", self.source_title)
+        layout.addRow("Ссылка/путь", self.source_uri)
         layout.addRow("Authority", self.authority)
-        layout.addRow("РћР±СЏР·Р°С‚РµР»СЊРЅРѕСЃС‚СЊ", self.mandatory)
-        layout.addRow("Р РѕР»Рё С‡РµСЂРµР· Р·Р°РїСЏС‚СѓСЋ", self.roles)
-        layout.addRow("РўРµРіРё С‡РµСЂРµР· Р·Р°РїСЏС‚СѓСЋ", self.tags)
-        layout.addRow("Р—Р°РјРµС‚РєРё СЂРµРІСЊСЋ", self.review_notes)
+        layout.addRow("Обязательность", self.mandatory)
+        layout.addRow("Роли через запятую", self.roles)
+        layout.addRow("Теги через запятую", self.tags)
+        layout.addRow("Заметки ревью", self.review_notes)
         layout.addRow(buttons)
 
     def values(self) -> dict[str, object]:
@@ -1250,7 +1402,7 @@ class ArtifactsTab(QWidget):
         super().__init__(parent)
         self.service = service
         self.table = QTableWidget(0, 10)
-        self.table.setHorizontalHeaderLabels(["РџСѓС‚СЊ", "РЎС‚Р°С‚СѓСЃ", "РџСЂРѕРІРµСЂРєР°", "QA", "Р—Р°РґР°С‡Р°", "Р РѕР»СЊ", "Run", "РўРёРї", "Р Р°Р·РјРµСЂ", "РР·РјРµРЅРµРЅ"])
+        self.table.setHorizontalHeaderLabels(["Путь", "Статус", "Проверка", "QA", "Задача", "Роль", "Run", "Тип", "Размер", "Изменен"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -1258,26 +1410,26 @@ class ArtifactsTab(QWidget):
         self.detail = QTextEdit()
         self.detail.setReadOnly(True)
 
-        refresh = QPushButton("РћР±РЅРѕРІРёС‚СЊ")
+        refresh = QPushButton("Обновить")
         refresh.clicked.connect(self.refresh)
-        open_file = QPushButton("РћС‚РєСЂС‹С‚СЊ С„Р°Р№Р»")
+        open_file = QPushButton("Открыть файл")
         open_file.clicked.connect(self._open_selected_file)
 
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel("РђСЂС‚РµС„Р°РєС‚С‹ РїРѕРєР°Р·С‹РІР°СЋС‚ СЂРµР°Р»СЊРЅС‹Рµ СЃР»РµРґС‹ СЂР°Р±РѕС‚С‹: РЅР°Р№РґРµРЅРЅС‹Рµ С„Р°Р№Р»С‹, РѕС‚СЃСѓС‚СЃС‚РІСѓСЋС‰РёРµ Р·Р°СЏРІР»РµРЅРёСЏ Рё С…СЌС€Рё РїРѕРґС‚РІРµСЂР¶РґРµРЅРЅС‹С… С„Р°Р№Р»РѕРІ."))
+        layout.addWidget(QLabel("Артефакты показывают реальные следы работы: найденные файлы, отсутствующие заявления и хэши подтвержденных файлов."))
         layout.addWidget(self.table, 2)
         buttons = QHBoxLayout()
         buttons.addWidget(refresh)
         buttons.addWidget(open_file)
         buttons.addStretch(1)
         layout.addLayout(buttons)
-        layout.addWidget(QLabel("Р”РµС‚Р°Р»Рё Р°СЂС‚РµС„Р°РєС‚Р°"))
+        layout.addWidget(QLabel("Детали артефакта"))
         layout.addWidget(self.detail, 1)
 
     def refresh(self) -> None:
         if self.service is None:
             self.table.setRowCount(0)
-            self.detail.setPlainText("РЎРµСЂРІРёСЃ Р°СЂС‚РµС„Р°РєС‚РѕРІ РЅРµРґРѕСЃС‚СѓРїРµРЅ.")
+            self.detail.setPlainText("Сервис артефактов недоступен.")
             return
         artifacts = self.service.list_artifacts()
         self.table.setRowCount(len(artifacts))
@@ -1290,30 +1442,30 @@ class ArtifactsTab(QWidget):
                 artifact.status,
                 artifact.validation_status,
                 str(len(related_findings)),
-                artifact.task_id or "РЅРµС‚",
-                artifact.authoring_role or "РЅРµС‚",
-                artifact.created_by_run_id or "РЅРµС‚",
+                artifact.task_id or "нет",
+                artifact.authoring_role or "нет",
+                artifact.created_by_run_id or "нет",
                 artifact.artifact_type or "file",
-                str(artifact.size) if artifact.size is not None else "РЅРµС‚",
-                artifact.last_modified_time or "РЅРµС‚",
+                str(artifact.size) if artifact.size is not None else "нет",
+                artifact.last_modified_time or "нет",
             ]
             detail = "\n".join(
                 [
                     f"ID: {artifact.artifact_id}",
-                    f"РџСѓС‚СЊ: {artifact.relative_path}",
-                    f"Р—Р°РґР°С‡Р°: {artifact.task_id or 'РЅРµС‚'}",
-                    f"РџСЂРѕРµРєС‚: {artifact.project_id or 'РЅРµС‚'}",
-                    f"РЎС‚Р°С‚СѓСЃ: {artifact.status}",
-                    f"РџСЂРѕРІРµСЂРєР°: {artifact.validation_status}",
-                    f"Р РѕР»СЊ Р°РІС‚РѕСЂР°: {artifact.authoring_role or 'РЅРµС‚'}",
-                    f"Run: {artifact.created_by_run_id or 'РЅРµС‚'}",
-                    f"РўРёРї: {artifact.artifact_type or 'file'}",
-                    f"Media type: {artifact.media_type or 'РЅРµС‚'}",
-                    f"Р Р°Р·РјРµСЂ: {artifact.size if artifact.size is not None else 'РЅРµС‚'}",
-                    f"SHA-256: {artifact.sha256 or 'РЅРµС‚'}",
-                    f"Revision: {artifact.current_revision or 'РЅРµС‚'}",
-                    f"РЈРґР°Р»РµРЅ: {'РґР°' if artifact.deleted else 'РЅРµС‚'}",
-                    f"РР·РјРµРЅРµРЅ: {artifact.last_modified_time or 'РЅРµС‚'}",
+                    f"Путь: {artifact.relative_path}",
+                    f"Задача: {artifact.task_id or 'нет'}",
+                    f"Проект: {artifact.project_id or 'нет'}",
+                    f"Статус: {artifact.status}",
+                    f"Проверка: {artifact.validation_status}",
+                    f"Роль автора: {artifact.authoring_role or 'нет'}",
+                    f"Run: {artifact.created_by_run_id or 'нет'}",
+                    f"Тип: {artifact.artifact_type or 'file'}",
+                    f"Media type: {artifact.media_type or 'нет'}",
+                    f"Размер: {artifact.size if artifact.size is not None else 'нет'}",
+                    f"SHA-256: {artifact.sha256 or 'нет'}",
+                    f"Revision: {artifact.current_revision or 'нет'}",
+                    f"Удален: {'да' if artifact.deleted else 'нет'}",
+                    f"Изменен: {artifact.last_modified_time or 'нет'}",
                     "",
                     "QA findings:",
                     *(
@@ -1329,7 +1481,7 @@ class ArtifactsTab(QWidget):
                             )
                             for finding in related_findings
                         ]
-                        or ["Р Р…Р ВµРЎвЂљ"]
+                        or ["РЅРµС‚"]
                     ),
                 ]
             )
@@ -1371,7 +1523,7 @@ class FindingsTab(QWidget):
         self.service = service
         self.table = QTableWidget(0, 10)
         self.table.setHorizontalHeaderLabels(
-            ["Р—Р°РґР°С‡Р°", "РЎРµСЂСЊРµР·РЅРѕСЃС‚СЊ", "РЎС‚Р°С‚СѓСЃ", "РЈРІРµСЂРµРЅРЅРѕСЃС‚СЊ", "РЎС‚Р°РЅРґР°СЂС‚", "РђСЂС‚РµС„Р°РєС‚", "Р›РѕРєР°С†РёСЏ", "РћРїРёСЃР°РЅРёРµ", "Р”РµР№СЃС‚РІРёРµ", "РћР±РЅРѕРІР»РµРЅРѕ"]
+            ["Задача", "Серьезность", "Статус", "Уверенность", "Стандарт", "Артефакт", "Локация", "Описание", "Действие", "Обновлено"]
         )
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
@@ -1380,36 +1532,36 @@ class FindingsTab(QWidget):
         self.detail = QTextEdit()
         self.detail.setReadOnly(True)
 
-        refresh = QPushButton("РћР±РЅРѕРІРёС‚СЊ")
+        refresh = QPushButton("Обновить")
         refresh.clicked.connect(self.refresh)
-        create = QPushButton("Р”РѕР±Р°РІРёС‚СЊ finding")
+        create = QPushButton("Добавить finding")
         create.clicked.connect(self._create_finding)
-        rework = QPushButton("Р’ РґРѕСЂР°Р±РѕС‚РєСѓ")
+        rework = QPushButton("В доработку")
         rework.clicked.connect(lambda: self._set_selected_status("IN_REWORK"))
-        recheck = QPushButton("РќР° РїРµСЂРµРїСЂРѕРІРµСЂРєСѓ")
+        recheck = QPushButton("На перепроверку")
         recheck.clicked.connect(lambda: self._set_selected_status("READY_FOR_RECHECK"))
-        resolved = QPushButton("Р—Р°РєСЂС‹С‚СЊ")
+        resolved = QPushButton("Закрыть")
         resolved.clicked.connect(lambda: self._set_selected_status("RESOLVED"))
-        accepted = QPushButton("РџСЂРёРЅСЏС‚СЊ СЂРёСЃРє")
+        accepted = QPushButton("Принять риск")
         accepted.clicked.connect(lambda: self._set_selected_status("ACCEPTED_RISK"))
-        reject = QPushButton("РћС‚РєР»РѕРЅРёС‚СЊ")
+        reject = QPushButton("Отклонить")
         reject.clicked.connect(lambda: self._set_selected_status("REJECTED"))
 
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel("Findings С„РёРєСЃРёСЂСѓСЋС‚ СЂРµР°Р»СЊРЅС‹Рµ QA-Р·Р°РјРµС‡Р°РЅРёСЏ. HIGH/CRITICAL РѕС‚РєСЂС‹С‚С‹Рµ findings Р±Р»РѕРєРёСЂСѓСЋС‚ Р·Р°РІРµСЂС€РµРЅРёРµ Р·Р°РґР°С‡Рё."))
+        layout.addWidget(QLabel("Findings фиксируют реальные QA-замечания. HIGH/CRITICAL открытые findings блокируют завершение задачи."))
         layout.addWidget(self.table, 2)
         buttons = QHBoxLayout()
         for button in (refresh, create, rework, recheck, resolved, accepted, reject):
             buttons.addWidget(button)
         buttons.addStretch(1)
         layout.addLayout(buttons)
-        layout.addWidget(QLabel("Finding Рё Р°СѓРґРёС‚"))
+        layout.addWidget(QLabel("Finding и аудит"))
         layout.addWidget(self.detail, 1)
 
     def refresh(self) -> None:
         if self.service is None:
             self.table.setRowCount(0)
-            self.detail.setPlainText("РЎРµСЂРІРёСЃ findings РЅРµРґРѕСЃС‚СѓРїРµРЅ.")
+            self.detail.setPlainText("Сервис findings недоступен.")
             return
         findings = self.service.list_findings()
         self.table.setRowCount(len(findings))
@@ -1419,41 +1571,41 @@ class FindingsTab(QWidget):
                 finding.severity,
                 finding.status,
                 finding.confidence,
-                finding.standard_id or "РЅРµС‚",
-                finding.affected_artifact or "РЅРµС‚",
-                finding.location or "РЅРµС‚",
+                finding.standard_id or "нет",
+                finding.affected_artifact or "нет",
+                finding.location or "нет",
                 finding.description,
-                finding.required_action or "РЅРµ СѓРєР°Р·Р°РЅРѕ",
-                finding.updated_at or "РЅРµС‚",
+                finding.required_action or "не указано",
+                finding.updated_at or "нет",
             ]
             detail = "\n".join(
                 [
                     f"ID: {finding.finding_id}",
-                    f"Р—Р°РґР°С‡Р°: {finding.task_id}",
-                    f"РўРёРї: {finding.finding_type or 'QA_FINDING'}",
-                    f"РЎРµСЂСЊРµР·РЅРѕСЃС‚СЊ: {finding.severity}",
-                    f"РЎС‚Р°С‚СѓСЃ: {finding.status}",
-                    f"РЈРІРµСЂРµРЅРЅРѕСЃС‚СЊ: {finding.confidence}",
-                    f"РЎС‚Р°РЅРґР°СЂС‚: {finding.standard_id or 'РЅРµС‚'}",
-                    f"РђСЂС‚РµС„Р°РєС‚: {finding.affected_artifact or 'РЅРµС‚'}",
-                    f"Р›РѕРєР°С†РёСЏ: {finding.location or 'РЅРµС‚'}",
-                    f"Repeat key: {finding.repeat_key or 'РЅРµС‚'}",
-                    f"РќРµР·Р°РІРёСЃРёРјР°СЏ РїРµСЂРµРїСЂРѕРІРµСЂРєР°: {finding.independent_recheck_status or 'РЅРµС‚'}",
+                    f"Задача: {finding.task_id}",
+                    f"Тип: {finding.finding_type or 'QA_FINDING'}",
+                    f"Серьезность: {finding.severity}",
+                    f"Статус: {finding.status}",
+                    f"Уверенность: {finding.confidence}",
+                    f"Стандарт: {finding.standard_id or 'нет'}",
+                    f"Артефакт: {finding.affected_artifact or 'нет'}",
+                    f"Локация: {finding.location or 'нет'}",
+                    f"Repeat key: {finding.repeat_key or 'нет'}",
+                    f"Независимая перепроверка: {finding.independent_recheck_status or 'нет'}",
                     "",
-                    "РћРїРёСЃР°РЅРёРµ:",
+                    "Описание:",
                     finding.description,
                     "",
-                    "Р’Р»РёСЏРЅРёРµ:",
-                    finding.impact or "РЅРµ СѓРєР°Р·Р°РЅРѕ",
+                    "Влияние:",
+                    finding.impact or "не указано",
                     "",
-                    "РўСЂРµР±СѓРµРјРѕРµ РґРµР№СЃС‚РІРёРµ:",
-                    finding.required_action or "РЅРµ СѓРєР°Р·Р°РЅРѕ",
+                    "Требуемое действие:",
+                    finding.required_action or "не указано",
                     "",
                     "Evidence:",
                     finding.evidence or "{}",
                     "",
-                    "Р РµС€РµРЅРёРµ:",
-                    finding.resolution or "РЅРµС‚",
+                    "Решение:",
+                    finding.resolution or "нет",
                 ]
             )
             for column, value in enumerate(values):
@@ -1464,12 +1616,12 @@ class FindingsTab(QWidget):
         if findings:
             self.table.selectRow(0)
         else:
-            self.detail.setPlainText("Findings РїРѕРєР° РЅРµС‚.")
+            self.detail.setPlainText("Findings пока нет.")
 
     def _selected_finding_id(self) -> str | None:
         items = self.table.selectedItems()
         if not items:
-            QMessageBox.information(self, "Findings", "Р’С‹Р±РµСЂРёС‚Рµ finding.")
+            QMessageBox.information(self, "Findings", "Выберите finding.")
             return None
         return str(items[0].data(Qt.UserRole) or "")
 
@@ -1477,12 +1629,12 @@ class FindingsTab(QWidget):
         items = self.table.selectedItems()
         if not items:
             return
-        detail = str(items[0].data(Qt.UserRole + 1) or "РќРµС‚ РґР°РЅРЅС‹С….")
+        detail = str(items[0].data(Qt.UserRole + 1) or "Нет данных.")
         finding_id = str(items[0].data(Qt.UserRole) or "")
         if self.service is not None and finding_id:
             events = self.service.list_events(finding_id)
             if events:
-                detail += "\n\nРђСѓРґРёС‚:\n" + "\n".join(f"- {event.created_at}: {event.event_type}; {event.detail}" for event in events[:12])
+                detail += "\n\nАудит:\n" + "\n".join(f"- {event.created_at}: {event.event_type}; {event.detail}" for event in events[:12])
         self.detail.setPlainText(detail)
 
     def _create_finding(self) -> None:
@@ -1490,7 +1642,7 @@ class FindingsTab(QWidget):
             return
         tasks = self.service.database.list_tasks()
         if not tasks:
-            QMessageBox.information(self, "Findings", "РЎРЅР°С‡Р°Р»Р° РЅСѓР¶РЅР° С…РѕС‚СЏ Р±С‹ РѕРґРЅР° Р·Р°РґР°С‡Р°.")
+            QMessageBox.information(self, "Findings", "Сначала нужна хотя бы одна задача.")
             return
         dialog = FindingDialog(tasks, self)
         if dialog.exec() != QDialog.Accepted:
@@ -1498,7 +1650,7 @@ class FindingsTab(QWidget):
         try:
             self.service.create_finding(**dialog.values(), actor=OWNER_ROLE)
         except Exception as exc:
-            QMessageBox.warning(self, "Finding РЅРµ СЃРѕР·РґР°РЅ", str(exc))
+            QMessageBox.warning(self, "Finding не создан", str(exc))
             return
         self.refresh()
 
@@ -1510,13 +1662,13 @@ class FindingsTab(QWidget):
             return
         resolution = ""
         if status in {"RESOLVED", "ACCEPTED_RISK", "REJECTED"}:
-            resolution, ok = QInputDialog.getText(self, "Р РµС€РµРЅРёРµ", "РљСЂР°С‚РєРѕ СѓРєР°Р¶РёС‚Рµ РѕСЃРЅРѕРІР°РЅРёРµ:")
+            resolution, ok = QInputDialog.getText(self, "Решение", "Кратко укажите основание:")
             if not ok:
                 return
         try:
             self.service.update_status(finding_id, status, actor=OWNER_ROLE, resolution=resolution)
         except Exception as exc:
-            QMessageBox.warning(self, "РЎС‚Р°С‚СѓСЃ РЅРµ РёР·РјРµРЅРµРЅ", str(exc))
+            QMessageBox.warning(self, "Статус не изменен", str(exc))
             return
         self.refresh()
 
@@ -1524,7 +1676,7 @@ class FindingsTab(QWidget):
 class FindingDialog(QDialog):
     def __init__(self, tasks, parent=None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Р”РѕР±Р°РІРёС‚СЊ finding")
+        self.setWindowTitle("Добавить finding")
         self.task = QComboBox()
         for row in tasks:
             self.task.addItem(f"{row['title']} ({row['id']}; {row['state']})", row["id"])
@@ -1552,15 +1704,15 @@ class FindingDialog(QDialog):
         buttons.rejected.connect(self.reject)
 
         layout = QFormLayout(self)
-        layout.addRow("Р—Р°РґР°С‡Р°", self.task)
-        layout.addRow("РЎРµСЂСЊРµР·РЅРѕСЃС‚СЊ", self.severity)
-        layout.addRow("РЈРІРµСЂРµРЅРЅРѕСЃС‚СЊ", self.confidence)
+        layout.addRow("Задача", self.task)
+        layout.addRow("Серьезность", self.severity)
+        layout.addRow("Уверенность", self.confidence)
         layout.addRow("Standard ID", self.standard_id)
-        layout.addRow("РђСЂС‚РµС„Р°РєС‚", self.artifact)
-        layout.addRow("Р›РѕРєР°С†РёСЏ", self.location)
-        layout.addRow("РћРїРёСЃР°РЅРёРµ", self.description)
-        layout.addRow("Р’Р»РёСЏРЅРёРµ", self.impact)
-        layout.addRow("РўСЂРµР±СѓРµРјРѕРµ РґРµР№СЃС‚РІРёРµ", self.required_action)
+        layout.addRow("Артефакт", self.artifact)
+        layout.addRow("Локация", self.location)
+        layout.addRow("Описание", self.description)
+        layout.addRow("Влияние", self.impact)
+        layout.addRow("Требуемое действие", self.required_action)
         layout.addRow("Evidence", self.evidence)
         layout.addRow(buttons)
 
@@ -1799,17 +1951,17 @@ class ProductDiagnosticsTab(QWidget):
         super().__init__(parent)
         self.service = service
         self.metrics_table = QTableWidget(0, 4)
-        self.metrics_table.setHorizontalHeaderLabels(["РњРµС‚СЂРёРєР°", "Р—РЅР°С‡РµРЅРёРµ", "РЎС‚Р°С‚СѓСЃ", "РћСЃРЅРѕРІР°РЅРёРµ"])
+        self.metrics_table.setHorizontalHeaderLabels(["Метрика", "Значение", "Статус", "Основание"])
         self.metrics_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.metrics_table.setEditTriggers(QTableWidget.NoEditTriggers)
 
         self.routing_table = QTableWidget(0, 6)
-        self.routing_table.setHorizontalHeaderLabels(["Р’СЂРµРјСЏ", "Р РµР¶РёРј", "РћС‚РІРµС‚РёР»Рё", "РњРѕР»С‡Р°Р»Рё", "РџСЂРёС‡РёРЅР°", "Р’РµСЂСЃРёСЏ"])
+        self.routing_table.setHorizontalHeaderLabels(["Время", "Режим", "Ответили", "Молчали", "Причина", "Версия"])
         self.routing_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.routing_table.setEditTriggers(QTableWidget.NoEditTriggers)
 
         self.thread_table = QTableWidget(0, 6)
-        self.thread_table.setHorizontalHeaderLabels(["РћР±РЅРѕРІР»РµРЅ", "РўСЂРµРґ", "Р’Р»Р°РґРµР»РµС†", "Р—Р°РґР°С‡Р°", "РўРµРјР°", "РћР¶РёРґР°РµС‚СЃСЏ"])
+        self.thread_table.setHorizontalHeaderLabels(["Обновлен", "Тред", "Владелец", "Задача", "Тема", "Ожидается"])
         self.thread_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.thread_table.setEditTriggers(QTableWidget.NoEditTriggers)
 
@@ -1827,15 +1979,15 @@ class ProductDiagnosticsTab(QWidget):
         question_buttons.addWidget(reopen_question)
         question_buttons.addStretch(1)
 
-        refresh = QPushButton("РћР±РЅРѕРІРёС‚СЊ")
+        refresh = QPushButton("Обновить")
         refresh.clicked.connect(self.refresh)
 
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel("Р›РѕРєР°Р»СЊРЅР°СЏ РґРёР°РіРЅРѕСЃС‚РёРєР° РєР°С‡РµСЃС‚РІР°: РјР°СЂС€СЂСѓС‚РёР·Р°С†РёСЏ, РїРѕРІС‚РѕСЂС‹, evidence, РѕС‚РјРµРЅС‹ Рё РЅР°РІС‹РєРё. Р”Р°РЅРЅС‹Рµ РЅРµ РѕС‚РїСЂР°РІР»СЏСЋС‚СЃСЏ РЅР°СЂСѓР¶Сѓ."))
+        layout.addWidget(QLabel("Локальная диагностика качества: маршрутизация, повторы, evidence, отмены и навыки. Данные не отправляются наружу."))
         layout.addWidget(self.metrics_table, 1)
-        layout.addWidget(QLabel("РџРѕС‡РµРјСѓ РѕС‚РІРµС‚РёР» СЌС‚РѕС‚ СЃРѕС‚СЂСѓРґРЅРёРє"))
+        layout.addWidget(QLabel("Почему ответил этот сотрудник"))
         layout.addWidget(self.routing_table, 1)
-        layout.addWidget(QLabel("РђРєС‚РёРІРЅС‹Рµ РІР»Р°РґРµР»СЊС†С‹ СЂР°Р·РіРѕРІРѕСЂРѕРІ"))
+        layout.addWidget(QLabel("Активные владельцы разговоров"))
         layout.addWidget(self.thread_table, 1)
         layout.addWidget(QLabel("Открытые и закрытые вопросы владельца"))
         layout.addWidget(self.question_table, 1)
@@ -2133,30 +2285,30 @@ class IdentityPage(QWizardPage):
             words = parts[2:]
             vocabulary = {
                 "ru": {
-                    "woman": "Р¶РµРЅС‰РёРЅР°",
-                    "man": "РјСѓР¶С‡РёРЅР°",
-                    "realistic": "СЂРµР°Р»РёР·Рј",
-                    "cartoon": "РјСѓР»СЊС‚",
-                    "cat": "РєРѕС‚",
-                    "dog": "СЃРѕР±Р°РєР°",
-                    "tabby": "РїРѕР»РѕСЃР°С‚С‹Р№",
-                    "ginger": "СЂС‹Р¶РёР№",
-                    "golden": "СЂРµС‚СЂРёРІРµСЂ",
-                    "corgi": "РєРѕСЂРіРё",
-                    "reaction": "РјРµРј",
+                    "woman": "женщина",
+                    "man": "мужчина",
+                    "realistic": "реализм",
+                    "cartoon": "мульт",
+                    "cat": "кот",
+                    "dog": "собака",
+                    "tabby": "полосатый",
+                    "ginger": "рыжий",
+                    "golden": "ретривер",
+                    "corgi": "корги",
+                    "reaction": "мем",
                 },
                 "uk": {
-                    "woman": "Р¶С–РЅРєР°",
-                    "man": "С‡РѕР»РѕРІС–Рє",
-                    "realistic": "СЂРµР°Р»С–Р·Рј",
-                    "cartoon": "РјСѓР»СЊС‚",
-                    "cat": "РєС–С‚",
-                    "dog": "СЃРѕР±Р°РєР°",
-                    "tabby": "СЃРјСѓРіР°СЃС‚РёР№",
-                    "ginger": "СЂСѓРґРёР№",
-                    "golden": "СЂРµС‚СЂРёРІРµСЂ",
-                    "corgi": "РєРѕСЂРіС–",
-                    "reaction": "РјРµРј",
+                    "woman": "жінка",
+                    "man": "чоловік",
+                    "realistic": "реалізм",
+                    "cartoon": "мульт",
+                    "cat": "кіт",
+                    "dog": "собака",
+                    "tabby": "смугастий",
+                    "ginger": "рудий",
+                    "golden": "ретривер",
+                    "corgi": "коргі",
+                    "reaction": "мем",
                 },
                 "en": {},
             }
@@ -2164,16 +2316,16 @@ class IdentityPage(QWizardPage):
             return f"{number} - {', '.join(translated)}".strip(" -")
         labels = {
             "ru": {
-                "realistic-female": "Р РµР°Р»РёР·Рј: Р¶РµРЅС‰РёРЅР°",
-                "realistic-male": "Р РµР°Р»РёР·Рј: РјСѓР¶С‡РёРЅР°",
-                "cartoon-female": "РњСѓР»СЊС‚: Р¶РµРЅС‰РёРЅР°",
-                "cartoon-male": "РњСѓР»СЊС‚: РјСѓР¶С‡РёРЅР°",
+                "realistic-female": "Реализм: женщина",
+                "realistic-male": "Реализм: мужчина",
+                "cartoon-female": "Мульт: женщина",
+                "cartoon-male": "Мульт: мужчина",
             },
             "uk": {
-                "realistic-female": "Р РµР°Р»С–Р·Рј: Р¶С–РЅРєР°",
-                "realistic-male": "Р РµР°Р»С–Р·Рј: С‡РѕР»РѕРІС–Рє",
-                "cartoon-female": "РњСѓР»СЊС‚: Р¶С–РЅРєР°",
-                "cartoon-male": "РњСѓР»СЊС‚: С‡РѕР»РѕРІС–Рє",
+                "realistic-female": "Реалізм: жінка",
+                "realistic-male": "Реалізм: чоловік",
+                "cartoon-female": "Мульт: жінка",
+                "cartoon-male": "Мульт: чоловік",
             },
             "en": {
                 "realistic-female": "Realistic: woman",
@@ -2536,10 +2688,10 @@ def format_preview(preview, language: str = "ru") -> str:
 def friendly_error(text: str, language: str = "ru") -> str:
     mapping = {
         "ru": {
-            "owner_authority_required": "РўСЂРµР±СѓСЋС‚СЃСЏ РїСЂР°РІР° РІР»Р°РґРµР»СЊС†Р° РѕСЂРіР°РЅРёР·Р°С†РёРё.",
-            "duplicate_agent_id": "РўР°РєРѕР№ ID СЃРѕС‚СЂСѓРґРЅРёРєР° СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚.",
-            "active_employee_requires_available_provider": "РђРєС‚РёРІРЅРѕРјСѓ СЃРѕС‚СЂСѓРґРЅРёРєСѓ РЅСѓР¶РµРЅ РґРѕСЃС‚СѓРїРЅС‹Р№ РїСЂРѕРІР°Р№РґРµСЂ.",
-            "optimistic_lock_conflict": "РџСЂРѕС„РёР»СЊ СѓР¶Рµ РёР·РјРµРЅРёР»СЃСЏ. РћР±РЅРѕРІРёС‚Рµ РєР°СЂС‚РѕС‡РєСѓ Рё РїРѕРІС‚РѕСЂРёС‚Рµ.",
+            "owner_authority_required": "Требуются права владельца организации.",
+            "duplicate_agent_id": "Такой ID сотрудника уже существует.",
+            "active_employee_requires_available_provider": "Активному сотруднику нужен доступный провайдер.",
+            "optimistic_lock_conflict": "Профиль уже изменился. Обновите карточку и повторите.",
             "FOREIGN KEY constraint failed": tr(language, "foreign_key_error"),
             "invalid_role": tr(language, "unknown_role"),
             "unknown_role": tr(language, "unknown_role"),
@@ -2549,10 +2701,10 @@ def friendly_error(text: str, language: str = "ru") -> str:
             "agent_id_must_be_stable_agent_id": tr(language, "agent_id_required"),
         },
         "uk": {
-            "owner_authority_required": "РџРѕС‚СЂС–Р±РЅС– РїСЂР°РІР° РІР»Р°СЃРЅРёРєР° РѕСЂРіР°РЅС–Р·Р°С†С–С—.",
-            "duplicate_agent_id": "РўР°РєРёР№ ID СЃРїС–РІСЂРѕР±С–С‚РЅРёРєР° РІР¶Рµ С–СЃРЅСѓС”.",
-            "active_employee_requires_available_provider": "РђРєС‚РёРІРЅРѕРјСѓ СЃРїС–РІСЂРѕР±С–С‚РЅРёРєСѓ РїРѕС‚СЂС–Р±РµРЅ РґРѕСЃС‚СѓРїРЅРёР№ РїСЂРѕРІР°Р№РґРµСЂ.",
-            "optimistic_lock_conflict": "РџСЂРѕС„С–Р»СЊ СѓР¶Рµ Р·РјС–РЅРёРІСЃСЏ. РћРЅРѕРІС–С‚СЊ РєР°СЂС‚РєСѓ С– РїРѕРІС‚РѕСЂС–С‚СЊ.",
+            "owner_authority_required": "Потрібні права власника організації.",
+            "duplicate_agent_id": "Такий ID співробітника вже існує.",
+            "active_employee_requires_available_provider": "Активному співробітнику потрібен доступний провайдер.",
+            "optimistic_lock_conflict": "Профіль уже змінився. Оновіть картку і повторіть.",
             "FOREIGN KEY constraint failed": tr(language, "foreign_key_error"),
             "invalid_role": tr(language, "unknown_role"),
             "unknown_role": tr(language, "unknown_role"),

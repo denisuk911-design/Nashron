@@ -9,6 +9,7 @@ from PySide6.QtWidgets import QApplication
 from PySide6.QtWidgets import QMessageBox
 
 from core.settings_service import SettingsService
+from core.unicode_pipeline import validate_unicode_catalog
 from gui.main_window import MainWindow
 from gui.startup_splash import StartupSplash
 
@@ -32,6 +33,9 @@ def setup_logging(settings_service: SettingsService) -> logging.Logger:
 def main() -> int:
     settings_service = SettingsService()
     logger = setup_logging(settings_service)
+    unicode_errors = validate_unicode_catalog()
+    if unicode_errors:
+        logger.error("unicode_catalog_invalid errors=%s", ";".join(unicode_errors))
     app = QApplication(sys.argv)
     app.setApplicationName("Roman 2050")
     app.setOrganizationName("Roman2050")

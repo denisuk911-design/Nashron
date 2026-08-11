@@ -135,6 +135,37 @@ def test_goal_turn_limit_has_safe_minimum():
     window.settings = {"goal_turn_limit": 3}
 
     assert MainWindow._goal_turn_limit(window) == 20
+
+
+def test_message_sent_while_stop_is_finishing_is_queued_for_a_new_run():
+    class FakeDatabase:
+        def __init__(self):
+            self.events = []
+
+        def log_event(self, *args):
+            self.events.append(args)
+
+    class FakeWorker:
+        agent_key = "roman"
+
+        def isRunning(self):
+            return True
+
+    database = FakeDatabase()
+    window = MainWindow.__new__(MainWindow)
+    window.database = database
+    window.worker = FakeWorker()
+    window.cancellation_in_progress = True
+    window.interrupting_current_run = False
+    window.current_agent_key = "roman"
+    window.queued_user_message = None
+    window._clear_dead_worker = lambda: None
+    window._add_user_message = lambda text: 42
+
+    MainWindow.send_message(window, "Петр, проверь после отмены")
+
+    assert window.queued_user_message == ("Петр, проверь после отмены", 42)
+    assert database.events == [("message_queued_during_cancellation", "roman")]
 def test_contextual_handoff_can_target_dynamic_employee():
     class FakeDatabase:
         def __init__(self):

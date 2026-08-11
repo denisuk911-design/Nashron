@@ -63,12 +63,16 @@ def list_chat_agents(
     database: Database,
     active_only: bool = True,
     include_without_chat: bool = False,
+    organization_id: str | None = None,
 ) -> list[ChatAgent]:
     agents: list[ChatAgent] = []
+    organization_agent_ids = database.list_organization_agent_ids(organization_id) if organization_id else None
     for row in database.list_agent_profiles():
         if active_only and str(row["lifecycle_state"]) != "ACTIVE":
             continue
         agent_id = str(row["agent_id"])
+        if organization_agent_ids is not None and agent_id not in organization_agent_ids:
+            continue
         roles = database.list_agent_roles(agent_id)
         if not include_without_chat and "CHAT" not in effective_permissions_for_agent(database, agent_id):
             continue

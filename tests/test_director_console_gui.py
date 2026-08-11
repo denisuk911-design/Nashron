@@ -7,6 +7,7 @@ from core.config_repository import ConfigurationRepository
 from core.database import Database
 from core.management_service import ManagementService
 from core.provider_service import ProviderHealthService, ProviderProvisioningService, ProviderRegistry
+from core.universal_platform_service import UniversalPlatformService
 from gui.director_console import AddEmployeeWizard, DirectorConsoleDialog
 
 
@@ -87,3 +88,14 @@ def test_add_employee_wizard_generates_stable_id(tmp_path):
     wizard.identity.generate_id()
 
     assert wizard.identity.agent_id.text().startswith("agent-")
+
+
+def test_organization_catalog_renders_presets_and_empty_state(tmp_path):
+    qapp()
+    service, registry, health, provisioning = make_service(tmp_path)
+    universal = UniversalPlatformService(service.database, management_service=service, conversation_id=service.database.ensure_single_conversation())
+    universal.seed_demo_fixtures()
+    dialog = DirectorConsoleDialog(service, registry, health, provisioning, universal_platform_service=universal)
+
+    assert dialog.universal_tab.templates.count() >= 21
+    assert dialog.universal_tab.organization_dashboard.toPlainText()
