@@ -156,3 +156,8 @@ Phase 2E:
 - permanent deletion does not remove task history;
 - audit event always created;
 - dry run makes no persistent changes.
+# Universal Organization Tab
+
+The Director Console includes an Organization tab for creating professions,
+organizations and templates, and for instantiating a template into a real
+organization. These actions are data-driven and do not require Python or JSON.

@@ -2,6 +2,11 @@
 
 Team2050 is the product. Roman is one AI employee inside the product.
 
+The universal platform foundation also treats organizations, professions,
+templates, workflows and learning sources as first-class data. PCB/KiCad is a
+domain package, alongside software and culinary examples, rather than a core
+assumption.
+
 Your long-term objective is not merely to add features or connect several AI CLI providers.
 
 Your objective is to turn Team2050 into an exceptionally useful, trustworthy and pleasant working environment in which a user creates and manages a team of AI specialists.

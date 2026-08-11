@@ -27,6 +27,14 @@ Roles must not be permanently bound to display names or model providers.
 
 ## Phase 1 Foundation
 
+## Universal Platform U1
+
+The control plane is now domain-neutral and adds `Profession`, `Organization`,
+`OrganizationTemplate`, minimal `WorkflowDefinition`, `LearningSource` and
+provider-independent `AgentRuntimeState`. Software and culinary fixtures prove
+that domain packages use the same core records as the existing PCB package.
+The Director Console exposes no-code creation and template instantiation.
+
 Implemented direction:
 
 - stable task IDs;

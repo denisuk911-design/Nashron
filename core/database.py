@@ -73,7 +73,150 @@ class Database:
             self._ensure_management_schema(conn)
             self._ensure_provider_schema(conn)
             self._ensure_work_context_schema(conn)
+            self._ensure_universal_schema(conn)
             self._repair_renamed_message_foreign_keys(conn)
+
+    def _ensure_universal_schema(self, conn: sqlite3.Connection) -> None:
+        """U1 domain-neutral organization and profession foundation."""
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS professions (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                description TEXT NOT NULL DEFAULT '',
+                responsibilities TEXT NOT NULL DEFAULT '[]',
+                typical_results TEXT NOT NULL DEFAULT '[]',
+                required_capabilities TEXT NOT NULL DEFAULT '[]',
+                initial_skills TEXT NOT NULL DEFAULT '[]',
+                recommended_tools TEXT NOT NULL DEFAULT '[]',
+                knowledge_sources TEXT NOT NULL DEFAULT '[]',
+                qualification_method TEXT NOT NULL DEFAULT '',
+                status TEXT NOT NULL DEFAULT 'ACTIVE',
+                created_by TEXT NOT NULL DEFAULT 'owner',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS organizations (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                purpose TEXT NOT NULL DEFAULT '',
+                description TEXT NOT NULL DEFAULT '',
+                status TEXT NOT NULL DEFAULT 'ACTIVE',
+                created_by TEXT NOT NULL DEFAULT 'owner',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS organization_departments (
+                id TEXT PRIMARY KEY,
+                organization_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(organization_id, name),
+                FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS organization_members (
+                id TEXT PRIMARY KEY,
+                organization_id TEXT NOT NULL,
+                department_id TEXT,
+                agent_id TEXT,
+                profession_id TEXT,
+                role_id TEXT,
+                position TEXT NOT NULL DEFAULT '',
+                responsibilities TEXT NOT NULL DEFAULT '[]',
+                status TEXT NOT NULL DEFAULT 'ACTIVE',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+                FOREIGN KEY (department_id) REFERENCES organization_departments(id) ON DELETE SET NULL,
+                FOREIGN KEY (agent_id) REFERENCES agent_profiles(agent_id) ON DELETE SET NULL,
+                FOREIGN KEY (profession_id) REFERENCES professions(id) ON DELETE SET NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS organization_templates (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                purpose TEXT NOT NULL DEFAULT '',
+                recommended_team_size TEXT NOT NULL DEFAULT '',
+                roles TEXT NOT NULL DEFAULT '[]',
+                hierarchy TEXT NOT NULL DEFAULT '[]',
+                workflow_id TEXT,
+                handoff_rules TEXT NOT NULL DEFAULT '[]',
+                review_rules TEXT NOT NULL DEFAULT '[]',
+                approval_rules TEXT NOT NULL DEFAULT '[]',
+                permissions TEXT NOT NULL DEFAULT '[]',
+                required_capabilities TEXT NOT NULL DEFAULT '[]',
+                recommended_tools TEXT NOT NULL DEFAULT '[]',
+                learning_roles TEXT NOT NULL DEFAULT '[]',
+                quality_controls TEXT NOT NULL DEFAULT '[]',
+                source_rationale TEXT NOT NULL DEFAULT '',
+                version TEXT NOT NULL DEFAULT '1.0.0',
+                limitations TEXT NOT NULL DEFAULT '[]',
+                status TEXT NOT NULL DEFAULT 'ACTIVE',
+                created_by TEXT NOT NULL DEFAULT 'owner',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS workflows (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                version TEXT NOT NULL DEFAULT '1.0.0',
+                description TEXT NOT NULL DEFAULT '',
+                status TEXT NOT NULL DEFAULT 'ACTIVE',
+                created_by TEXT NOT NULL DEFAULT 'owner',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS workflow_steps (
+                id TEXT PRIMARY KEY,
+                workflow_id TEXT NOT NULL,
+                step_order INTEGER NOT NULL,
+                responsibility TEXT NOT NULL DEFAULT '',
+                operation TEXT NOT NULL DEFAULT '',
+                required_inputs TEXT NOT NULL DEFAULT '[]',
+                expected_outputs TEXT NOT NULL DEFAULT '[]',
+                review_requirement TEXT NOT NULL DEFAULT '',
+                approval_requirement TEXT NOT NULL DEFAULT '',
+                next_step TEXT,
+                FOREIGN KEY (workflow_id) REFERENCES workflows(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS agent_runtime_states (
+                agent_id TEXT PRIMARY KEY,
+                organization_id TEXT,
+                current_task_id TEXT,
+                current_operation TEXT NOT NULL DEFAULT '',
+                current_plan TEXT NOT NULL DEFAULT '[]',
+                active_artifact_ids TEXT NOT NULL DEFAULT '[]',
+                open_finding_ids TEXT NOT NULL DEFAULT '[]',
+                checkpoint TEXT NOT NULL DEFAULT '{}',
+                status TEXT NOT NULL DEFAULT 'IDLE',
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (agent_id) REFERENCES agent_profiles(agent_id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS learning_sources (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                source_type TEXT NOT NULL,
+                location TEXT NOT NULL DEFAULT '',
+                added_by TEXT NOT NULL DEFAULT 'owner',
+                trust_metadata TEXT NOT NULL DEFAULT '{}',
+                processed_state TEXT NOT NULL DEFAULT 'NEW',
+                last_checked TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+        conn.execute(
+            "INSERT OR REPLACE INTO schema_meta (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
+            ("universal_schema_version", "1.0"),
+        )
 
     def _ensure_work_context_schema(self, conn: sqlite3.Connection) -> None:
         """Persistent task intent, artifact handoff and provider contracts."""
@@ -2718,6 +2861,168 @@ class Database:
             return conn.execute(
                 "SELECT * FROM management_audit_events ORDER BY created_at ASC, id ASC"
             ).fetchall()
+
+    # U1 universal platform primitives. These methods intentionally keep
+    # domain payloads structured as JSON while the relational identities stay stable.
+    def create_profession(self, values: dict[str, Any]) -> str:
+        profession_id = values.get("id") or f"PROF-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO professions (id, name, description, responsibilities, typical_results,
+                    required_capabilities, initial_skills, recommended_tools, knowledge_sources,
+                    qualification_method, status, created_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (profession_id, values["name"], values.get("description", ""), self._json(values.get("responsibilities", [])),
+                 self._json(values.get("typical_results", [])), self._json(values.get("required_capabilities", [])),
+                 self._json(values.get("initial_skills", [])), self._json(values.get("recommended_tools", [])),
+                 self._json(values.get("knowledge_sources", [])), values.get("qualification_method", ""),
+                 values.get("status", "ACTIVE"), values.get("created_by", "owner")),
+            )
+        return str(profession_id)
+
+    def list_professions(self, status: str | None = None) -> list[sqlite3.Row]:
+        sql = "SELECT * FROM professions"
+        params: tuple[Any, ...] = ()
+        if status:
+            sql += " WHERE status = ?"
+            params = (status,)
+        sql += " ORDER BY name ASC"
+        with self.connect() as conn:
+            return conn.execute(sql, params).fetchall()
+
+    def get_profession(self, profession_id: str) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM professions WHERE id = ?", (profession_id,)).fetchone()
+
+    def create_organization(self, values: dict[str, Any]) -> str:
+        organization_id = values.get("id") or f"ORG-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO organizations (id, name, purpose, description, status, created_by) VALUES (?, ?, ?, ?, ?, ?)",
+                (organization_id, values["name"], values.get("purpose", ""), values.get("description", ""), values.get("status", "ACTIVE"), values.get("created_by", "owner")),
+            )
+        return str(organization_id)
+
+    def list_organizations(self, status: str | None = None) -> list[sqlite3.Row]:
+        sql = "SELECT * FROM organizations"
+        params: tuple[Any, ...] = ()
+        if status:
+            sql += " WHERE status = ?"
+            params = (status,)
+        sql += " ORDER BY name ASC"
+        with self.connect() as conn:
+            return conn.execute(sql, params).fetchall()
+
+    def create_workflow(self, values: dict[str, Any], steps: list[dict[str, Any]]) -> str:
+        workflow_id = values.get("id") or f"WF-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO workflows (id, name, version, description, status, created_by) VALUES (?, ?, ?, ?, ?, ?)",
+                (workflow_id, values["name"], values.get("version", "1.0.0"), values.get("description", ""), values.get("status", "ACTIVE"), values.get("created_by", "owner")),
+            )
+            for index, step in enumerate(steps, start=1):
+                conn.execute(
+                    """
+                    INSERT INTO workflow_steps (id, workflow_id, step_order, responsibility, operation,
+                        required_inputs, expected_outputs, review_requirement, approval_requirement, next_step)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (f"WFS-{uuid.uuid4().hex[:12].upper()}", workflow_id, int(step.get("step_order", index)),
+                     step.get("responsibility", ""), step.get("operation", ""), self._json(step.get("required_inputs", [])),
+                     self._json(step.get("expected_outputs", [])), step.get("review_requirement", ""),
+                     step.get("approval_requirement", ""), step.get("next_step")),
+                )
+        return str(workflow_id)
+
+    def list_workflows(self) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM workflows ORDER BY name ASC").fetchall()
+
+    def create_organization_template(self, values: dict[str, Any]) -> str:
+        template_id = values.get("id") or f"TEMPLATE-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO organization_templates (
+                    id, name, purpose, recommended_team_size, roles, hierarchy, workflow_id,
+                    handoff_rules, review_rules, approval_rules, permissions, required_capabilities,
+                    recommended_tools, learning_roles, quality_controls, source_rationale, version,
+                    limitations, status, created_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (template_id, values["name"], values.get("purpose", ""), values.get("recommended_team_size", ""),
+                 self._json(values.get("roles", [])), self._json(values.get("hierarchy", [])), values.get("workflow_id"),
+                 self._json(values.get("handoff_rules", [])), self._json(values.get("review_rules", [])),
+                 self._json(values.get("approval_rules", [])), self._json(values.get("permissions", [])),
+                 self._json(values.get("required_capabilities", [])), self._json(values.get("recommended_tools", [])),
+                 self._json(values.get("learning_roles", [])), self._json(values.get("quality_controls", [])),
+                 values.get("source_rationale", ""), values.get("version", "1.0.0"), self._json(values.get("limitations", [])),
+                 values.get("status", "ACTIVE"), values.get("created_by", "owner")),
+            )
+        return str(template_id)
+
+    def list_organization_templates(self) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM organization_templates ORDER BY name ASC").fetchall()
+
+    def get_organization_template(self, template_id: str) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM organization_templates WHERE id = ?", (template_id,)).fetchone()
+
+    def create_organization_member(self, values: dict[str, Any]) -> str:
+        member_id = values.get("id") or f"MEMBER-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO organization_members (id, organization_id, department_id, agent_id, profession_id,
+                    role_id, position, responsibilities, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (member_id, values["organization_id"], values.get("department_id"), values.get("agent_id"), values.get("profession_id"),
+                 values.get("role_id"), values.get("position", ""), self._json(values.get("responsibilities", [])), values.get("status", "ACTIVE")),
+            )
+        return str(member_id)
+
+    def list_organization_members(self, organization_id: str) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM organization_members WHERE organization_id = ? ORDER BY id ASC", (organization_id,)).fetchall()
+
+    def upsert_agent_runtime_state(self, agent_id: str, values: dict[str, Any]) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO agent_runtime_states (agent_id, organization_id, current_task_id, current_operation,
+                    current_plan, active_artifact_ids, open_finding_ids, checkpoint, status, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(agent_id) DO UPDATE SET organization_id=excluded.organization_id,
+                    current_task_id=excluded.current_task_id, current_operation=excluded.current_operation,
+                    current_plan=excluded.current_plan, active_artifact_ids=excluded.active_artifact_ids,
+                    open_finding_ids=excluded.open_finding_ids, checkpoint=excluded.checkpoint,
+                    status=excluded.status, updated_at=CURRENT_TIMESTAMP
+                """,
+                (agent_id, values.get("organization_id"), values.get("current_task_id"), values.get("current_operation", ""),
+                 self._json(values.get("current_plan", [])), self._json(values.get("active_artifact_ids", [])),
+                 self._json(values.get("open_finding_ids", [])), self._json(values.get("checkpoint", {})), values.get("status", "IDLE")),
+            )
+
+    def get_agent_runtime_state(self, agent_id: str) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM agent_runtime_states WHERE agent_id = ?", (agent_id,)).fetchone()
+
+    def create_learning_source(self, values: dict[str, Any]) -> str:
+        source_id = values.get("id") or f"SOURCE-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO learning_sources (id, title, source_type, location, added_by, trust_metadata, processed_state) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (source_id, values["title"], values["source_type"], values.get("location", ""), values.get("added_by", "owner"), self._json(values.get("trust_metadata", {})), values.get("processed_state", "NEW")),
+            )
+        return str(source_id)
+
+    def list_learning_sources(self) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM learning_sources ORDER BY title ASC").fetchall()
 
     def upsert_provider_definition(self, profile: ProviderProfile) -> None:
         with self.connect() as conn:

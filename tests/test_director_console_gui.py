@@ -34,7 +34,8 @@ def test_director_console_renders_employee_list(tmp_path):
 
     dialog = DirectorConsoleDialog(service, registry, health, provisioning)
 
-    assert dialog.tabs.count() == 12
+    assert dialog.tabs.count() == 13
+    assert dialog.tabs.tabText(1) == "Организация"
     assert dialog.employee_tab.table.rowCount() >= 2
 
 

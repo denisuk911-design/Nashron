@@ -53,6 +53,7 @@ from core.product_metrics_service import ProductMetricsService
 from core.skill_progress_service import SkillProgressService
 from core.skill_package_service import SkillPackageService
 from core.standards_service import MANDATORY_LEVELS, STANDARD_AUTHORITIES, StandardsService
+from core.universal_platform_service import UniversalPlatformService
 from gui.localization import permission_label, readiness_label, role_label, status_label, tr
 
 
@@ -87,6 +88,7 @@ class DirectorConsoleDialog(QDialog):
         artifact_service: ArtifactService | None = None,
         finding_service: FindingService | None = None,
         product_metrics_service: ProductMetricsService | None = None,
+        universal_platform_service: UniversalPlatformService | None = None,
         language: str = "ru",
         avatar_dir: str | Path | None = None,
         parent=None,
@@ -103,6 +105,7 @@ class DirectorConsoleDialog(QDialog):
         self.artifact_service = artifact_service
         self.finding_service = finding_service
         self.product_metrics_service = product_metrics_service
+        self.universal_platform_service = universal_platform_service
         self.language = language
         self.avatar_dir = Path(avatar_dir) if avatar_dir else None
         self.setWindowTitle("РљРѕРјР°РЅРґР°")
@@ -121,8 +124,10 @@ class DirectorConsoleDialog(QDialog):
         self.findings_tab = FindingsTab(finding_service, self)
         self.diagnostics_tab = ProductDiagnosticsTab(product_metrics_service, self)
         self.audit_tab = AuditTab(management_service, language, self)
+        self.universal_tab = UniversalPlatformTab(universal_platform_service, self)
 
         self.tabs.addTab(self.overview_tab, tr(language, "overview"))
+        self.tabs.addTab(self.universal_tab, "Организация")
         self.tabs.addTab(self.employee_tab, tr(language, "employees"))
         self.tabs.addTab(self.roles_tab, tr(language, "roles"))
         self.tabs.addTab(self.permissions_tab, tr(language, "permissions"))
@@ -149,6 +154,7 @@ class DirectorConsoleDialog(QDialog):
 
     def refresh_all(self) -> None:
         self.overview_tab.refresh()
+        self.universal_tab.refresh()
         self.employee_tab.refresh()
         self.roles_tab.refresh()
         self.permissions_tab.refresh()
@@ -160,6 +166,131 @@ class DirectorConsoleDialog(QDialog):
         self.findings_tab.refresh()
         self.diagnostics_tab.refresh()
         self.audit_tab.refresh()
+
+
+class UniversalPlatformTab(QWidget):
+    """Small U1 no-code control surface for generic platform objects."""
+
+    def __init__(self, service: UniversalPlatformService | None, parent=None) -> None:
+        super().__init__(parent)
+        self.service = service
+        self.professions = QListWidget()
+        self.organizations = QListWidget()
+        self.templates = QListWidget()
+        self.professions.setMinimumWidth(280)
+        self.organizations.setMinimumWidth(280)
+        self.templates.setMinimumWidth(360)
+        create_profession = QPushButton("Создать профессию")
+        create_organization = QPushButton("Создать организацию")
+        create_template = QPushButton("Создать шаблон")
+        instantiate = QPushButton("Создать из шаблона")
+        seed = QPushButton("Загрузить демонстрационные шаблоны")
+        create_profession.clicked.connect(self.create_profession)
+        create_organization.clicked.connect(self.create_organization)
+        create_template.clicked.connect(self.create_template)
+        instantiate.clicked.connect(self.instantiate_template)
+        seed.clicked.connect(self.seed_fixtures)
+        actions = QHBoxLayout()
+        for button in (create_profession, create_organization, create_template, instantiate, seed):
+            actions.addWidget(button)
+        columns = QHBoxLayout()
+        columns.addLayout(self._column("Профессии", self.professions), 1)
+        columns.addLayout(self._column("Организации", self.organizations), 1)
+        columns.addLayout(self._column("Шаблоны", self.templates), 1)
+        note = QLabel("Профессия, организация и шаблон хранятся отдельно от AI-провайдера. Роли и workflow задаются данными, а не кодом.")
+        note.setWordWrap(True)
+        layout = QVBoxLayout(self)
+        layout.addWidget(note)
+        layout.addLayout(actions)
+        layout.addLayout(columns, 1)
+
+    @staticmethod
+    def _column(title: str, widget: QListWidget) -> QVBoxLayout:
+        layout = QVBoxLayout()
+        layout.addWidget(QLabel(title))
+        layout.addWidget(widget, 1)
+        return layout
+
+    def refresh(self) -> None:
+        self.professions.clear()
+        self.organizations.clear()
+        self.templates.clear()
+        if self.service is None:
+            return
+        for item in self.service.list_professions():
+            self.professions.addItem(f"{item.name} · {item.status}")
+        for item in self.service.list_organizations():
+            self.organizations.addItem(f"{item.name} · {item.purpose}")
+        for item in self.service.list_templates():
+            row = QListWidgetItem(f"{item.name} · {item.recommended_team_size}")
+            row.setData(Qt.UserRole, item.template_id)
+            self.templates.addItem(row)
+
+    def create_profession(self) -> None:
+        if self.service is None:
+            return
+        name, ok = QInputDialog.getText(self, "Новая профессия", "Название:")
+        if not ok or not name.strip():
+            return
+        description, _ = QInputDialog.getText(self, "Новая профессия", "Описание:")
+        try:
+            self.service.create_profession(name, description)
+            self.refresh()
+        except Exception as exc:
+            QMessageBox.warning(self, "Профессия не создана", str(exc))
+
+    def create_organization(self) -> None:
+        if self.service is None:
+            return
+        name, ok = QInputDialog.getText(self, "Новая организация", "Название:")
+        if not ok or not name.strip():
+            return
+        purpose, _ = QInputDialog.getText(self, "Новая организация", "Назначение:")
+        try:
+            self.service.create_organization(name, purpose)
+            self.refresh()
+        except Exception as exc:
+            QMessageBox.warning(self, "Организация не создана", str(exc))
+
+    def create_template(self) -> None:
+        if self.service is None:
+            return
+        name, ok = QInputDialog.getText(self, "Новый шаблон", "Название:")
+        if not ok or not name.strip():
+            return
+        purpose, ok = QInputDialog.getText(self, "Новый шаблон", "Назначение:")
+        if not ok:
+            return
+        roles_text, ok = QInputDialog.getText(self, "Новый шаблон", "Роли через запятую:")
+        if not ok:
+            return
+        roles = [{"role": role.strip(), "position": role.strip()} for role in roles_text.split(",") if role.strip()]
+        try:
+            self.service.create_template(name, purpose, roles)
+            self.refresh()
+        except Exception as exc:
+            QMessageBox.warning(self, "Шаблон не создан", str(exc))
+
+    def instantiate_template(self) -> None:
+        if self.service is None:
+            return
+        item = self.templates.currentItem()
+        if item is None:
+            QMessageBox.information(self, "Шаблон", "Выберите шаблон.")
+            return
+        name, ok = QInputDialog.getText(self, "Создать организацию", "Название организации:")
+        if not ok or not name.strip():
+            return
+        try:
+            self.service.instantiate_template(str(item.data(Qt.UserRole)), name)
+            self.refresh()
+        except Exception as exc:
+            QMessageBox.warning(self, "Организация не создана", str(exc))
+
+    def seed_fixtures(self) -> None:
+        if self.service is not None:
+            self.service.seed_demo_fixtures()
+            self.refresh()
 
 
 class OverviewTab(QWidget):

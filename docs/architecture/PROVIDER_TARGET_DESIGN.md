@@ -40,3 +40,10 @@ Agent
 Будущий GUI-flow: `Добавить сотрудника` → provider → проверка CLI → официальный источник/версия → явное подтверждение установки → официальный login/device flow → access/capability/health.
 
 Произвольные URL, встроенные формы паролей, тихая установка и скрытая смена provider запрещены.
+# Universal employee boundary
+
+An employee identity, organization membership, profession, skills and runtime
+state remain valid when the execution provider changes. Providers only supply
+installation, authentication, capability and run execution. This boundary is
+required for future handover and prevents Codex/Gemini CLI names from becoming
+hard-coded employee identities.

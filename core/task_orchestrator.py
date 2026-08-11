@@ -68,11 +68,22 @@ class TaskOrchestrator:
             prompt_hash=prompt_hash,
             started_at=datetime.now().isoformat(timespec="seconds"),
         )
+        self._update_runtime_state(
+            route.agent_id,
+            {
+                "organization_id": None,
+                "current_task_id": self.current_task_id,
+                "current_operation": "RUNNING",
+                "current_plan": ["execute assigned task", "record result", "validate output"],
+                "status": "WORKING",
+            },
+        )
         self.database.audit_event("agent_run_started", self.current_task_id, {"run_id": run_id, "role": route.role})
         return RunHandle(self.current_task_id, run_id, route.agent_id, route.role, route.provider)
 
     def finish_run(self, run_id: str, result: CodexResult, raw_response: str) -> RunCompletion:
         parsed = parse_agent_response(raw_response)
+        run_row = self.database.get_agent_run(run_id)
         self.database.finish_agent_run(
             run_id=run_id,
             ok=result.ok,
@@ -88,4 +99,21 @@ class TaskOrchestrator:
         )
         event_type = "agent_run_finished" if result.ok else "agent_run_failed"
         self.database.audit_event(event_type, None, {"run_id": run_id, "errors": parsed.errors})
+        if run_row is not None:
+            self._update_runtime_state(
+                str(run_row["agent_id"]),
+                {
+                    "current_task_id": str(run_row["task_id"]),
+                    "current_operation": "RESULT_RECORDED" if result.ok else "RUN_FAILED",
+                    "current_plan": [],
+                    "checkpoint": {"run_id": run_id, "ok": result.ok, "cancelled": result.cancelled},
+                    "status": "IDLE" if result.ok else "BLOCKED",
+                },
+            )
         return RunCompletion(parsed_response=parsed)
+
+    def _update_runtime_state(self, agent_id: str, values: dict[str, object]) -> None:
+        """Keep legacy router-only runs valid until an employee profile exists."""
+        if self.database.get_agent_profile(agent_id) is None:
+            return
+        self.database.upsert_agent_runtime_state(agent_id, values)

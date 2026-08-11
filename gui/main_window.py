@@ -65,6 +65,7 @@ from core.tool_access import agent_can_use_local_tools
 from core.task_orchestrator import TaskOrchestrator
 from core.task_state_service import TaskStateService
 from core.workspace_service import WorkspaceService
+from core.universal_platform_service import UniversalPlatformService
 from core.work_context_service import (
     ActiveWorkContext,
     AgentExecutionContract,
@@ -96,6 +97,8 @@ class MainWindow(QMainWindow):
 
         self.database = Database(self.paths.database_path)
         self.database.initialize()
+        self.universal_platform_service = UniversalPlatformService(self.database)
+        self.universal_platform_service.seed_demo_fixtures()
         self.agent_router = AgentRouter(self.database)
         self.team_router = TeamRouter()
         self.task_state_service = TaskStateService(self.database)
@@ -1716,6 +1719,7 @@ class MainWindow(QMainWindow):
             self.artifact_service,
             self.finding_service,
             self.product_metrics_service,
+            self.universal_platform_service,
             str(self.settings.get("interface_language", "ru")),
             self.paths.avatar_dir,
             self,

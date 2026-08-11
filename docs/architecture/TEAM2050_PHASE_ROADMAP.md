@@ -2,6 +2,14 @@
 
 Этот документ фиксирует границы работ после Phase A. Он не запускает реализацию следующих фаз.
 
+## Universal Platform U0/U1
+
+U0 audits the old agent/provider-centered model. U1 adds the generic
+Profession, Organization, OrganizationTemplate, WorkflowDefinition,
+LearningSource and AgentRuntimeState foundation. It also provides software and
+culinary organization fixtures through the same core. U2+ work starts only
+after review of `docs/reports/UNIVERSAL_PLATFORM_U1_REPORT.md`.
+
 ## Phase A — стабилизация рабочего чата
 
 Статус: `READY_FOR_USER_TEST` с ограничениями.
