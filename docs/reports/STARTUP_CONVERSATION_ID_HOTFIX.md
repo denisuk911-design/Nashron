@@ -37,6 +37,7 @@ After database initialization, the constructor resolves and validates the conver
 APP_START
 SETTINGS_READY
 DATABASE_READY
+MANAGEMENT_READY
 CONVERSATION_RESOLVED
 ORGANIZATION_RESOLVED
 CHAT_SERVICES_READY
@@ -44,14 +45,15 @@ MAINWINDOW_READY
 USER_INTERACTIVE
 ```
 
-Provider availability is checked without launching blocking CLI commands during construction. Detailed version/authentication checks remain on the existing provider interaction paths. Initial chat restoration uses the configured `history_message_limit` so a large history cannot prevent the main window from becoming interactive.
+Management foundations are completed before conversation and organization resolution. Provider availability is checked without launching blocking CLI commands during construction. Detailed version/authentication checks remain on the existing provider interaction paths. Initial chat restoration uses the configured `history_message_limit` so a large history cannot prevent the main window from becoming interactive.
 
 The code does not use `getattr` to hide a missing `conversation_id`.
 
 ## Verification
 
-- Full test suite: `221 passed`.
+- Full test suite: `223 passed`.
 - True Qt bootstrap test constructs `MainWindow` through its normal constructor and verifies that dependent services receive the same resolved conversation.
+- The bootstrap test covers clean first run, existing conversation data, and existing active organization data.
 - Windows build completed with `scripts/build_windows.bat`.
 - The packaged main EXE was launched from `dist/Roman 2050/Roman 2050.exe`.
 - After 15 seconds, the visible main window title was `Отдел важных дел` and startup logs reached `MAINWINDOW_READY` and `USER_INTERACTIVE`.

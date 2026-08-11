@@ -89,6 +89,7 @@ class MainWindow(QMainWindow):
     def __init__(self, settings_service: SettingsService, logger: logging.Logger) -> None:
         super().__init__()
         self.startup_state = "APP_START"
+        self.startup_history: list[str] = ["APP_START"]
         self.conversation_id: int | None = None
         self.active_organization_id: str | None = None
         self.current_thread_id: str | None = None
@@ -105,6 +106,10 @@ class MainWindow(QMainWindow):
         self.database = Database(self.paths.database_path)
         self.database.initialize()
         self._set_startup_state("DATABASE_READY")
+        self.management_repository = ConfigurationRepository(self.paths.management_config_dir)
+        self.management_service = ManagementService(self.database, self.management_repository)
+        self.management_service.ensure_foundations()
+        self._set_startup_state("MANAGEMENT_READY")
         self.conversation_id = self.database.ensure_single_conversation()
         if self.conversation_id is None:
             raise RuntimeError("Не удалось разрешить рабочий разговор при запуске")
@@ -116,9 +121,6 @@ class MainWindow(QMainWindow):
         self.task_state_service = TaskStateService(self.database)
         self.task_orchestrator = TaskOrchestrator(self.database, self.task_state_service, self.agent_router)
         self.task_orchestrator.ensure_project()
-        self.management_repository = ConfigurationRepository(self.paths.management_config_dir)
-        self.management_service = ManagementService(self.database, self.management_repository)
-        self.management_service.ensure_foundations()
         self.universal_platform_service = UniversalPlatformService(
             self.database,
             management_service=self.management_service,
@@ -171,6 +173,7 @@ class MainWindow(QMainWindow):
         self.skill_progress_service = SkillProgressService(self.database, self.skill_service, self.workspace_service.root)
         self.product_metrics_service = ProductMetricsService(self.database, self.skill_progress_service)
         self.thread_service = ConversationThreadService(self.database, self.conversation_id)
+        self.current_thread_id = self.thread_service.thread_id
         self.thread_question_service = ThreadQuestionService(self.database, self.conversation_id)
         self.work_context_service = WorkContextService(self.database, self.conversation_id, self.thread_service.thread_id)
         self.intent_resolver = IntentResolver()
@@ -229,6 +232,8 @@ class MainWindow(QMainWindow):
 
     def _set_startup_state(self, state: str) -> None:
         self.startup_state = state
+        if not self.startup_history or self.startup_history[-1] != state:
+            self.startup_history.append(state)
         if hasattr(self, "logger"):
             self.logger.info("startup_state=%s conversation_id=%s", state, self.conversation_id)
 
