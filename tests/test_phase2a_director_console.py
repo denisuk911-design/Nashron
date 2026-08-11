@@ -147,5 +147,41 @@ def test_blocking_conflict_prevents_activation(tmp_path):
 def test_lifecycle_invalid_transition_rejected(tmp_path):
     _db, service = make_service(tmp_path)
 
-    with pytest.raises(ValueError):
-        service.archive_agent("agent-roman", OWNER_ROLE, "active cannot archive directly")
+    service.archive_agent("agent-roman", OWNER_ROLE, "archive from the employee console")
+    assert _db.get_agent_profile("agent-roman")["lifecycle_state"] == "ARCHIVED"
+
+
+def test_draft_employee_can_be_deleted_permanently(tmp_path):
+    db, service = make_service(tmp_path)
+    profile = AgentProfile(
+        agent_id=service.generate_agent_id("Temporary"),
+        display_name="Temporary",
+        description="No history",
+        lifecycle_state="DRAFT",
+        provider_id="CODEX_CLI",
+    )
+    service.create_agent(profile, ["DOCUMENT_CONTROL_OFFICER"], ["CHAT"], reason="delete test")
+
+    service.delete_agent(profile.agent_id, OWNER_ROLE, confirmed=True)
+
+    assert db.get_agent_profile(profile.agent_id) is None
+    assert any(
+        row["object_id"] == profile.agent_id and row["action"] == "delete"
+        for row in db.list_management_audit_events()
+    )
+
+
+def test_active_employee_without_history_can_be_deleted_permanently(tmp_path):
+    db, service = make_service(tmp_path)
+    profile = AgentProfile(
+        agent_id=service.generate_agent_id("Active temporary"),
+        display_name="Active temporary",
+        description="No history",
+        lifecycle_state="ACTIVE",
+        provider_id="CODEX_CLI",
+    )
+    service.create_agent(profile, ["DOCUMENT_CONTROL_OFFICER"], ["CHAT"], reason="delete test")
+
+    service.delete_agent(profile.agent_id, OWNER_ROLE, confirmed=True)
+
+    assert db.get_agent_profile(profile.agent_id) is None

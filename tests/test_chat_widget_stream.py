@@ -78,6 +78,23 @@ def test_multiline_message_height_expands_to_show_full_text():
     assert item.sizeHint().height() > 120
 
 
+def test_message_body_geometry_contains_all_wrapped_text():
+    app()
+    widget = ChatWidget()
+    widget.resize(900, 600)
+    item = widget.add_message(
+        "roman",
+        "A long PCB review message with enough words to wrap several times. " * 12,
+    )
+    widget._resize_message_widgets()
+    QApplication.processEvents()
+    message = widget.messages.itemWidget(item)
+
+    assert isinstance(message, MessageWidget)
+    assert message.body.geometry().bottom() <= message.card.contentsRect().bottom()
+    assert item.sizeHint().height() >= message.sizeHint().height() + 30
+
+
 def test_goal_mode_and_banner_are_visible():
     app()
     widget = ChatWidget()

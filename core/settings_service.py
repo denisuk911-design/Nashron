@@ -19,6 +19,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "response_timeout_seconds": 0,
     "allow_local_tools": False,
     "goal_turn_limit": 80,
+    "general_chat_response": "SINGLE",
     "workspace_root": str(Path.home() / "Documents" / "Roman2050 Workspace"),
     "reduce_motion": False,
     "interface_language": "ru",

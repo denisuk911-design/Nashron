@@ -63,6 +63,13 @@ def test_continuation_uses_active_owner():
     assert decision.selected == ["shushan"]
 
 
+def test_auto_general_message_always_has_a_conversational_owner():
+    decision = TeamRouter().decide("Привет, как дела?", _agents())
+
+    assert len(decision.selected) == 1
+    assert decision.reason == "default_conversational_owner"
+
+
 def test_manual_recipient_is_enforced():
     decision = TeamRouter().decide(
         "Кто ответит?",

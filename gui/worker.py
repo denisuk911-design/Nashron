@@ -31,6 +31,8 @@ class GenerateWorker(QThread):
         thread_context_lines: list[str] | None = None,
         active_work_context_lines: list[str] | None = None,
         execution_contract_lines: list[str] | None = None,
+        organization_id: str | None = None,
+        conversation_mode: str = "SOCIAL",
     ) -> None:
         super().__init__()
         self.prompt_builder = prompt_builder
@@ -49,6 +51,8 @@ class GenerateWorker(QThread):
         self.thread_context_lines = thread_context_lines or []
         self.active_work_context_lines = active_work_context_lines or []
         self.execution_contract_lines = execution_contract_lines or []
+        self.organization_id = organization_id
+        self.conversation_mode = conversation_mode
 
     def run(self) -> None:
         try:
@@ -68,6 +72,8 @@ class GenerateWorker(QThread):
                 thread_context_lines=self.thread_context_lines,
                 active_work_context_lines=self.active_work_context_lines,
                 execution_contract_lines=self.execution_contract_lines,
+                organization_id=self.organization_id,
+                conversation_mode=self.conversation_mode,
             )
             self._set_status(RunStatus.STARTING_PROVIDER)
             self._set_status(RunStatus.WAITING_FOR_PROVIDER)

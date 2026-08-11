@@ -360,7 +360,16 @@ ROLE_LABELS = {
         "RESEARCH_ASSISTANT": "Дослідник",
         "CUSTOM_ROLE": "Інша роль",
     },
-    "en": {},
+    "en": {
+        "PROJECT_MANAGER": "Project Manager",
+        "DESIGN_ENGINEER": "Design Engineer",
+        "QA_ENGINEER": "Quality Engineer",
+        "VERIFICATION_ENGINEER": "Verification Engineer",
+        "DOCUMENT_CONTROL_OFFICER": "Documentation Specialist",
+        "LEARNING_COORDINATOR": "Learning Coordinator",
+        "RESEARCH_ASSISTANT": "Researcher",
+        "CUSTOM_ROLE": "Custom role",
+    },
 }
 
 
@@ -398,7 +407,19 @@ READINESS_LABELS = {
         "PROFILE_INCOMPLETE": "Профіль неповний",
         "SETUP_FAILED": "Налаштування не вдалося",
     },
-    "en": {},
+    "en": {
+        "READY": "Ready",
+        "DEGRADED": "Limited operation",
+        "AUTHENTICATION_REQUIRED": "Authentication required",
+        "PROVIDER_NOT_INSTALLED": "CLI is not installed",
+        "PROVIDER_NOT_ASSIGNED": "Provider is not assigned",
+        "ACCESS_CHECK_REQUIRED": "Access check required",
+        "CAPABILITY_TEST_REQUIRED": "Capability check required",
+        "PLAN_INCOMPATIBLE": "Required access is unavailable",
+        "BLOCKED": "Blocked",
+        "PROFILE_INCOMPLETE": "Profile is incomplete",
+        "SETUP_FAILED": "Setup failed",
+    },
 }
 
 
@@ -443,7 +464,26 @@ PERMISSION_LABELS = {
         "ACCESS_INTERNET": "Шукати в інтернеті",
         "ACCESS_EXTERNAL_PATHS": "Доступ поза робочою папкою",
     },
-    "en": {},
+    "en": {
+        "CHAT": "Chat",
+        "READ_WORKSPACE": "Read workspace",
+        "WRITE_WORKSPACE": "Create and edit files",
+        "DELETE_FILES": "Delete files",
+        "RUN_COMMANDS": "Run commands",
+        "MODIFY_PROJECT": "Modify project",
+        "CREATE_DOCUMENTS": "Create documents",
+        "REVIEW_ARTIFACTS": "Review results",
+        "CREATE_FINDINGS": "Create findings",
+        "CLOSE_FINDINGS": "Close findings",
+        "MANAGE_SKILLS": "Manage skills",
+        "MANAGE_KNOWLEDGE": "Manage knowledge",
+        "MANAGE_EMPLOYEES": "Manage employees",
+        "MANAGE_STANDARDS": "Manage standards",
+        "REQUEST_APPROVAL": "Request approval",
+        "GRANT_APPROVAL": "Grant approval",
+        "ACCESS_INTERNET": "Search the internet",
+        "ACCESS_EXTERNAL_PATHS": "Access outside workspace",
+    },
 }
 
 

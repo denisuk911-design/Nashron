@@ -99,6 +99,10 @@ class TeamRouter:
         "RESEARCH_ASSISTANT": ("найди источник", "даташит", "datasheet", "поиск", "исслед"),
     }
 
+    def __init__(self, general_chat_response: str = "SINGLE") -> None:
+        policy = str(general_chat_response or "SINGLE").upper()
+        self.general_chat_response = policy if policy in {"SINGLE", "SMALL_GROUP", "ALL"} else "SINGLE"
+
     def decide(
         self,
         text: str,
@@ -184,6 +188,23 @@ class TeamRouter:
         selected = [key for key in self._role_relevant_subset(text, active_agents, limit=1) if key in eligible]
         if selected:
             return self._decision(ParticipationMode.DIRECT, selected, active_agents, inferred=selected, reason="role_relevant_default")
+        fallback = [key for key in (active_owner or []) if key in eligible]
+        if not fallback:
+            fallback = [agent.key for agent in active_agents if agent.key in eligible]
+        if fallback:
+            if self.general_chat_response == "ALL":
+                chosen = fallback
+            elif self.general_chat_response == "SMALL_GROUP":
+                chosen = fallback[:3]
+            else:
+                chosen = fallback[:1]
+            return self._decision(
+                ParticipationMode.DIRECT,
+                chosen,
+                active_agents,
+                inferred=chosen,
+                reason="default_conversational_owner",
+            )
         return self._decision(
             ParticipationMode.DIRECT,
             [],

@@ -82,7 +82,7 @@ class MessageWidget(QFrame):
         card = self.card
         card.setObjectName(object_name)
         card.setMaximumWidth(self._max_card_width)
-        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        card.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Minimum)
         card_layout = QVBoxLayout(card)
         card_layout.setContentsMargins(16, 12, 16, 12)
         card_layout.setSpacing(6)
@@ -132,7 +132,6 @@ class MessageWidget(QFrame):
         self.body.setText(content)
         self._set_images(self._extract_image_paths(content))
         self._sync_body_width()
-        self.body.adjustSize()
         self.updateGeometry()
         self.adjustSize()
 
@@ -146,31 +145,8 @@ class MessageWidget(QFrame):
 
     def sizeHint(self) -> QSize:
         width = max(220, self.width() or 720)
-        outer_margins = self.layout().contentsMargins()
-        card_margins = self.card.layout().contentsMargins()
-        card_width = min(self._max_card_width, max(180, width - 36))
-        text_width = max(120, card_width - card_margins.left() - card_margins.right())
-        header_height = max(24, self.card.layout().itemAt(0).sizeHint().height())
-        body_height = self._wrapped_text_height(self.body.text(), text_width, self.body)
-        activity_height = (
-            self._wrapped_text_height(self.activity.text(), text_width, self.activity) + 6
-            if self.activity.isVisible()
-            else 0
-        )
-        image_height = 158 if self.image_row.count() else 0
-        card_height = (
-            card_margins.top()
-            + header_height
-            + 6
-            + body_height
-            + activity_height
-            + image_height
-            + card_margins.bottom()
-            + 34
-        )
-        total_height = card_height + outer_margins.top() + outer_margins.bottom() + 18
-        if self.role != "user":
-            total_height = max(total_height, 48 + outer_margins.top() + outer_margins.bottom() + 18)
+        layout_hint = self.layout().sizeHint()
+        total_height = max(layout_hint.height(), self.card.layout().sizeHint().height() + 16)
         return QSize(width, total_height)
 
     def minimumSizeHint(self) -> QSize:
@@ -193,16 +169,33 @@ class MessageWidget(QFrame):
         return avatar
 
     def _sync_body_width(self) -> None:
-        card_width = min(self._max_card_width, max(180, self.width() - 36 if self.width() else 720))
-        self.card.setMaximumWidth(card_width)
-        text_width = max(120, card_width - 32)
+        outer_margins = self.layout().contentsMargins()
+        available_width = max(220, self.width() - outer_margins.left() - outer_margins.right()) if self.width() else 720
+        avatar_width = 60 if self.layout().count() > 1 else 0
+        available_width = max(220, available_width - avatar_width)
+        card_margins = self.card.layout().contentsMargins()
+        max_text_width = max(140, min(self._max_card_width, available_width) - card_margins.left() - card_margins.right())
+        natural_width = self._natural_text_width()
+        card_width = min(self._max_card_width, max(220, natural_width + card_margins.left() + card_margins.right()))
+        card_width = min(card_width, max(220, available_width))
+        self.card.setFixedWidth(card_width)
+        text_width = max(140, min(max_text_width, card_width - card_margins.left() - card_margins.right()))
         self.body.setFixedWidth(text_width)
-        self.body.setMinimumHeight(self._wrapped_text_height(self.body.text(), text_width, self.body) + 12)
+        self.body.adjustSize()
+        self.body.setFixedHeight(self._wrapped_text_height(self.body.text(), text_width, self.body))
         self.activity.setFixedWidth(text_width)
         if self.activity.isVisible():
-            self.activity.setMinimumHeight(self._wrapped_text_height(self.activity.text(), text_width, self.activity) + 8)
+            self.activity.adjustSize()
+            self.activity.setFixedHeight(self._wrapped_text_height(self.activity.text(), text_width, self.activity))
         else:
-            self.activity.setMinimumHeight(0)
+            self.activity.setFixedHeight(0)
+
+    def _natural_text_width(self) -> int:
+        lines = [self.body.text(), self.activity.text() if self.activity.isVisible() else ""]
+        width = max((self.body.fontMetrics().horizontalAdvance(line) for text in lines for line in text.splitlines()), default=0)
+        header_width = self.card.layout().itemAt(0).sizeHint().width() if self.card.layout().count() else 0
+        image_width = 238 if self.image_row.count() else 0
+        return max(220, min(self._max_card_width - 32, max(width, header_width, image_width)))
 
     @staticmethod
     def _wrapped_text_height(text: str, width: int, label: QLabel) -> int:
@@ -213,7 +206,7 @@ class MessageWidget(QFrame):
             Qt.TextWordWrap | Qt.TextExpandTabs,
             text,
         )
-        return max(label.fontMetrics().lineSpacing(), rect.height() + 8)
+        return max(label.fontMetrics().lineSpacing() + 8, rect.height() + 8)
 
     def _set_images(self, paths: list[Path]) -> None:
         while self.image_row.count():

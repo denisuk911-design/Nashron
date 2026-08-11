@@ -7,6 +7,7 @@ from typing import Any
 from .agent_directory import agent_id_from_key, agent_spec_from_profile, get_chat_agent, list_chat_agents
 from .agents import AGENTS, ROMAN
 from .context_snapshot_service import ContextSnapshotService
+from .conversation_mode import ConversationMode
 from .database import Database
 from .identity_service import IdentityService
 from .knowledge_service import KnowledgeService
@@ -53,12 +54,14 @@ class PromptBuilder:
         thread_context_lines: list[str] | None = None,
         active_work_context_lines: list[str] | None = None,
         execution_contract_lines: list[str] | None = None,
+        organization_id: str | None = None,
+        conversation_mode: str = "SOCIAL",
     ) -> str:
         agent_profile = get_chat_agent(self.database, agent_key)
         agent = agent_spec_from_profile(agent_profile) if agent_profile is not None else AGENTS.get(agent_key, ROMAN)
-        team_agents = list_chat_agents(self.database)
+        team_agents = list_chat_agents(self.database, organization_id=organization_id)
         peers = [item for item in team_agents if item.key != agent.key]
-        peer = agent_spec_from_profile(peers[0]) if peers else (AGENTS["petr"] if agent.key == "roman" else AGENTS["roman"])
+        peer = agent_spec_from_profile(peers[0]) if peers else (agent if organization_id else (AGENTS["petr"] if agent.key == "roman" else AGENTS["roman"]))
         system_prompt = self.system_prompt_path.read_text(encoding="utf-8")
         identity = self.identity_service.load()
         timeline = self._load_timeline()
@@ -135,11 +138,22 @@ class PromptBuilder:
                 "Запрещено повторять уже сказанную формулировку другим словами. Каждый новый ход должен давать новый факт, действие, проверку, файл, решение или завершение.",
             ]
 
+        mode = str(conversation_mode or ConversationMode.SOCIAL).upper()
+        context_task_id = task_id if mode == ConversationMode.WORK.value else None
+        context_lines = list(active_work_context_lines or [])
+        if mode != ConversationMode.WORK.value:
+            task = self.database.get_task(task_id) if task_id else None
+            task_title = str(task["title"]) if task is not None else "незавершённая рабочая задача"
+            context_lines = [
+                f"- Фоновая память: {task_title}.",
+                "- Эта задача не является темой текущего сообщения. Не возвращай разговор к работе без прямого рабочего запроса пользователя.",
+            ]
+
         parts = [
             system_prompt.strip(),
             "",
             "ACTIVE WORK CONTEXT (authoritative application state; it outranks role habits and stale chat history):",
-            *(active_work_context_lines or ["- no active work context"]),
+            *context_lines,
             "",
             "AGENT EXECUTION CONTRACT (follow this contract before composing a reply):",
             *(execution_contract_lines or ["- no contract supplied"]),
@@ -214,8 +228,9 @@ class PromptBuilder:
                 "",
                 "CONTEXT SNAPSHOT:",
                 f"- participation_mode: {participation_mode}",
+                f"- conversation_mode: {mode}",
                 *(thread_context_lines or []),
-                f"- current_task_id: {task_id or 'нет'}",
+                f"- current_task_id: {context_task_id or 'нет'}",
                 f"- current_run_id: {run_id or 'нет'}",
                 f"- current_employee_role: {structured_role}",
                 "- expected_response_type: короткий рабочий ответ с подтверждаемыми claims",
@@ -223,7 +238,7 @@ class PromptBuilder:
                 "- selection_policy: контекст ниже отобран по текущей теме, роли и владельцу разговора; это не полный лог чата.",
             ]
         )
-        parts.extend(["TASK STATE AND WORK EVIDENCE:", *self._task_context_lines(task_id)])
+        parts.extend(["TASK STATE AND WORK EVIDENCE:", *self._task_context_lines(context_task_id)])
         parts.extend(context_snapshot.prompt_lines())
 
         if peer_context.strip():
@@ -322,7 +337,7 @@ class PromptBuilder:
     @staticmethod
     def _team_lines(agents) -> list[str]:
         if not agents:
-            return ["- Роман: Codex CLI; Петр: Gemini CLI."]
+            return ["- В активной организации нет доступных сотрудников."]
         lines = []
         for agent in agents:
             roles = ", ".join(agent.roles) if agent.roles else "роль не задана"

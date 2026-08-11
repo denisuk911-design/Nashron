@@ -1216,6 +1216,105 @@ class Database:
         if self.path.exists() and not backup_path.exists():
             shutil.copyfile(self.path, backup_path)
 
+    def ensure_organization_conversations(self) -> None:
+        """Ensure every organization workspace owns a unique conversation.
+
+        Early builds attached every workspace to the single legacy conversation.
+        Keep the first workspace on that history and give every other workspace
+        a clean conversation so messages cannot cross organization boundaries.
+        """
+        self.initialize()
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT workspace.organization_id, workspace.conversation_id, organizations.name
+                FROM organization_workspaces AS workspace
+                JOIN organizations ON organizations.id = workspace.organization_id
+                ORDER BY workspace.created_at ASC, workspace.organization_id ASC
+                """
+            ).fetchall()
+            used: set[int] = set()
+            for row in rows:
+                conversation_id = row["conversation_id"]
+                valid = conversation_id is not None and conn.execute(
+                    "SELECT 1 FROM conversations WHERE id = ?", (conversation_id,)
+                ).fetchone() is not None
+                if valid and int(conversation_id) not in used:
+                    used.add(int(conversation_id))
+                    continue
+                cursor = conn.execute(
+                    "INSERT INTO conversations (title) VALUES (?)",
+                    (str(row["name"]),),
+                )
+                new_conversation_id = int(cursor.lastrowid)
+                conn.execute(
+                    """
+                    UPDATE organization_workspaces
+                    SET conversation_id = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE organization_id = ?
+                    """,
+                    (new_conversation_id, str(row["organization_id"])),
+                )
+                used.add(new_conversation_id)
+
+    def ensure_organization_conversation(self, organization_id: str, title: str | None = None) -> int:
+        self.ensure_organization_conversations()
+        with self.connect() as conn:
+            workspace = conn.execute(
+                "SELECT conversation_id FROM organization_workspaces WHERE organization_id = ?",
+                (organization_id,),
+            ).fetchone()
+            if workspace is not None and workspace["conversation_id"] is not None:
+                conversation_id = int(workspace["conversation_id"])
+                if conn.execute("SELECT 1 FROM conversations WHERE id = ?", (conversation_id,)).fetchone() is not None:
+                    return conversation_id
+            organization = conn.execute(
+                "SELECT name FROM organizations WHERE id = ?", (organization_id,)
+            ).fetchone()
+            if organization is None:
+                raise ValueError("unknown_organization")
+            cursor = conn.execute(
+                "INSERT INTO conversations (title) VALUES (?)",
+                (title or str(organization["name"]),),
+            )
+            conversation_id = int(cursor.lastrowid)
+            if workspace is None:
+                workspace_id = f"OWS-{uuid.uuid4().hex[:12].upper()}"
+                conn.execute(
+                    """
+                    INSERT INTO organization_workspaces
+                        (id, organization_id, conversation_id, workspace_path, routing_config, status, is_active)
+                    VALUES (?, ?, ?, '', '{}', 'READY_EMPTY', 0)
+                    """,
+                    (workspace_id, organization_id, conversation_id),
+                )
+            else:
+                conn.execute(
+                    """
+                    UPDATE organization_workspaces
+                    SET conversation_id = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE organization_id = ?
+                    """,
+                    (conversation_id, organization_id),
+                )
+            return conversation_id
+
+    def ensure_general_conversation(self, title: str = "Общий чат") -> int:
+        """Return a conversation that is not owned by an organization workspace."""
+        self.initialize()
+        with self.connect() as conn:
+            row = conn.execute(
+                """
+                SELECT id FROM conversations
+                WHERE id NOT IN (SELECT conversation_id FROM organization_workspaces WHERE conversation_id IS NOT NULL)
+                ORDER BY id ASC LIMIT 1
+                """
+            ).fetchone()
+            if row is not None:
+                return int(row["id"])
+            cursor = conn.execute("INSERT INTO conversations (title) VALUES (?)", (title,))
+            return int(cursor.lastrowid)
+
     def list_conversations(self) -> list[Conversation]:
         with self.connect() as conn:
             rows = conn.execute(
@@ -2942,15 +3041,39 @@ class Database:
                 "UPDATE agent_profiles SET lifecycle_state = ?, updated_at = CURRENT_TIMESTAMP WHERE agent_id = ?",
                 (lifecycle_state, agent_id),
             )
+
+    def delete_agent_profile(
+        self,
+        agent_id: str,
+        actor: str = "SYSTEM",
+        reason: str = "Delete agent profile",
+    ) -> None:
+        with self.connect() as conn:
+            previous = conn.execute("SELECT * FROM agent_profiles WHERE agent_id = ?", (agent_id,)).fetchone()
+            if previous is None:
+                raise ValueError(f"Unknown agent profile: {agent_id}")
+            tables = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+            ).fetchall()
+            database_changes = ["agent_profiles"]
+            for table_row in tables:
+                table = str(table_row["name"])
+                if table == "agent_profiles":
+                    continue
+                columns = {str(column["name"]) for column in conn.execute(f'PRAGMA table_info("{table}")').fetchall()}
+                if "agent_id" in columns:
+                    conn.execute(f'DELETE FROM "{table}" WHERE agent_id = ?', (agent_id,))
+                    database_changes.append(table)
+            conn.execute("DELETE FROM agent_profiles WHERE agent_id = ?", (agent_id,))
             self._insert_management_audit(
                 conn,
                 actor=actor,
                 object_type="agent_profile",
                 object_id=agent_id,
-                action="set_lifecycle",
+                action="delete",
                 previous_value=self._json(dict(previous)),
-                new_value=self._json({"lifecycle_state": lifecycle_state}),
-                database_changes=["agent_profiles"],
+                new_value=None,
+                database_changes=database_changes,
                 affected_employees=[agent_id],
                 reason=reason,
             )
@@ -3090,6 +3213,35 @@ class Database:
     def get_organization_workspace(self, organization_id: str) -> sqlite3.Row | None:
         with self.connect() as conn:
             return conn.execute("SELECT * FROM organization_workspaces WHERE organization_id = ?", (organization_id,)).fetchone()
+
+    def set_organization_status(self, organization_id: str, status: str) -> None:
+        status = str(status).upper().strip()
+        if status not in {"DRAFT", "ACTIVE", "PAUSED", "ARCHIVED"}:
+            raise ValueError("unknown_organization_status")
+        with self.connect() as conn:
+            updated = conn.execute(
+                "UPDATE organizations SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (status, organization_id),
+            ).rowcount
+            if not updated:
+                raise ValueError("unknown_organization")
+            if status != "ACTIVE":
+                conn.execute(
+                    "UPDATE organization_workspaces SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE organization_id = ?",
+                    (organization_id,),
+                )
+
+    def delete_organization(self, organization_id: str) -> None:
+        with self.connect() as conn:
+            member_count = conn.execute(
+                "SELECT COUNT(*) AS count FROM organization_members WHERE organization_id = ?",
+                (organization_id,),
+            ).fetchone()["count"]
+            if int(member_count or 0):
+                raise ValueError("organization_not_empty")
+            deleted = conn.execute("DELETE FROM organizations WHERE id = ?", (organization_id,)).rowcount
+            if not deleted:
+                raise ValueError("unknown_organization")
 
     def create_organization_activation_event(self, organization_id: str, event_type: str, status: str, detail: dict[str, Any] | None = None) -> str:
         event_id = f"OAE-{uuid.uuid4().hex[:12].upper()}"
@@ -3251,7 +3403,7 @@ class Database:
         return {
             str(row["agent_id"])
             for row in self.list_organization_members(organization_id)
-            if row["agent_id"]
+            if row["agent_id"] and str(row["status"] or "ACTIVE").upper() == "ACTIVE"
         }
 
     def upsert_agent_runtime_state(self, agent_id: str, values: dict[str, Any]) -> None:

@@ -275,7 +275,12 @@ class ManagementService:
 
     def reactivate_agent(self, agent_id: str, actor_role: str, reason: str) -> None:
         self._require_owner(actor_role)
-        self._transition_lifecycle(agent_id, "ACTIVE")
+        row = self.database.get_agent_profile(agent_id)
+        if row is None:
+            raise ValueError(f"Unknown agent profile: {agent_id}")
+        current = str(row["lifecycle_state"])
+        if current != "ARCHIVED":
+            self._transition_lifecycle(agent_id, "ACTIVE")
         employee = self.get_employee(agent_id)
         if employee is None:
             raise ValueError(f"Unknown agent profile: {agent_id}")
@@ -286,8 +291,31 @@ class ManagementService:
 
     def archive_agent(self, agent_id: str, actor_role: str, reason: str) -> None:
         self._require_owner(actor_role)
-        self._transition_lifecycle(agent_id, "ARCHIVED")
-        self.database.set_agent_lifecycle(agent_id, "ARCHIVED", actor_role, reason)
+        row = self.database.get_agent_profile(agent_id)
+        if row is None:
+            raise ValueError(f"Unknown agent profile: {agent_id}")
+        current = str(row["lifecycle_state"])
+        if current == "ARCHIVED":
+            return
+        if current not in {"DRAFT", "DISABLED"}:
+            self.database.set_agent_lifecycle(agent_id, "DISABLED", actor_role, reason or "Archive requested")
+        self.database.set_agent_lifecycle(agent_id, "ARCHIVED", actor_role, reason or "Archive requested")
+
+    def delete_agent(self, agent_id: str, actor_role: str, confirmed: bool = False) -> None:
+        self._require_owner(actor_role)
+        if not confirmed:
+            raise ValueError("owner_confirmation_required")
+        row = self.database.get_agent_profile(agent_id)
+        if row is None:
+            raise ValueError(f"Unknown agent profile: {agent_id}")
+        lifecycle = str(row["lifecycle_state"])
+        with self.database.connect() as conn:
+            runs = int(conn.execute("SELECT COUNT(*) AS count FROM agent_runs WHERE agent_id = ?", (agent_id,)).fetchone()["count"] or 0)
+            messages = int(conn.execute("SELECT COUNT(*) AS count FROM messages WHERE role = ?", (agent_id.removeprefix("agent-"),)).fetchone()["count"] or 0)
+        if lifecycle != "DRAFT" and (runs or messages):
+            raise ValueError("agent_has_history_archive_instead")
+        self.database.delete_agent_profile(agent_id, actor=actor_role, reason="Employee permanently deleted")
+        self.config_repository.resolve(f"employees/{agent_id}/profile.json").unlink(missing_ok=True)
 
     def activate_agent(self, agent_id: str, actor_role: str, reason: str) -> None:
         self._require_owner(actor_role)

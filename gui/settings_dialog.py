@@ -69,6 +69,13 @@ class SettingsDialog(QDialog):
         language_index = self.language.findData(selected_language)
         self.language.setCurrentIndex(language_index if language_index >= 0 else 0)
 
+        self.general_response = QComboBox()
+        self.general_response.addItem("Один подходящий сотрудник", "SINGLE")
+        self.general_response.addItem("Небольшая группа", "SMALL_GROUP")
+        self.general_response.addItem("Все сотрудники", "ALL")
+        response_index = self.general_response.findData(str(settings.get("general_chat_response", "SINGLE")))
+        self.general_response.setCurrentIndex(response_index if response_index >= 0 else 0)
+
         self.allow_local_tools = QCheckBox(
             {
                 "ru": "Разрешить Codex читать и создавать файлы, а также выполнять команды",
@@ -162,6 +169,7 @@ class SettingsDialog(QDialog):
         layout.addRow(labels["workspace"], workspace_row)
         layout.addRow({"ru": "Мой аватар", "uk": "Мій аватар", "en": "My avatar"}.get(language, "Мой аватар"), avatar_row)
         layout.addRow(labels["language"], self.language)
+        layout.addRow("Ответ на общие сообщения", self.general_response)
         layout.addRow(self.allow_local_tools)
         layout.addRow(self.reduce_motion)
         layout.addRow(buttons)
@@ -194,4 +202,5 @@ class SettingsDialog(QDialog):
             "workspace_root": self.workspace.text().strip(),
             "reduce_motion": self.reduce_motion.isChecked(),
             "user_avatar_path": self.user_avatar.text().strip(),
+            "general_chat_response": self.general_response.currentData(),
         }

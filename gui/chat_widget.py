@@ -4,7 +4,7 @@ import re
 from collections import deque
 from datetime import datetime
 
-from PySide6.QtCore import QSize, Qt, QTimer, Signal
+from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -53,6 +53,7 @@ class ChatWidget(QWidget):
         self._completed_stream_widget: MessageWidget | None = None
         self._completed_stream_role = ""
         self._completed_stream_text = ""
+        self._scroll_animation: QPropertyAnimation | None = None
         self._agent_labels = {"user": "Вы", "roman": "Роман", "petr": "Петр", "system": "Система"}
         self._agent_avatars: dict[str, str] = {}
         self._agent_titles: dict[str, str] = {"user": "Владелец"}
@@ -124,9 +125,12 @@ class ChatWidget(QWidget):
         self.mode_selector.setToolTip("Режим участия сотрудников")
         self.mode_selector.addItem("Режим: Авто", "auto")
         self.mode_selector.addItem("Цель", "goal")
+        self.mode_selector.addItem("Работа", "work")
+        self.mode_selector.addItem("Общение", "social")
+        self.mode_selector.addItem("Обсуждение", "discussion")
         self.mode_selector.addItem("Только выбранный", "selected")
         self.mode_selector.addItem("Обсуждение команды", "team")
-        self.mode_selector.addItem("Проверка ОТК", "review")
+        self.mode_selector.addItem("Проверка", "review")
         self.mode_selector.addItem("Без ответа", "silent")
         toolbar.addWidget(self.recipient_selector)
         toolbar.addWidget(self.mode_selector)
@@ -192,6 +196,13 @@ class ChatWidget(QWidget):
             "review_request": mode == "review",
             "no_response": mode == "silent",
             "goal_mode": mode == "goal",
+            "conversation_mode": {
+                "work": "WORK",
+                "social": "SOCIAL",
+                "discussion": "TEAM_DISCUSSION",
+                "team": "TEAM_DISCUSSION",
+                "review": "REVIEW",
+            }.get(str(mode), ""),
         }
 
     def goal_mode_requested(self) -> bool:
@@ -540,7 +551,31 @@ class ChatWidget(QWidget):
 
     def _follow_output_if_needed(self, should_follow: bool) -> None:
         if should_follow:
-            QTimer.singleShot(0, self.messages.scrollToBottom)
+            QTimer.singleShot(0, self._animate_scroll_to_bottom)
+
+    def _animate_scroll_to_bottom(self) -> None:
+        bar = self.messages.verticalScrollBar()
+        target = bar.maximum()
+        if target <= bar.value():
+            return
+        if self._scroll_animation is not None:
+            self._scroll_animation.stop()
+            self._scroll_animation.deleteLater()
+            self._scroll_animation = None
+        animation = QPropertyAnimation(bar, b"value", self)
+        animation.setStartValue(bar.value())
+        animation.setEndValue(target)
+        distance = target - bar.value()
+        animation.setDuration(max(120, min(280, 100 + distance // 2)))
+        animation.setEasingCurve(QEasingCurve.OutCubic)
+        animation.finished.connect(lambda: self._finish_scroll_animation(animation))
+        self._scroll_animation = animation
+        animation.start()
+
+    def _finish_scroll_animation(self, animation: QPropertyAnimation) -> None:
+        if self._scroll_animation is animation:
+            self._scroll_animation = None
+        animation.deleteLater()
 
     def _on_scroll_range_changed(self, _minimum: int, _maximum: int) -> None:
         self._follow_output_if_needed(self._should_follow_output())

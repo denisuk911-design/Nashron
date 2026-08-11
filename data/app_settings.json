@@ -5,6 +5,7 @@
   "response_soft_warning_seconds": 20,
   "response_extended_warning_seconds": 90,
   "response_timeout_seconds": 0,
+  "general_chat_response": "SINGLE",
   "allow_local_tools": false,
   "workspace_root": "",
   "reduce_motion": false,

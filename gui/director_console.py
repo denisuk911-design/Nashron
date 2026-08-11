@@ -174,6 +174,7 @@ class UniversalPlatformTab(QWidget):
     def __init__(self, service: UniversalPlatformService | None, parent=None) -> None:
         super().__init__(parent)
         self.service = service
+        self.language = getattr(parent, "language", "ru")
         self.professions = QListWidget()
         self.organizations = QListWidget()
         self.templates = QListWidget()
@@ -191,15 +192,21 @@ class UniversalPlatformTab(QWidget):
         create_template = QPushButton("Создать шаблон")
         instantiate = QPushButton("Создать команду из пресета")
         seed = QPushButton("Загрузить демонстрационные шаблоны")
+        archive_organization = QPushButton("Архивировать")
+        restore_organization = QPushButton("Восстановить")
+        delete_organization = QPushButton("Удалить пустую")
         create_profession.clicked.connect(self.create_profession)
         create_organization.clicked.connect(self.create_organization)
         create_template.clicked.connect(self.create_template)
         instantiate.clicked.connect(self.instantiate_template)
         seed.clicked.connect(self.seed_fixtures)
+        archive_organization.clicked.connect(lambda: self.change_organization_status("ARCHIVED"))
+        restore_organization.clicked.connect(lambda: self.change_organization_status("ACTIVE"))
+        delete_organization.clicked.connect(self.delete_selected_organization)
         self.template_search.textChanged.connect(self.refresh)
         self.organizations.currentItemChanged.connect(self._show_organization_dashboard)
         actions = QHBoxLayout()
-        for button in (create_profession, create_organization, create_template, instantiate, seed):
+        for button in (create_profession, create_organization, create_template, instantiate, seed, archive_organization, restore_organization, delete_organization):
             actions.addWidget(button)
         columns = QHBoxLayout()
         columns.addLayout(self._column("Профессии", self.professions), 1)
@@ -270,6 +277,40 @@ class UniversalPlatformTab(QWidget):
             self.refresh()
         except Exception as exc:
             QMessageBox.warning(self, "Организация не создана", str(exc))
+
+    def _selected_organization_id(self) -> str | None:
+        item = self.organizations.currentItem()
+        if item is None:
+            return None
+        value = item.data(Qt.UserRole)
+        return str(value) if value else None
+
+    def change_organization_status(self, status: str) -> None:
+        if self.service is None:
+            return
+        organization_id = self._selected_organization_id()
+        if not organization_id:
+            return
+        try:
+            self.service.set_organization_status(organization_id, status)
+            self.refresh()
+        except Exception as exc:
+            QMessageBox.warning(self, "Статус не изменён", friendly_error(str(exc), self.language))
+
+    def delete_selected_organization(self) -> None:
+        if self.service is None:
+            return
+        organization_id = self._selected_organization_id()
+        if not organization_id:
+            return
+        reply = QMessageBox.question(self, "Удалить организацию", "Удалить только пустую организацию? История её чата будет удалена.")
+        if reply != QMessageBox.Yes:
+            return
+        try:
+            self.service.delete_organization(organization_id)
+            self.refresh()
+        except Exception as exc:
+            QMessageBox.warning(self, "Организация не удалена", friendly_error(str(exc), self.language))
 
     def _show_organization_dashboard(self, current, _previous=None) -> None:
         if self.service is None or current is None:
@@ -539,7 +580,7 @@ class EmployeesTab(QWidget):
             else:
                 widget.stateChanged.connect(self.refresh)
 
-        self.table = QTableWidget(0, 11)
+        self.table = QTableWidget(0, 8)
         self.table.setHorizontalHeaderLabels(
             [
                 tr(language, "name"),
@@ -565,12 +606,14 @@ class EmployeesTab(QWidget):
         suspend = QPushButton(tr(language, "suspend"))
         reactivate = QPushButton(tr(language, "reactivate"))
         archive = QPushButton(tr(language, "archive"))
+        delete = QPushButton("Удалить навсегда")
         add.clicked.connect(self.add_employee)
         open_button.clicked.connect(self._show_selected_detail)
         edit.clicked.connect(self.edit_employee)
         suspend.clicked.connect(lambda: self.lifecycle_action("SUSPENDED"))
         reactivate.clicked.connect(lambda: self.lifecycle_action("ACTIVE"))
         archive.clicked.connect(lambda: self.lifecycle_action("ARCHIVED"))
+        delete.clicked.connect(self.delete_selected_employee)
 
         filters = QHBoxLayout()
         filters.addWidget(self.status_filter)
@@ -580,7 +623,7 @@ class EmployeesTab(QWidget):
         filters.addStretch(1)
 
         actions = QHBoxLayout()
-        for button in (add, open_button, edit, suspend, reactivate, archive):
+        for button in (add, open_button, edit, suspend, reactivate, archive, delete):
             actions.addWidget(button)
         actions.addStretch(1)
 
@@ -665,23 +708,39 @@ class EmployeesTab(QWidget):
         agent_id = self.selected_agent_id()
         if not agent_id:
             return
-        reason, ok = QInputDialog.getText(self, "Причина", tr(self.language, "reason"))
-        if not ok or not reason.strip():
-            return
+        reason = "Действие владельца организации"
         try:
             if target_state == "SUSPENDED":
-                self.service.suspend_agent(agent_id, OWNER_ROLE, reason.strip())
+                    self.service.suspend_agent(agent_id, OWNER_ROLE, reason)
             elif target_state == "ACTIVE":
                 employee = self.service.get_employee(agent_id)
                 if employee and employee.lifecycle_state == "DRAFT":
-                    self.service.activate_agent(agent_id, OWNER_ROLE, reason.strip())
+                    self.service.activate_agent(agent_id, OWNER_ROLE, reason)
                 else:
-                    self.service.reactivate_agent(agent_id, OWNER_ROLE, reason.strip())
+                    self.service.reactivate_agent(agent_id, OWNER_ROLE, reason)
             elif target_state == "ARCHIVED":
                 reply = QMessageBox.question(self, "Архивировать", "История сохранится. Архивировать сотрудника?")
                 if reply != QMessageBox.Yes:
                     return
-                self.service.archive_agent(agent_id, OWNER_ROLE, reason.strip())
+                self.service.archive_agent(agent_id, OWNER_ROLE, reason)
+        except Exception as exc:
+            QMessageBox.warning(self, tr(self.language, "rejected"), friendly_error(str(exc), self.language))
+            return
+        self.console.refresh_all()
+
+    def delete_selected_employee(self) -> None:
+        agent_id = self.selected_agent_id()
+        if not agent_id:
+            return
+        reply = QMessageBox.question(
+            self,
+            "Удалить сотрудника навсегда",
+            "Удаление необратимо. Для сотрудника с историей используйте архив. Продолжить?",
+        )
+        if reply != QMessageBox.Yes:
+            return
+        try:
+            self.service.delete_agent(agent_id, OWNER_ROLE, confirmed=True)
         except Exception as exc:
             QMessageBox.warning(self, tr(self.language, "rejected"), friendly_error(str(exc), self.language))
             return

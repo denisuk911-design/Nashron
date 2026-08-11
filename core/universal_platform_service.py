@@ -137,10 +137,11 @@ class UniversalPlatformService:
         if not name:
             raise ValueError("organization_name_required")
         organization_id = self.database.create_organization({"name": name, "purpose": purpose.strip(), "description": description.strip(), **values})
+        organization_conversation_id = self.database.ensure_organization_conversation(organization_id, name)
         workspace_id = self.database.create_organization_workspace(
             {
                 "organization_id": organization_id,
-                "conversation_id": self.conversation_id,
+                "conversation_id": organization_conversation_id,
                 "workspace_path": str(self.workspace_root or ""),
                 "routing_config": {},
                 "status": "READY_EMPTY",
@@ -152,6 +153,23 @@ class UniversalPlatformService:
 
     def list_organizations(self) -> list[Organization]:
         return [self._organization(row) for row in self.database.list_organizations()]
+
+    def set_organization_status(self, organization_id: str, status: str) -> Organization:
+        status = str(status).upper().strip()
+        self.database.set_organization_status(organization_id, status)
+        if status == "ACTIVE":
+            self.database.set_active_organization(organization_id)
+        row = next(row for row in self.database.list_organizations() if str(row["id"]) == organization_id)
+        return self._organization(row)
+
+    def archive_organization(self, organization_id: str) -> Organization:
+        return self.set_organization_status(organization_id, "ARCHIVED")
+
+    def restore_organization(self, organization_id: str) -> Organization:
+        return self.set_organization_status(organization_id, "ACTIVE")
+
+    def delete_organization(self, organization_id: str) -> None:
+        self.database.delete_organization(organization_id)
 
     def list_management_models(self) -> list[ManagementModel]:
         return [self._management_model(row) for row in self.database.list_management_models()]
@@ -245,6 +263,7 @@ class UniversalPlatformService:
                 "responsibility_model_id": row["responsibility_model_id"],
             }
         )
+        organization_conversation_id = self.database.ensure_organization_conversation(organization_id, organization_name.strip())
         self.database.create_organization_activation_event(organization_id, "ACTIVATION_REQUESTED", "STARTED", {"template_id": template_id, "name": organization_name})
         roles = self._json_list(row["roles"])
         roles = [role for role in roles if isinstance(role, dict) and self._role_in_variant(role, team_size)]
@@ -305,7 +324,7 @@ class UniversalPlatformService:
         workspace_id = self.database.create_organization_workspace(
             {
                 "organization_id": organization_id,
-                "conversation_id": self.conversation_id,
+                "conversation_id": organization_conversation_id,
                 "workspace_path": workspace_path or str(self.workspace_root or ""),
                 "routing_config": {"template_id": template_id, "workflow_id": row["workflow_id"], "team_size": team_size},
                 "status": "READY_WITH_UNASSIGNED" if missing_providers else "READY",

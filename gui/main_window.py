@@ -7,6 +7,7 @@ from pathlib import Path
 from PySide6.QtCore import QPropertyAnimation, QSettings, QTimer, Qt
 from PySide6.QtWidgets import (
     QFileDialog,
+    QComboBox,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -32,6 +33,7 @@ from core.codex_client import CodexClient
 from core.build_info import build_label
 from core.claim_evidence import ClaimEvidenceValidator
 from core.config_repository import ConfigurationRepository
+from core.conversation_mode import ConversationMode, infer_mode
 from core.conversation_thread_service import ConversationThreadService
 from core.database import Database
 from core.gemini_client import GeminiClient
@@ -80,6 +82,7 @@ from core.work_context_service import (
 from gui.chat_widget import ChatWidget
 from gui.director_console import DirectorConsoleDialog
 from gui.login_dialog import show_install_instructions
+from gui.localization import role_label
 from gui.settings_dialog import SettingsDialog
 from gui.theme import ThemeManager
 from gui.worker import GenerateWorker
@@ -92,6 +95,7 @@ class MainWindow(QMainWindow):
         self.startup_history: list[str] = ["APP_START"]
         self.conversation_id: int | None = None
         self.active_organization_id: str | None = None
+        self.conversation_mode = ConversationMode.SOCIAL
         self.current_thread_id: str | None = None
         self.current_task_id: str | None = None
         self.setWindowTitle("Отдел важных дел")
@@ -110,14 +114,35 @@ class MainWindow(QMainWindow):
         self.management_service = ManagementService(self.database, self.management_repository)
         self.management_service.ensure_foundations()
         self._set_startup_state("MANAGEMENT_READY")
-        self.conversation_id = self.database.ensure_single_conversation()
+        self.database.ensure_organization_conversations()
+        self.active_organization_id = self.database.get_active_organization_id()
+        if self.active_organization_id is None:
+            first_active = next(
+                (row for row in self.database.list_organizations() if str(row["status"]).upper() == "ACTIVE"),
+                None,
+            )
+            if first_active is not None:
+                self.database.set_active_organization(str(first_active["id"]))
+                self.active_organization_id = str(first_active["id"])
+        if self.active_organization_id:
+            organization = next(
+                (row for row in self.database.list_organizations() if str(row["id"]) == self.active_organization_id),
+                None,
+            )
+            title = str(organization["name"]) if organization is not None else "Командный чат"
+            self.conversation_id = self.database.ensure_organization_conversation(self.active_organization_id, title)
+        else:
+            self.conversation_id = (
+                self.database.ensure_general_conversation()
+                if self.database.list_organizations()
+                else self.database.ensure_single_conversation()
+            )
         if self.conversation_id is None:
             raise RuntimeError("Не удалось разрешить рабочий разговор при запуске")
         self._set_startup_state("CONVERSATION_RESOLVED")
-        self.active_organization_id = self.database.get_active_organization_id()
         self._set_startup_state("ORGANIZATION_RESOLVED")
         self.agent_router = AgentRouter(self.database)
-        self.team_router = TeamRouter()
+        self.team_router = TeamRouter(str(self.settings.get("general_chat_response", "SINGLE")))
         self.task_state_service = TaskStateService(self.database)
         self.task_orchestrator = TaskOrchestrator(self.database, self.task_state_service, self.agent_router)
         self.task_orchestrator.ensure_project()
@@ -174,6 +199,8 @@ class MainWindow(QMainWindow):
         self.product_metrics_service = ProductMetricsService(self.database, self.skill_progress_service)
         self.thread_service = ConversationThreadService(self.database, self.conversation_id)
         self.current_thread_id = self.thread_service.thread_id
+        self.last_addressed_agent_keys = self.thread_service.owner_keys()
+        self.last_routing_decision = None
         self.thread_question_service = ThreadQuestionService(self.database, self.conversation_id)
         self.work_context_service = WorkContextService(self.database, self.conversation_id, self.thread_service.thread_id)
         self.intent_resolver = IntentResolver()
@@ -261,6 +288,12 @@ class MainWindow(QMainWindow):
         brand_column.addWidget(brand)
         brand_column.addWidget(subtitle)
         top_layout.addLayout(brand_column)
+        self.organization_selector = QComboBox()
+        self.organization_selector.setObjectName("organizationSelector")
+        self.organization_selector.setMinimumWidth(170)
+        self.organization_selector.setToolTip("Выберите рабочую команду и её чат")
+        self.organization_selector.currentIndexChanged.connect(self._switch_organization)
+        top_layout.addWidget(self.organization_selector)
         self.codex_status_label = QLabel("Codex: проверка")
         self.codex_status_label.setObjectName("statusPill")
         self.gemini_status_label = QLabel("Gemini: проверка")
@@ -506,6 +539,7 @@ class MainWindow(QMainWindow):
         self.database.log_event("gemini_status", f"{self.gemini_version}; key={self.gemini_client.has_api_key()}")
 
     def load_conversation(self) -> None:
+        self._refresh_organization_selector()
         self._refresh_chat_agents()
         self.chat.clear_messages()
         history_limit = max(1, int(self.settings.get("history_message_limit", 20)))
@@ -514,8 +548,67 @@ class MainWindow(QMainWindow):
                 self.chat.add_message(message.role, self._display_text_from_raw_response(message.content), message.id, message.created_at[11:16])
 
     def _chat_agents(self) -> list[ChatAgent]:
-        active_organization_id = self.database.get_active_organization_id()
+        active_organization_id = self.active_organization_id
+        if active_organization_id:
+            organization = next(
+                (row for row in self.database.list_organizations() if str(row["id"]) == active_organization_id),
+                None,
+            )
+            if organization is None or str(organization["status"]).upper() != "ACTIVE":
+                return []
         return list_chat_agents(self.database, organization_id=active_organization_id)
+
+    def _refresh_organization_selector(self) -> None:
+        selector = getattr(self, "organization_selector", None)
+        if selector is None:
+            return
+        organizations = [row for row in self.database.list_organizations() if str(row["status"]).upper() != "ARCHIVED"]
+        selector.blockSignals(True)
+        selector.clear()
+        if not organizations:
+            selector.addItem("Общий чат", None)
+        else:
+            for row in organizations:
+                selector.addItem(str(row["name"]), str(row["id"]))
+        index = selector.findData(self.active_organization_id)
+        selector.setCurrentIndex(index if index >= 0 else 0)
+        selector.blockSignals(False)
+
+    def _switch_organization(self, index: int) -> None:
+        selector = getattr(self, "organization_selector", None)
+        if selector is None:
+            return
+        organization_id = selector.itemData(index)
+        if not organization_id or str(organization_id) == self.active_organization_id:
+            return
+        if self.worker is not None:
+            self._refresh_organization_selector()
+            QMessageBox.information(self, "Команда занята", "Дождитесь завершения текущего ответа перед сменой команды.")
+            return
+        organization_id = str(organization_id)
+        organization = next(
+            (row for row in self.database.list_organizations() if str(row["id"]) == organization_id),
+            None,
+        )
+        if organization is None or str(organization["status"]).upper() != "ACTIVE":
+            return
+        self.database.set_active_organization(organization_id)
+        self.active_organization_id = organization_id
+        self.conversation_id = self.database.ensure_organization_conversation(organization_id, str(organization["name"]))
+        self.universal_platform_service.conversation_id = self.conversation_id
+        self.thread_service = ConversationThreadService(self.database, self.conversation_id)
+        self.current_thread_id = self.thread_service.thread_id
+        self.thread_question_service = ThreadQuestionService(self.database, self.conversation_id)
+        self.work_context_service = WorkContextService(self.database, self.conversation_id, self.current_thread_id)
+        self.conversation_mode = ConversationMode.SOCIAL
+        self.current_task_id = None
+        self.current_work_intent = UserIntent(IntentType.UNKNOWN, IntentType.UNKNOWN.value)
+        self.current_work_reference = None
+        self.current_execution_contract = None
+        self.task_orchestrator.current_task_id = None
+        self.chat.set_goal_status(False)
+        self.load_conversation()
+        self._refresh_work_context_strip()
 
     def _refresh_chat_agents(self) -> None:
         agents = self._chat_agents()
@@ -525,7 +618,7 @@ class MainWindow(QMainWindow):
         if user_avatar:
             avatars["user"] = user_avatar
         titles = {
-            agent.key: ROLE_NAMES.get(agent.primary_role, agent.primary_role.replace("_", " ").title())
+            agent.key: role_label(str(self.settings.get("language") or "ru"), agent.primary_role)
             for agent in agents
         }
         if hasattr(self, "chat"):
@@ -576,6 +669,18 @@ class MainWindow(QMainWindow):
         self.database.log_event("file_imported", str(copied.relative_to(self.workspace_service.root)))
         self.chat.input.insertPlainText(f"[Файл скопирован в рабочую папку: {copied.name}] ")
 
+    def _update_conversation_mode(self, text: str) -> None:
+        options = self.chat.routing_options()
+        requested = str(options.get("conversation_mode") or "").upper()
+        if requested:
+            try:
+                self.conversation_mode = ConversationMode(requested)
+            except ValueError:
+                self.conversation_mode = infer_mode(text, self.conversation_mode)
+        else:
+            self.conversation_mode = infer_mode(text, self.conversation_mode)
+        self._refresh_work_context_strip()
+
     def send_message(self, text: str) -> None:
         self._clear_dead_worker()
         if self.worker is not None:
@@ -593,7 +698,11 @@ class MainWindow(QMainWindow):
             return
         if not self._identity_is_ready():
             return
+        self._update_conversation_mode(text)
         autonomy = self._autonomy_from_text(text)
+        if autonomy.enabled:
+            self.conversation_mode = ConversationMode.WORK
+            self._refresh_work_context_strip()
         agent_keys = self._route_agents(text, self._manual_routing())
         self.database.log_event("chat_route_selected", ",".join(agent_keys))
         if not agent_keys:
@@ -622,7 +731,11 @@ class MainWindow(QMainWindow):
         self._clear_dead_worker()
         if not self._identity_is_ready():
             return
+        self._update_conversation_mode(text)
         autonomy = self._autonomy_from_text(text)
+        if autonomy.enabled:
+            self.conversation_mode = ConversationMode.WORK
+            self._refresh_work_context_strip()
         agent_keys = self._route_agents(text, self._manual_routing())
         self.database.log_event("chat_route_selected", ",".join(agent_keys))
         if not agent_keys:
@@ -657,13 +770,15 @@ class MainWindow(QMainWindow):
 
     def _prepare_generation_state(self, text: str, message_id: int | None, agent_keys: list[str], autonomy) -> bool:
         try:
-            context = self.work_context_service.get() if hasattr(self, "work_context_service") else None
-            if context is not None and context.task_id:
-                self.task_orchestrator.current_task_id = context.task_id
-            else:
-                task_id = self.task_orchestrator.start_user_task(text, message_id)
-                if hasattr(self, "work_context_service"):
-                    self.work_context_service.bind_task(task_id, text[:160])
+            if self.conversation_mode == ConversationMode.WORK:
+                context = self.work_context_service.get() if hasattr(self, "work_context_service") else None
+                if context is not None and context.task_id:
+                    self.task_orchestrator.current_task_id = context.task_id
+                else:
+                    task_id = self.task_orchestrator.start_user_task(text, message_id)
+                    self.current_task_id = task_id
+                    if hasattr(self, "work_context_service"):
+                        self.work_context_service.bind_task(task_id, text[:160])
         except Exception as exc:
             self._report_generation_start_failure(exc)
             return False
@@ -688,7 +803,7 @@ class MainWindow(QMainWindow):
         return True
 
     def _prepare_work_context(self, text: str, message_id: int | None, agent_keys: list[str]) -> bool:
-        if not hasattr(self, "work_context_service"):
+        if self.conversation_mode != ConversationMode.WORK or not hasattr(self, "work_context_service"):
             return True
         names: dict[str, list[str]] = {}
         for agent in self._chat_agents():
@@ -723,10 +838,16 @@ class MainWindow(QMainWindow):
         service = getattr(self, "work_context_service", None)
         if label is None or service is None:
             return
+        if self.conversation_mode != ConversationMode.WORK:
+            label.clear()
+            label.setVisible(False)
+            return
         context = service.get()
         if context is None:
+            label.setVisible(False)
             label.setText("Текущая задача: нет активной задачи")
             return
+        label.setVisible(True)
         owner = context.current_owner_agent_id or "не назначен"
         artifact = context.primary_artifact_id or "не выбран"
         label.setText(
@@ -1288,6 +1409,8 @@ class MainWindow(QMainWindow):
             thread_context_lines=self.thread_service.prompt_lines(),
             active_work_context_lines=context.to_lines() if context is not None else [],
             execution_contract_lines=contract.to_lines() if contract is not None else [],
+            organization_id=getattr(self, "active_organization_id", None),
+            conversation_mode=getattr(self, "conversation_mode", ConversationMode.SOCIAL).value,
         )
         self.worker.delta_received.connect(self.chat.append_roman_delta)
         self.worker.status_received.connect(self.chat.set_activity_status)
@@ -1784,7 +1907,25 @@ class MainWindow(QMainWindow):
         )
         dialog.exec()
         self.provider_provisioning_service.ensure_assignments_for_existing_agents()
-        self._refresh_chat_agents()
+        active_organization_id = self.database.get_active_organization_id()
+        if active_organization_id != self.active_organization_id and active_organization_id:
+            index = self.organization_selector.findData(active_organization_id)
+            if index >= 0:
+                self.organization_selector.setCurrentIndex(index)
+        elif active_organization_id is None and self.active_organization_id:
+            self.active_organization_id = None
+            self.conversation_id = self.database.ensure_general_conversation()
+            self.universal_platform_service.conversation_id = self.conversation_id
+            self.thread_service = ConversationThreadService(self.database, self.conversation_id)
+            self.current_thread_id = self.thread_service.thread_id
+            self.thread_question_service = ThreadQuestionService(self.database, self.conversation_id)
+            self.work_context_service = WorkContextService(self.database, self.conversation_id, self.current_thread_id)
+            self.conversation_mode = ConversationMode.SOCIAL
+            self.load_conversation()
+            self._refresh_work_context_strip()
+        else:
+            self._refresh_organization_selector()
+            self._refresh_chat_agents()
 
     def logout(self) -> None:
         status = self.auth_service.logout()
@@ -1799,6 +1940,7 @@ class MainWindow(QMainWindow):
         values = dialog.values()
         self.settings.update(values)
         self.settings_service.save(self.settings)
+        self.team_router.general_chat_response = str(self.settings.get("general_chat_response", "SINGLE")).upper()
         self.codex_client.timeout_seconds = int(self.settings.get("codex_timeout_seconds", 180))
         self.gemini_client.timeout_seconds = int(self.settings.get("codex_timeout_seconds", 180))
         new_workspace = str(self.settings.get("workspace_root", ""))
