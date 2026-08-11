@@ -29,6 +29,7 @@ from core.artifact_service import ArtifactService
 from core.auth_service import AuthService
 from core.autonomy import AutonomyRequest, detect_peer_handoff, has_handoff_intent, is_stop_command, parse_autonomy_request
 from core.codex_client import CodexClient
+from core.build_info import build_label
 from core.claim_evidence import ClaimEvidenceValidator
 from core.config_repository import ConfigurationRepository
 from core.conversation_thread_service import ConversationThreadService
@@ -87,6 +88,11 @@ from gui.worker import GenerateWorker
 class MainWindow(QMainWindow):
     def __init__(self, settings_service: SettingsService, logger: logging.Logger) -> None:
         super().__init__()
+        self.startup_state = "APP_START"
+        self.conversation_id: int | None = None
+        self.active_organization_id: str | None = None
+        self.current_thread_id: str | None = None
+        self.current_task_id: str | None = None
         self.setWindowTitle("Отдел важных дел")
         self.setMinimumSize(760, 560)
         self.resize(1280, 800)
@@ -94,9 +100,17 @@ class MainWindow(QMainWindow):
         self.paths = settings_service.paths
         self.logger = logger
         self.settings = settings_service.load()
+        self._set_startup_state("SETTINGS_READY")
 
         self.database = Database(self.paths.database_path)
         self.database.initialize()
+        self._set_startup_state("DATABASE_READY")
+        self.conversation_id = self.database.ensure_single_conversation()
+        if self.conversation_id is None:
+            raise RuntimeError("Не удалось разрешить рабочий разговор при запуске")
+        self._set_startup_state("CONVERSATION_RESOLVED")
+        self.active_organization_id = self.database.get_active_organization_id()
+        self._set_startup_state("ORGANIZATION_RESOLVED")
         self.agent_router = AgentRouter(self.database)
         self.team_router = TeamRouter()
         self.task_state_service = TaskStateService(self.database)
@@ -156,7 +170,6 @@ class MainWindow(QMainWindow):
         self.auth_service = AuthService(self.codex_client)
         self.skill_progress_service = SkillProgressService(self.database, self.skill_service, self.workspace_service.root)
         self.product_metrics_service = ProductMetricsService(self.database, self.skill_progress_service)
-        self.conversation_id = self.database.ensure_single_conversation()
         self.thread_service = ConversationThreadService(self.database, self.conversation_id)
         self.thread_question_service = ThreadQuestionService(self.database, self.conversation_id)
         self.work_context_service = WorkContextService(self.database, self.conversation_id, self.thread_service.thread_id)
@@ -193,6 +206,7 @@ class MainWindow(QMainWindow):
         self.codex_authorized = False
         self.codex_version = "неизвестно"
         self.gemini_version = "неизвестно"
+        self._set_startup_state("CHAT_SERVICES_READY")
         self.latency_soft_timer = QTimer(self)
         self.latency_soft_timer.setSingleShot(True)
         self.latency_soft_timer.timeout.connect(lambda: self._show_response_latency_warning("soft"))
@@ -210,6 +224,13 @@ class MainWindow(QMainWindow):
         self.load_conversation()
         self._refresh_work_context_strip()
         self._update_workspace_status()
+        self._set_startup_state("MAINWINDOW_READY")
+        self._set_startup_state("USER_INTERACTIVE")
+
+    def _set_startup_state(self, state: str) -> None:
+        self.startup_state = state
+        if hasattr(self, "logger"):
+            self.logger.info("startup_state=%s conversation_id=%s", state, self.conversation_id)
 
     def _build_ui(self) -> None:
         root = QWidget()
@@ -285,7 +306,7 @@ class MainWindow(QMainWindow):
         self.workspace_status_label = QLabel()
         self.workspace_status_label.setObjectName("tiny")
         footer_layout.addWidget(self.workspace_status_label, 1)
-        footer_layout.addWidget(QLabel("v2.3.0"))
+        footer_layout.addWidget(QLabel(build_label()))
         outer.addWidget(footer)
         self.setCentralWidget(root)
 
@@ -437,7 +458,20 @@ class MainWindow(QMainWindow):
         except IdentityError as exc:
             self.identity_ok = False
             QMessageBox.critical(self, "Ошибка личности", str(exc))
-        self.refresh_codex_status()
+        # Provider version/authentication commands may wait on a CLI process.
+        # They must not block construction of the interactive MainWindow.
+        self._set_fast_provider_status()
+
+    def _set_fast_provider_status(self) -> None:
+        codex_available = self.codex_client.is_available()
+        gemini_available = self.gemini_client.is_available() and self.gemini_client.has_api_key()
+        self.codex_status_label.setText("Codex: доступен" if codex_available else "Codex: нет")
+        self.gemini_status_label.setText("Gemini: доступен" if gemini_available else "Gemini: нет")
+        self.auth_button.setText("Проверить вход" if codex_available else "Codex не найден")
+        self.database.log_event(
+            "provider_fast_status",
+            f"codex_available={codex_available}; gemini_available={gemini_available}",
+        )
 
     def refresh_codex_status(self) -> None:
         if not self.codex_client.is_available():
@@ -469,7 +503,8 @@ class MainWindow(QMainWindow):
     def load_conversation(self) -> None:
         self._refresh_chat_agents()
         self.chat.clear_messages()
-        for message in self.database.list_messages(self.conversation_id):
+        history_limit = max(1, int(self.settings.get("history_message_limit", 20)))
+        for message in self.database.list_messages(self.conversation_id, limit=history_limit):
             if message.role != "system":
                 self.chat.add_message(message.role, self._display_text_from_raw_response(message.content), message.id, message.created_at[11:16])
 
@@ -1821,7 +1856,8 @@ class MainWindow(QMainWindow):
             "Роман Неслышев работает через Codex CLI.\n"
             "Петр Перров работает через Gemini CLI.\n"
             "Пишите 'Роман, ...' или 'Петр, ...', чтобы назначить задачу.\n"
-            "Если исполнитель не указан, отвечают оба и кратко распределяют работу.",
+            "Если исполнитель не указан, отвечают оба и кратко распределяют работу.\n\n"
+            f"Сборка: {build_label()}",
         )
 
     def apply_theme(self) -> None:

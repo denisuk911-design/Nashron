@@ -5,7 +5,7 @@ a = Analysis(
     ['app.py'],
     pathex=[],
     binaries=[('vendor\\codex\\win-x64\\codex.exe', 'vendor\\codex\\win-x64')],
-    datas=[('prompts\\roman_system.md', 'prompts'), ('data\\roman_identity.json', 'data'), ('data\\roman_timeline.json', 'data'), ('data\\agent_skills.json', 'data'), ('data\\app_settings.json', 'data'), ('data\\avatars', 'data\\avatars')],
+    datas=[('prompts\\roman_system.md', 'prompts'), ('data\\roman_identity.json', 'data'), ('data\\roman_timeline.json', 'data'), ('data\\agent_skills.json', 'data'), ('data\\app_settings.json', 'data'), ('data\\avatars', 'data\\avatars'), ('build\\build_info.json', 'data')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
