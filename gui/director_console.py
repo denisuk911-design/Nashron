@@ -447,11 +447,11 @@ class OrganizationActivationWizard(QWizard):
         self.addPage(roster)
 
         workflow = QWizardPage()
-        workflow.setTitle("Шаг 3. Workflow и структура")
+        workflow.setTitle("Шаг 3. Порядок работы и структура")
         workflow_layout = QVBoxLayout(workflow)
         structure = [f"Пресет: {template.name}", f"Категория: {template.catalog_category}", f"Размер: {template.recommended_team_size}", "", "Состав:"]
         structure.extend(f"  {index}. {role.get('position') or role.get('role')}" for index, role in enumerate(template.roles, start=1))
-        structure.extend(["", "Workflow: роли выполняются по шагам, результат передаётся следующему ответственному."])
+        structure.extend(["", "Порядок работы: роли выполняются по шагам, результат передаётся следующему ответственному."])
         workflow_layout.addWidget(QLabel("\n".join(structure)))
         workflow_layout.addStretch(1)
         self.addPage(workflow)
@@ -817,7 +817,7 @@ class SkillProgressTab(QWidget):
         buttons.addWidget(evidence_button)
         buttons.addStretch(1)
         layout.addLayout(buttons)
-        layout.addWidget(QLabel("Evidence-прогресс сотрудников"))
+        layout.addWidget(QLabel("Прогресс навыков по подтвержденным результатам"))
         layout.addWidget(self.table, 2)
         layout.addWidget(QLabel("Доказательства и основание расчета"))
         layout.addWidget(self.detail, 1)
@@ -1613,7 +1613,7 @@ class FindingsTab(QWidget):
         reject.clicked.connect(lambda: self._set_selected_status("REJECTED"))
 
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel("Findings фиксируют реальные QA-замечания. HIGH/CRITICAL открытые findings блокируют завершение задачи."))
+        layout.addWidget(QLabel("Замечания ОТК фиксируют реальные проблемы. Критические открытые замечания блокируют завершение задачи."))
         layout.addWidget(self.table, 2)
         buttons = QHBoxLayout()
         for button in (refresh, create, rework, recheck, resolved, accepted, reject):
@@ -1666,7 +1666,7 @@ class FindingsTab(QWidget):
                     "Требуемое действие:",
                     finding.required_action or "не указано",
                     "",
-                    "Evidence:",
+                    "Подтверждение:",
                     finding.evidence or "{}",
                     "",
                     "Решение:",
@@ -1681,12 +1681,12 @@ class FindingsTab(QWidget):
         if findings:
             self.table.selectRow(0)
         else:
-            self.detail.setPlainText("Findings пока нет.")
+            self.detail.setPlainText("Замечаний пока нет.")
 
     def _selected_finding_id(self) -> str | None:
         items = self.table.selectedItems()
         if not items:
-            QMessageBox.information(self, "Findings", "Выберите finding.")
+            QMessageBox.information(self, "Замечания ОТК", "Выберите замечание.")
             return None
         return str(items[0].data(Qt.UserRole) or "")
 
@@ -1707,7 +1707,7 @@ class FindingsTab(QWidget):
             return
         tasks = self.service.database.list_tasks()
         if not tasks:
-            QMessageBox.information(self, "Findings", "Сначала нужна хотя бы одна задача.")
+            QMessageBox.information(self, "Замечания ОТК", "Сначала нужна хотя бы одна задача.")
             return
         dialog = FindingDialog(tasks, self)
         if dialog.exec() != QDialog.Accepted:
@@ -1772,13 +1772,13 @@ class FindingDialog(QDialog):
         layout.addRow("Задача", self.task)
         layout.addRow("Серьезность", self.severity)
         layout.addRow("Уверенность", self.confidence)
-        layout.addRow("Standard ID", self.standard_id)
+        layout.addRow("Идентификатор стандарта", self.standard_id)
         layout.addRow("Артефакт", self.artifact)
         layout.addRow("Локация", self.location)
         layout.addRow("Описание", self.description)
         layout.addRow("Влияние", self.impact)
         layout.addRow("Требуемое действие", self.required_action)
-        layout.addRow("Evidence", self.evidence)
+        layout.addRow("Подтверждение", self.evidence)
         layout.addRow(buttons)
 
     def values(self) -> dict[str, object]:
