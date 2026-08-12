@@ -3,6 +3,7 @@ from core.database import Database
 from core.management_service import ManagementService
 from core.agent_directory import list_chat_agents
 from core.universal_platform_service import UniversalPlatformService
+from gui.localization import catalog_label, catalog_purpose
 
 
 def test_template_activation_creates_workspace_members_and_employees(tmp_path):
@@ -40,4 +41,18 @@ def test_management_library_is_data_driven_and_domain_neutral(tmp_path):
     templates = {item.name for item in service.list_templates()}
     assert {"FUNCTIONAL", "PROJECTIZED", "MATRIX", "FLAT", "CROSS_FUNCTIONAL"} <= models
     assert {"SOFTWARE_PRODUCT_TEAM", "CULINARY_PRODUCT_TEAM", "DOCUMENT_PRODUCTION_TEAM"} <= templates
-    assert len(templates) >= 21
+    assert len(templates) >= 50
+    assert {
+        "PCB_ENGINEERING_TEAM",
+        "CYBER_INCIDENT_RESPONSE_TEAM",
+        "HACCP_FOOD_SAFETY_TEAM",
+        "TRANSLATION_LOCALIZATION_TEAM",
+        "SKILL_QUALIFICATION_TEAM",
+    } <= templates
+    assert database.list_organizations() == []
+    assert database.list_agent_profiles() == []
+    for template_name in templates:
+        assert "_" not in catalog_label("ru", template_name)
+        assert "_" not in catalog_label("uk", template_name)
+        assert catalog_purpose("ru", template_name, "English fallback") != "English fallback"
+        assert catalog_purpose("uk", template_name, "English fallback") != "English fallback"

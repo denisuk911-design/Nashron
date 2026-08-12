@@ -487,6 +487,80 @@ class UniversalPlatformService:
                 ("KANBAN_PRODUCT_TEAM", "Existing team with a Kanban flow overlay.", "CROSS_FUNCTIONAL", "RESP-KANBAN", "Development", "STANDARD", "KANBAN_PRODUCT_WORKFLOW", common_roles, [{"responsibility": "Project Manager", "operation": "PULL", "expected_outputs": ["ready item"]}, {"responsibility": "Developer", "operation": "IN_PROGRESS", "expected_outputs": ["artifact"]}, {"responsibility": "Reviewer", "operation": "REVIEW", "expected_outputs": ["decision"]}], "Kanban is a workflow overlay, not a hierarchy.", ["WIP limits must be configured for the project."]),
             ]
         )
+        presets.extend(self._extended_preset_catalog())
+        return presets
+
+    @staticmethod
+    def _extended_preset_catalog() -> list[dict[str, Any]]:
+        nasa_source = "Adapted from NASA Systems Engineering Handbook, Rev. 2: https://www.nasa.gov/reference/systems-engineering-handbook/"
+        nist_source = "Adapted from NIST SP 800-61 Rev. 3 incident-response guidance: https://csrc.nist.gov/projects/incident-response"
+        fda_source = "Adapted from FDA HACCP Principles and Application Guidelines: https://www.fda.gov/food/hazard-analysis-critical-control-point-haccp/haccp-principles-application-guidelines"
+        internal_source = "Configurable Team2050 operating pattern; not an industry standard or certification."
+        specifications = [
+            ("PCB_ENGINEERING_TEAM", "PCB design, independent review and release evidence.", "Engineering", "PCB", "PCB Lead", "PCB Designer", "PCB Reviewer", "DESIGN", "board package", nasa_source),
+            ("EMBEDDED_SYSTEMS_TEAM", "Embedded hardware and firmware integration with verification.", "Engineering", "EMBEDDED", "Systems Lead", "Embedded Engineer", "Integration Reviewer", "INTEGRATE", "integrated prototype", nasa_source),
+            ("HARDWARE_VALIDATION_TEAM", "Plan and execute reproducible hardware validation.", "Engineering", "HARDWARE", "Validation Lead", "Test Engineer", "Evidence Reviewer", "VERIFY", "validation evidence", nasa_source),
+            ("SYSTEMS_ENGINEERING_TEAM", "Requirements, architecture, interfaces and verification planning.", "Engineering", "SYSTEMS", "Systems Engineer", "Architecture Engineer", "Verification Lead", "ARCHITECT", "system baseline", nasa_source),
+            ("REQUIREMENTS_REVIEW_TEAM", "Create traceable requirements and review their quality.", "Engineering", "SYSTEMS", "Requirements Lead", "Requirements Engineer", "Independent Reviewer", "SPECIFY", "requirements baseline", nasa_source),
+            ("MANUFACTURING_READINESS_TEAM", "Review design outputs for production readiness and controlled handoff.", "Engineering", "MANUFACTURING", "Manufacturing Lead", "Process Engineer", "Quality Reviewer", "PREPARE", "manufacturing package", nasa_source),
+            ("QUALITY_CORRECTIVE_ACTION_TEAM", "Investigate a quality issue and verify corrective action evidence.", "Quality", "QUALITY", "Quality Lead", "Corrective Action Owner", "Effectiveness Reviewer", "CORRECT", "corrective action record", internal_source),
+            ("CYBER_INCIDENT_RESPONSE_TEAM", "Coordinate detection, response, recovery and lessons learned.", "Security", "CYBERSECURITY", "Incident Coordinator", "Incident Responder", "Evidence Reviewer", "RESPOND", "incident record", nist_source),
+            ("SECURITY_ASSESSMENT_TEAM", "Assess security controls and document evidence-backed findings.", "Security", "CYBERSECURITY", "Assessment Lead", "Security Assessor", "Finding Reviewer", "ASSESS", "assessment report", nist_source),
+            ("VULNERABILITY_MANAGEMENT_TEAM", "Triage, remediate and verify vulnerability findings.", "Security", "CYBERSECURITY", "Vulnerability Lead", "Remediation Engineer", "Verification Analyst", "REMEDIATE", "verified remediation", nist_source),
+            ("DATA_ANALYTICS_TEAM", "Turn a defined question into reviewed analysis and reproducible outputs.", "Data", "DATA", "Analytics Lead", "Data Analyst", "Method Reviewer", "ANALYZE", "analysis package", internal_source),
+            ("DATA_QUALITY_TEAM", "Profile datasets, resolve quality findings and record checks.", "Data", "DATA", "Data Quality Lead", "Data Steward", "Quality Reviewer", "CLEAN", "quality report", internal_source),
+            ("KNOWLEDGE_BASE_TEAM", "Curate sourced knowledge cards with review and lifecycle control.", "Knowledge", "KNOWLEDGE", "Knowledge Lead", "Knowledge Curator", "Source Reviewer", "CURATE", "knowledge release", internal_source),
+            ("DOCUMENT_MIGRATION_TEAM", "Inventory, transform and verify controlled document migrations.", "Documents", "DOCUMENTS", "Migration Lead", "Document Specialist", "Migration Reviewer", "MIGRATE", "migration package", internal_source),
+            ("TECHNICAL_WRITING_TEAM", "Produce concise technical documentation with factual and editorial review.", "Documents", "DOCUMENTS", "Documentation Lead", "Technical Writer", "Technical Reviewer", "AUTHOR", "published document", internal_source),
+            ("TRANSLATION_LOCALIZATION_TEAM", "Translate and review terminology, meaning and interface fit.", "Documents", "LOCALIZATION", "Localization Lead", "Translator", "Language Reviewer", "LOCALIZE", "localized release", internal_source),
+            ("CUSTOMER_SUPPORT_TEAM", "Triage user requests, resolve supported cases and escalate evidence.", "Service", "SUPPORT", "Support Lead", "Support Specialist", "Resolution Reviewer", "RESOLVE", "case resolution", internal_source),
+            ("SERVICE_OPERATIONS_TEAM", "Operate a service through work orders, checks and incident escalation.", "Operations", "OPERATIONS", "Service Lead", "Operations Specialist", "Service Reviewer", "OPERATE", "service record", internal_source),
+            ("PROCUREMENT_REVIEW_TEAM", "Compare requirements, supplier evidence and procurement risks.", "Business", "PROCUREMENT", "Procurement Lead", "Sourcing Specialist", "Compliance Reviewer", "EVALUATE", "procurement recommendation", internal_source),
+            ("SUPPLIER_QUALITY_TEAM", "Review supplier deliverables and track evidence-backed findings.", "Quality", "SUPPLIER_QUALITY", "Supplier Quality Lead", "Supplier Specialist", "Quality Reviewer", "INSPECT", "supplier quality record", internal_source),
+            ("HACCP_FOOD_SAFETY_TEAM", "Analyze food hazards, controls, verification and records.", "Culinary", "FOOD_SAFETY", "HACCP Coordinator", "Food Safety Specialist", "Verification Specialist", "CONTROL", "HACCP record", fda_source),
+            ("MENU_DEVELOPMENT_TEAM", "Develop a menu with recipe, sourcing and safety review.", "Culinary", "CULINARY", "Menu Lead", "Recipe Developer", "Recipe Reviewer", "DEVELOP", "menu package", fda_source),
+            ("CONTENT_PRODUCTION_TEAM", "Plan, create, edit and release content through explicit review.", "Creative", "CONTENT", "Content Lead", "Content Creator", "Editor", "CREATE", "content release", internal_source),
+            ("FACT_CHECKING_TEAM", "Research claims and publish a traceable fact-check decision.", "Research", "RESEARCH", "Fact-check Lead", "Source Researcher", "Critical Reviewer", "VERIFY", "fact-check record", internal_source),
+            ("RESEARCH_SYNTHESIS_TEAM", "Collect sources, compare evidence and produce reviewed synthesis.", "Research", "RESEARCH", "Research Lead", "Research Analyst", "Critical Reviewer", "SYNTHESIZE", "research synthesis", internal_source),
+            ("TRAINING_DESIGN_TEAM", "Design training material and verify learning objectives and practice.", "Learning", "LEARNING", "Learning Lead", "Training Designer", "Training Reviewer", "DESIGN", "training package", internal_source),
+            ("SKILL_QUALIFICATION_TEAM", "Assess demonstrated skill evidence and record qualification decisions.", "Learning", "LEARNING", "Qualification Lead", "Practice Assessor", "Independent Examiner", "QUALIFY", "qualification record", internal_source),
+            ("CHANGE_CONTROL_BOARD", "Assess proposed changes, impacts, evidence and approval decisions.", "Governance", "CHANGE_CONTROL", "Change Chair", "Change Analyst", "Independent Reviewer", "EVALUATE", "change decision", internal_source),
+            ("RISK_REVIEW_BOARD", "Identify, analyze and review project risks and mitigations.", "Governance", "RISK", "Risk Chair", "Risk Analyst", "Mitigation Reviewer", "ANALYZE", "risk decision", internal_source),
+            ("STARTUP_PRODUCT_TEAM", "Compact team for discovery, delivery and independent product review.", "Business", "PRODUCT", "Product Lead", "Product Builder", "Product Reviewer", "BUILD", "validated increment", internal_source),
+            ("PORTFOLIO_REVIEW_TEAM", "Compare initiatives and prepare transparent prioritization evidence.", "Governance", "PORTFOLIO", "Portfolio Lead", "Portfolio Analyst", "Decision Reviewer", "PRIORITIZE", "portfolio recommendation", internal_source),
+            ("RELEASE_READINESS_TEAM", "Confirm artifacts, findings and operational checks before release.", "Operations", "RELEASE", "Release Lead", "Release Engineer", "Readiness Reviewer", "PREPARE", "release decision", internal_source),
+        ]
+        presets: list[dict[str, Any]] = []
+        for name, purpose, category, domain, lead, specialist, reviewer, operation, output, source in specifications:
+            presets.append(
+                {
+                    "name": name,
+                    "purpose": purpose,
+                    "management_model": "PROJECTIZED" if category not in {"Quality", "Knowledge", "Learning"} else "FUNCTIONAL",
+                    "responsibility_model": "RESP-CRA",
+                    "category": category,
+                    "domain": domain,
+                    "team_size": "MINI/STANDARD",
+                    "workflow_name": f"{name}_WORKFLOW",
+                    "roles": [
+                        {"position": lead, "role": "Project Manager", "department": "Coordination"},
+                        {"position": specialist, "role": "Specialist", "department": category},
+                        {"position": reviewer, "role": "Reviewer", "department": "Quality"},
+                        {"position": "Documentation", "role": "Documentation", "department": "Documentation"},
+                    ],
+                    "steps": [
+                        {"responsibility": lead, "operation": "PLAN", "expected_outputs": ["work plan"]},
+                        {"responsibility": specialist, "operation": operation, "expected_outputs": [output]},
+                        {"responsibility": reviewer, "operation": "REVIEW", "expected_outputs": ["review findings"]},
+                        {"responsibility": "Documentation", "operation": "RECORD", "expected_outputs": ["controlled record"]},
+                    ],
+                    "source": source,
+                    "limitations": ["Adapt roles, tools, approvals and legal requirements to the real organization before activation."],
+                    "review_required": True,
+                    "research_required": category in {"Research", "Security"},
+                    "learning_support": category in {"Learning", "Knowledge"},
+                }
+            )
         return presets
 
     def _role_in_variant(self, role: dict[str, Any], team_size: str) -> bool:

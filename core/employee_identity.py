@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 import random
 
+from core.avatar_catalog import list_avatar_files
+
 
 @dataclass(frozen=True)
 class GeneratedIdentity:
@@ -73,10 +75,16 @@ def generate_identity(language: str = "ru", gender: str = "random", avatar_dir: 
 
 
 def _pick_avatar(avatar_dir: Path | None, gender: str) -> str | None:
-    if avatar_dir is None or not avatar_dir.exists():
-        return None
+    available = list_avatar_files(avatar_dir)
     gender_token = "woman" if gender == "female" else "man"
-    matching = [path for path in avatar_dir.glob("avatar-*.png") if gender_token in path.stem or "cat-" in path.stem or "dog-" in path.stem or "reaction-" in path.stem]
+    matching = [
+        path
+        for path in available
+        if gender_token in path.stem
+        or "cat-" in path.stem
+        or "dog-" in path.stem
+        or "reaction-" in path.stem
+    ]
     if not matching:
-        matching = list(avatar_dir.glob("*.png"))
+        matching = available
     return str(random.choice(matching)) if matching else None

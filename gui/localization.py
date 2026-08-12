@@ -578,10 +578,75 @@ CATALOG_LABELS = {
     "en": {},
 }
 
+_EXTENDED_PRESET_LABELS = {
+    "PCB_ENGINEERING_TEAM": ("Команда проектирования PCB", "Команда проєктування PCB"),
+    "EMBEDDED_SYSTEMS_TEAM": ("Команда встраиваемых систем", "Команда вбудованих систем"),
+    "HARDWARE_VALIDATION_TEAM": ("Команда проверки аппаратуры", "Команда перевірки апаратури"),
+    "SYSTEMS_ENGINEERING_TEAM": ("Команда системной инженерии", "Команда системної інженерії"),
+    "REQUIREMENTS_REVIEW_TEAM": ("Команда проверки требований", "Команда перевірки вимог"),
+    "MANUFACTURING_READINESS_TEAM": ("Команда готовности производства", "Команда готовності виробництва"),
+    "QUALITY_CORRECTIVE_ACTION_TEAM": ("Команда корректирующих действий", "Команда коригувальних дій"),
+    "CYBER_INCIDENT_RESPONSE_TEAM": ("Команда реагирования на киберинциденты", "Команда реагування на кіберінциденти"),
+    "SECURITY_ASSESSMENT_TEAM": ("Команда оценки безопасности", "Команда оцінювання безпеки"),
+    "VULNERABILITY_MANAGEMENT_TEAM": ("Команда управления уязвимостями", "Команда керування вразливостями"),
+    "DATA_ANALYTICS_TEAM": ("Команда анализа данных", "Команда аналізу даних"),
+    "DATA_QUALITY_TEAM": ("Команда качества данных", "Команда якості даних"),
+    "KNOWLEDGE_BASE_TEAM": ("Команда базы знаний", "Команда бази знань"),
+    "DOCUMENT_MIGRATION_TEAM": ("Команда переноса документов", "Команда перенесення документів"),
+    "TECHNICAL_WRITING_TEAM": ("Команда технических авторов", "Команда технічних авторів"),
+    "TRANSLATION_LOCALIZATION_TEAM": ("Команда перевода и локализации", "Команда перекладу й локалізації"),
+    "CUSTOMER_SUPPORT_TEAM": ("Команда поддержки клиентов", "Команда підтримки клієнтів"),
+    "SERVICE_OPERATIONS_TEAM": ("Команда эксплуатации сервиса", "Команда експлуатації сервісу"),
+    "PROCUREMENT_REVIEW_TEAM": ("Команда проверки закупок", "Команда перевірки закупівель"),
+    "SUPPLIER_QUALITY_TEAM": ("Команда качества поставщиков", "Команда якості постачальників"),
+    "HACCP_FOOD_SAFETY_TEAM": ("Команда пищевой безопасности HACCP", "Команда харчової безпеки HACCP"),
+    "MENU_DEVELOPMENT_TEAM": ("Команда разработки меню", "Команда розроблення меню"),
+    "CONTENT_PRODUCTION_TEAM": ("Команда создания контента", "Команда створення контенту"),
+    "FACT_CHECKING_TEAM": ("Команда проверки фактов", "Команда перевірки фактів"),
+    "RESEARCH_SYNTHESIS_TEAM": ("Команда исследовательского анализа", "Команда дослідницького аналізу"),
+    "TRAINING_DESIGN_TEAM": ("Команда разработки обучения", "Команда розроблення навчання"),
+    "SKILL_QUALIFICATION_TEAM": ("Команда оценки навыков", "Команда оцінювання навичок"),
+    "CHANGE_CONTROL_BOARD": ("Совет управления изменениями", "Рада керування змінами"),
+    "RISK_REVIEW_BOARD": ("Совет по рискам", "Рада з ризиків"),
+    "STARTUP_PRODUCT_TEAM": ("Продуктовая команда стартапа", "Продуктова команда стартапу"),
+    "PORTFOLIO_REVIEW_TEAM": ("Команда оценки портфеля", "Команда оцінювання портфеля"),
+    "RELEASE_READINESS_TEAM": ("Команда готовности выпуска", "Команда готовності випуску"),
+}
+CATALOG_LABELS["ru"].update({key: labels[0] for key, labels in _EXTENDED_PRESET_LABELS.items()})
+CATALOG_LABELS["uk"].update({key: labels[1] for key, labels in _EXTENDED_PRESET_LABELS.items()})
+
+CATALOG_PURPOSES = {
+    "ru": {
+        "PCB_ENGINEERING_TEAM": "Проектирование PCB, независимая проверка и подтверждение выпуска.",
+        "CYBER_INCIDENT_RESPONSE_TEAM": "Выявление инцидента, реагирование, восстановление и разбор результатов.",
+        "HACCP_FOOD_SAFETY_TEAM": "Анализ пищевых рисков, контрольных мер, проверок и записей.",
+        "SKILL_QUALIFICATION_TEAM": "Оценка подтвержденного опыта и оформление решения о квалификации.",
+    },
+    "uk": {
+        "PCB_ENGINEERING_TEAM": "Проєктування PCB, незалежна перевірка та підтвердження випуску.",
+        "CYBER_INCIDENT_RESPONSE_TEAM": "Виявлення інциденту, реагування, відновлення та аналіз результатів.",
+        "HACCP_FOOD_SAFETY_TEAM": "Аналіз харчових ризиків, контрольних заходів, перевірок і записів.",
+        "SKILL_QUALIFICATION_TEAM": "Оцінювання підтвердженого досвіду та оформлення рішення про кваліфікацію.",
+    },
+    "en": {},
+}
+
 
 def catalog_label(language: str, value: str) -> str:
     language = normalize_language(language)
     return CATALOG_LABELS.get(language, {}).get(value, value.replace("_", " ").title())
+
+
+def catalog_purpose(language: str, template_name: str, fallback: str) -> str:
+    language = normalize_language(language)
+    translated = CATALOG_PURPOSES.get(language, {}).get(template_name)
+    if translated:
+        return translated
+    if language == "ru":
+        return f"Рабочая структура «{catalog_label(language, template_name)}». Роли и порядок работы настраиваются при создании."
+    if language == "uk":
+        return f"Робоча структура «{catalog_label(language, template_name)}». Ролі та порядок роботи налаштовуються під час створення."
+    return fallback
 
 
 def team_size_label(language: str, value: str) -> str:

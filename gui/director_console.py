@@ -45,6 +45,7 @@ from core.management_models import (
     AgentProfile,
 )
 from core.artifact_service import ArtifactService
+from core.avatar_catalog import list_avatar_files
 from core.employee_identity import generate_identity
 from core.finding_service import FINDING_CONFIDENCE, FINDING_SEVERITIES, FindingService
 from core.management_service import EmployeeSummary, ManagementService
@@ -55,7 +56,7 @@ from core.skill_progress_service import SkillProgressService
 from core.skill_package_service import SkillPackageService
 from core.standards_service import MANDATORY_LEVELS, STANDARD_AUTHORITIES, StandardsService
 from core.universal_platform_service import UniversalPlatformService
-from gui.localization import catalog_label, permission_label, readiness_label, role_label, status_label, team_size_label, tr, workflow_label
+from gui.localization import catalog_label, catalog_purpose, permission_label, readiness_label, role_label, status_label, team_size_label, tr, workflow_label
 
 
 STATUS_LABELS = {
@@ -446,7 +447,10 @@ class OrganizationActivationWizard(QWizard):
         form = QFormLayout(identity)
         form.addRow("Название организации", self.organization_name)
         form.addRow({"ru": "Размер команды", "uk": "Розмір команди", "en": "Team size"}[language], self.team_size)
-        form.addRow({"ru": "Пресет", "uk": "Пресет", "en": "Preset"}[language], QLabel(f"{catalog_label(language, template.name)}\n{template.purpose}"))
+        form.addRow(
+            {"ru": "Пресет", "uk": "Пресет", "en": "Preset"}[language],
+            QLabel(f"{catalog_label(language, template.name)}\n{catalog_purpose(language, template.name, template.purpose)}"),
+        )
         self.addPage(identity)
 
         roster = QWizardPage()
@@ -2388,9 +2392,7 @@ class IdentityPage(QWizardPage):
     def _load_avatar_choices(self) -> None:
         self.avatar_choice.addItem(tr(self.language, "not_set"), "")
         if self.avatar_dir and self.avatar_dir.exists():
-            for path in sorted(self.avatar_dir.glob("*.png")):
-                if path.name.startswith("avatar-sheet"):
-                    continue
+            for path in list_avatar_files(self.avatar_dir):
                 self.avatar_choice.addItem(QIcon(str(path)), self._avatar_label(path, self.language), str(path))
 
     def _apply_avatar_choice(self) -> None:
@@ -2715,9 +2717,7 @@ class EditEmployeeDialog(QDialog):
     def _load_avatar_choices(self) -> None:
         self.avatar_choice.addItem(tr(self.language, "not_set"), "")
         if self.avatar_dir and self.avatar_dir.exists():
-            for path in sorted(self.avatar_dir.glob("*.png")):
-                if path.name.startswith("avatar-sheet"):
-                    continue
+            for path in list_avatar_files(self.avatar_dir):
                 self.avatar_choice.addItem(QIcon(str(path)), IdentityPage._avatar_label(path, self.language), str(path))
 
     def _apply_avatar_choice(self) -> None:
