@@ -24,6 +24,9 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "reduce_motion": False,
     "interface_language": "ru",
     "user_avatar_path": "",
+    "chat_background_path": "",
+    "chat_background_opacity": 18,
+    "chat_background_mode": "cover",
 }
 
 DEFAULT_RESOURCE_TEXTS: dict[str, str] = {

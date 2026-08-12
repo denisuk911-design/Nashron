@@ -97,7 +97,7 @@ class MainWindow(QMainWindow):
         self.conversation_mode = ConversationMode.SOCIAL
         self.current_thread_id: str | None = None
         self.current_task_id: str | None = None
-        self.setWindowTitle("Отдел важных дел")
+        self.setWindowTitle("Team2050 — Отдел важных дел")
         self.setMinimumSize(760, 560)
         self.resize(1280, 800)
         self.settings_service = settings_service
@@ -451,7 +451,7 @@ class MainWindow(QMainWindow):
         profile_layout.setContentsMargins(12, 12, 12, 12)
         profile_layout.addWidget(QLabel("Команда", objectName="pageTitle"))
         profile_layout.addWidget(QLabel("R+P", objectName="brandMark"))
-        profile_layout.addWidget(QLabel("Роман Неслышев · Codex CLI\nПетр Перров · Gemini CLI\nКороткие ответы, общий план, разделение задач", objectName="muted"))
+        profile_layout.addWidget(QLabel("Сотрудники · назначенные AI-провайдеры\nКороткие ответы, общий план, разделение задач", objectName="muted"))
         profile_layout.addWidget(QLabel("●  оба доступны при авторизации", objectName="online"))
         about = QPushButton("Подробнее о команде  →")
         about.setObjectName("smallAction")
@@ -1128,14 +1128,14 @@ class MainWindow(QMainWindow):
                     if len(agent_keys) == 1:
                         QMessageBox.warning(self, "Codex CLI не найден", "Встроенный Codex CLI не найден в сборке.")
                         return False
-                    self.chat.add_message("system", "Роман пропущен: Codex CLI недоступен.")
+                    self.chat.add_message("system", f"{agent_key} пропущен: Codex CLI недоступен.")
                     continue
                 self.refresh_codex_status()
                 if not self.codex_authorized:
                     if len(agent_keys) == 1:
                         QMessageBox.information(self, "Нужен вход", "Откройте настройки профиля и выполните вход через ChatGPT.")
                         return False
-                    self.chat.add_message("system", "Роман пропущен: Codex CLI не авторизован.")
+                    self.chat.add_message("system", f"{agent_key} пропущен: Codex CLI не авторизован.")
                     continue
                 ready.append(agent_key)
             elif route.provider == "GEMINI_CLI":
@@ -2124,10 +2124,9 @@ class MainWindow(QMainWindow):
         QMessageBox.information(
             self,
             "О команде",
-            "Роман Неслышев работает через Codex CLI.\n"
-            "Петр Перров работает через Gemini CLI.\n"
-            "Пишите 'Роман, ...' или 'Петр, ...', чтобы назначить задачу.\n"
-            "Если исполнитель не указан, отвечают оба и кратко распределяют работу.\n\n"
+            "Сотрудники работают через назначенные AI-провайдеры.\n"
+            "Обращайтесь к сотруднику по имени или выберите его в поле адресата.\n"
+            "Если исполнитель не указан, маршрутизатор выберет подходящего сотрудника.\n\n"
             f"Сборка: {build_label()}",
         )
 
@@ -2140,8 +2139,14 @@ class MainWindow(QMainWindow):
             qt_app.setPalette(ThemeManager.palette(theme))
             qt_app.setStyleSheet(ThemeManager.stylesheet(theme))
         self.setStyleSheet(ThemeManager.stylesheet(theme))
+        self._apply_native_window_chrome(theme)
         if hasattr(self, "chat_panel") and isinstance(self.chat_panel, ThemeBackdrop):
             self.chat_panel.set_theme(theme)
+            self.chat_panel.set_background(
+                str(self.settings.get("chat_background_path", "")),
+                int(self.settings.get("chat_background_opacity", 18)),
+                str(self.settings.get("chat_background_mode", "cover")),
+            )
         if bool(self.settings.get("reduce_motion", False)) or not self.isVisible():
             return
         self._theme_animation = QPropertyAnimation(self, b"windowOpacity", self)
@@ -2149,6 +2154,28 @@ class MainWindow(QMainWindow):
         self._theme_animation.setStartValue(0.92)
         self._theme_animation.setEndValue(1.0)
         self._theme_animation.start()
+
+    def _apply_native_window_chrome(self, theme: str) -> None:
+        """Tint the native Windows frame while retaining snap/resize behavior."""
+        try:
+            import ctypes
+            import os
+
+            if os.name != "nt":
+                return
+            colors = ThemeManager.native_chrome_colors(theme)
+            hwnd = int(self.winId())
+            dwmapi = ctypes.windll.dwmapi
+            use_dark = ctypes.c_int(1 if colors[0] else 0)
+            caption = ctypes.c_uint(colors[1])
+            text = ctypes.c_uint(colors[2])
+            border = ctypes.c_uint(colors[3])
+            for attribute, value in ((20, use_dark), (35, caption), (36, text), (34, border)):
+                dwmapi.DwmSetWindowAttribute(hwnd, attribute, ctypes.byref(value), ctypes.sizeof(value))
+        except (AttributeError, OSError, TypeError, ValueError):
+            # Older Windows builds or non-Windows test runners simply keep the
+            # native frame defaults.
+            self.logger.debug("native_window_chrome_unavailable", exc_info=True)
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)

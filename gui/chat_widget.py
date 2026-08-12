@@ -24,7 +24,9 @@ from gui.chat.message_widget import MessageWidget
 
 class MessageList(QListWidget):
     copy_requested = Signal()
-    user_scrolled = Signal()
+    user_scrolled = Signal(int)
+    user_scroll_started = Signal()
+    user_scroll_finished = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -33,6 +35,8 @@ class MessageList(QListWidget):
         self._selection_anchor = -1
         self._drag_selecting = False
         self.itemSelectionChanged.connect(self._sync_message_selection)
+        self.verticalScrollBar().sliderPressed.connect(self.user_scroll_started.emit)
+        self.verticalScrollBar().sliderReleased.connect(self.user_scroll_finished.emit)
 
     def register_message_widget(self, widget: QWidget) -> None:
         for child in (widget, *widget.findChildren(QWidget)):
@@ -93,7 +97,8 @@ class MessageList(QListWidget):
             super().wheelEvent(event)
             return
 
-        self.user_scrolled.emit()
+        self.user_scroll_started.emit()
+        self.user_scrolled.emit(delta)
         if self._wheel_animation is not None:
             current_target = self._wheel_target if self._wheel_target is not None else bar.value()
             self._wheel_animation.stop()
@@ -103,6 +108,7 @@ class MessageList(QListWidget):
             current_target = bar.value()
         target = max(bar.minimum(), min(bar.maximum(), int(current_target - delta)))
         if target == bar.value():
+            self.user_scroll_finished.emit()
             event.accept()
             return
 
@@ -121,12 +127,26 @@ class MessageList(QListWidget):
         if self._wheel_animation is animation:
             self._wheel_animation = None
             self._wheel_target = None
+            self.user_scroll_finished.emit()
         animation.deleteLater()
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.key() == Qt.Key_C and event.modifiers() & Qt.ControlModifier:
             self.copy_requested.emit()
             event.accept()
+            return
+        navigation_keys = {
+            Qt.Key_Up,
+            Qt.Key_Down,
+            Qt.Key_PageUp,
+            Qt.Key_PageDown,
+            Qt.Key_Home,
+            Qt.Key_End,
+        }
+        if event.key() in navigation_keys:
+            self.user_scroll_started.emit()
+            super().keyPressEvent(event)
+            QTimer.singleShot(0, self.user_scroll_finished.emit)
             return
         super().keyPressEvent(event)
 
@@ -166,6 +186,9 @@ class ChatWidget(QWidget):
         self._completed_stream_role = ""
         self._completed_stream_text = ""
         self._scroll_animation: QPropertyAnimation | None = None
+        self._follow_new_messages = True
+        self._manual_scroll_active = False
+        self._bottom_threshold = 32
         self._agent_labels = {"user": "Вы", "system": "Система"}
         self._agent_avatars: dict[str, str] = {}
         self._agent_titles: dict[str, str] = {"user": "Владелец"}
@@ -186,7 +209,10 @@ class ChatWidget(QWidget):
         self.messages.setVerticalScrollMode(QListWidget.ScrollPerPixel)
         self.messages.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.messages.verticalScrollBar().rangeChanged.connect(self._on_scroll_range_changed)
-        self.messages.user_scrolled.connect(self._cancel_output_scroll)
+        self.messages.user_scrolled.connect(self._on_user_scroll_delta)
+        self.messages.user_scroll_started.connect(self._on_user_scroll_started)
+        self.messages.user_scroll_finished.connect(self._on_user_scroll_finished)
+        self.messages.verticalScrollBar().valueChanged.connect(self._on_scroll_value_changed)
         self.messages.copy_requested.connect(self.copy_requested.emit)
 
         self.input = MessageInput()
@@ -212,6 +238,12 @@ class ChatWidget(QWidget):
         self.goal_banner.setObjectName("goalBanner")
         self.goal_banner.setWordWrap(True)
         self.goal_banner.setVisible(False)
+
+        self.new_messages_button = QPushButton("↓  Новые сообщения")
+        self.new_messages_button.setObjectName("newMessagesButton")
+        self.new_messages_button.setCursor(Qt.PointingHandCursor)
+        self.new_messages_button.setVisible(False)
+        self.new_messages_button.clicked.connect(self._jump_to_new_messages)
 
         composer = QWidget()
         composer.setObjectName("composer")
@@ -257,6 +289,11 @@ class ChatWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
         layout.addWidget(self.messages, 1)
+        new_messages_row = QHBoxLayout()
+        new_messages_row.setContentsMargins(0, 0, 14, 0)
+        new_messages_row.addStretch(1)
+        new_messages_row.addWidget(self.new_messages_button)
+        layout.addLayout(new_messages_row)
         layout.addWidget(self.goal_banner)
         layout.addWidget(composer)
         self.set_language(self.language)
@@ -422,6 +459,8 @@ class ChatWidget(QWidget):
         self._completed_stream_text = ""
         self._typewriter_queue.clear()
         self.messages.clear()
+        self._follow_new_messages = True
+        self.new_messages_button.setVisible(False)
 
     def set_busy(self, busy: bool, mood_source: str = "") -> None:
         self.send_button.setVisible(not busy)
@@ -786,17 +825,60 @@ class ChatWidget(QWidget):
             )
         )
 
-    def _should_follow_output(self) -> bool:
+    def _is_at_bottom(self) -> bool:
         bar = self.messages.verticalScrollBar()
-        return bar.maximum() - bar.value() <= 140
+        return bar.maximum() - bar.value() <= self._bottom_threshold
+
+    def _should_follow_output(self) -> bool:
+        return self._follow_new_messages
+
+    def _on_user_scroll_started(self) -> None:
+        self._manual_scroll_active = True
+        self._cancel_output_scroll()
+
+    def _on_user_scroll_delta(self, delta: int) -> None:
+        self._cancel_output_scroll()
+        # Positive wheel delta moves toward history. Disable follow immediately;
+        # downward movement is evaluated from the resulting scrollbar position.
+        if delta > 0:
+            self._follow_new_messages = False
+            self.new_messages_button.setVisible(True)
+        QTimer.singleShot(0, self._sync_follow_from_position)
+
+    def _on_scroll_value_changed(self, _value: int) -> None:
+        if self._manual_scroll_active:
+            self._sync_follow_from_position()
+
+    def _on_user_scroll_finished(self) -> None:
+        self._manual_scroll_active = False
+        self._sync_follow_from_position()
+
+    def _sync_follow_from_position(self) -> None:
+        if self._is_at_bottom():
+            self._follow_new_messages = True
+            self.new_messages_button.setVisible(False)
+        elif self._manual_scroll_active or not self._follow_new_messages:
+            self._follow_new_messages = False
+            self.new_messages_button.setVisible(True)
 
     def _follow_output_if_needed(self, should_follow: bool) -> None:
         if should_follow:
+            self._follow_new_messages = True
+            self.new_messages_button.setVisible(False)
             QTimer.singleShot(0, self._animate_scroll_to_bottom)
+        else:
+            self.new_messages_button.setVisible(True)
+
+    def _jump_to_new_messages(self) -> None:
+        self._follow_new_messages = True
+        self.new_messages_button.setVisible(False)
+        self._animate_scroll_to_bottom()
 
     def _animate_scroll_to_bottom(self) -> None:
         bar = self.messages.verticalScrollBar()
         target = bar.maximum()
+        self._follow_new_messages = True
+        self.new_messages_button.setVisible(False)
         if target <= bar.value():
             return
         if self._scroll_animation is not None:

@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QFormLayout,
     QHBoxLayout,
+    QLabel,
     QLineEdit,
     QPushButton,
     QSpinBox,
@@ -66,6 +67,9 @@ class SettingsDialog(QDialog):
                 ("Ночной океан", "dark_ocean"),
                 ("Тихий лес", "dark_forest"),
                 ("Инженерная мастерская", "dark_amber"),
+                ("Ночной город", "night_city"),
+                ("Тёплая бумага", "warm_paper"),
+                ("Минимализм", "minimal"),
                 ("Светлая", "light"),
             ],
             "uk": [
@@ -74,6 +78,9 @@ class SettingsDialog(QDialog):
                 ("Нічний океан", "dark_ocean"),
                 ("Тихий ліс", "dark_forest"),
                 ("Інженерна майстерня", "dark_amber"),
+                ("Нічне місто", "night_city"),
+                ("Теплий папір", "warm_paper"),
+                ("Мінімалізм", "minimal"),
                 ("Світла", "light"),
             ],
             "en": [
@@ -82,6 +89,9 @@ class SettingsDialog(QDialog):
                 ("Night ocean", "dark_ocean"),
                 ("Quiet forest", "dark_forest"),
                 ("Engineering workshop", "dark_amber"),
+                ("Night city", "night_city"),
+                ("Warm paper", "warm_paper"),
+                ("Minimal", "minimal"),
                 ("Light", "light"),
             ],
         }.get(language, [("Тёмная", "dark"), ("Светлая", "light")])
@@ -89,6 +99,11 @@ class SettingsDialog(QDialog):
             self.theme.addItem(label, value)
         theme_index = self.theme.findData(str(settings.get("theme", "dark")))
         self.theme.setCurrentIndex(theme_index if theme_index >= 0 else 0)
+        self.theme_preview = QLabel()
+        self.theme_preview.setObjectName("themePreview")
+        self.theme_preview.setMinimumHeight(44)
+        self.theme_preview.setWordWrap(True)
+        self.theme.currentIndexChanged.connect(self._update_theme_preview)
 
         self.language = QComboBox()
         for code, label in SUPPORTED_LANGUAGES.items():
@@ -135,6 +150,30 @@ class SettingsDialog(QDialog):
         avatar_layout.setContentsMargins(0, 0, 0, 0)
         avatar_layout.addWidget(self.user_avatar)
         avatar_layout.addWidget(browse_avatar)
+
+        self.chat_background = QLineEdit(str(settings.get("chat_background_path", "")))
+        browse_background = QPushButton({"ru": "Выбрать", "uk": "Обрати", "en": "Browse"}.get(language, "Выбрать"))
+        browse_background.clicked.connect(self._browse_chat_background)
+        background_row = QWidget()
+        background_layout = QHBoxLayout(background_row)
+        background_layout.setContentsMargins(0, 0, 0, 0)
+        background_layout.addWidget(self.chat_background)
+        background_layout.addWidget(browse_background)
+
+        self.background_opacity = QSpinBox()
+        self.background_opacity.setRange(0, 70)
+        self.background_opacity.setSuffix(" %")
+        self.background_opacity.setValue(int(settings.get("chat_background_opacity", 18)))
+        self.background_mode = QComboBox()
+        mode_labels = {
+            "ru": [("Заполнить", "cover"), ("Замостить", "tile"), ("По центру", "center")],
+            "uk": [("Заповнити", "cover"), ("Замостити", "tile"), ("По центру", "center")],
+            "en": [("Cover", "cover"), ("Tile", "tile"), ("Center", "center")],
+        }.get(language, [("Заполнить", "cover"), ("Замостить", "tile"), ("По центру", "center")])
+        for label, value in mode_labels:
+            self.background_mode.addItem(label, value)
+        mode_index = self.background_mode.findData(str(settings.get("chat_background_mode", "cover")))
+        self.background_mode.setCurrentIndex(mode_index if mode_index >= 0 else 0)
 
         self.reduce_motion = QCheckBox(
             {
@@ -199,6 +238,10 @@ class SettingsDialog(QDialog):
         layout.addRow(labels["extended_warning"], self.response_extended_warning)
         layout.addRow(labels["response_timeout"], self.response_timeout)
         layout.addRow(labels["theme"], self.theme)
+        layout.addRow({"ru": "Предпросмотр", "uk": "Попередній перегляд", "en": "Preview"}.get(language, "Предпросмотр"), self.theme_preview)
+        layout.addRow({"ru": "Фон чата", "uk": "Фон чату", "en": "Chat background"}.get(language, "Фон чата"), background_row)
+        layout.addRow({"ru": "Прозрачность фона", "uk": "Прозорість фону", "en": "Background opacity"}.get(language, "Прозрачность фона"), self.background_opacity)
+        layout.addRow({"ru": "Размещение фона", "uk": "Розміщення фону", "en": "Background placement"}.get(language, "Размещение фона"), self.background_mode)
         layout.addRow(labels["workspace"], workspace_row)
         layout.addRow({"ru": "Мой аватар", "uk": "Мій аватар", "en": "My avatar"}.get(language, "Мой аватар"), avatar_row)
         layout.addRow(labels["language"], self.language)
@@ -209,6 +252,7 @@ class SettingsDialog(QDialog):
         layout.addRow(self.allow_local_tools)
         layout.addRow(self.reduce_motion)
         layout.addRow(buttons)
+        self._update_theme_preview()
 
     def _browse_workspace(self) -> None:
         selected = QFileDialog.getExistingDirectory(self, tr(str(self.language.currentData()), "workspace"), self.workspace.text())
@@ -225,6 +269,34 @@ class SettingsDialog(QDialog):
         if selected:
             self.user_avatar.setText(selected)
 
+    def _browse_chat_background(self) -> None:
+        selected, _ = QFileDialog.getOpenFileName(
+            self,
+            {"ru": "Выбрать фон чата", "uk": "Обрати фон чату", "en": "Choose chat background"}.get(str(self.language.currentData()), "Выбрать фон чата"),
+            self.chat_background.text(),
+            "Images (*.png *.jpg *.jpeg *.bmp *.webp)",
+        )
+        if selected:
+            self.chat_background.setText(selected)
+
+    def _update_theme_preview(self) -> None:
+        previews = {
+            "dark": ("#081421", "#f3f6fb", "#7357ff"),
+            "dark_graphite": ("#171a20", "#f3f6fb", "#737bff"),
+            "dark_ocean": ("#082238", "#f3f6fb", "#5f73ff"),
+            "dark_forest": ("#0c211c", "#f3f6fb", "#7968e8"),
+            "dark_amber": ("#211a10", "#f3f6fb", "#806be3"),
+            "night_city": ("#0b1324", "#f3f6fb", "#6c63ff"),
+            "warm_paper": ("#f4eee3", "#292622", "#7561c9"),
+            "minimal": ("#101216", "#f3f6fb", "#667085"),
+            "light": ("#f7faff", "#162033", "#6757d8"),
+        }
+        background, foreground, accent = previews.get(str(self.theme.currentData()), previews["dark"])
+        self.theme_preview.setText("  Team2050    Сообщение по делу    12:44")
+        self.theme_preview.setStyleSheet(
+            f"background: {background}; color: {foreground}; border: 2px solid {accent}; border-radius: 8px; padding: 8px;"
+        )
+
     def values(self) -> dict[str, object]:
         return {
             "history_message_limit": self.history_limit.value(),
@@ -233,6 +305,9 @@ class SettingsDialog(QDialog):
             "response_extended_warning_seconds": self.response_extended_warning.value(),
             "response_timeout_seconds": self.response_timeout.value(),
             "theme": self.theme.currentData(),
+            "chat_background_path": self.chat_background.text().strip(),
+            "chat_background_opacity": self.background_opacity.value(),
+            "chat_background_mode": self.background_mode.currentData(),
             "interface_language": self.language.currentData(),
             "allow_local_tools": self.allow_local_tools.isChecked(),
             "workspace_root": self.workspace.text().strip(),

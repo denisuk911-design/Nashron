@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QPointF, Qt
-from PySide6.QtGui import QColor, QPainter, QPalette, QPen
+from PySide6.QtGui import QColor, QPainter, QPalette, QPen, QPixmap
 from PySide6.QtWidgets import QWidget
 
 from .design_tokens import TOKENS
@@ -93,6 +93,28 @@ THEME_COLORS = {
         cyan_dark="#c49d52", violet="#806be3", violet_dark="#5845ba", roman_bubble="#30271b",
         petr_bubble="#253523", dialog_bg="#2a2116",
     ),
+    "night_city": _dark_variant(
+        bg="#080d19", chat_bg="#0b1324", surface="#101b31", surface_alt="#172642",
+        surface_hover="#21365a", line="#2c4670", line_soft="#1d3152", cyan="#7ee7f5",
+        cyan_dark="#3e9fe0", violet="#6c63ff", violet_dark="#4b43c8", roman_bubble="#14243e",
+        petr_bubble="#132d35", dialog_bg="#0c1424",
+    ),
+    "warm_paper": {
+        **LIGHT_COLORS,
+        "bg": "#e9e2d5", "chat_bg": "#f4eee3", "surface": "#fffaf1", "surface_alt": "#eee5d6",
+        "surface_hover": "#e5d9c8", "line": "#cdbfae", "line_soft": "#ded2c1", "text": "#292622",
+        "muted": "#6e655b", "muted_2": "#8e8275", "input": "#fffdf8", "cyan": "#267d79",
+        "cyan_dark": "#286b8a", "violet": "#7561c9", "violet_dark": "#57459d", "green": "#3c8055",
+        "user_bubble": "#e3e0ff", "roman_bubble": "#fffaf1", "petr_bubble": "#e2f1e6",
+        "dialog_bg": "#f7f2e9", "button_text": "#292622",
+    },
+    "minimal": {
+        **DARK_COLORS,
+        "bg": "#101216", "chat_bg": "#101216", "surface": "#17191e", "surface_alt": "#1e2128",
+        "surface_hover": "#282c35", "line": "#303641", "line_soft": "#242831", "cyan": "#b7c4d6",
+        "cyan_dark": "#8294ad", "violet": "#667085", "violet_dark": "#4d596b", "roman_bubble": "#1a1d23",
+        "petr_bubble": "#1b2523", "dialog_bg": "#14161a",
+    },
 }
 
 
@@ -102,28 +124,71 @@ class ThemeBackdrop(QWidget):
     def __init__(self, theme: str = "dark") -> None:
         super().__init__()
         self._theme = theme if theme in THEME_COLORS else "dark"
+        self._background_path = ""
+        self._background_opacity = 18
+        self._background_mode = "cover"
         self.setAttribute(Qt.WA_StyledBackground, True)
 
     def set_theme(self, theme: str) -> None:
         self._theme = theme if theme in THEME_COLORS else "dark"
         self.update()
 
+    def set_background(self, path: str = "", opacity: int = 18, mode: str = "cover") -> None:
+        self._background_path = str(path or "").strip()
+        self._background_opacity = max(0, min(70, int(opacity)))
+        self._background_mode = mode if mode in {"cover", "tile", "center"} else "cover"
+        self.update()
+
     def paintEvent(self, event) -> None:
         colors = THEME_COLORS.get(self._theme, DARK_COLORS)
         painter = QPainter(self)
         painter.fillRect(self.rect(), QColor(colors["chat_bg"]))
+        if self._background_path:
+            pixmap = QPixmap(self._background_path)
+            if not pixmap.isNull() and self._background_opacity:
+                painter.save()
+                painter.setOpacity(self._background_opacity / 100.0)
+                if self._background_mode == "tile":
+                    painter.drawTiledPixmap(self.rect(), pixmap)
+                elif self._background_mode == "center":
+                    x = (self.width() - pixmap.width()) // 2
+                    y = (self.height() - pixmap.height()) // 2
+                    painter.drawPixmap(x, y, pixmap)
+                else:
+                    scaled = pixmap.scaled(self.size(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+                    x = (self.width() - scaled.width()) // 2
+                    y = (self.height() - scaled.height()) // 2
+                    painter.drawPixmap(x, y, scaled)
+                painter.restore()
+                overlay = QColor(colors["chat_bg"])
+                overlay.setAlpha(150 if self._theme in {"light", "warm_paper"} else 170)
+                painter.fillRect(self.rect(), overlay)
         pen = QPen(QColor(colors["line"]))
         pen.setWidth(1)
         pen.setColor(QColor(colors["line"]))
         pen.setStyle(Qt.SolidLine)
         # Keep the pattern deliberately quiet so the message text remains primary.
-        pattern_alpha = {"dark": 36, "dark_graphite": 28, "dark_ocean": 34, "dark_forest": 30, "dark_amber": 30}.get(self._theme, 30)
+        pattern_alpha = {"dark": 36, "dark_graphite": 28, "dark_ocean": 34, "dark_forest": 30, "dark_amber": 30, "night_city": 34, "warm_paper": 20, "minimal": 0}.get(self._theme, 30)
         pattern_color = QColor(colors["line"])
         pattern_color.setAlpha(pattern_alpha)
         pen.setColor(pattern_color)
         painter.setPen(pen)
         width, height = self.width(), self.height()
-        if self._theme == "dark_ocean":
+        if self._theme == "minimal":
+            pass
+        elif self._theme == "night_city":
+            for x in range(40, width + 80, 140):
+                building_height = 70 + (x % 170)
+                painter.drawRect(x, height - building_height, 86, building_height)
+                for wy in range(height - building_height + 24, height - 16, 34):
+                    painter.drawPoint(x + 18, wy)
+                    painter.drawPoint(x + 50, wy)
+            for y in range(60, height, 120):
+                painter.drawLine(0, y, width, y)
+        elif self._theme == "warm_paper":
+            for x in range(0, width, 34):
+                painter.drawLine(x, 0, x + 90, height)
+        elif self._theme == "dark_ocean":
             for y in range(80, height + 220, 150):
                 painter.drawArc(-120, y - 70, width // 2 + 240, 150, 0, 180 * 16)
         elif self._theme == "dark_forest":
@@ -139,7 +204,7 @@ class ThemeBackdrop(QWidget):
         elif self._theme == "dark_graphite":
             for x in range(-height, width, 180):
                 painter.drawLine(x, 0, x + height, height)
-        else:
+        elif self._theme != "minimal":
             for x, y in ((90, 120), (260, 260), (520, 150), (760, 360), (980, 180), (1240, 300)):
                 if x < width and y < height:
                     painter.drawEllipse(QPointF(x, y), 2, 2)
@@ -148,6 +213,10 @@ class ThemeBackdrop(QWidget):
 
 class ThemeManager:
     """Keeps application styling in one place so widgets only use object names."""
+
+    @staticmethod
+    def theme_ids() -> tuple[str, ...]:
+        return tuple(THEME_COLORS)
 
     @staticmethod
     def stylesheet(theme: str = "dark") -> str:
@@ -170,6 +239,18 @@ class ThemeManager:
         palette.setColor(QPalette.HighlightedText, QColor("#ffffff"))
         palette.setColor(QPalette.PlaceholderText, QColor(c["muted_2"]))
         return palette
+
+    @staticmethod
+    def native_chrome_colors(theme: str = "dark") -> tuple[bool, int, int, int]:
+        colors = THEME_COLORS.get(theme, DARK_COLORS)
+
+        def colorref(value: str) -> int:
+            value = value.lstrip("#")
+            red, green, blue = int(value[0:2], 16), int(value[2:4], 16), int(value[4:6], 16)
+            return red | (green << 8) | (blue << 16)
+
+        dark = theme not in {"light", "warm_paper"}
+        return dark, colorref(colors["dialog_bg"]), colorref(colors["text"]), colorref(colors["line"])
 
     @staticmethod
     def _stylesheet(c: dict[str, str]) -> str:
@@ -269,7 +350,7 @@ class ThemeManager:
         QScrollArea {{ background: transparent; border: 0; }}
         QFrame#messageRow {{ background: transparent; border: 0; }}
         QFrame#messageCard {{ background: {c['roman_bubble']}; border: 1px solid {c['line_soft']}; border-radius: 18px; }}
-        QFrame#messageCardPetr {{ background: {c['petr_bubble']}; border: 1px solid #2c7a5b; border-radius: 18px; }}
+        QFrame#messageCardPetr {{ background: {c['petr_bubble']}; border: 1px solid {c['green']}; border-radius: 18px; }}
         QFrame#messageCardUser {{ background: {c['user_bubble']}; border: 1px solid {c['violet']}; border-radius: 18px; }}
         QFrame#messageCard[selected="true"], QFrame#messageCardPetr[selected="true"], QFrame#messageCardUser[selected="true"] {{ border: 2px solid {c['cyan']}; background: {c['surface_hover']}; }}
         QLabel#messageAvatar {{ border-radius: 24px; }}
@@ -280,6 +361,8 @@ class ThemeManager:
         QLabel#goalBanner {{ color: {c['text']}; background: {c['surface_alt']}; border: 1px solid {c['violet']}; border-radius: 12px; padding: 8px 14px; margin: 0 28px; font-size: 9pt; }}
         QLabel#imageThumbnail {{ background: {c['bg']}; border: 1px solid {c['line']}; border-radius: 8px; padding: 4px; }}
         QLabel#typingBubble {{ color: #9fdde1; background: {c['roman_bubble']}; border: 1px solid {c['cyan_dark']}; border-radius: 16px; padding: 8px 12px; }}
+        QPushButton#newMessagesButton {{ background: {c['violet']}; color: #ffffff; border: 0; border-radius: 14px; padding: 6px 12px; font-size: 9pt; }}
+        QPushButton#newMessagesButton:hover {{ background: {c['violet_dark']}; }}
         QProgressBar {{ background: {c['surface']}; border: 0; border-radius: 4px; height: 7px; text-visible: 0; }}
         QProgressBar::chunk {{ background: {c['cyan']}; border-radius: 4px; }}
         QSplitter::handle {{ background: {c['line']}; width: 1px; }}
