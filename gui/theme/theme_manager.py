@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from PySide6.QtCore import QPointF, Qt
 from PySide6.QtGui import QColor, QPainter, QPalette, QPen, QPixmap
 from PySide6.QtWidgets import QWidget
@@ -118,12 +120,47 @@ THEME_COLORS = {
 }
 
 
+@dataclass(frozen=True)
+class ThemeDefinition:
+    theme_id: str
+    name_key: str
+    colors: dict[str, str]
+    pattern: str
+    pattern_alpha: int
+    dark_chrome: bool
+
+
+_THEME_PATTERNS = {
+    "dark": ("stars", 36),
+    "light": ("stars", 20),
+    "dark_graphite": ("graphite", 28),
+    "dark_ocean": ("ocean", 34),
+    "dark_forest": ("forest", 30),
+    "dark_amber": ("workshop", 30),
+    "night_city": ("city", 34),
+    "warm_paper": ("paper", 20),
+    "minimal": ("none", 0),
+}
+
+THEME_DEFINITIONS = {
+    theme_id: ThemeDefinition(
+        theme_id=theme_id,
+        name_key=f"theme.{theme_id}",
+        colors=colors,
+        pattern=_THEME_PATTERNS[theme_id][0],
+        pattern_alpha=_THEME_PATTERNS[theme_id][1],
+        dark_chrome=theme_id not in {"light", "warm_paper"},
+    )
+    for theme_id, colors in THEME_COLORS.items()
+}
+
+
 class ThemeBackdrop(QWidget):
     """Chat background with a very low-contrast, theme-specific line pattern."""
 
     def __init__(self, theme: str = "dark") -> None:
         super().__init__()
-        self._theme = theme if theme in THEME_COLORS else "dark"
+        self._theme = theme if theme in THEME_DEFINITIONS else "dark"
         self._background_path = ""
         self._background_pixmap = QPixmap()
         self._background_opacity = 18
@@ -131,7 +168,7 @@ class ThemeBackdrop(QWidget):
         self.setAttribute(Qt.WA_StyledBackground, True)
 
     def set_theme(self, theme: str) -> None:
-        self._theme = theme if theme in THEME_COLORS else "dark"
+        self._theme = theme if theme in THEME_DEFINITIONS else "dark"
         self.update()
 
     def set_background(self, path: str = "", opacity: int = 18, mode: str = "cover") -> None:
@@ -148,7 +185,8 @@ class ThemeBackdrop(QWidget):
         self.update()
 
     def paintEvent(self, event) -> None:
-        colors = THEME_COLORS.get(self._theme, DARK_COLORS)
+        definition = THEME_DEFINITIONS.get(self._theme, THEME_DEFINITIONS["dark"])
+        colors = definition.colors
         painter = QPainter(self)
         painter.fillRect(self.rect(), QColor(colors["chat_bg"]))
         if self._background_path:
@@ -176,15 +214,14 @@ class ThemeBackdrop(QWidget):
         pen.setColor(QColor(colors["line"]))
         pen.setStyle(Qt.SolidLine)
         # Keep the pattern deliberately quiet so the message text remains primary.
-        pattern_alpha = {"dark": 36, "dark_graphite": 28, "dark_ocean": 34, "dark_forest": 30, "dark_amber": 30, "night_city": 34, "warm_paper": 20, "minimal": 0}.get(self._theme, 30)
         pattern_color = QColor(colors["line"])
-        pattern_color.setAlpha(pattern_alpha)
+        pattern_color.setAlpha(definition.pattern_alpha)
         pen.setColor(pattern_color)
         painter.setPen(pen)
         width, height = self.width(), self.height()
-        if self._theme == "minimal":
+        if definition.pattern == "none":
             pass
-        elif self._theme == "night_city":
+        elif definition.pattern == "city":
             for x in range(40, width + 80, 140):
                 building_height = 70 + (x % 170)
                 painter.drawRect(x, height - building_height, 86, building_height)
@@ -193,26 +230,26 @@ class ThemeBackdrop(QWidget):
                     painter.drawPoint(x + 50, wy)
             for y in range(60, height, 120):
                 painter.drawLine(0, y, width, y)
-        elif self._theme == "warm_paper":
+        elif definition.pattern == "paper":
             for x in range(0, width, 34):
                 painter.drawLine(x, 0, x + 90, height)
-        elif self._theme == "dark_ocean":
+        elif definition.pattern == "ocean":
             for y in range(80, height + 220, 150):
                 painter.drawArc(-120, y - 70, width // 2 + 240, 150, 0, 180 * 16)
-        elif self._theme == "dark_forest":
+        elif definition.pattern == "forest":
             for x in range(80, width + 220, 190):
                 painter.drawLine(x, height, x - 48, max(0, height - 240))
                 painter.drawLine(x - 30, height - 115, x - 105, height - 165)
                 painter.drawLine(x - 15, height - 160, x + 62, height - 215)
-        elif self._theme == "dark_amber":
+        elif definition.pattern == "workshop":
             for y in range(110, height, 190):
                 painter.drawLine(40, y, 150, y)
                 painter.drawLine(150, y, 190, y + 36)
                 painter.drawEllipse(QPointF(36, y - 4), 4, 4)
-        elif self._theme == "dark_graphite":
+        elif definition.pattern == "graphite":
             for x in range(-height, width, 180):
                 painter.drawLine(x, 0, x + height, height)
-        elif self._theme != "minimal":
+        elif definition.pattern == "stars":
             for x, y in ((90, 120), (260, 260), (520, 150), (760, 360), (980, 180), (1240, 300)):
                 if x < width and y < height:
                     painter.drawEllipse(QPointF(x, y), 2, 2)
@@ -224,15 +261,19 @@ class ThemeManager:
 
     @staticmethod
     def theme_ids() -> tuple[str, ...]:
-        return tuple(THEME_COLORS)
+        return tuple(THEME_DEFINITIONS)
+
+    @staticmethod
+    def definition(theme: str = "dark") -> ThemeDefinition:
+        return THEME_DEFINITIONS.get(theme, THEME_DEFINITIONS["dark"])
 
     @staticmethod
     def stylesheet(theme: str = "dark") -> str:
-        return ThemeManager._stylesheet(THEME_COLORS.get(theme, DARK_COLORS))
+        return ThemeManager._stylesheet(ThemeManager.definition(theme).colors)
 
     @staticmethod
     def palette(theme: str = "dark") -> QPalette:
-        c = THEME_COLORS.get(theme, DARK_COLORS)
+        c = ThemeManager.definition(theme).colors
         palette = QPalette()
         palette.setColor(QPalette.Window, QColor(c["dialog_bg"]))
         palette.setColor(QPalette.WindowText, QColor(c["text"]))
@@ -250,15 +291,15 @@ class ThemeManager:
 
     @staticmethod
     def native_chrome_colors(theme: str = "dark") -> tuple[bool, int, int, int]:
-        colors = THEME_COLORS.get(theme, DARK_COLORS)
+        definition = ThemeManager.definition(theme)
+        colors = definition.colors
 
         def colorref(value: str) -> int:
             value = value.lstrip("#")
             red, green, blue = int(value[0:2], 16), int(value[2:4], 16), int(value[4:6], 16)
             return red | (green << 8) | (blue << 16)
 
-        dark = theme not in {"light", "warm_paper"}
-        return dark, colorref(colors["dialog_bg"]), colorref(colors["text"]), colorref(colors["line"])
+        return definition.dark_chrome, colorref(colors["dialog_bg"]), colorref(colors["text"]), colorref(colors["line"])
 
     @staticmethod
     def _stylesheet(c: dict[str, str]) -> str:

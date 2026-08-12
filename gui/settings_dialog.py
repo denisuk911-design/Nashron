@@ -292,7 +292,12 @@ class SettingsDialog(QDialog):
             "light": ("#f7faff", "#162033", "#6757d8"),
         }
         background, foreground, accent = previews.get(str(self.theme.currentData()), previews["dark"])
-        self.theme_preview.setText("  Team2050    Сообщение по делу    12:44")
+        preview_text = {
+            "ru": "  Team2050    Сообщение по делу    12:44",
+            "uk": "  Team2050    Повідомлення по суті    12:44",
+            "en": "  Team2050    Focused message    12:44",
+        }.get(str(self.language.currentData()), "  Team2050    Focused message    12:44")
+        self.theme_preview.setText(preview_text)
         self.theme_preview.setStyleSheet(
             f"background: {background}; color: {foreground}; border: 2px solid {accent}; border-radius: 8px; padding: 8px;"
         )

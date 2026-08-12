@@ -92,7 +92,8 @@ def test_message_body_geometry_contains_all_wrapped_text():
 
     assert isinstance(message, MessageWidget)
     assert message.body.geometry().bottom() <= message.card.contentsRect().bottom()
-    assert item.sizeHint().height() >= message.sizeHint().height() + 30
+    reserve = item.sizeHint().height() - message.sizeHint().height()
+    assert 4 <= reserve <= 12
 
 
 def test_goal_mode_and_banner_are_visible():

@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QPushButton,
+    QSizePolicy,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -37,6 +38,7 @@ class MessageList(QListWidget):
         self.itemSelectionChanged.connect(self._sync_message_selection)
         self.verticalScrollBar().sliderPressed.connect(self.user_scroll_started.emit)
         self.verticalScrollBar().sliderReleased.connect(self.user_scroll_finished.emit)
+        self.verticalScrollBar().actionTriggered.connect(self._on_scrollbar_action)
 
     def register_message_widget(self, widget: QWidget) -> None:
         for child in (widget, *widget.findChildren(QWidget)):
@@ -130,6 +132,13 @@ class MessageList(QListWidget):
             self.user_scroll_finished.emit()
         animation.deleteLater()
 
+    def _on_scrollbar_action(self, _action: int) -> None:
+        bar = self.verticalScrollBar()
+        if bar.isSliderDown():
+            return
+        self.user_scroll_started.emit()
+        QTimer.singleShot(0, self.user_scroll_finished.emit)
+
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.key() == Qt.Key_C and event.modifiers() & Qt.ControlModifier:
             self.copy_requested.emit()
@@ -193,6 +202,7 @@ class ChatWidget(QWidget):
         self._agent_avatars: dict[str, str] = {}
         self._agent_titles: dict[str, str] = {"user": "Владелец"}
         self._recipient_keys: list[str] = []
+        self._ui_labels: dict[str, str] = {}
 
         self.typing_timer = QTimer(self)
         self.typing_timer.setInterval(260)
@@ -219,7 +229,8 @@ class ChatWidget(QWidget):
         self.input.setObjectName("messageInput")
         self.input.setPlaceholderText("Напишите в отдел...")
         self.input.setAcceptRichText(False)
-        self.input.setMinimumHeight(52)
+        self.input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.input.setFixedHeight(52)
         self.input.setMaximumHeight(220)
         self.input.send_requested.connect(self._emit_send)
         self.input.textChanged.connect(self._resize_input)
@@ -306,6 +317,12 @@ class ChatWidget(QWidget):
                 "recipient": "Кому: Авто",
                 "recipient_tip": "Кому адресовано сообщение",
                 "mode_tip": "Режим участия сотрудников",
+                "new_messages": "↓  Новые сообщения",
+                "typing": "набирает сообщение",
+                "goal": "Цель",
+                "turn": "ход",
+                "attach": "Прикрепить файл",
+                "stop": "Остановить",
                 "modes": [("Режим: Авто", "auto"), ("Цель", "goal"), ("Работа", "work"), ("Общение", "social"), ("Обсуждение", "discussion"), ("Только выбранный", "selected"), ("Обсуждение команды", "team"), ("Проверка", "review"), ("Без ответа", "silent")],
             },
             "uk": {
@@ -313,6 +330,12 @@ class ChatWidget(QWidget):
                 "recipient": "Кому: Авто",
                 "recipient_tip": "Кому адресоване повідомлення",
                 "mode_tip": "Режим участі співробітників",
+                "new_messages": "↓  Нові повідомлення",
+                "typing": "набирає повідомлення",
+                "goal": "Мета",
+                "turn": "хід",
+                "attach": "Прикріпити файл",
+                "stop": "Зупинити",
                 "modes": [("Режим: Авто", "auto"), ("Мета", "goal"), ("Робота", "work"), ("Спілкування", "social"), ("Обговорення", "discussion"), ("Лише вибраний", "selected"), ("Обговорення команди", "team"), ("Перевірка", "review"), ("Без відповіді", "silent")],
             },
             "en": {
@@ -320,10 +343,20 @@ class ChatWidget(QWidget):
                 "recipient": "To: Auto",
                 "recipient_tip": "Who the message is addressed to",
                 "mode_tip": "Employee participation mode",
+                "new_messages": "↓  New messages",
+                "typing": "is typing",
+                "goal": "Goal",
+                "turn": "turn",
+                "attach": "Attach file",
+                "stop": "Stop",
                 "modes": [("Mode: Auto", "auto"), ("Goal", "goal"), ("Work", "work"), ("Social", "social"), ("Discussion", "discussion"), ("Selected only", "selected"), ("Team discussion", "team"), ("Review", "review"), ("No response", "silent")],
             },
         }[self.language]
+        self._ui_labels = labels
         self.input.setPlaceholderText(labels["placeholder"])
+        self.new_messages_button.setText(labels["new_messages"])
+        self.attach_button.setToolTip(labels["attach"])
+        self.stop_button.setText(labels["stop"])
         self.recipient_selector.setToolTip(labels["recipient_tip"])
         current_recipient = self.recipient_selector.currentData()
         self.recipient_selector.setItemText(0, labels["recipient"])
@@ -440,8 +473,8 @@ class ChatWidget(QWidget):
             self.goal_banner.clear()
             self.goal_banner.setVisible(False)
             return
-        suffix = f" · ход {turn}" if turn else ""
-        self.goal_banner.setText(f"Цель: {goal.strip()}{suffix}")
+        suffix = f" · {self._ui_labels.get('turn', 'ход')} {turn}" if turn else ""
+        self.goal_banner.setText(f"{self._ui_labels.get('goal', 'Цель')}: {goal.strip()}{suffix}")
         self.goal_banner.setVisible(True)
 
     def clear_messages(self) -> None:
@@ -545,7 +578,7 @@ class ChatWidget(QWidget):
     def _advance_typing(self) -> None:
         if self._typing_label is not None:
             dots = " •" * (1 + self._typing_frame % 3)
-            self._typing_label.setText(f"{self._agent_short_name()} набирает сообщение{dots}")
+            self._typing_label.setText(f"{self._agent_short_name()} {self._ui_labels.get('typing', 'набирает сообщение')}{dots}")
             if self._typing_item is not None:
                 self._typing_item.setSizeHint(self._typing_label.sizeHint() + QSize(0, 10))
         for agent_key, state in self._parallel_typing.items():
@@ -556,7 +589,7 @@ class ChatWidget(QWidget):
             frame = int(state.get("frame") or 0)
             dots = " •" * (1 + frame % 3)
             name = self._agent_labels.get(agent_key, agent_key)
-            status = str(state.get("status") or "набирает сообщение")
+            status = str(state.get("status") or self._ui_labels.get("typing", "набирает сообщение"))
             label.setText(f"{name}: {status}{dots}")
             item.setSizeHint(label.sizeHint() + QSize(0, 10))
             state["frame"] = frame + 1
@@ -688,7 +721,9 @@ class ChatWidget(QWidget):
     @staticmethod
     def _message_item_size(widget: MessageWidget) -> QSize:
         hint = widget.sizeHint()
-        return QSize(hint.width(), hint.height() + 36)
+        # QListWidget needs a small reserve for style/layout rounding, but the
+        # row must still track the actual bubble rather than add a fixed gap.
+        return QSize(hint.width(), hint.height() + 8)
 
     def _resize_input(self) -> None:
         document_height = self.input.document().size().height()
@@ -878,9 +913,15 @@ class ChatWidget(QWidget):
         if should_follow:
             self._follow_new_messages = True
             self.new_messages_button.setVisible(False)
-            QTimer.singleShot(0, self._animate_scroll_to_bottom)
+            QTimer.singleShot(0, self._run_scheduled_output_scroll)
         else:
             self.new_messages_button.setVisible(True)
+
+    def _run_scheduled_output_scroll(self) -> None:
+        # The user may have moved into history after append/reflow queued this
+        # callback. Re-check live state so stale callbacks cannot pull them down.
+        if self._follow_new_messages and not self._manual_scroll_active:
+            self._animate_scroll_to_bottom()
 
     def _jump_to_new_messages(self) -> None:
         self._follow_new_messages = True
