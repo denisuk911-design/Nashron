@@ -893,6 +893,12 @@ class ChatWidget(QWidget):
         self._follow_new_messages = True
         self.new_messages_button.setVisible(False)
         if target <= bar.value():
+            # A resize/reflow may shrink the range while an older animation
+            # is still running. Cancel that stale animation instead of letting
+            # it pull the viewport away from the new bottom position.
+            self._cancel_output_scroll()
+            if bar.value() != target:
+                bar.setValue(target)
             return
         if self._scroll_animation is not None:
             self._scroll_animation.stop()

@@ -133,6 +133,8 @@ def test_resize_at_bottom_preserves_follow_state():
     QApplication.processEvents()
 
     assert widget._follow_new_messages is True
+    QTest.qWait(520)
+    QApplication.processEvents()
     assert widget._is_at_bottom()
     widget.deleteLater()
 
