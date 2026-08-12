@@ -151,7 +151,9 @@ class MainWindow(QMainWindow):
             workspace_root=self.paths.workspace_root,
             conversation_id=self.conversation_id,
         )
-        self.universal_platform_service.seed_demo_fixtures()
+        # Keep clean install limited to built-in presets and role templates;
+        # domain/demo professions are loaded only when requested in the console.
+        self.universal_platform_service.seed_management_library()
         self.memory_service = MemoryService(self.database)
         self.skill_service = SkillService(self.paths.skills_path)
         self.skill_package_service = SkillPackageService(self.database)
