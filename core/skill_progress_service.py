@@ -166,10 +166,11 @@ class SkillProgressService:
 
     def _run_stats_by_agent_skill(self) -> dict[tuple[str, str], dict[str, int | str]]:
         stats: dict[tuple[str, str], dict[str, int | str]] = {}
+        counted_runs: set[tuple[str, str, str]] = set()
         with self.database.connect() as conn:
             rows = conn.execute(
                 """
-                SELECT agent_key, logical_role, ok, parsed_response, finished_at
+                SELECT id, agent_key, logical_role, ok, parsed_response, finished_at
                 FROM agent_runs
                 WHERE cancelled = 0
                 """
@@ -181,6 +182,7 @@ class SkillProgressService:
                 continue
             role = str(row["logical_role"] or "")
             for skill_id in skill_ids:
+                counted_runs.add((str(row["id"]), agent_key, skill_id))
                 item = stats.setdefault(
                     (agent_key, skill_id),
                     {"successful_runs": 0, "verified_files": 0, "reviews_passed": 0, "last_demonstrated": ""},
@@ -194,7 +196,7 @@ class SkillProgressService:
         with self.database.connect() as conn:
             usage_rows = conn.execute(
                 """
-                SELECT ar.agent_key, ar.ok, ar.logical_role, ar.parsed_response, ar.finished_at, su.skill_id
+                SELECT ar.id AS run_id, ar.agent_key, ar.ok, ar.logical_role, ar.parsed_response, ar.finished_at, su.skill_id
                 FROM skill_usage su
                 JOIN agent_runs ar ON ar.id = su.run_id
                 WHERE ar.cancelled = 0
@@ -203,6 +205,8 @@ class SkillProgressService:
         for row in usage_rows:
             agent_key = str(row["agent_key"])
             skill_id = self._skill_id(str(row["skill_id"]))
+            if (str(row["run_id"]), agent_key, skill_id) in counted_runs:
+                continue
             if int(row["ok"] or 0):
                 item = stats.setdefault(
                     (agent_key, skill_id),

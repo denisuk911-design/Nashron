@@ -41,6 +41,7 @@ from core.identity_service import IdentityError, IdentityService
 from core.finding_service import FindingService
 from core.knowledge_service import KnowledgeService
 from core.knowledge_application_service import KnowledgeApplicationService
+from core.learning_evidence_service import LearningEvidenceService
 from core.management_service import ManagementService
 from core.memory_service import MemoryService
 from core.path_guard import PathGuardError
@@ -162,6 +163,7 @@ class MainWindow(QMainWindow):
         self.skill_package_service = SkillPackageService(self.database)
         self.knowledge_service = KnowledgeService(self.database)
         self.knowledge_application_service = KnowledgeApplicationService(self.database)
+        self.learning_evidence_service = LearningEvidenceService(self.database)
         self.standards_service = StandardsService(self.database)
         self.finding_service = FindingService(self.database)
         self.claim_validator = ClaimEvidenceValidator()
@@ -1663,6 +1665,7 @@ class MainWindow(QMainWindow):
                 self._record_work_result(worker, agent_key, content, parsed_response, message_id, registered_artifacts)
                 self._import_structured_findings(worker, parsed_response, agent_key)
                 self._import_structured_usage(worker, parsed_response, agent_key)
+                self._record_learning_evidence(worker, content)
                 if not claim_validation.blocks_skill_update:
                     self.skill_service.learn_from_exchange(agent_key, self.pending_user_message, content)
                     self.skill_service.improve_from_context(agent_key, self.autonomous_goal or self.pending_user_message, content)
@@ -1888,6 +1891,7 @@ class MainWindow(QMainWindow):
                         self._record_work_result(worker, agent_key, final_content, parsed_response, message_id, registered_artifacts)
                         self._import_structured_findings(worker, parsed_response, agent_key)
                         self._import_structured_usage(worker, parsed_response, agent_key)
+                        self._record_learning_evidence(worker, final_content)
                         if not claim_validation.blocks_skill_update:
                             self.skill_service.learn_from_exchange(agent_key, self.pending_user_message, final_content)
                             self.skill_service.improve_from_context(agent_key, self.autonomous_goal or self.pending_user_message, final_content)
@@ -1914,6 +1918,7 @@ class MainWindow(QMainWindow):
                         self._record_work_result(worker, agent_key, clean_part, parsed_response, message_id, registered_artifacts)
                         self._import_structured_findings(worker, parsed_response, agent_key)
                         self._import_structured_usage(worker, parsed_response, agent_key)
+                        self._record_learning_evidence(worker, clean_part)
                         if not claim_validation.blocks_skill_update:
                             self.skill_service.learn_from_exchange(agent_key, self.pending_user_message, clean_part)
                             self.skill_service.improve_from_context(agent_key, self.autonomous_goal or self.pending_user_message, clean_part)
@@ -2112,6 +2117,20 @@ class MainWindow(QMainWindow):
                 f"{agent_key}: knowledge={result.knowledge_recorded}; standards={result.standards_recorded}; rejected={result.rejected}",
             )
         return result
+
+    def _record_learning_evidence(self, worker: GenerateWorker | None, summary: str) -> None:
+        if worker is None or not worker.run_id:
+            return
+        try:
+            record = self.learning_evidence_service.record_completed_run(
+                worker.run_id,
+                organization_id=self.active_organization_id,
+                summary=summary,
+            )
+            if record is not None:
+                self.database.log_event("experience_record_created", record.record_id)
+        except Exception:
+            self.logger.exception("experience_record_not_created")
 
     def stop_generation(self) -> None:
         self._clear_goal_state()

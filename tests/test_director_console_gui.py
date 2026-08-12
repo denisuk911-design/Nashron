@@ -35,9 +35,11 @@ def test_director_console_renders_clean_employee_list(tmp_path):
 
     dialog = DirectorConsoleDialog(service, registry, health, provisioning)
 
-    assert dialog.tabs.count() == 13
+    assert dialog.tabs.count() == 14
     assert dialog.tabs.tabText(1) == "Организация"
     assert dialog.employee_tab.table.rowCount() == 0
+    assert dialog.learning_tab.experience_table.rowCount() == 0
+    assert dialog.learning_tab.queue_table.rowCount() == 0
 
 
 def test_director_console_renders_artifact_registry(tmp_path):

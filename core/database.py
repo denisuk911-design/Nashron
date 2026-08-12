@@ -77,6 +77,7 @@ class Database:
             self._ensure_work_context_schema(conn)
             self._ensure_universal_schema(conn)
             self._ensure_organization_expansion_schema(conn)
+            self._ensure_learning_evidence_schema(conn)
             self._repair_renamed_message_foreign_keys(conn)
             self._repair_orphaned_routing_decisions(conn)
         # A legacy writable-schema migration could leave freed pages outside
@@ -355,6 +356,7 @@ class Database:
             );
             """
         )
+
         for table, columns in {
             "organizations": {
                 "management_model_id": "TEXT",
@@ -391,6 +393,50 @@ class Database:
         conn.execute(
             "INSERT OR REPLACE INTO schema_meta (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
             ("organization_expansion_schema_version", "1.0"),
+        )
+
+    def _ensure_learning_evidence_schema(self, conn: sqlite3.Connection) -> None:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS experience_records (
+                id TEXT PRIMARY KEY,
+                agent_id TEXT,
+                employee_name TEXT NOT NULL DEFAULT '',
+                organization_id TEXT,
+                task_id TEXT,
+                run_id TEXT UNIQUE,
+                summary TEXT NOT NULL DEFAULT '',
+                skills_used TEXT NOT NULL DEFAULT '[]',
+                errors_found TEXT NOT NULL DEFAULT '[]',
+                corrections TEXT NOT NULL DEFAULT '[]',
+                lessons_learned TEXT NOT NULL DEFAULT '[]',
+                knowledge_created TEXT NOT NULL DEFAULT '[]',
+                evidence TEXT NOT NULL DEFAULT '{}',
+                outcome TEXT NOT NULL DEFAULT 'RECORDED',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (agent_id) REFERENCES agent_profiles(agent_id) ON DELETE SET NULL,
+                FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE SET NULL,
+                FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE SET NULL,
+                FOREIGN KEY (run_id) REFERENCES agent_runs(id) ON DELETE SET NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS learning_queue (
+                id TEXT PRIMARY KEY,
+                agent_id TEXT,
+                employee_name TEXT NOT NULL DEFAULT '',
+                competence TEXT NOT NULL,
+                reason TEXT NOT NULL,
+                source_id TEXT,
+                status TEXT NOT NULL DEFAULT 'PROPOSED',
+                practice_task TEXT NOT NULL DEFAULT '',
+                evidence TEXT NOT NULL DEFAULT '{}',
+                created_by TEXT NOT NULL DEFAULT 'SYSTEM',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (agent_id) REFERENCES agent_profiles(agent_id) ON DELETE SET NULL,
+                FOREIGN KEY (source_id) REFERENCES learning_sources(id) ON DELETE SET NULL
+            );
+            """
         )
 
     def _ensure_work_context_schema(self, conn: sqlite3.Connection) -> None:
@@ -3532,6 +3578,103 @@ class Database:
     def list_learning_sources(self) -> list[sqlite3.Row]:
         with self.connect() as conn:
             return conn.execute("SELECT * FROM learning_sources ORDER BY title ASC").fetchall()
+
+    def create_experience_record(self, values: dict[str, Any]) -> str:
+        record_id = values.get("id") or f"EXP-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO experience_records (
+                    id, agent_id, employee_name, organization_id, task_id, run_id,
+                    summary, skills_used, errors_found, corrections, lessons_learned,
+                    knowledge_created, evidence, outcome
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    record_id,
+                    values.get("agent_id"),
+                    values.get("employee_name", ""),
+                    values.get("organization_id"),
+                    values.get("task_id"),
+                    values.get("run_id"),
+                    values.get("summary", ""),
+                    self._json(values.get("skills_used", [])),
+                    self._json(values.get("errors_found", [])),
+                    self._json(values.get("corrections", [])),
+                    self._json(values.get("lessons_learned", [])),
+                    self._json(values.get("knowledge_created", [])),
+                    self._json(values.get("evidence", {})),
+                    values.get("outcome", "RECORDED"),
+                ),
+            )
+        return str(record_id)
+
+    def list_experience_records(self, agent_id: str | None = None) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            if agent_id:
+                return conn.execute(
+                    "SELECT * FROM experience_records WHERE agent_id = ? ORDER BY created_at DESC, id DESC",
+                    (agent_id,),
+                ).fetchall()
+            return conn.execute("SELECT * FROM experience_records ORDER BY created_at DESC, id DESC").fetchall()
+
+    def create_learning_queue_item(self, values: dict[str, Any]) -> str:
+        item_id = values.get("id") or f"LEARN-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO learning_queue (
+                    id, agent_id, employee_name, competence, reason, source_id,
+                    status, practice_task, evidence, created_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    item_id,
+                    values.get("agent_id"),
+                    values.get("employee_name", ""),
+                    values["competence"],
+                    values["reason"],
+                    values.get("source_id"),
+                    values.get("status", "PROPOSED"),
+                    values.get("practice_task", ""),
+                    self._json(values.get("evidence", {})),
+                    values.get("created_by", "SYSTEM"),
+                ),
+            )
+        return str(item_id)
+
+    def list_learning_queue(self, agent_id: str | None = None) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            if agent_id:
+                return conn.execute(
+                    "SELECT * FROM learning_queue WHERE agent_id = ? ORDER BY created_at DESC, id DESC",
+                    (agent_id,),
+                ).fetchall()
+            return conn.execute("SELECT * FROM learning_queue ORDER BY created_at DESC, id DESC").fetchall()
+
+    def update_learning_queue_status(self, item_id: str, status: str, evidence: dict[str, Any] | None = None) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                "UPDATE learning_queue SET status = ?, evidence = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (status, self._json(evidence or {}), item_id),
+            )
+
+    def record_skill_usage(
+        self,
+        *,
+        skill_id: str,
+        role: str,
+        usage_type: str,
+        task_id: str | None = None,
+        run_id: str | None = None,
+    ) -> str:
+        usage_id = f"SKILLUSE-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO skill_usage (id, task_id, run_id, skill_id, role, usage_type) VALUES (?, ?, ?, ?, ?, ?)",
+                (usage_id, task_id, run_id, skill_id, role, usage_type),
+            )
+        return usage_id
 
     def upsert_provider_definition(self, profile: ProviderProfile) -> None:
         with self.connect() as conn:

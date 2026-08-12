@@ -50,6 +50,7 @@ from core.employee_identity import generate_identity
 from core.finding_service import FINDING_CONFIDENCE, FINDING_SEVERITIES, FindingService
 from core.management_service import EmployeeSummary, ManagementService
 from core.knowledge_service import KNOWLEDGE_STATUSES, SOURCE_AUTHORITIES, KnowledgeService
+from core.learning_evidence_service import LearningEvidenceService
 from core.provider_service import ProviderHealthService, ProviderProvisioningService, ProviderRegistry
 from core.product_metrics_service import ProductMetricsService
 from core.skill_progress_service import SkillProgressService
@@ -133,6 +134,7 @@ class DirectorConsoleDialog(QDialog):
         self.permissions_tab = PermissionsTab(management_service, language, self)
         self.providers_tab = ProvidersTab(provider_registry, provider_health_service, provider_provisioning_service, management_service, language, self)
         self.skills_tab = SkillProgressTab(skill_progress_service, skill_package_service, management_service, language, self)
+        self.learning_tab = LearningEvidenceTab(LearningEvidenceService(management_service.database), language, self)
         self.knowledge_tab = KnowledgeTab(knowledge_service, self)
         self.standards_tab = StandardsTab(standards_service, self)
         self.artifacts_tab = ArtifactsTab(artifact_service, self)
@@ -148,6 +150,10 @@ class DirectorConsoleDialog(QDialog):
         self.tabs.addTab(self.permissions_tab, tr(language, "permissions"))
         self.tabs.addTab(self.providers_tab, tr(language, "providers"))
         self.tabs.addTab(self.skills_tab, tr(language, "skills"))
+        self.tabs.addTab(
+            self.learning_tab,
+            {"ru": "Развитие", "uk": "Розвиток", "en": "Development"}.get(language, "Development"),
+        )
         self.tabs.addTab(self.knowledge_tab, tr(language, "knowledge"))
         self.tabs.addTab(self.standards_tab, tr(language, "standards"))
         self.tabs.addTab(self.artifacts_tab, tr(language, "artifacts"))
@@ -175,6 +181,7 @@ class DirectorConsoleDialog(QDialog):
         self.permissions_tab.refresh()
         self.providers_tab.refresh()
         self.skills_tab.refresh()
+        self.learning_tab.refresh()
         self.knowledge_tab.refresh()
         self.standards_tab.refresh()
         self.artifacts_tab.refresh()
@@ -637,6 +644,149 @@ class OverviewTab(QWidget):
         events = self.service.list_audit_events()[-8:]
         lines = [f"{row['created_at']} | {row['actor']} | {row['action']} | {row['object_id']}" for row in events]
         self.recent.setPlainText("\n".join(lines) if lines else "Действий пока нет.")
+
+
+class LearningEvidenceTab(QWidget):
+    def __init__(self, service: LearningEvidenceService, language: str = "ru", parent=None) -> None:
+        super().__init__(parent)
+        self.service = service
+        self.language = language
+        copy = {
+            "ru": {
+                "experience": "Подтверждённый опыт", "queue": "Очередь обучения",
+                "employee": "Сотрудник", "result": "Результат", "skills": "Навыки",
+                "evidence": "Доказательства", "outcome": "Итог", "date": "Дата",
+                "competence": "Компетенция", "reason": "Причина", "status": "Статус",
+                "practice": "Практическая проверка", "approve": "Одобрить", "start": "Начать",
+                "reject": "Отклонить", "details": "Основание и данные проверки",
+            },
+            "uk": {
+                "experience": "Підтверджений досвід", "queue": "Черга навчання",
+                "employee": "Співробітник", "result": "Результат", "skills": "Навички",
+                "evidence": "Докази", "outcome": "Підсумок", "date": "Дата",
+                "competence": "Компетенція", "reason": "Причина", "status": "Статус",
+                "practice": "Практична перевірка", "approve": "Схвалити", "start": "Почати",
+                "reject": "Відхилити", "details": "Підстава та дані перевірки",
+            },
+            "en": {
+                "experience": "Verified experience", "queue": "Learning queue",
+                "employee": "Employee", "result": "Result", "skills": "Skills",
+                "evidence": "Evidence", "outcome": "Outcome", "date": "Date",
+                "competence": "Competence", "reason": "Reason", "status": "Status",
+                "practice": "Practice check", "approve": "Approve", "start": "Start",
+                "reject": "Reject", "details": "Basis and verification data",
+            },
+        }.get(language, {})
+        self.copy = copy or {
+            "experience": "Verified experience", "queue": "Learning queue", "employee": "Employee",
+            "result": "Result", "skills": "Skills", "evidence": "Evidence", "outcome": "Outcome",
+            "date": "Date", "competence": "Competence", "reason": "Reason", "status": "Status",
+            "practice": "Practice check", "approve": "Approve", "start": "Start", "reject": "Reject",
+            "details": "Basis and verification data",
+        }
+        copy = self.copy
+        self.experience_table = QTableWidget(0, 6)
+        self.experience_table.setHorizontalHeaderLabels(
+            [copy["employee"], copy["result"], copy["skills"], copy["evidence"], copy["outcome"], copy["date"]]
+        )
+        self.experience_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.experience_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.experience_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.queue_table = QTableWidget(0, 6)
+        self.queue_table.setHorizontalHeaderLabels(
+            [copy["employee"], copy["competence"], copy["reason"], copy["status"], copy["practice"], copy["date"]]
+        )
+        self.queue_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.queue_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.queue_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.detail = QTextEdit()
+        self.detail.setReadOnly(True)
+        self.detail.setMinimumHeight(110)
+        self.experience_table.itemSelectionChanged.connect(self._show_experience_detail)
+        self.queue_table.itemSelectionChanged.connect(self._show_queue_detail)
+        buttons = QHBoxLayout()
+        for label, status in ((copy["approve"], "APPROVED"), (copy["start"], "IN_PROGRESS"), (copy["reject"], "REJECTED")):
+            button = QPushButton(label)
+            button.clicked.connect(lambda _checked=False, value=status: self._set_queue_status(value))
+            buttons.addWidget(button)
+        buttons.addStretch(1)
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel(copy["experience"]))
+        layout.addWidget(self.experience_table, 1)
+        layout.addWidget(QLabel(copy["queue"]))
+        layout.addWidget(self.queue_table, 1)
+        layout.addLayout(buttons)
+        layout.addWidget(QLabel(copy["details"]))
+        layout.addWidget(self.detail)
+
+    def refresh(self) -> None:
+        experience = self.service.list_experience()
+        self.experience_table.setRowCount(len(experience))
+        for row_index, record in enumerate(experience):
+            evidence_count = sum(len(value) for value in record.evidence.values() if isinstance(value, list))
+            values = [
+                record.employee_name,
+                record.summary,
+                ", ".join(record.skills_used),
+                str(evidence_count),
+                workflow_label(self.language, record.outcome),
+                record.created_at,
+            ]
+            detail = json.dumps(
+                {
+                    "summary": record.summary,
+                    "skills_used": record.skills_used,
+                    "errors_found": record.errors_found,
+                    "corrections": record.corrections,
+                    "lessons_learned": record.lessons_learned,
+                    "evidence": record.evidence,
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+            for column, value in enumerate(values):
+                item = QTableWidgetItem(str(value))
+                item.setData(Qt.UserRole, detail)
+                self.experience_table.setItem(row_index, column, item)
+        queue = self.service.list_learning_queue()
+        self.queue_table.setRowCount(len(queue))
+        for row_index, item_data in enumerate(queue):
+            values = [
+                item_data.employee_name,
+                item_data.competence,
+                item_data.reason,
+                workflow_label(self.language, item_data.status),
+                item_data.practice_task,
+                item_data.updated_at,
+            ]
+            detail = json.dumps(item_data.evidence, ensure_ascii=False, indent=2)
+            for column, value in enumerate(values):
+                item = QTableWidgetItem(str(value))
+                item.setData(Qt.UserRole, item_data.item_id)
+                item.setData(Qt.UserRole + 1, detail)
+                self.queue_table.setItem(row_index, column, item)
+
+    def _show_experience_detail(self) -> None:
+        items = self.experience_table.selectedItems()
+        if items:
+            self.detail.setPlainText(str(items[0].data(Qt.UserRole) or ""))
+
+    def _show_queue_detail(self) -> None:
+        items = self.queue_table.selectedItems()
+        if items:
+            self.detail.setPlainText(str(items[0].data(Qt.UserRole + 1) or ""))
+
+    def _set_queue_status(self, status: str) -> None:
+        items = self.queue_table.selectedItems()
+        if not items:
+            return
+        item_id = str(items[0].data(Qt.UserRole) or "")
+        try:
+            evidence = json.loads(str(items[0].data(Qt.UserRole + 1) or "{}"))
+        except json.JSONDecodeError:
+            evidence = {}
+        self.service.update_learning_status(item_id, status, evidence)
+        self.refresh()
 
 
 class EmployeesTab(QWidget):
