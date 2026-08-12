@@ -46,6 +46,7 @@ from core.management_models import (
 )
 from core.artifact_service import ArtifactService
 from core.avatar_catalog import list_avatar_files
+from core.director_service import DirectorService
 from core.employee_identity import generate_identity
 from core.finding_service import FINDING_CONFIDENCE, FINDING_SEVERITIES, FindingService
 from core.management_service import EmployeeSummary, ManagementService
@@ -142,9 +143,14 @@ class DirectorConsoleDialog(QDialog):
         self.diagnostics_tab = ProductDiagnosticsTab(product_metrics_service, self)
         self.audit_tab = AuditTab(management_service, language, self)
         self.universal_tab = UniversalPlatformTab(universal_platform_service, self)
+        self.director_plans_tab = DirectorPlansTab(DirectorService(management_service.database), language, self)
 
         self.tabs.addTab(self.overview_tab, tr(language, "overview"))
         self.tabs.addTab(self.universal_tab, tr(language, "organization"))
+        self.tabs.addTab(
+            self.director_plans_tab,
+            {"ru": "Планы", "uk": "Плани", "en": "Plans"}.get(language, "Plans"),
+        )
         self.tabs.addTab(self.employee_tab, tr(language, "employees"))
         self.tabs.addTab(self.roles_tab, tr(language, "roles"))
         self.tabs.addTab(self.permissions_tab, tr(language, "permissions"))
@@ -176,6 +182,7 @@ class DirectorConsoleDialog(QDialog):
     def refresh_all(self) -> None:
         self.overview_tab.refresh()
         self.universal_tab.refresh()
+        self.director_plans_tab.refresh()
         self.employee_tab.refresh()
         self.roles_tab.refresh()
         self.permissions_tab.refresh()
@@ -188,6 +195,111 @@ class DirectorConsoleDialog(QDialog):
         self.findings_tab.refresh()
         self.diagnostics_tab.refresh()
         self.audit_tab.refresh()
+
+
+class DirectorPlansTab(QWidget):
+    def __init__(self, service: DirectorService, language: str = "ru", parent=None) -> None:
+        super().__init__(parent)
+        self.service = service
+        self.language = language
+        copy = {
+            "ru": ("Цель", "Организация", "Сформировать план", "Планы", "Директор", "Статус", "Заданий", "Подробности"),
+            "uk": ("Мета", "Організація", "Сформувати план", "Плани", "Керівник", "Статус", "Завдань", "Подробиці"),
+            "en": ("Goal", "Organization", "Create plan", "Plans", "Director", "Status", "Assignments", "Details"),
+        }.get(language, ("Goal", "Organization", "Create plan", "Plans", "Director", "Status", "Assignments", "Details"))
+        goal_label, organization_label, create_label, plans_label, director_label, status_label_text, assignments_label, details_label = copy
+        self.organization = QComboBox()
+        self.goal = QTextEdit()
+        self.goal.setMaximumHeight(88)
+        create = QPushButton(create_label)
+        create.clicked.connect(self._create_plan)
+        form = QFormLayout()
+        form.addRow(organization_label, self.organization)
+        form.addRow(goal_label, self.goal)
+        form.addRow("", create)
+        self.table = QTableWidget(0, 5)
+        self.table.setHorizontalHeaderLabels([plans_label, director_label, status_label_text, assignments_label, organization_label])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.table.itemSelectionChanged.connect(self._show_detail)
+        self.detail = QTextEdit()
+        self.detail.setReadOnly(True)
+        layout = QVBoxLayout(self)
+        layout.addLayout(form)
+        layout.addWidget(QLabel(plans_label))
+        layout.addWidget(self.table, 1)
+        layout.addWidget(QLabel(details_label))
+        layout.addWidget(self.detail, 1)
+
+    def refresh(self) -> None:
+        selected = self.organization.currentData()
+        self.organization.clear()
+        for row in self.service.database.list_organizations():
+            if str(row["status"]).upper() == "ACTIVE":
+                self.organization.addItem(str(row["name"]), str(row["id"]))
+        index = self.organization.findData(selected)
+        if index >= 0:
+            self.organization.setCurrentIndex(index)
+        plans = self.service.list_plans()
+        self.table.setRowCount(len(plans))
+        for row_index, plan in enumerate(plans):
+            organization = next(
+                (row for row in self.service.database.list_organizations() if str(row["id"]) == plan.organization_id),
+                None,
+            )
+            values = [
+                plan.goal,
+                plan.director_name,
+                workflow_label(self.language, plan.status),
+                str(len(plan.assignments)),
+                str(organization["name"]) if organization is not None else plan.organization_id,
+            ]
+            detail = "\n".join(
+                [
+                    f"{plan.director_name}: {plan.goal}",
+                    f"{workflow_label(self.language, plan.status)}",
+                    f"Missing roles: {', '.join(plan.missing_roles) or '-'}",
+                    f"Owner approval: {'yes' if plan.owner_approval_required else 'no'}",
+                    "",
+                    *[
+                        f"{item.sequence_no}. {item.employee_name} · {item.position} · {workflow_label(self.language, item.status)}"
+                        for item in plan.assignments
+                    ],
+                ]
+            )
+            for column, value in enumerate(values):
+                item = QTableWidgetItem(str(value))
+                item.setData(Qt.UserRole, detail)
+                self.table.setItem(row_index, column, item)
+
+    def _create_plan(self) -> None:
+        organization_id = self.organization.currentData()
+        goal = self.goal.toPlainText().strip()
+        if not organization_id or not goal:
+            return
+        try:
+            self.service.create_plan(str(organization_id), goal)
+        except ValueError as exc:
+            messages = {
+                "director_not_assigned": {
+                    "ru": "В организации не назначен директор или руководитель.",
+                    "uk": "В організації не призначено директора або керівника.",
+                    "en": "No director or organization manager is assigned.",
+                },
+                "goal_required": {
+                    "ru": "Введите цель.", "uk": "Введіть мету.", "en": "Enter a goal.",
+                },
+            }
+            QMessageBox.warning(self, "Team2050", messages.get(str(exc), {}).get(self.language, str(exc)))
+            return
+        self.goal.clear()
+        self.refresh()
+
+    def _show_detail(self) -> None:
+        items = self.table.selectedItems()
+        if items:
+            self.detail.setPlainText(str(items[0].data(Qt.UserRole) or ""))
 
 
 class UniversalPlatformTab(QWidget):

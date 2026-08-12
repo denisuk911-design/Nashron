@@ -78,6 +78,7 @@ class Database:
             self._ensure_universal_schema(conn)
             self._ensure_organization_expansion_schema(conn)
             self._ensure_learning_evidence_schema(conn)
+            self._ensure_director_schema(conn)
             self._repair_renamed_message_foreign_keys(conn)
             self._repair_orphaned_routing_decisions(conn)
         # A legacy writable-schema migration could leave freed pages outside
@@ -435,6 +436,46 @@ class Database:
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (agent_id) REFERENCES agent_profiles(agent_id) ON DELETE SET NULL,
                 FOREIGN KEY (source_id) REFERENCES learning_sources(id) ON DELETE SET NULL
+            );
+            """
+        )
+
+    def _ensure_director_schema(self, conn: sqlite3.Connection) -> None:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS project_plans (
+                id TEXT PRIMARY KEY,
+                organization_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                director_agent_id TEXT NOT NULL,
+                goal TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'DRAFT',
+                clarification_questions TEXT NOT NULL DEFAULT '[]',
+                missing_roles TEXT NOT NULL DEFAULT '[]',
+                owner_approval_required INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+                FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+                FOREIGN KEY (director_agent_id) REFERENCES agent_profiles(agent_id) ON DELETE RESTRICT
+            );
+
+            CREATE TABLE IF NOT EXISTS work_assignments (
+                id TEXT PRIMARY KEY,
+                plan_id TEXT NOT NULL,
+                task_id TEXT NOT NULL,
+                agent_id TEXT,
+                role_id TEXT,
+                position TEXT NOT NULL DEFAULT '',
+                sequence_no INTEGER NOT NULL,
+                review_required INTEGER NOT NULL DEFAULT 0,
+                acceptance_criteria TEXT NOT NULL DEFAULT '[]',
+                status TEXT NOT NULL DEFAULT 'ASSIGNED',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (plan_id) REFERENCES project_plans(id) ON DELETE CASCADE,
+                FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+                FOREIGN KEY (agent_id) REFERENCES agent_profiles(agent_id) ON DELETE SET NULL
             );
             """
         )
@@ -3675,6 +3716,71 @@ class Database:
                 (usage_id, task_id, run_id, skill_id, role, usage_type),
             )
         return usage_id
+
+    def create_project_plan(self, values: dict[str, Any]) -> str:
+        plan_id = values.get("id") or f"PLAN-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO project_plans (
+                    id, organization_id, project_id, director_agent_id, goal, status,
+                    clarification_questions, missing_roles, owner_approval_required
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    plan_id,
+                    values["organization_id"],
+                    values["project_id"],
+                    values["director_agent_id"],
+                    values["goal"],
+                    values.get("status", "DRAFT"),
+                    self._json(values.get("clarification_questions", [])),
+                    self._json(values.get("missing_roles", [])),
+                    1 if values.get("owner_approval_required") else 0,
+                ),
+            )
+        return str(plan_id)
+
+    def list_project_plans(self, organization_id: str | None = None) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            if organization_id:
+                return conn.execute(
+                    "SELECT * FROM project_plans WHERE organization_id = ? ORDER BY created_at DESC, id DESC",
+                    (organization_id,),
+                ).fetchall()
+            return conn.execute("SELECT * FROM project_plans ORDER BY created_at DESC, id DESC").fetchall()
+
+    def create_work_assignment(self, values: dict[str, Any]) -> str:
+        assignment_id = values.get("id") or f"ASSIGN-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO work_assignments (
+                    id, plan_id, task_id, agent_id, role_id, position, sequence_no,
+                    review_required, acceptance_criteria, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    assignment_id,
+                    values["plan_id"],
+                    values["task_id"],
+                    values.get("agent_id"),
+                    values.get("role_id"),
+                    values.get("position", ""),
+                    int(values.get("sequence_no", 0)),
+                    1 if values.get("review_required") else 0,
+                    self._json(values.get("acceptance_criteria", [])),
+                    values.get("status", "ASSIGNED"),
+                ),
+            )
+        return str(assignment_id)
+
+    def list_work_assignments(self, plan_id: str) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM work_assignments WHERE plan_id = ? ORDER BY sequence_no ASC, id ASC",
+                (plan_id,),
+            ).fetchall()
 
     def upsert_provider_definition(self, profile: ProviderProfile) -> None:
         with self.connect() as conn:
