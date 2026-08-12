@@ -28,7 +28,7 @@ if errorlevel 1 exit /b 1
 if not exist "build" mkdir "build"
 for /f "delims=" %%i in ('git rev-parse --short HEAD') do set "BUILD_COMMIT=%%i"
 for /f "delims=" %%i in ('powershell -NoProfile -Command "(Get-Date).ToUniversalTime().ToString('o')"') do set "BUILD_TIMESTAMP=%%i"
-".venv\Scripts\python.exe" scripts\write_build_info.py --output build\build_info.json --version 2.4.2 --commit "%BUILD_COMMIT%" --timestamp "%BUILD_TIMESTAMP%"
+".venv\Scripts\python.exe" scripts\write_build_info.py --output build\build_info.json --version 2.5.0 --commit "%BUILD_COMMIT%" --timestamp "%BUILD_TIMESTAMP%"
 if errorlevel 1 exit /b 1
 
 ".venv\Scripts\pyinstaller.exe" --noconfirm --clean Team2050.spec
