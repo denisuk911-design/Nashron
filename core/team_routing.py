@@ -62,8 +62,6 @@ class TeamRouter:
         "на месте",
         "на связи",
         "остальные",
-        "куку",
-        "ку-ку",
     )
     DISCUSSION_TOKENS = ("обсудите", "обсуждаем", "что думаете", "говорите между собой", "совещайтесь")
     REVIEW_TOKENS = ("проверь", "проверить", "ревью", "аудит", "отк", "оценить")
@@ -192,12 +190,11 @@ class TeamRouter:
         if not fallback:
             fallback = [agent.key for agent in active_agents if agent.key in eligible]
         if fallback:
-            if self.general_chat_response == "ALL":
-                chosen = fallback
-            elif self.general_chat_response == "SMALL_GROUP":
-                chosen = fallback[:3]
-            else:
-                chosen = fallback[:1]
+            # An unaddressed conversational message is not a team call. The
+            # user can still address "команда/всем" explicitly to involve all
+            # employees; a global response preference must not turn "привет"
+            # into a work meeting.
+            chosen = fallback[:1]
             return self._decision(
                 ParticipationMode.DIRECT,
                 chosen,

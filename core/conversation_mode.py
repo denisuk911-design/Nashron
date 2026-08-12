@@ -57,9 +57,10 @@ def infer_mode(text: str, current: ConversationMode = ConversationMode.SOCIAL) -
         return ConversationMode.SOCIAL
     if contains_phrase(text, _RESUME_PHRASES):
         return ConversationMode.WORK
-    if current == ConversationMode.WORK:
-        return current
     lowered = " ".join(str(text or "").lower().split())
     if any(marker in lowered for marker in _WORK_MARKERS):
         return ConversationMode.WORK
-    return current
+    # Work mode is entered by an explicit work request, not inherited by
+    # ordinary chat. This prevents a completed task from hijacking greetings
+    # and casual questions with stale task context.
+    return ConversationMode.SOCIAL

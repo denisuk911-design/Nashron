@@ -1613,7 +1613,7 @@ class MainWindow(QMainWindow):
         return self.codex_client
 
     def _schedule_contextual_next_turn(self, author: str, content: str) -> None:
-        if self.autonomous_active:
+        if self.autonomous_active or getattr(self, "conversation_mode", ConversationMode.WORK) != ConversationMode.WORK:
             return
         if self.exchange_turn >= self.exchange_turn_limit:
             return
@@ -1635,7 +1635,7 @@ class MainWindow(QMainWindow):
         # direct request into an autonomous conversation.
 
     def _contextual_handoff_target(self, author: str, content: str) -> str | None:
-        if not has_handoff_intent(content):
+        if getattr(self, "conversation_mode", ConversationMode.WORK) != ConversationMode.WORK or not has_handoff_intent(content):
             return None
         agents = self._chat_agents()
         active_keys = {agent.key for agent in agents}

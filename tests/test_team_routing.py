@@ -70,6 +70,14 @@ def test_auto_general_message_always_has_a_conversational_owner():
     assert decision.reason == "default_conversational_owner"
 
 
+def test_casual_kuku_does_not_call_the_whole_team():
+    decision = TeamRouter(general_chat_response="ALL").decide("Куку", _agents())
+
+    assert decision.participation_mode == ParticipationMode.DIRECT
+    assert len(decision.selected) == 1
+    assert decision.reason == "default_conversational_owner"
+
+
 def test_manual_recipient_is_enforced():
     decision = TeamRouter().decide(
         "Кто ответит?",

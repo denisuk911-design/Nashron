@@ -142,11 +142,10 @@ class PromptBuilder:
         context_task_id = task_id if mode == ConversationMode.WORK.value else None
         context_lines = list(active_work_context_lines or [])
         if mode != ConversationMode.WORK.value:
-            task = self.database.get_task(task_id) if task_id else None
-            task_title = str(task["title"]) if task is not None else "незавершённая рабочая задача"
             context_lines = [
-                f"- Фоновая память: {task_title}.",
-                "- Эта задача не является темой текущего сообщения. Не возвращай разговор к работе без прямого рабочего запроса пользователя.",
+                "- Рабочий режим не активен.",
+                "- Не извлекай задачу из старой истории, памяти, навыков или реплик коллег.",
+                "- Не возвращай разговор к работе без прямого рабочего запроса пользователя.",
             ]
 
         parts = [
@@ -184,6 +183,7 @@ class PromptBuilder:
             "Не пиши сообщения поддержки вроде 'всё нормально', 'работаем', 'молодец' и не комментируй процесс без пользы.",
             *autonomy_parts,
             *ping_style,
+            *(["СОЦИАЛЬНЫЙ РЕЖИМ: отвечай только на текущее сообщение пользователя. Не предлагай работу, не обсуждай старые задачи, не назначай исполнителей, не передавай сообщение коллеге и не пиши отчёт о готовности. Если это приветствие или бытовой вопрос, ответь коротко и живо." ] if mode != ConversationMode.WORK.value else []),
             "",
             tool_policy,
             "",
@@ -233,7 +233,7 @@ class PromptBuilder:
                 f"- current_task_id: {context_task_id or 'нет'}",
                 f"- current_run_id: {run_id or 'нет'}",
                 f"- current_employee_role: {structured_role}",
-                "- expected_response_type: короткий рабочий ответ с подтверждаемыми claims",
+                f"- expected_response_type: {'короткий разговорный ответ без рабочих claims' if mode != ConversationMode.WORK.value else 'короткий рабочий ответ с подтверждаемыми claims'}",
                 "- evidence_policy: не утверждай 'проверил/исправил/подтвердил/освоил', если это не подтверждено structured evidence.",
                 "- selection_policy: контекст ниже отобран по текущей теме, роли и владельцу разговора; это не полный лог чата.",
             ]
