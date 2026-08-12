@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -70,7 +71,12 @@ class PromptBuilder:
         identity = self.identity_service.load()
         timeline = self._load_timeline()
         memories = self.database.list_memories()
-        skills = self.skill_service.list_for_prompt(agent.key) if self.skill_service is not None else []
+        legacy_skills = self.skill_service.list_for_prompt(agent.key) if self.skill_service is not None else []
+        package_skills = self._relevant_package_skills(
+            agent_profile.agent_id if agent_profile is not None else "",
+            "\n".join([user_message, autonomous_goal, *(active_work_context_lines or []), *(execution_contract_lines or [])]),
+        )
+        skills = list(dict.fromkeys([*package_skills, *legacy_skills]))
         effective_permissions = self._effective_permissions(agent_profile)
         structured_role = agent_profile.primary_role if agent_profile is not None else "ASSISTANT"
         thread_owner_keys = self._thread_owner_keys(thread_context_lines or [])
@@ -322,6 +328,44 @@ class PromptBuilder:
         if agent_profile is None:
             return []
         return sorted(effective_permissions_for_agent(self.database, agent_profile.agent_id))
+
+    def _relevant_package_skills(self, agent_id: str, task_text: str, limit: int = 5) -> list[str]:
+        if not agent_id:
+            return []
+        try:
+            assignments = self.database.list_employee_skill_assignments(agent_id)
+        except Exception:
+            return []
+        eligible_package_states = {"VERIFIED", "MATURE", "ACTIVE"}
+        eligible_employee_states = {"REVIEWED", "QUALIFIED"}
+        task_tokens = self._semantic_tokens(task_text)
+        ranked: list[tuple[int, str]] = []
+        for row in assignments:
+            if str(row["skill_status"]) not in eligible_package_states or str(row["state"]) not in eligible_employee_states:
+                continue
+            title = str(row["name"] or "").strip()
+            purpose = str(row["purpose"] or "").strip()
+            overlap = task_tokens & self._semantic_tokens(f"{title} {purpose}")
+            if task_tokens and not overlap:
+                continue
+            score = len(overlap) * 10 + (2 if str(row["skill_status"]) == "MATURE" else 1)
+            ranked.append(
+                (
+                    score,
+                    f"{title} [проверен; пакет {row['skill_id']}, версия {row['version']}]: {purpose or 'назначенный профессиональный навык'}",
+                )
+            )
+        ranked.sort(key=lambda item: (-item[0], item[1].casefold()))
+        return [line for _score, line in ranked[:limit]]
+
+    @staticmethod
+    def _semantic_tokens(text: str) -> set[str]:
+        stop = {"для", "или", "при", "это", "как", "the", "and", "with", "from", "что", "надо", "нужно"}
+        return {
+            token
+            for token in re.findall(r"[a-zа-яё0-9]+", text.casefold())
+            if len(token) >= 3 and token not in stop
+        }
 
     def _load_timeline(self) -> dict[str, Any]:
         if not self.timeline_path.exists():

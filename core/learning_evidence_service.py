@@ -48,6 +48,11 @@ class LearningQueueItem:
     evidence: dict[str, Any]
     created_by: str
     updated_at: str
+    skill_id: str | None = None
+    coordinator_agent_id: str | None = None
+    qualification_criteria: tuple[str, ...] = ()
+    practice_run_id: str | None = None
+    review_run_id: str | None = None
 
 
 class LearningEvidenceService:
@@ -144,6 +149,11 @@ class LearningEvidenceService:
                 "practice_task": practice_task.strip(),
                 "evidence": evidence,
                 "created_by": created_by,
+                "qualification_criteria": [
+                    "Практическая задача выполнена с проверяемыми evidence",
+                    "Результат проверен другим сотрудником",
+                    "Блокирующие замечания отсутствуют",
+                ],
             }
         )
 
@@ -273,4 +283,9 @@ class LearningEvidenceService:
             evidence=Database.loads(str(row["evidence"] or "{}"), {}),
             created_by=str(row["created_by"] or ""),
             updated_at=str(row["updated_at"] or ""),
+            skill_id=str(row["skill_id"]) if row["skill_id"] else None,
+            coordinator_agent_id=str(row["coordinator_agent_id"]) if row["coordinator_agent_id"] else None,
+            qualification_criteria=tuple(map(str, Database.loads(str(row["qualification_criteria"] or "[]"), []))),
+            practice_run_id=str(row["practice_run_id"]) if row["practice_run_id"] else None,
+            review_run_id=str(row["review_run_id"]) if row["review_run_id"] else None,
         )

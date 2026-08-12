@@ -439,6 +439,17 @@ class Database:
             );
             """
         )
+        existing = {str(row["name"]) for row in conn.execute("PRAGMA table_info(learning_queue)").fetchall()}
+        for name, definition in {
+            "skill_id": "TEXT",
+            "coordinator_agent_id": "TEXT",
+            "qualification_criteria": "TEXT NOT NULL DEFAULT '[]'",
+            "practice_run_id": "TEXT",
+            "review_run_id": "TEXT",
+            "completed_at": "TEXT",
+        }.items():
+            if name not in existing:
+                conn.execute(f"ALTER TABLE learning_queue ADD COLUMN {name} {definition}")
 
     def _ensure_director_schema(self, conn: sqlite3.Connection) -> None:
         conn.executescript(
@@ -477,8 +488,48 @@ class Database:
                 FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
                 FOREIGN KEY (agent_id) REFERENCES agent_profiles(agent_id) ON DELETE SET NULL
             );
+
+            CREATE TABLE IF NOT EXISTS director_workflow_events (
+                id TEXT PRIMARY KEY,
+                plan_id TEXT NOT NULL,
+                assignment_id TEXT,
+                event_type TEXT NOT NULL,
+                actor_agent_id TEXT,
+                detail TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (plan_id) REFERENCES project_plans(id) ON DELETE CASCADE,
+                FOREIGN KEY (assignment_id) REFERENCES work_assignments(id) ON DELETE SET NULL
+            );
             """
         )
+        extensions = {
+            "project_plans": {
+                "owner_message_id": "INTEGER",
+                "summary": "TEXT NOT NULL DEFAULT ''",
+                "max_rework_attempts": "INTEGER NOT NULL DEFAULT 2",
+                "completed_at": "TEXT",
+            },
+            "work_assignments": {
+                "assignment_type": "TEXT NOT NULL DEFAULT 'EXECUTION'",
+                "responsibility": "TEXT NOT NULL DEFAULT 'RESPONSIBLE'",
+                "depends_on_assignment_id": "TEXT",
+                "reviewed_assignment_id": "TEXT",
+                "attempt_no": "INTEGER NOT NULL DEFAULT 0",
+                "result_run_id": "TEXT",
+                "result_message_id": "INTEGER",
+                "result_summary": "TEXT NOT NULL DEFAULT ''",
+                "evidence": "TEXT NOT NULL DEFAULT '{}'",
+                "review_decision": "TEXT NOT NULL DEFAULT ''",
+                "failure_reason": "TEXT NOT NULL DEFAULT ''",
+                "started_at": "TEXT",
+                "completed_at": "TEXT",
+            },
+        }
+        for table, columns in extensions.items():
+            existing = {str(row["name"]) for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+            for name, definition in columns.items():
+                if name not in existing:
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
 
     def _ensure_work_context_schema(self, conn: sqlite3.Connection) -> None:
         """Persistent task intent, artifact handoff and provider contracts."""
@@ -3666,8 +3717,9 @@ class Database:
                 """
                 INSERT INTO learning_queue (
                     id, agent_id, employee_name, competence, reason, source_id,
-                    status, practice_task, evidence, created_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    status, practice_task, evidence, created_by, skill_id,
+                    coordinator_agent_id, qualification_criteria
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     item_id,
@@ -3680,6 +3732,9 @@ class Database:
                     values.get("practice_task", ""),
                     self._json(values.get("evidence", {})),
                     values.get("created_by", "SYSTEM"),
+                    values.get("skill_id"),
+                    values.get("coordinator_agent_id"),
+                    self._json(values.get("qualification_criteria", [])),
                 ),
             )
         return str(item_id)
@@ -3698,6 +3753,28 @@ class Database:
             conn.execute(
                 "UPDATE learning_queue SET status = ?, evidence = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
                 (status, self._json(evidence or {}), item_id),
+            )
+
+    def get_learning_queue_item(self, item_id: str) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM learning_queue WHERE id = ?", (item_id,)).fetchone()
+
+    def update_learning_queue_item(self, item_id: str, values: dict[str, Any]) -> None:
+        allowed = {
+            "status", "practice_task", "evidence", "skill_id", "coordinator_agent_id",
+            "qualification_criteria", "practice_run_id", "review_run_id", "completed_at",
+        }
+        updates = {key: value for key, value in values.items() if key in allowed}
+        for key in ("evidence", "qualification_criteria"):
+            if key in updates and not isinstance(updates[key], str):
+                updates[key] = self._json(updates[key])
+        if not updates:
+            return
+        assignments = ", ".join(f"{key} = ?" for key in updates)
+        with self.connect() as conn:
+            conn.execute(
+                f"UPDATE learning_queue SET {assignments}, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (*updates.values(), item_id),
             )
 
     def record_skill_usage(
@@ -3724,8 +3801,9 @@ class Database:
                 """
                 INSERT INTO project_plans (
                     id, organization_id, project_id, director_agent_id, goal, status,
-                    clarification_questions, missing_roles, owner_approval_required
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    clarification_questions, missing_roles, owner_approval_required,
+                    owner_message_id, summary, max_rework_attempts
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     plan_id,
@@ -3737,9 +3815,28 @@ class Database:
                     self._json(values.get("clarification_questions", [])),
                     self._json(values.get("missing_roles", [])),
                     1 if values.get("owner_approval_required") else 0,
+                    values.get("owner_message_id"),
+                    values.get("summary", ""),
+                    int(values.get("max_rework_attempts", 2)),
                 ),
             )
         return str(plan_id)
+
+    def get_project_plan(self, plan_id: str) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM project_plans WHERE id = ?", (plan_id,)).fetchone()
+
+    def update_project_plan(self, plan_id: str, values: dict[str, Any]) -> None:
+        allowed = {"status", "summary", "completed_at", "owner_approval_required", "max_rework_attempts"}
+        updates = {key: value for key, value in values.items() if key in allowed}
+        if not updates:
+            return
+        assignments = ", ".join(f"{key} = ?" for key in updates)
+        with self.connect() as conn:
+            conn.execute(
+                f"UPDATE project_plans SET {assignments}, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (*updates.values(), plan_id),
+            )
 
     def list_project_plans(self, organization_id: str | None = None) -> list[sqlite3.Row]:
         with self.connect() as conn:
@@ -3757,8 +3854,9 @@ class Database:
                 """
                 INSERT INTO work_assignments (
                     id, plan_id, task_id, agent_id, role_id, position, sequence_no,
-                    review_required, acceptance_criteria, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    review_required, acceptance_criteria, status, assignment_type,
+                    responsibility, depends_on_assignment_id, reviewed_assignment_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     assignment_id,
@@ -3771,14 +3869,67 @@ class Database:
                     1 if values.get("review_required") else 0,
                     self._json(values.get("acceptance_criteria", [])),
                     values.get("status", "ASSIGNED"),
+                    values.get("assignment_type", "EXECUTION"),
+                    values.get("responsibility", "RESPONSIBLE"),
+                    values.get("depends_on_assignment_id"),
+                    values.get("reviewed_assignment_id"),
                 ),
             )
         return str(assignment_id)
+
+    def get_work_assignment(self, assignment_id: str) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM work_assignments WHERE id = ?", (assignment_id,)).fetchone()
+
+    def update_work_assignment(self, assignment_id: str, values: dict[str, Any]) -> None:
+        allowed = {
+            "status", "attempt_no", "result_run_id", "result_message_id", "result_summary",
+            "evidence", "review_decision", "failure_reason", "started_at", "completed_at",
+        }
+        updates = {key: value for key, value in values.items() if key in allowed}
+        if "evidence" in updates and not isinstance(updates["evidence"], str):
+            updates["evidence"] = self._json(updates["evidence"])
+        if not updates:
+            return
+        assignments = ", ".join(f"{key} = ?" for key in updates)
+        with self.connect() as conn:
+            conn.execute(
+                f"UPDATE work_assignments SET {assignments}, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (*updates.values(), assignment_id),
+            )
 
     def list_work_assignments(self, plan_id: str) -> list[sqlite3.Row]:
         with self.connect() as conn:
             return conn.execute(
                 "SELECT * FROM work_assignments WHERE plan_id = ? ORDER BY sequence_no ASC, id ASC",
+                (plan_id,),
+            ).fetchall()
+
+    def record_director_workflow_event(
+        self,
+        plan_id: str,
+        event_type: str,
+        *,
+        assignment_id: str | None = None,
+        actor_agent_id: str | None = None,
+        detail: dict[str, Any] | None = None,
+    ) -> str:
+        event_id = f"DIREVENT-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO director_workflow_events
+                    (id, plan_id, assignment_id, event_type, actor_agent_id, detail)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (event_id, plan_id, assignment_id, event_type, actor_agent_id, self._json(detail or {})),
+            )
+        return event_id
+
+    def list_director_workflow_events(self, plan_id: str) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM director_workflow_events WHERE plan_id = ? ORDER BY created_at ASC, id ASC",
                 (plan_id,),
             ).fetchall()
 

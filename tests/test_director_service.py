@@ -70,3 +70,128 @@ def test_plan_requires_explicit_director_assignment(tmp_path):
 
     with pytest.raises(ValueError, match="director_not_assigned"):
         DirectorService(database).create_plan(organization_id, "Сделать продукт")
+
+
+def test_director_workflow_runs_execution_then_independent_review(tmp_path):
+    database, organization_id = _team(tmp_path)
+    service = DirectorService(database)
+    plan = service.create_plan(organization_id, "Создать проверяемый результат")
+
+    action = service.next_action(plan.plan_id)
+    assert action is not None
+    assert action.assignment_type == "EXECUTION"
+    service.start_assignment(action.assignment_id, "RUN-EXEC-1")
+    service.finish_assignment(
+        action.assignment_id,
+        ok=True,
+        run_id="RUN-EXEC-1",
+        message_id=10,
+        summary="Артефакт создан",
+        evidence={"files_created": ["result.txt"], "checks": [{"name": "syntax", "ok": True}]},
+    )
+
+    while True:
+        action = service.next_action(plan.plan_id)
+        assert action is not None
+        service.start_assignment(action.assignment_id, f"RUN-{action.assignment_id}")
+        if action.assignment_type == "REVIEW":
+            review_action = action
+            break
+        service.finish_assignment(
+            action.assignment_id,
+            ok=True,
+            run_id=f"RUN-{action.assignment_id}",
+            message_id=11,
+            summary="Часть результата создана",
+            evidence={"files_modified": ["result.txt"], "checks": [{"name": "content", "ok": True}]},
+        )
+
+    assert review_action.agent_id != service.get_plan(plan.plan_id).director_agent_id
+    service.finish_assignment(
+        review_action.assignment_id,
+        ok=True,
+        run_id=f"RUN-{review_action.assignment_id}",
+        message_id=12,
+        summary="Проверка пройдена",
+        evidence={"checks": [{"name": "review", "ok": True}]},
+        review_decision="APPROVE",
+        findings=[],
+    )
+
+    completed = service.get_plan(plan.plan_id)
+    assert completed.status == "COMPLETED"
+    assert all(item.status == "COMPLETED" for item in completed.assignments)
+    assert any(row["event_type"] == "REVIEW_APPROVED" for row in database.list_director_workflow_events(plan.plan_id))
+
+
+def test_review_rework_returns_execution_to_same_owner(tmp_path):
+    database, organization_id = _team(tmp_path)
+    service = DirectorService(database)
+    plan = service.create_plan(organization_id, "Подготовить результат", max_rework_attempts=3)
+
+    executions = [item for item in plan.assignments if item.assignment_type == "EXECUTION"]
+    for index, assignment in enumerate(executions, start=1):
+        action = service.next_action(plan.plan_id)
+        assert action is not None and action.assignment_id == assignment.assignment_id
+        service.start_assignment(action.assignment_id, f"RUN-E-{index}")
+        service.finish_assignment(
+            action.assignment_id,
+            ok=True,
+            run_id=f"RUN-E-{index}",
+            message_id=20 + index,
+            summary="Результат",
+            evidence={"files_created": [f"part-{index}.txt"]},
+        )
+
+    review = service.next_action(plan.plan_id)
+    assert review is not None and review.assignment_type == "REVIEW"
+    service.start_assignment(review.assignment_id, "RUN-R-1")
+    service.finish_assignment(
+        review.assignment_id,
+        ok=True,
+        run_id="RUN-R-1",
+        message_id=30,
+        summary="Нужна правка",
+        evidence={"checks": [{"name": "review", "ok": False}]},
+        review_decision="REWORK",
+        findings=[{"severity": "HIGH", "summary": "Ошибка"}],
+    )
+
+    rework = service.next_action(plan.plan_id)
+    assert rework is not None
+    assert rework.assignment_type == "EXECUTION"
+    assert rework.agent_id == executions[0].agent_id
+    assert service.get_plan(plan.plan_id).status == "IN_PROGRESS"
+
+
+def test_missing_evidence_retries_then_blocks_instead_of_claiming_completion(tmp_path):
+    database, organization_id = _team(tmp_path)
+    service = DirectorService(database)
+    plan = service.create_plan(organization_id, "Создать файл", max_rework_attempts=2)
+
+    first = service.next_action(plan.plan_id)
+    assert first is not None
+    service.start_assignment(first.assignment_id, "RUN-NO-EVIDENCE-1")
+    retried = service.finish_assignment(
+        first.assignment_id,
+        ok=True,
+        run_id="RUN-NO-EVIDENCE-1",
+        message_id=40,
+        summary="Якобы готово",
+        evidence={},
+    )
+    assert retried.status == "IN_PROGRESS"
+    assert service.next_action(plan.plan_id).assignment_id == first.assignment_id
+
+    service.start_assignment(first.assignment_id, "RUN-NO-EVIDENCE-2")
+    blocked = service.finish_assignment(
+        first.assignment_id,
+        ok=True,
+        run_id="RUN-NO-EVIDENCE-2",
+        message_id=41,
+        summary="Снова якобы готово",
+        evidence={},
+    )
+    assert blocked.status == "BLOCKED"
+    assert service.next_action(plan.plan_id) is None
+    assert service.get_plan(plan.plan_id).assignments[0].failure_reason == "verifiable_evidence_required"

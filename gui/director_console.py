@@ -52,6 +52,7 @@ from core.finding_service import FINDING_CONFIDENCE, FINDING_SEVERITIES, Finding
 from core.management_service import EmployeeSummary, ManagementService
 from core.knowledge_service import KNOWLEDGE_STATUSES, SOURCE_AUTHORITIES, KnowledgeService
 from core.learning_evidence_service import LearningEvidenceService
+from core.learning_manager_service import LearningManagerService
 from core.provider_service import ProviderHealthService, ProviderProvisioningService, ProviderRegistry
 from core.product_metrics_service import ProductMetricsService
 from core.skill_progress_service import SkillProgressService
@@ -135,7 +136,13 @@ class DirectorConsoleDialog(QDialog):
         self.permissions_tab = PermissionsTab(management_service, language, self)
         self.providers_tab = ProvidersTab(provider_registry, provider_health_service, provider_provisioning_service, management_service, language, self)
         self.skills_tab = SkillProgressTab(skill_progress_service, skill_package_service, management_service, language, self)
-        self.learning_tab = LearningEvidenceTab(LearningEvidenceService(management_service.database), language, self)
+        learning_evidence = LearningEvidenceService(management_service.database)
+        self.learning_tab = LearningEvidenceTab(
+            learning_evidence,
+            language,
+            self,
+            LearningManagerService(management_service.database, learning_evidence, skill_package_service),
+        )
         self.knowledge_tab = KnowledgeTab(knowledge_service, self)
         self.standards_tab = StandardsTab(standards_service, self)
         self.artifacts_tab = ArtifactsTab(artifact_service, self)
@@ -759,9 +766,16 @@ class OverviewTab(QWidget):
 
 
 class LearningEvidenceTab(QWidget):
-    def __init__(self, service: LearningEvidenceService, language: str = "ru", parent=None) -> None:
+    def __init__(
+        self,
+        service: LearningEvidenceService,
+        language: str = "ru",
+        parent=None,
+        manager: LearningManagerService | None = None,
+    ) -> None:
         super().__init__(parent)
         self.service = service
+        self.manager = manager
         self.language = language
         copy = {
             "ru": {
@@ -871,7 +885,18 @@ class LearningEvidenceTab(QWidget):
                 item_data.practice_task,
                 item_data.updated_at,
             ]
-            detail = json.dumps(item_data.evidence, ensure_ascii=False, indent=2)
+            detail = json.dumps(
+                {
+                    "skill_id": item_data.skill_id,
+                    "coordinator_agent_id": item_data.coordinator_agent_id,
+                    "qualification_criteria": item_data.qualification_criteria,
+                    "practice_run_id": item_data.practice_run_id,
+                    "review_run_id": item_data.review_run_id,
+                    "evidence": item_data.evidence,
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
             for column, value in enumerate(values):
                 item = QTableWidgetItem(str(value))
                 item.setData(Qt.UserRole, item_data.item_id)
@@ -897,7 +922,10 @@ class LearningEvidenceTab(QWidget):
             evidence = json.loads(str(items[0].data(Qt.UserRole + 1) or "{}"))
         except json.JSONDecodeError:
             evidence = {}
-        self.service.update_learning_status(item_id, status, evidence)
+        if status == "IN_PROGRESS" and self.manager is not None:
+            self.manager.prepare_learning_item(item_id)
+        else:
+            self.service.update_learning_status(item_id, status, evidence)
         self.refresh()
 
 

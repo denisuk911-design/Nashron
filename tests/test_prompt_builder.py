@@ -233,3 +233,31 @@ def test_dynamic_employee_gets_relevant_context_without_unrelated_history(tmp_pa
     assert "документацию" in prompt
     assert "ГОСТ" in prompt
     assert "xxyyzz" not in prompt
+
+def test_runtime_selects_only_relevant_verified_skill_packages():
+    class DatabaseStub:
+        def list_employee_skill_assignments(self, _agent_id):
+            return [
+                {
+                    "skill_status": "VERIFIED", "state": "QUALIFIED", "name": "Проверка BOM",
+                    "purpose": "Проверка номиналов и позиций BOM", "skill_id": "SKILL-BOM", "version": "1.0",
+                },
+                {
+                    "skill_status": "PRACTICED", "state": "PRACTICED", "name": "Черновой KiCad",
+                    "purpose": "Разводка платы", "skill_id": "SKILL-KICAD", "version": "0.1",
+                },
+                {
+                    "skill_status": "VERIFIED", "state": "QUALIFIED", "name": "Рецепты",
+                    "purpose": "Разработка блюд", "skill_id": "SKILL-FOOD", "version": "1.0",
+                },
+            ]
+
+    builder = PromptBuilder.__new__(PromptBuilder)
+    builder.database = DatabaseStub()
+
+    selected = builder._relevant_package_skills("agent-worker", "Проверь номиналы в таблице BOM")
+
+    assert len(selected) == 1
+    assert "Проверка BOM" in selected[0]
+    assert "Черновой KiCad" not in "\n".join(selected)
+    assert "Рецепты" not in "\n".join(selected)

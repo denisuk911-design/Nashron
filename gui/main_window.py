@@ -37,12 +37,14 @@ from core.config_repository import ConfigurationRepository
 from core.conversation_mode import ConversationMode, infer_mode
 from core.conversation_thread_service import ConversationThreadService
 from core.database import Database
+from core.director_service import DirectorAction, DirectorService
 from core.gemini_client import GeminiClient
 from core.identity_service import IdentityError, IdentityService
 from core.finding_service import FindingService
 from core.knowledge_service import KnowledgeService
 from core.knowledge_application_service import KnowledgeApplicationService
 from core.learning_evidence_service import LearningEvidenceService
+from core.learning_manager_service import LearningManagerService
 from core.management_service import ManagementService
 from core.memory_service import MemoryService
 from core.path_guard import PathGuardError
@@ -149,6 +151,7 @@ class MainWindow(QMainWindow):
         self.task_state_service = TaskStateService(self.database)
         self.task_orchestrator = TaskOrchestrator(self.database, self.task_state_service, self.agent_router)
         self.task_orchestrator.ensure_project()
+        self.director_service = DirectorService(self.database)
         self.universal_platform_service = UniversalPlatformService(
             self.database,
             management_service=self.management_service,
@@ -166,6 +169,11 @@ class MainWindow(QMainWindow):
         self.knowledge_service = KnowledgeService(self.database)
         self.knowledge_application_service = KnowledgeApplicationService(self.database)
         self.learning_evidence_service = LearningEvidenceService(self.database)
+        self.learning_manager_service = LearningManagerService(
+            self.database,
+            self.learning_evidence_service,
+            self.skill_package_service,
+        )
         self.standards_service = StandardsService(self.database)
         self.finding_service = FindingService(self.database)
         self.claim_validator = ClaimEvidenceValidator()
@@ -232,6 +240,8 @@ class MainWindow(QMainWindow):
         self.autonomous_turn = 0
         self.autonomous_fingerprints: list[str] = []
         self.autonomous_agent_keys: list[str] = []
+        self.active_director_plan_id: str | None = None
+        self.active_director_action: DirectorAction | None = None
         self.exchange_turn = 0
         self.exchange_turn_limit = 0
         self.exchange_responded_agent_keys: set[str] = set()
@@ -874,6 +884,12 @@ class MainWindow(QMainWindow):
         if autonomy.enabled:
             self.conversation_mode = ConversationMode.WORK
             self._refresh_work_context_strip()
+        if autonomy.enabled and autonomy.complete_on_goal and self.active_organization_id:
+            self.chat.reset_stream()
+            message_id = self._add_user_message(text)
+            self._clear_composer_input()
+            if self._start_director_goal(text, message_id):
+                return
         agent_keys = self._route_agents(text, self._manual_routing())
         self.database.log_event("chat_route_selected", ",".join(agent_keys))
         if not agent_keys:
@@ -981,6 +997,133 @@ class MainWindow(QMainWindow):
         self.chat.set_goal_status(self.autonomous_active and self.autonomous_complete_on_goal, self.autonomous_goal, self.autonomous_turn)
         self._refresh_work_context_strip()
         return True
+
+    def _start_director_goal(self, text: str, message_id: int | None) -> bool:
+        if not self.active_organization_id:
+            return False
+        try:
+            plan = self.director_service.create_plan(
+                self.active_organization_id,
+                self._autonomy_from_text(text).goal,
+                owner_message_id=message_id,
+                max_rework_attempts=int(self.settings.get("goal_rework_limit", 2)),
+            )
+        except ValueError as exc:
+            self.database.log_event("director_goal_not_started", str(exc))
+            return False
+        self.active_director_plan_id = plan.plan_id
+        self.autonomous_active = True
+        self.autonomous_goal = plan.goal
+        self.autonomous_complete_on_goal = True
+        self.autonomous_turn = 0
+        self.autonomous_fingerprints = []
+        self.autonomous_agent_keys = []
+        self.pending_agent_keys = []
+        self.authorized_worker_keys = set()
+        self.pending_user_message = plan.goal
+        self.chat.set_goal_status(True, plan.goal, 0)
+        self._record_last_routing_decision(message_id)
+        self._persist_thread_from_last_decision(message_id, None, text)
+        self._record_thread_question_from_last_decision(message_id, text)
+        if plan.status == "NEEDS_STAFFING":
+            self._finish_director_goal_with_notice(
+                f"Цель не запущена: не хватает ролей {', '.join(plan.missing_roles)}. Добавьте исполнителя и независимого ревьюера."
+            )
+            return True
+        if plan.status == "AWAITING_OWNER_APPROVAL":
+            self._finish_director_goal_with_notice(
+                "Цель требует отдельного подтверждения владельца из-за установки, удаления, оплаты или изменения прав."
+            )
+            return True
+        self._schedule_director_action()
+        return True
+
+    def _schedule_director_action(self) -> None:
+        plan_id = self.active_director_plan_id
+        if not plan_id:
+            return
+        plan = self.director_service.get_plan(plan_id)
+        if plan.status == "COMPLETED":
+            self._finish_director_goal_with_notice(plan.summary or "Цель выполнена и прошла проверку.")
+            return
+        if plan.status == "BLOCKED":
+            self._finish_director_goal_with_notice(f"Цель заблокирована: {plan.summary}")
+            return
+        action = self.director_service.next_action(plan_id)
+        if action is None:
+            if plan.status not in {"IN_PROGRESS", "READY"}:
+                self._finish_director_goal_with_notice(f"Цель остановлена в состоянии: {plan.status}")
+            return
+        self.active_director_action = action
+        self.task_orchestrator.current_task_id = action.task_id
+        self.pending_agent_keys = [action.agent_key]
+        self.authorized_worker_keys = {action.agent_key}
+        self.pending_user_message = action.instruction
+        self.autonomous_turn += 1
+        self.chat.set_goal_status(True, plan.goal, self.autonomous_turn)
+        self._start_next_agent_run()
+
+    def _finish_director_goal_with_notice(self, text: str) -> None:
+        plan_id = self.active_director_plan_id
+        if plan_id:
+            try:
+                plan = self.director_service.get_plan(plan_id)
+                if plan.status == "COMPLETED":
+                    retrospective = self.learning_manager_service.retrospective_for_plan(plan_id)
+                    for warning in retrospective.warnings:
+                        self.database.log_event("learning_retrospective_warning", warning)
+            except Exception:
+                self.logger.exception("learning_retrospective_failed")
+        if text:
+            self.database.add_message(self.conversation_id, "system", text)
+            self.chat.add_message("system", text)
+        self.active_director_plan_id = None
+        self.active_director_action = None
+        self.pending_agent_keys = []
+        self.pending_user_message = ""
+        self.authorized_worker_keys = set()
+        self._clear_goal_state()
+        self.chat.set_busy(False)
+
+    @staticmethod
+    def _director_evidence(parsed_response: ParsedAgentResponse, registered_artifacts: list[str]) -> dict[str, object]:
+        envelope = parsed_response.envelope if isinstance(parsed_response.envelope, dict) else {}
+        return {
+            "artifact_ids": list(registered_artifacts),
+            "files_created": list(envelope.get("files_created") or []),
+            "files_modified": list(envelope.get("files_modified") or []),
+            "checks": list(envelope.get("checks") or []),
+            "findings": list(envelope.get("findings") or []),
+            "sources": list(envelope.get("sources") or []),
+        }
+
+    def _complete_director_action(
+        self,
+        worker: GenerateWorker | None,
+        result,
+        content: str,
+        parsed_response: ParsedAgentResponse,
+        message_id: int | None,
+        registered_artifacts: list[str],
+    ) -> None:
+        action = self.active_director_action
+        if action is None or worker is None or not worker.run_id:
+            return
+        envelope = parsed_response.envelope if isinstance(parsed_response.envelope, dict) else {}
+        decision = str(envelope.get("action") or "") if action.assignment_type == "REVIEW" else ""
+        findings = list(envelope.get("findings") or [])
+        self.director_service.finish_assignment(
+            action.assignment_id,
+            ok=bool(result.ok),
+            run_id=worker.run_id,
+            message_id=message_id,
+            summary=content or str(result.error or ""),
+            evidence=self._director_evidence(parsed_response, registered_artifacts),
+            review_decision=decision,
+            findings=findings,
+            error=str(result.error or ""),
+        )
+        self.active_director_action = None
 
     def _prepare_work_context(self, text: str, message_id: int | None, agent_keys: list[str]) -> bool:
         if self.conversation_mode != ConversationMode.WORK or not hasattr(self, "work_context_service"):
@@ -1357,6 +1500,10 @@ class MainWindow(QMainWindow):
         return result
 
     def _interrupt_with_user_message(self, text: str) -> None:
+        if self.active_director_plan_id and is_stop_command(text):
+            self.director_service.cancel_plan(self.active_director_plan_id, "stopped_by_owner")
+            self.active_director_plan_id = None
+            self.active_director_action = None
         self._clear_goal_state()
         self.exchange_turn = 0
         self.exchange_turn_limit = 0
@@ -1386,6 +1533,10 @@ class MainWindow(QMainWindow):
     def _stop_autonomous(self, add_user_message: bool = False, text: str = "стоп") -> None:
         if add_user_message:
             self._add_user_message(text)
+        if self.active_director_plan_id:
+            self.director_service.cancel_plan(self.active_director_plan_id, "stopped_by_owner")
+            self.active_director_plan_id = None
+            self.active_director_action = None
         self._clear_goal_state()
         self.exchange_turn = 0
         self.exchange_turn_limit = 0
@@ -1571,6 +1722,14 @@ class MainWindow(QMainWindow):
         except Exception as exc:
             self._report_generation_start_failure(exc)
             return
+        if getattr(self, "active_director_action", None) is not None:
+            try:
+                if self.active_director_action.agent_key != agent_key:
+                    raise ValueError("director_assignment_agent_mismatch")
+                self.director_service.start_assignment(self.active_director_action.assignment_id, run_handle.run_id)
+            except Exception as exc:
+                self._report_generation_start_failure(exc)
+                return
         client = self._client_for_agent(agent_key)
         context = self.work_context_service.get() if hasattr(self, "work_context_service") else None
         contract = None
@@ -1831,6 +1990,10 @@ class MainWindow(QMainWindow):
         self._stop_response_latency_timers()
         self.chat.set_busy(False)
         self.chat.clear_activity_status()
+        director_content = ""
+        director_message_id: int | None = None
+        director_artifacts: list[str] = []
+        director_parsed_response = parse_agent_response(result.content if result.ok else "")
         if self.interrupting_current_run:
             self.worker = None
             self.interrupting_current_run = False
@@ -1894,6 +2057,10 @@ class MainWindow(QMainWindow):
                         claim_validation = self.claim_validator.validate(final_content, parsed_response.envelope)
                         self._show_claim_warning_if_needed(conversation_id, claim_validation.warning)
                         registered_artifacts = self._import_structured_artifacts(worker, parsed_response, agent_key)
+                        director_content = final_content
+                        director_message_id = message_id
+                        director_artifacts = registered_artifacts
+                        director_parsed_response = parsed_response
                         self._record_work_result(worker, agent_key, final_content, parsed_response, message_id, registered_artifacts)
                         self._import_structured_findings(worker, parsed_response, agent_key)
                         self._import_structured_usage(worker, parsed_response, agent_key)
@@ -1922,6 +2089,10 @@ class MainWindow(QMainWindow):
                         claim_validation = self.claim_validator.validate(clean_part, parsed_response.envelope)
                         self._show_claim_warning_if_needed(conversation_id, claim_validation.warning)
                         registered_artifacts = self._import_structured_artifacts(worker, parsed_response, agent_key)
+                        director_content = clean_part
+                        director_message_id = message_id
+                        director_artifacts = registered_artifacts
+                        director_parsed_response = parsed_response
                         self._record_work_result(worker, agent_key, clean_part, parsed_response, message_id, registered_artifacts)
                         self._import_structured_findings(worker, parsed_response, agent_key)
                         self._import_structured_usage(worker, parsed_response, agent_key)
@@ -1952,8 +2123,26 @@ class MainWindow(QMainWindow):
                 self.database.log_event("provider_runtime_error", f"{agent_key}: {detail}"[:1000])
                 self.database.add_message(conversation_id, "system", content, status="provider_error")
             self.chat.add_message("system", content)
+        if getattr(self, "active_director_action", None) is not None:
+            try:
+                self._complete_director_action(
+                    worker,
+                    result,
+                    director_content,
+                    director_parsed_response,
+                    director_message_id,
+                    director_artifacts,
+                )
+            except Exception:
+                self.logger.exception("director_action_completion_failed")
+                if self.active_director_plan_id:
+                    self.director_service.cancel_plan(self.active_director_plan_id, "workflow_completion_error")
+                self._finish_director_goal_with_notice("Цель остановлена из-за ошибки обработки результата. Подробности записаны в журнал.")
         self.worker = None
         self.cancellation_in_progress = False
+        if getattr(self, "active_director_plan_id", None):
+            QTimer.singleShot(250, self._schedule_director_action)
+            return
         if not result.ok and self.conversation_id == conversation_id:
             self._clear_goal_state()
             self.pending_agent_keys = []
