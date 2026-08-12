@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from PySide6.QtGui import QColor, QPalette
+from PySide6.QtCore import QPointF, Qt
+from PySide6.QtGui import QColor, QPainter, QPalette, QPen
+from PySide6.QtWidgets import QWidget
 
 from .design_tokens import TOKENS
 
@@ -58,18 +60,102 @@ LIGHT_COLORS = {
 }
 
 
+def _dark_variant(**overrides: str) -> dict[str, str]:
+    colors = dict(DARK_COLORS)
+    colors.update(overrides)
+    return colors
+
+
+THEME_COLORS = {
+    "dark": DARK_COLORS,
+    "light": LIGHT_COLORS,
+    "dark_graphite": _dark_variant(
+        bg="#111318", chat_bg="#171a20", surface="#1d2028", surface_alt="#252a34",
+        surface_hover="#303744", line="#3a4352", line_soft="#2b313c", cyan="#8ed4c3",
+        cyan_dark="#6a9fbd", violet="#737bff", violet_dark="#515bd1", roman_bubble="#202632",
+        petr_bubble="#19352f", dialog_bg="#171a20",
+    ),
+    "dark_ocean": _dark_variant(
+        bg="#071522", chat_bg="#082238", surface="#0e2538", surface_alt="#15334b",
+        surface_hover="#1b4562", line="#24516e", line_soft="#19384f", cyan="#68e0d0",
+        cyan_dark="#48a9d2", violet="#5f73ff", violet_dark="#394dc4", roman_bubble="#12304a",
+        petr_bubble="#123a38", dialog_bg="#0e2538",
+    ),
+    "dark_forest": _dark_variant(
+        bg="#0b1714", chat_bg="#0c211c", surface="#13271f", surface_alt="#1b352a",
+        surface_hover="#264936", line="#315c46", line_soft="#244432", cyan="#8bd8a8",
+        cyan_dark="#51a982", violet="#7968e8", violet_dark="#5343bc", roman_bubble="#183329",
+        petr_bubble="#173b2b", dialog_bg="#13271f",
+    ),
+    "dark_amber": _dark_variant(
+        bg="#19140e", chat_bg="#211a10", surface="#2a2116", surface_alt="#382b1a",
+        surface_hover="#4a3820", line="#66502b", line_soft="#49391f", cyan="#e1d08a",
+        cyan_dark="#c49d52", violet="#806be3", violet_dark="#5845ba", roman_bubble="#30271b",
+        petr_bubble="#253523", dialog_bg="#2a2116",
+    ),
+}
+
+
+class ThemeBackdrop(QWidget):
+    """Chat background with a very low-contrast, theme-specific line pattern."""
+
+    def __init__(self, theme: str = "dark") -> None:
+        super().__init__()
+        self._theme = theme if theme in THEME_COLORS else "dark"
+        self.setAttribute(Qt.WA_StyledBackground, True)
+
+    def set_theme(self, theme: str) -> None:
+        self._theme = theme if theme in THEME_COLORS else "dark"
+        self.update()
+
+    def paintEvent(self, event) -> None:
+        colors = THEME_COLORS.get(self._theme, DARK_COLORS)
+        painter = QPainter(self)
+        painter.fillRect(self.rect(), QColor(colors["chat_bg"]))
+        pen = QPen(QColor(colors["line"]))
+        pen.setWidth(1)
+        pen.setColor(QColor(colors["line"]))
+        pen.setStyle(Qt.SolidLine)
+        # Keep the pattern deliberately quiet so the message text remains primary.
+        pattern_alpha = {"dark": 36, "dark_graphite": 28, "dark_ocean": 34, "dark_forest": 30, "dark_amber": 30}.get(self._theme, 30)
+        pattern_color = QColor(colors["line"])
+        pattern_color.setAlpha(pattern_alpha)
+        pen.setColor(pattern_color)
+        painter.setPen(pen)
+        width, height = self.width(), self.height()
+        if self._theme == "dark_ocean":
+            for y in range(80, height + 220, 150):
+                painter.drawArc(-120, y - 70, width // 2 + 240, 150, 0, 180 * 16)
+        elif self._theme == "dark_forest":
+            for x in range(80, width + 220, 190):
+                painter.drawLine(x, height, x - 48, max(0, height - 240))
+                painter.drawLine(x - 30, height - 115, x - 105, height - 165)
+                painter.drawLine(x - 15, height - 160, x + 62, height - 215)
+        elif self._theme == "dark_amber":
+            for y in range(110, height, 190):
+                painter.drawLine(40, y, 150, y)
+                painter.drawLine(150, y, 190, y + 36)
+                painter.drawEllipse(QPointF(36, y - 4), 4, 4)
+        elif self._theme == "dark_graphite":
+            for x in range(-height, width, 180):
+                painter.drawLine(x, 0, x + height, height)
+        else:
+            for x, y in ((90, 120), (260, 260), (520, 150), (760, 360), (980, 180), (1240, 300)):
+                if x < width and y < height:
+                    painter.drawEllipse(QPointF(x, y), 2, 2)
+        painter.end()
+
+
 class ThemeManager:
     """Keeps application styling in one place so widgets only use object names."""
 
     @staticmethod
     def stylesheet(theme: str = "dark") -> str:
-        if theme == "light":
-            return ThemeManager._stylesheet(LIGHT_COLORS)
-        return ThemeManager._stylesheet(DARK_COLORS)
+        return ThemeManager._stylesheet(THEME_COLORS.get(theme, DARK_COLORS))
 
     @staticmethod
     def palette(theme: str = "dark") -> QPalette:
-        c = LIGHT_COLORS if theme == "light" else DARK_COLORS
+        c = THEME_COLORS.get(theme, DARK_COLORS)
         palette = QPalette()
         palette.setColor(QPalette.Window, QColor(c["dialog_bg"]))
         palette.setColor(QPalette.WindowText, QColor(c["text"]))
@@ -91,7 +177,17 @@ class ThemeManager:
         return f"""
         QWidget {{ color: {c['text']}; font-family: {f}; font-size: 10pt; }}
         QMainWindow, QDialog, QMessageBox {{ background: {c['dialog_bg']}; color: {c['text']}; }}
+        QDialog QWidget, QMessageBox QWidget {{ background: {c['dialog_bg']}; color: {c['text']}; }}
         QMessageBox QLabel, QDialog QLabel {{ color: {c['text']}; }}
+        QDialog QTabWidget::pane, QDialog QStackedWidget, QDialog QWizard, QDialog QWizardPage {{ background: {c['dialog_bg']}; color: {c['text']}; border: 0; }}
+        QTabBar::tab {{ background: {c['surface_alt']}; color: {c['muted']}; border: 1px solid {c['line']}; padding: 7px 12px; }}
+        QTabBar::tab:selected, QTabBar::tab:hover {{ background: {c['surface_hover']}; color: {c['text']}; border-color: {c['cyan_dark']}; }}
+        QGroupBox {{ background: {c['surface']}; color: {c['text']}; border: 1px solid {c['line']}; border-radius: 8px; margin-top: 12px; padding: 12px 8px 8px; }}
+        QGroupBox::title {{ color: {c['text']}; subcontrol-position: top left; padding: 0 5px; }}
+        QTableWidget, QTableView, QTreeWidget, QDialog QListWidget, QDialog QTreeView, QTextBrowser {{ background: {c['surface']}; color: {c['text']}; border: 1px solid {c['line']}; alternate-background-color: {c['surface_alt']}; selection-background-color: {c['violet_dark']}; selection-color: #ffffff; }}
+        QHeaderView::section {{ background: {c['surface_alt']}; color: {c['text']}; border: 1px solid {c['line']}; padding: 6px; }}
+        QTableWidget::item, QTableView::item, QTreeWidget::item {{ color: {c['text']}; padding: 4px; }}
+        QDialog QFrame {{ color: {c['text']}; }}
         QMessageBox QPushButton, QDialog QPushButton, QPushButton {{
             background: {c['surface_alt']};
             color: {c['button_text']};
@@ -139,7 +235,7 @@ class ThemeManager:
         QLabel#appLogo {{ color: {c['text']}; font-size: 18pt; font-weight: 800; border: 1px solid {c['violet']}; border-radius: 22px; min-width: 44px; min-height: 44px; max-width: 44px; max-height: 44px; }}
         QLabel#brandMark {{ color: {c['cyan']}; font-size: 14pt; font-weight: 700; border: 1px solid {c['cyan_dark']}; border-radius: 8px; padding: 2px 6px; }}
         QLabel#pageTitle {{ color: {c['text']}; font-size: 11pt; font-weight: 700; }}
-        QLabel#sectionTitle {{ color: #80bfe4; font-size: 10pt; font-weight: 700; }}
+        QLabel#sectionTitle {{ color: {c['cyan']}; font-size: 10pt; font-weight: 700; }}
         QLabel#muted {{ color: {c['muted']}; }}
         QLabel#tiny {{ color: {c['muted_2']}; font-size: 8pt; }}
         QLabel#online {{ color: {c['green']}; font-size: 9pt; }}
@@ -164,11 +260,11 @@ class ThemeManager:
         QListWidget#conversationList::item {{ color: {c['muted']}; padding: 10px; border-radius: 9px; }}
         QListWidget#conversationList::item:selected, QListWidget#conversationList::item:hover {{ background: {c['surface_hover']}; color: {c['text']}; }}
         QScrollBar:vertical {{ background: transparent; width: 8px; margin: 4px; }}
-        QScrollBar::handle:vertical {{ background: #29435d; border-radius: 4px; min-height: 30px; }}
+        QScrollBar::handle:vertical {{ background: {c['line']}; border-radius: 4px; min-height: 30px; }}
         QScrollBar::handle:vertical:hover {{ background: {c['cyan_dark']}; }}
         QScrollBar::add-line, QScrollBar::sub-line {{ height: 0; }}
         QScrollBar:horizontal {{ background: transparent; height: 8px; margin: 4px; }}
-        QScrollBar::handle:horizontal {{ background: #29435d; border-radius: 4px; min-width: 30px; }}
+        QScrollBar::handle:horizontal {{ background: {c['line']}; border-radius: 4px; min-width: 30px; }}
         QScrollBar::add-page, QScrollBar::sub-page {{ background: transparent; }}
         QScrollArea {{ background: transparent; border: 0; }}
         QFrame#messageRow {{ background: transparent; border: 0; }}

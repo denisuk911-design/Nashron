@@ -60,9 +60,30 @@ class SettingsDialog(QDialog):
 
         self.theme = QComboBox()
         theme_labels = {
-            "ru": [("Тёмная", "dark"), ("Светлая", "light")],
-            "uk": [("Темна", "dark"), ("Світла", "light")],
-            "en": [("Dark", "dark"), ("Light", "light")],
+            "ru": [
+                ("Тёмная · космос", "dark"),
+                ("Графит", "dark_graphite"),
+                ("Ночной океан", "dark_ocean"),
+                ("Тихий лес", "dark_forest"),
+                ("Инженерная мастерская", "dark_amber"),
+                ("Светлая", "light"),
+            ],
+            "uk": [
+                ("Темна · космос", "dark"),
+                ("Графіт", "dark_graphite"),
+                ("Нічний океан", "dark_ocean"),
+                ("Тихий ліс", "dark_forest"),
+                ("Інженерна майстерня", "dark_amber"),
+                ("Світла", "light"),
+            ],
+            "en": [
+                ("Dark · space", "dark"),
+                ("Graphite", "dark_graphite"),
+                ("Night ocean", "dark_ocean"),
+                ("Quiet forest", "dark_forest"),
+                ("Engineering workshop", "dark_amber"),
+                ("Light", "light"),
+            ],
         }.get(language, [("Тёмная", "dark"), ("Светлая", "light")])
         for label, value in theme_labels:
             self.theme.addItem(label, value)

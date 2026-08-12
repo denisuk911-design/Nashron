@@ -84,7 +84,7 @@ from gui.director_console import DirectorConsoleDialog
 from gui.login_dialog import show_install_instructions
 from gui.localization import role_label
 from gui.settings_dialog import SettingsDialog
-from gui.theme import ThemeManager
+from gui.theme import ThemeBackdrop, ThemeManager
 from gui.worker import GenerateWorker
 
 
@@ -408,7 +408,7 @@ class MainWindow(QMainWindow):
         return panel
 
     def _build_chat_panel(self) -> QWidget:
-        panel = QWidget()
+        panel = ThemeBackdrop(str(self.settings.get("theme", "dark")))
         panel.setObjectName("chatPanel")
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -568,7 +568,24 @@ class MainWindow(QMainWindow):
             )
             if organization is None or str(organization["status"]).upper() != "ACTIVE":
                 return []
-        return list_chat_agents(self.database, organization_id=active_organization_id)
+            roster = list_chat_agents(self.database, organization_id=active_organization_id)
+            if roster:
+                return roster
+            # A previously archived organization can retain member rows that point
+            # to archived profiles. Keep the active chat usable and make the repair
+            # visible in the event log instead of silently dropping every reply.
+            fallback = list_chat_agents(self.database)
+            if fallback:
+                logged = getattr(self, "_roster_fallback_logged", set())
+                if active_organization_id not in logged:
+                    self.database.log_event(
+                        "organization_roster_empty_fallback",
+                        f"organization={active_organization_id}; agents={','.join(agent.key for agent in fallback)}",
+                    )
+                    logged.add(active_organization_id)
+                    self._roster_fallback_logged = logged
+            return fallback
+        return list_chat_agents(self.database)
 
     def _refresh_organization_selector(self) -> None:
         selector = getattr(self, "organization_selector", None)
@@ -2132,6 +2149,8 @@ class MainWindow(QMainWindow):
             qt_app.setPalette(ThemeManager.palette(theme))
             qt_app.setStyleSheet(ThemeManager.stylesheet(theme))
         self.setStyleSheet(ThemeManager.stylesheet(theme))
+        if hasattr(self, "chat_panel") and isinstance(self.chat_panel, ThemeBackdrop):
+            self.chat_panel.set_theme(theme)
         if bool(self.settings.get("reduce_motion", False)) or not self.isVisible():
             return
         self._theme_animation = QPropertyAnimation(self, b"windowOpacity", self)

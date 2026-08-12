@@ -5,7 +5,7 @@ from collections import deque
 from datetime import datetime
 
 from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QKeyEvent
+from PySide6.QtGui import QKeyEvent, QWheelEvent
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QComboBox,
@@ -24,6 +24,55 @@ from gui.chat.message_widget import MessageWidget
 
 class MessageList(QListWidget):
     copy_requested = Signal()
+    user_scrolled = Signal()
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._wheel_animation: QPropertyAnimation | None = None
+        self._wheel_target: int | None = None
+
+    def wheelEvent(self, event: QWheelEvent) -> None:
+        pixel_delta = event.pixelDelta().y()
+        angle_delta = event.angleDelta().y()
+        delta = pixel_delta if pixel_delta else int(angle_delta * 1.15)
+        if not delta:
+            super().wheelEvent(event)
+            return
+
+        bar = self.verticalScrollBar()
+        if bar.maximum() <= bar.minimum():
+            super().wheelEvent(event)
+            return
+
+        self.user_scrolled.emit()
+        if self._wheel_animation is not None:
+            current_target = self._wheel_target if self._wheel_target is not None else bar.value()
+            self._wheel_animation.stop()
+            self._wheel_animation.deleteLater()
+            self._wheel_animation = None
+        else:
+            current_target = bar.value()
+        target = max(bar.minimum(), min(bar.maximum(), int(current_target - delta)))
+        if target == bar.value():
+            event.accept()
+            return
+
+        animation = QPropertyAnimation(bar, b"value", self)
+        animation.setStartValue(bar.value())
+        animation.setEndValue(target)
+        animation.setDuration(max(300, min(780, 260 + abs(target - bar.value()) * 2)))
+        animation.setEasingCurve(QEasingCurve.OutCubic)
+        animation.finished.connect(lambda: self._finish_wheel_animation(animation))
+        self._wheel_animation = animation
+        self._wheel_target = target
+        animation.start()
+        event.accept()
+
+    def _finish_wheel_animation(self, animation: QPropertyAnimation) -> None:
+        if self._wheel_animation is animation:
+            self._wheel_animation = None
+            self._wheel_target = None
+        animation.deleteLater()
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.key() == Qt.Key_C and event.modifiers() & Qt.ControlModifier:
@@ -88,6 +137,7 @@ class ChatWidget(QWidget):
         self.messages.setVerticalScrollMode(QListWidget.ScrollPerPixel)
         self.messages.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.messages.verticalScrollBar().rangeChanged.connect(self._on_scroll_range_changed)
+        self.messages.user_scrolled.connect(self._cancel_output_scroll)
         self.messages.copy_requested.connect(self.copy_requested.emit)
 
         self.input = MessageInput()
@@ -718,6 +768,13 @@ class ChatWidget(QWidget):
         animation.finished.connect(lambda: self._finish_scroll_animation(animation))
         self._scroll_animation = animation
         animation.start()
+
+    def _cancel_output_scroll(self) -> None:
+        if self._scroll_animation is None:
+            return
+        self._scroll_animation.stop()
+        self._scroll_animation.deleteLater()
+        self._scroll_animation = None
 
     def _finish_scroll_animation(self, animation: QPropertyAnimation) -> None:
         if self._scroll_animation is animation:
