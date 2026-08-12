@@ -1,7 +1,7 @@
 # Team2050 Overnight Ecosystem Report
 
 Date: 2026-08-13  
-Packaged build: `v2.4.2`, code commit `b6d06ff`  
+Packaged build: `v2.5.0`, code commit `260af8f`
 Final status: `IMPLEMENTED_WITH_LIMITATIONS`
 
 ## 1. Executive Summary
@@ -12,7 +12,7 @@ The existing user profile was tested through a consistent SQLite backup. The pac
 
 Chat UX now has measured message bubbles, smooth wheel and output scrolling, dynamic bottom-follow state, a new-message indicator, selectable multi-message transcripts, localized controls, nine visual themes, custom wallpapers, native theme-aware Windows chrome and configurable original notification sounds.
 
-Evidence-backed experience and director planning foundations are persistent and covered by tests. The full autonomous Director and Learning Manager execution loops are not yet complete; they are explicitly listed as limitations below.
+Evidence-backed experience, Director execution and Learning Manager qualification are persistent and covered by tests. Explicit chat goals now execute assigned specialist runs, independent review, bounded rework and a final report instead of cycling through a free-form team conversation.
 
 ## 2. What Was Broken
 
@@ -34,14 +34,16 @@ Evidence-backed experience and director planning foundations are persistent and 
 - Added data-driven organization presets and generated employee identities.
 - Stabilized social/work routing, contextual handoffs, duplicate suppression and structured-output filtering.
 - Added evidence-backed experience records, a learning queue and skill-usage deduplication.
-- Added persistent director plans, specialist assignments, review assignments and approval boundaries.
+- Added persistent director plans, specialist assignments, review assignments, bounded rework, final reports and approval boundaries.
+- Connected explicit chat goals to the Director workflow and added deterministic fake-provider E2E coverage.
+- Added evidence-gated learning practice, independent qualification, project retrospectives and verified skill-package selection at runtime.
 - Reworked chat sizing, scrolling, visual themes, background handling and packaging.
 
 ## 4. Database/Migrations
 
 Database initialization keeps `PRAGMA foreign_keys = ON`. Before a known integrity repair it creates a timestamped SQLite backup. The current migration path repairs renamed message references and deletes only routing diagnostics whose referenced message no longer exists.
 
-New persistent tables include `experience_records`, `learning_queue`, `project_plans` and `work_assignments`. All schema changes are idempotent under repeated initialization.
+New persistent tables include `experience_records`, `learning_queue`, `project_plans`, `work_assignments` and `director_workflow_events`. Learning records retain skill, coordinator, practice run, independent review run, criteria and evidence. All schema changes are idempotent under repeated initialization.
 
 Packaged legacy result:
 
@@ -120,30 +122,33 @@ The application uses hybrid native Windows chrome tinted through DWM. This prese
 
 ## 14. Director
 
-`DirectorService` requires an explicitly assigned Director/Project Manager/Organization Manager. It creates a persistent plan, assigns specialists, creates a separate reviewer assignment, records acceptance criteria and reports missing roles. The director is never assigned as the specialist who performs every task.
+`DirectorService` requires an explicitly assigned Director/Project Manager/Organization Manager. It creates a persistent plan, assigns role-specific specialist work, creates a separate reviewer assignment, records acceptance criteria and reports missing roles. The director is never assigned as the specialist who performs every task.
 
-Paid installation, destructive work and permission-sensitive goals enter `AWAITING_OWNER_APPROVAL`. Plans are visible in the Director Console.
+Explicit Goal mode now uses assignments as the source of truth. A run must match its assignment and persist verifiable files, artifacts, checks or findings. The reviewer must be a different employee. Rejected work returns to its owner, retry count is bounded, and exhausted retries block the plan instead of claiming completion. Successful review completes the plan and starts a learning retrospective.
 
-Limitation: chat goals do not yet drive the complete plan -> agent run -> review -> rework -> owner report state machine automatically.
+Paid installation, destructive work and permission-sensitive goals enter `AWAITING_OWNER_APPROVAL`. Provider failures retry or block deterministically; owner Stop cancels the persistent plan.
 
 ## 15. Learning Manager
 
-The Development tab exposes verified experience and the learning queue. Findings create `PROPOSED` learning items; moving an item to `VERIFIED` requires evidence.
+The Development tab exposes verified experience and the learning queue. Findings and reworked/failed assignments create evidence-linked learning items. `LearningManagerService` prepares a skill package and practice task, accepts only a successful practice run with persisted ExperienceRecord evidence, and requires a successful review run by another qualified reviewer before marking the employee qualified.
 
-Limitation: an autonomous Learning Manager that searches sources, assigns practice, compares before/after quality and requalifies employees is not implemented end to end.
+Project retrospectives convert demonstrated skills into `PRACTICED` candidates. Verified packages are selected for future prompts only when assigned to that employee, qualified and relevant to the current task. Supplying a skill does not count as using it; usage is recorded only when the result declares it and work evidence exists.
+
+Limitation: internet research and material download are deliberately not autonomous. They still require configured `WEB_RESEARCH` permission, source provenance and an explicit provider/tool execution. Periodic scheduling is not yet a background service.
 
 ## 16. Skills/Knowledge/Experience
 
 Experience is created only for a successful, non-cancelled run with persisted work evidence such as an artifact, finding or tool result. Social speech alone does not increase experience. Skill usage is deduplicated by run, employee and skill. The system links run evidence, modified files, findings and lessons to each experience record.
 
-Existing skill packages, knowledge cards, standards, findings and artifact registries remain available. Maturity states support draft, practice, review, verified and mature progression, but advancement requires evidence.
+Existing skill packages, knowledge cards, standards, findings and artifact registries remain available. Maturity states support draft, practice, review, verified and mature progression. Practice and qualification retain before/after run IDs and reviewer evidence; self-qualification is rejected.
 
 ## 17. Tests
 
 ```text
-Full suite: 271 passed
-Duration:   111.47 seconds
-UX subset:  34 passed after sound integration
+Full suite: 279 passed
+Duration:   90.34 seconds
+Director E2E: fake provider, persisted runs/evidence/review
+Learning E2E: practice + independent qualification + retrospective
 ```
 
 Coverage includes database repair, startup, clean onboarding, live organization activation, lifecycle, routing, provider provisioning, response cleaning, chat streaming, autoscroll A-F, 500-message load, themes, sounds, director planning and learning evidence.
@@ -154,9 +159,9 @@ The current package was built by PyInstaller 6.21.0 from `Team2050.spec`:
 
 ```text
 dist\Team2050\Team2050.exe
-Version:   2.4.2
-Commit:    b6d06ff
-Build UTC: 2026-08-12T22:27:29.0943145Z
+Version:   2.5.0
+Commit:    260af8f
+Build UTC: 2026-08-12T22:53:04.8279405Z
 ```
 
 Clean packaged profile stayed alive after startup and produced:
@@ -175,8 +180,8 @@ The single-instance lock was exercised with two launches against one isolated pr
 
 ## 19. Remaining Limitations
 
-- Full autonomous Director execution and review/rework cycle is not wired to chat goals.
-- Full autonomous Learning Manager, web research, learning material ingestion and before/after qualification are not implemented.
+- Director currently decomposes work by configured roles and positions; semantic subtask decomposition and clarification dialogue remain intentionally conservative.
+- Learning web research, downloads and periodic background scheduling are not automated; permission and provenance boundaries remain mandatory.
 - Live multi-provider conversation depends on the user's actual CLI authorization and quotas and was not executed headlessly.
 - A final manual packaged UX pass is still needed for Windows Snap, 100/125/150% mixed DPI, multiple monitors, theme switching and audible volume preference.
 - Deep management/diagnostic localization still has gaps even though normal chat, onboarding and core management labels are localized.
@@ -184,12 +189,12 @@ The single-instance lock was exercised with two launches against one isolated pr
 
 ## 20. Next Recommended Phase
 
-Implement one persistent orchestration state machine that consumes a Director plan, starts assigned agent runs, blocks completion on reviewer evidence, returns findings for rework and emits a concise owner report. Then connect Learning Manager queue items to source ingestion, supervised practice and evidence-based requalification. Add a deterministic fake-provider packaged harness so full Golden Chat and Director/Learning flows can be tested without external quota or credentials.
+Add a user-facing project-plan board with assignment status, evidence links, review findings and explicit owner approval controls. Then add permission-gated learning-source ingestion and a scheduler for competence review. Extend the deterministic fake provider from core E2E to a packaged command-line smoke mode so Director/Learning workflows can run without external quota or credentials.
 
 ## Final Dashboard
 
 ```text
-Tests passed: 271
+Tests passed: 279
 Built-in presets: 52
 Localized presets: 52 RU + 52 UK labels
 Localized roles: 8 core role labels per language; generic roles use readable fallback
@@ -203,8 +208,8 @@ Provider multi-agent test: PASS (routing/assignment regression); live external-p
 Golden Chat: PASS (automated social/work/routing regressions); live provider dialogue not automated
 Packaged startup legacy DB: PASS
 Packaged startup clean DB: PASS
-Director E2E: FAIL (persistent planning foundation passes; autonomous execution loop missing)
-Learning E2E: FAIL (evidence foundation passes; autonomous learning loop missing)
+Director E2E: PASS (fake provider; execution, evidence, independent review and completion)
+Learning E2E: PASS (evidenced practice, self-review rejection, qualification and retrospective)
 
 Final status: IMPLEMENTED_WITH_LIMITATIONS
 ```
