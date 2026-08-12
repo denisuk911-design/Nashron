@@ -143,6 +143,12 @@ class MessageWidget(QFrame):
         self.updateGeometry()
         self.adjustSize()
 
+    def set_selected(self, selected: bool) -> None:
+        self.card.setProperty("selected", bool(selected))
+        self.card.style().unpolish(self.card)
+        self.card.style().polish(self.card)
+        self.card.update()
+
     def sizeHint(self) -> QSize:
         width = max(220, self.width() or 720)
         layout_hint = self.layout().sizeHint()

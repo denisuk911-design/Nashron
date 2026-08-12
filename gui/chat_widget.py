@@ -4,8 +4,8 @@ import re
 from collections import deque
 from datetime import datetime
 
-from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QKeyEvent, QWheelEvent
+from PySide6.QtCore import QEvent, QEasingCurve, QItemSelection, QItemSelectionModel, QObject, QPropertyAnimation, QSize, Qt, QTimer, Signal
+from PySide6.QtGui import QKeyEvent, QMouseEvent, QWheelEvent
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QComboBox,
@@ -30,6 +30,55 @@ class MessageList(QListWidget):
         super().__init__()
         self._wheel_animation: QPropertyAnimation | None = None
         self._wheel_target: int | None = None
+        self._selection_anchor = -1
+        self._drag_selecting = False
+        self.itemSelectionChanged.connect(self._sync_message_selection)
+
+    def register_message_widget(self, widget: QWidget) -> None:
+        for child in (widget, *widget.findChildren(QWidget)):
+            child.installEventFilter(self)
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if isinstance(event, QKeyEvent) and event.type() == QEvent.KeyPress:
+            if event.key() == Qt.Key_C and event.modifiers() & Qt.ControlModifier:
+                self.copy_requested.emit()
+                event.accept()
+                return True
+        if isinstance(event, QMouseEvent):
+            if event.type() == QEvent.MouseButtonPress and event.button() == Qt.LeftButton:
+                self._selection_anchor = self._row_from_global(event.globalPosition().toPoint())
+                self._drag_selecting = False
+            elif event.type() == QEvent.MouseMove and event.buttons() & Qt.LeftButton and self._selection_anchor >= 0:
+                row = self._row_from_global(event.globalPosition().toPoint())
+                if row >= 0 and row != self._selection_anchor:
+                    self._select_range(self._selection_anchor, row)
+                    self._drag_selecting = True
+                    event.accept()
+                    return True
+            elif event.type() == QEvent.MouseButtonRelease and event.button() == Qt.LeftButton:
+                was_dragging = self._drag_selecting
+                self._selection_anchor = -1
+                self._drag_selecting = False
+                if was_dragging:
+                    event.accept()
+                    return True
+        return super().eventFilter(watched, event)
+
+    def _row_from_global(self, point) -> int:
+        row = self.indexAt(self.viewport().mapFromGlobal(point)).row()
+        return row if row >= 0 else -1
+
+    def _select_range(self, first: int, last: int) -> None:
+        low, high = sorted((first, last))
+        model = self.model()
+        selection = QItemSelection(model.index(low, 0), model.index(high, 0))
+        self.selectionModel().select(selection, QItemSelectionModel.ClearAndSelect)
+
+    def _sync_message_selection(self) -> None:
+        for index in range(self.count()):
+            widget = self.itemWidget(self.item(index))
+            if isinstance(widget, MessageWidget):
+                widget.set_selected(self.item(index).isSelected())
 
     def wheelEvent(self, event: QWheelEvent) -> None:
         pixel_delta = event.pixelDelta().y()
@@ -200,11 +249,6 @@ class ChatWidget(QWidget):
         self.mode_selector.addItem("Без ответа", "silent")
         toolbar.addWidget(self.recipient_selector)
         toolbar.addWidget(self.mode_selector)
-        self.copy_button = QPushButton("Копировать чат")
-        self.copy_button.setObjectName("smallAction")
-        self.copy_button.setToolTip("Скопировать выбранные сообщения с именами и временем")
-        self.copy_button.clicked.connect(self.copy_requested.emit)
-        toolbar.addWidget(self.copy_button)
         toolbar.addStretch(1)
         toolbar.addWidget(self.stop_button)
         composer_layout.addLayout(toolbar)
@@ -222,8 +266,6 @@ class ChatWidget(QWidget):
         labels = {
             "ru": {
                 "placeholder": "Напишите в отдел...",
-                "copy": "Копировать чат",
-                "copy_tip": "Скопировать выбранные сообщения с именами и временем",
                 "recipient": "Кому: Авто",
                 "recipient_tip": "Кому адресовано сообщение",
                 "mode_tip": "Режим участия сотрудников",
@@ -231,8 +273,6 @@ class ChatWidget(QWidget):
             },
             "uk": {
                 "placeholder": "Напишіть у відділ...",
-                "copy": "Копіювати чат",
-                "copy_tip": "Скопіювати вибрані повідомлення з іменами й часом",
                 "recipient": "Кому: Авто",
                 "recipient_tip": "Кому адресоване повідомлення",
                 "mode_tip": "Режим участі співробітників",
@@ -240,8 +280,6 @@ class ChatWidget(QWidget):
             },
             "en": {
                 "placeholder": "Write to the department...",
-                "copy": "Copy chat",
-                "copy_tip": "Copy selected messages with names and timestamps",
                 "recipient": "To: Auto",
                 "recipient_tip": "Who the message is addressed to",
                 "mode_tip": "Employee participation mode",
@@ -249,8 +287,6 @@ class ChatWidget(QWidget):
             },
         }[self.language]
         self.input.setPlaceholderText(labels["placeholder"])
-        self.copy_button.setText(labels["copy"])
-        self.copy_button.setToolTip(labels["copy_tip"])
         self.recipient_selector.setToolTip(labels["recipient_tip"])
         current_recipient = self.recipient_selector.currentData()
         self.recipient_selector.setItemText(0, labels["recipient"])
@@ -284,6 +320,7 @@ class ChatWidget(QWidget):
         item.setData(Qt.UserRole + 1, role)
         self.messages.addItem(item)
         self.messages.setItemWidget(item, widget)
+        self.messages.register_message_widget(widget)
         item.setSizeHint(self._message_item_size(widget))
         self._resize_message_widgets()
         self._follow_output_if_needed(should_follow)

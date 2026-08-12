@@ -271,6 +271,7 @@ class ThemeManager:
         QFrame#messageCard {{ background: {c['roman_bubble']}; border: 1px solid {c['line_soft']}; border-radius: 18px; }}
         QFrame#messageCardPetr {{ background: {c['petr_bubble']}; border: 1px solid #2c7a5b; border-radius: 18px; }}
         QFrame#messageCardUser {{ background: {c['user_bubble']}; border: 1px solid {c['violet']}; border-radius: 18px; }}
+        QFrame#messageCard[selected="true"], QFrame#messageCardPetr[selected="true"], QFrame#messageCardUser[selected="true"] {{ border: 2px solid {c['cyan']}; background: {c['surface_hover']}; }}
         QLabel#messageAvatar {{ border-radius: 24px; }}
         QLabel#messageBody {{ color: {c['text']}; font-size: 11pt; line-height: 1.38; }}
         QLabel#messageMeta {{ color: {c['muted']}; font-size: 8pt; }}
