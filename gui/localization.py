@@ -84,6 +84,9 @@ TEXT = {
         "organization": "Организация",
         "professions": "Профессии",
         "skills": "Навыки",
+        "knowledge": "Знания",
+        "standards": "Стандарты",
+        "artifacts": "Артефакты",
         "learning": "Обучение",
         "templates": "Шаблоны",
         "settings": "Настройки",
@@ -202,6 +205,9 @@ TEXT = {
         "organization": "Організація",
         "professions": "Професії",
         "skills": "Навички",
+        "knowledge": "Знання",
+        "standards": "Стандарти",
+        "artifacts": "Артефакти",
         "learning": "Навчання",
         "templates": "Шаблони",
         "settings": "Налаштування",
@@ -320,6 +326,9 @@ TEXT = {
         "organization": "Organization",
         "professions": "Professions",
         "skills": "Skills",
+        "knowledge": "Knowledge",
+        "standards": "Standards",
+        "artifacts": "Artifacts",
         "learning": "Learning",
         "templates": "Templates",
         "settings": "Settings",
@@ -503,6 +512,86 @@ READINESS_LABELS = {
         "SETUP_FAILED": "Setup failed",
     },
 }
+
+
+CATALOG_LABELS = {
+    "ru": {
+        "Product Manager": "Менеджер продукта",
+        "Software Engineer": "Инженер-программист",
+        "QA Engineer": "Инженер по качеству",
+        "Head Chef": "Шеф-повар",
+        "Cook / Recipe Developer": "Повар / разработчик рецептов",
+        "Food Researcher": "Исследователь продуктов",
+        "Recipe Reviewer": "Проверяющий рецепты",
+        "Learning Coordinator": "Координатор обучения",
+        "SCRUM_SOFTWARE_TEAM": "Команда разработки по Scrum",
+        "SOFTWARE_PRODUCT_TEAM": "Команда создания программного продукта",
+        "ENGINEERING_PRODUCT_TEAM": "Инженерная команда продукта",
+        "RESEARCH_TEAM": "Исследовательская команда",
+        "DOCUMENT_PRODUCTION_TEAM": "Команда подготовки документов",
+        "CREATIVE_TEAM": "Творческая команда",
+        "CULINARY_BRIGADE": "Кулинарная бригада",
+        "CULINARY_PRODUCT_TEAM": "Команда кулинарного продукта",
+        "LEARNING_TEAM": "Команда обучения",
+        "SMALL_BUSINESS_TEAM": "Команда малого бизнеса",
+        "SOLO_PROFESSIONAL": "Команда одного специалиста",
+        "ADVISORY_BOARD": "Совет специалистов",
+        "INCIDENT_COMMAND_STYLE": "Команда управления инцидентами",
+        "OPERATIONS_SUPPORT_TEAM": "Операционная команда поддержки",
+        "FLAT_TEAM": "Плоская команда",
+        "PROJECTIZED_TEAM": "Проектная команда",
+        "MATRIX_TEAM": "Матричная команда",
+        "CROSS_FUNCTIONAL_TEAM": "Межфункциональная команда",
+        "RACI_REVIEW_TEAM": "Команда с проверкой по RACI",
+        "KANBAN_PRODUCT_TEAM": "Команда продукта по Kanban",
+    },
+    "uk": {
+        "Product Manager": "Менеджер продукту",
+        "Software Engineer": "Інженер-програміст",
+        "QA Engineer": "Інженер з якості",
+        "Head Chef": "Шеф-кухар",
+        "Cook / Recipe Developer": "Кухар / розробник рецептів",
+        "Food Researcher": "Дослідник продуктів",
+        "Recipe Reviewer": "Перевіряльник рецептів",
+        "Learning Coordinator": "Координатор навчання",
+        "SCRUM_SOFTWARE_TEAM": "Команда розробки за Scrum",
+        "SOFTWARE_PRODUCT_TEAM": "Команда створення програмного продукту",
+        "ENGINEERING_PRODUCT_TEAM": "Інженерна команда продукту",
+        "RESEARCH_TEAM": "Дослідницька команда",
+        "DOCUMENT_PRODUCTION_TEAM": "Команда підготовки документів",
+        "CREATIVE_TEAM": "Творча команда",
+        "CULINARY_BRIGADE": "Кулінарна бригада",
+        "CULINARY_PRODUCT_TEAM": "Команда кулінарного продукту",
+        "LEARNING_TEAM": "Команда навчання",
+        "SMALL_BUSINESS_TEAM": "Команда малого бізнесу",
+        "SOLO_PROFESSIONAL": "Команда одного фахівця",
+        "ADVISORY_BOARD": "Рада фахівців",
+        "INCIDENT_COMMAND_STYLE": "Команда управління інцидентами",
+        "OPERATIONS_SUPPORT_TEAM": "Операційна команда підтримки",
+        "FLAT_TEAM": "Плоска команда",
+        "PROJECTIZED_TEAM": "Проєктна команда",
+        "MATRIX_TEAM": "Матрична команда",
+        "CROSS_FUNCTIONAL_TEAM": "Міжфункціональна команда",
+        "RACI_REVIEW_TEAM": "Команда з перевіркою за RACI",
+        "KANBAN_PRODUCT_TEAM": "Команда продукту за Kanban",
+    },
+    "en": {},
+}
+
+
+def catalog_label(language: str, value: str) -> str:
+    language = normalize_language(language)
+    return CATALOG_LABELS.get(language, {}).get(value, value.replace("_", " ").title())
+
+
+def team_size_label(language: str, value: str) -> str:
+    labels = {
+        "ru": {"MINI": "Маленькая", "STANDARD": "Стандартная", "EXTENDED": "Расширенная", "MINI/STANDARD": "Маленькая / стандартная", "10 OR LESS": "До 10 человек"},
+        "uk": {"MINI": "Мала", "STANDARD": "Стандартна", "EXTENDED": "Розширена", "MINI/STANDARD": "Мала / стандартна", "10 OR LESS": "До 10 людей"},
+        "en": {"MINI": "Mini", "STANDARD": "Standard", "EXTENDED": "Extended", "MINI/STANDARD": "Mini / standard", "10 OR LESS": "10 or less"},
+    }
+    language = normalize_language(language)
+    return labels[language].get(value, value)
 
 
 PERMISSION_LABELS = {

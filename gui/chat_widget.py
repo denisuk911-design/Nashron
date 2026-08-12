@@ -712,8 +712,9 @@ class ChatWidget(QWidget):
         animation.setStartValue(bar.value())
         animation.setEndValue(target)
         distance = target - bar.value()
-        animation.setDuration(max(120, min(280, 100 + distance // 2)))
-        animation.setEasingCurve(QEasingCurve.OutCubic)
+        # Keep the movement readable even for a long streamed response.
+        animation.setDuration(max(420, min(1400, 320 + distance * 2)))
+        animation.setEasingCurve(QEasingCurve.InOutCubic)
         animation.finished.connect(lambda: self._finish_scroll_animation(animation))
         self._scroll_animation = animation
         animation.start()
@@ -730,9 +731,12 @@ class ChatWidget(QWidget):
         text = self.input.toPlainText().strip()
         if not text:
             return
-        self.input.clear()
         self.send_requested.emit(text)
         self.focus_input_later()
+
+    def clear_input(self) -> None:
+        """Clear the composer only after MainWindow accepted the message."""
+        self.input.clear()
 
     def _agent_short_name(self) -> str:
         return self._agent_labels.get(self._stream_role, "Сотрудник")

@@ -55,7 +55,7 @@ from core.skill_progress_service import SkillProgressService
 from core.skill_package_service import SkillPackageService
 from core.standards_service import MANDATORY_LEVELS, STANDARD_AUTHORITIES, StandardsService
 from core.universal_platform_service import UniversalPlatformService
-from gui.localization import permission_label, readiness_label, role_label, status_label, tr, workflow_label
+from gui.localization import catalog_label, permission_label, readiness_label, role_label, status_label, team_size_label, tr, workflow_label
 
 
 STATUS_LABELS = {
@@ -128,17 +128,17 @@ class DirectorConsoleDialog(QDialog):
         self.universal_tab = UniversalPlatformTab(universal_platform_service, self)
 
         self.tabs.addTab(self.overview_tab, tr(language, "overview"))
-        self.tabs.addTab(self.universal_tab, "Организация")
+        self.tabs.addTab(self.universal_tab, tr(language, "organization"))
         self.tabs.addTab(self.employee_tab, tr(language, "employees"))
         self.tabs.addTab(self.roles_tab, tr(language, "roles"))
         self.tabs.addTab(self.permissions_tab, tr(language, "permissions"))
         self.tabs.addTab(self.providers_tab, tr(language, "providers"))
-        self.tabs.addTab(self.skills_tab, "Навыки")
-        self.tabs.addTab(self.knowledge_tab, "Знания")
-        self.tabs.addTab(self.standards_tab, "Стандарты")
-        self.tabs.addTab(self.artifacts_tab, "Артефакты")
+        self.tabs.addTab(self.skills_tab, tr(language, "skills"))
+        self.tabs.addTab(self.knowledge_tab, tr(language, "knowledge"))
+        self.tabs.addTab(self.standards_tab, tr(language, "standards"))
+        self.tabs.addTab(self.artifacts_tab, tr(language, "artifacts"))
         self.tabs.addTab(self.findings_tab, tr(language, "findings"))
-        self.tabs.addTab(self.diagnostics_tab, "Диагностика")
+        self.tabs.addTab(self.diagnostics_tab, tr(language, "diagnostics"))
         self.tabs.addTab(self.audit_tab, tr(language, "audit"))
 
         close = QDialogButtonBox(QDialogButtonBox.Close)
@@ -180,7 +180,7 @@ class UniversalPlatformTab(QWidget):
         self.organizations = QListWidget()
         self.templates = QListWidget()
         self.template_search = QLineEdit()
-        self.template_search.setPlaceholderText("Поиск пресетов: разработка, кухня, маленькая команда...")
+        self.template_search.setPlaceholderText({"ru": "Поиск пресетов: разработка, кухня, маленькая команда...", "uk": "Пошук пресетів: розробка, кухня, мала команда...", "en": "Search presets: development, culinary, small team..."}[self.language])
         self.organization_dashboard = QTextEdit()
         self.organization_dashboard.setReadOnly(True)
         self.organization_dashboard.setMinimumHeight(150)
@@ -239,17 +239,17 @@ class UniversalPlatformTab(QWidget):
         if self.service is None:
             return
         for item in self.service.list_professions():
-            self.professions.addItem(f"{item.name} · {item.status}")
+            self.professions.addItem(f"{catalog_label(self.language, item.name)} · {workflow_label(self.language, item.status)}")
         for item in self.service.list_organizations():
-            row = QListWidgetItem(f"{item.name} · {item.status}")
+            row = QListWidgetItem(f"{item.name} · {workflow_label(self.language, item.status)}")
             row.setData(Qt.UserRole, item.organization_id)
             self.organizations.addItem(row)
         query = self.template_search.text().strip().lower()
         for item in self.service.list_templates():
-            searchable = " ".join((item.name, item.purpose, item.catalog_category, item.domain_package)).lower()
+            searchable = " ".join((item.name, catalog_label(self.language, item.name), item.purpose, item.catalog_category, item.domain_package)).lower()
             if query and query not in searchable:
                 continue
-            row = QListWidgetItem(f"{item.name} · {item.recommended_team_size}")
+            row = QListWidgetItem(f"{catalog_label(self.language, item.name)} · {team_size_label(self.language, item.recommended_team_size)}")
             row.setData(Qt.UserRole, item.template_id)
             self.templates.addItem(row)
 
@@ -370,7 +370,7 @@ class UniversalPlatformTab(QWidget):
             return
         try:
             template = next(template for template in self.service.list_templates() if template.template_id == str(item.data(Qt.UserRole)))
-            wizard = OrganizationActivationWizard(self.service, template, self)
+            wizard = OrganizationActivationWizard(self.service, template, self.language, self)
             if wizard.exec() != QDialog.Accepted:
                 return
             activation = wizard.activation
@@ -391,10 +391,11 @@ class UniversalPlatformTab(QWidget):
 
 
 class OrganizationActivationWizard(QWizard):
-    def __init__(self, service: UniversalPlatformService, template, parent=None) -> None:
+    def __init__(self, service: UniversalPlatformService, template, language: str = "ru", parent=None) -> None:
         super().__init__(parent)
         self.service = service
         self.template = template
+        self.language = language
         self.activation = None
         self.setWindowTitle("Создать организацию")
         self.setMinimumSize(720, 560)
@@ -405,12 +406,13 @@ class OrganizationActivationWizard(QWizard):
         self.organization_name.setPlaceholderText("Например: Команда разработки продукта")
         self.team_size = QComboBox()
         for value in ("MINI", "STANDARD", "EXTENDED"):
-            self.team_size.addItem(value, value)
-        self.team_size.setCurrentText("STANDARD")
+            self.team_size.addItem(team_size_label(language, value), value)
+        standard_index = self.team_size.findData("STANDARD")
+        self.team_size.setCurrentIndex(standard_index if standard_index >= 0 else 0)
         form = QFormLayout(identity)
         form.addRow("Название организации", self.organization_name)
-        form.addRow("Размер команды", self.team_size)
-        form.addRow("Пресет", QLabel(f"{template.name}\n{template.purpose}"))
+        form.addRow({"ru": "Размер команды", "uk": "Розмір команди", "en": "Team size"}[language], self.team_size)
+        form.addRow({"ru": "Пресет", "uk": "Пресет", "en": "Preset"}[language], QLabel(f"{catalog_label(language, template.name)}\n{template.purpose}"))
         self.addPage(identity)
 
         roster = QWizardPage()
@@ -423,7 +425,7 @@ class OrganizationActivationWizard(QWizard):
         for role in template.roles:
             position = str(role.get("position") or role.get("role") or "Специалист")
             row = QHBoxLayout()
-            row.addWidget(QLabel(position), 2)
+            row.addWidget(QLabel(catalog_label(language, position)), 2)
             provider = QComboBox()
             for value, label in (("UNAVAILABLE", "Назначить позже"), ("CODEX_CLI", "Codex CLI"), ("GEMINI_CLI", "Gemini CLI"), ("CLAUDE_CLI", "Claude CLI")):
                 provider.addItem(label, value)
@@ -449,8 +451,8 @@ class OrganizationActivationWizard(QWizard):
         workflow = QWizardPage()
         workflow.setTitle("Шаг 3. Порядок работы и структура")
         workflow_layout = QVBoxLayout(workflow)
-        structure = [f"Пресет: {template.name}", f"Категория: {template.catalog_category}", f"Размер: {template.recommended_team_size}", "", "Состав:"]
-        structure.extend(f"  {index}. {role.get('position') or role.get('role')}" for index, role in enumerate(template.roles, start=1))
+        structure = [f"Пресет: {catalog_label(language, template.name)}", f"Категория: {catalog_label(language, template.catalog_category)}", f"Размер: {team_size_label(language, template.recommended_team_size)}", "", "Состав:"]
+        structure.extend(f"  {index}. {catalog_label(language, str(role.get('position') or role.get('role') or 'Специалист'))}" for index, role in enumerate(template.roles, start=1))
         structure.extend(["", "Порядок работы: роли выполняются по шагам, результат передаётся следующему ответственному."])
         workflow_layout.addWidget(QLabel("\n".join(structure)))
         workflow_layout.addStretch(1)

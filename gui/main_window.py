@@ -698,15 +698,19 @@ class MainWindow(QMainWindow):
         if self.worker is not None:
             if is_stop_command(text):
                 self._interrupt_with_user_message(text)
+                self._clear_composer_input()
             elif self.cancellation_in_progress or self.interrupting_current_run:
                 message_id = self._add_user_message(text)
                 self.queued_user_message = (text, message_id)
                 self.database.log_event("message_queued_during_cancellation", self.current_agent_key)
+                self._clear_composer_input()
             else:
                 self._add_live_guidance(text)
+                self._clear_composer_input()
             return
         if is_stop_command(text):
             self._stop_autonomous(add_user_message=True, text=text)
+            self._clear_composer_input()
             return
         if not self._identity_is_ready():
             return
@@ -719,6 +723,7 @@ class MainWindow(QMainWindow):
         self.database.log_event("chat_route_selected", ",".join(agent_keys))
         if not agent_keys:
             message_id = self._add_user_message(text)
+            self._clear_composer_input()
             self._record_last_routing_decision(message_id)
             self._persist_thread_from_last_decision(message_id, None, text)
             self._record_thread_question_from_last_decision(message_id, text)
@@ -730,6 +735,7 @@ class MainWindow(QMainWindow):
             self.database.log_event("local_tools_enabled_for_request", ",".join(agent_keys))
         self.chat.reset_stream()
         message_id = self._add_user_message(text)
+        self._clear_composer_input()
         if not self._prepare_work_context(text, message_id, agent_keys):
             return
         if self._prepare_generation_state(text, message_id, agent_keys, autonomy):
@@ -738,6 +744,11 @@ class MainWindow(QMainWindow):
             self._record_thread_question_from_last_decision(message_id, text)
             self._start_next_agent_run()
             QTimer.singleShot(1200, lambda mid=message_id: self._ensure_generation_started(mid))
+
+    def _clear_composer_input(self) -> None:
+        clear_input = getattr(getattr(self, "chat", None), "clear_input", None)
+        if callable(clear_input):
+            clear_input()
 
     def _start_user_message_from_existing(self, text: str, message_id: int | None = None) -> None:
         self._clear_dead_worker()
