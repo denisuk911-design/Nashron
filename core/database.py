@@ -3,6 +3,7 @@ from __future__ import annotations
 import shutil
 import sqlite3
 import json
+import re
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -25,6 +26,7 @@ class Database:
         return conn
 
     def initialize(self) -> None:
+        self._prepare_existing_storage()
         with self.connect() as conn:
             self._repair_renamed_message_foreign_keys(conn)
             conn.executescript(
@@ -76,6 +78,80 @@ class Database:
             self._ensure_universal_schema(conn)
             self._ensure_organization_expansion_schema(conn)
             self._repair_renamed_message_foreign_keys(conn)
+            self._repair_orphaned_routing_decisions(conn)
+        # A legacy writable-schema migration could leave freed pages outside
+        # SQLite's freelist. Run the same narrowly scoped check after schema
+        # repair so the problem cannot be recreated by an old database.
+        self._prepare_existing_storage()
+
+    def _prepare_existing_storage(self) -> None:
+        if not self.path.exists() or self.path.stat().st_size == 0:
+            return
+        conn = sqlite3.connect(self.path)
+        try:
+            try:
+                integrity_rows = conn.execute("PRAGMA integrity_check").fetchall()
+            except sqlite3.DatabaseError as exc:
+                # A known legacy migration could leave a zero-root
+                # messages_old catalog entry. The schema repair in initialize
+                # removes it before this health check is run a second time.
+                if "malformed database schema (messages_old)" in str(exc):
+                    return
+                raise
+            integrity_lines = [
+                line.strip()
+                for row in integrity_rows
+                for line in str(row[0] or "").splitlines()
+                if line.strip()
+                and line.strip().lower() != "ok"
+                and not re.fullmatch(r"\*\*\* in database .+ \*\*\*", line.strip())
+            ]
+            known_page_damage = bool(integrity_lines) and all(
+                re.fullmatch(r"Page \d+: never used", line) for line in integrity_lines
+            )
+            foreign_key_rows = conn.execute("PRAGMA foreign_key_check").fetchall()
+            known_orphans = any(str(row[0]) == "routing_decisions" for row in foreign_key_rows)
+            if not known_page_damage and not known_orphans:
+                return
+            self._create_integrity_backup()
+            if known_page_damage:
+                conn.execute("VACUUM")
+                remaining = [
+                    line.strip()
+                    for row in conn.execute("PRAGMA integrity_check").fetchall()
+                    for line in str(row[0] or "").splitlines()
+                    if line.strip()
+                    and line.strip().lower() != "ok"
+                    and not re.fullmatch(r"\*\*\* in database .+ \*\*\*", line.strip())
+                ]
+                if remaining:
+                    raise sqlite3.DatabaseError("database_integrity_repair_failed: " + "; ".join(remaining[:5]))
+        finally:
+            conn.close()
+
+    def _create_integrity_backup(self) -> Path:
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+        backup_path = self.path.with_name(f"{self.path.stem}.integrity_backup_{timestamp}{self.path.suffix}")
+        shutil.copy2(self.path, backup_path)
+        return backup_path
+
+    @staticmethod
+    def _repair_orphaned_routing_decisions(conn: sqlite3.Connection) -> None:
+        table_exists = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'routing_decisions'"
+        ).fetchone()
+        messages_exists = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'messages'"
+        ).fetchone()
+        if table_exists is None or messages_exists is None:
+            return
+        conn.execute(
+            """
+            DELETE FROM routing_decisions
+            WHERE message_id IS NOT NULL
+              AND NOT EXISTS (SELECT 1 FROM messages WHERE messages.id = routing_decisions.message_id)
+            """
+        )
 
     def _ensure_universal_schema(self, conn: sqlite3.Connection) -> None:
         """U1 domain-neutral organization and profession foundation."""

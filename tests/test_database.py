@@ -1,3 +1,5 @@
+import sqlite3
+
 from core.database import Database
 
 
@@ -186,3 +188,33 @@ def test_records_routing_decision(tmp_path):
     assert rows[0]["id"] == decision_id
     assert rows[0]["participation_mode"] == "DIRECT"
     assert "shushan" in rows[0]["selected_responders"]
+
+
+def test_initialize_repairs_orphaned_routing_diagnostics_with_backup(tmp_path):
+    db_path = tmp_path / "roman.sqlite3"
+    db = Database(db_path)
+    db.initialize()
+    conversation_id = db.create_conversation("repair")
+    message_id = db.add_message(conversation_id, "user", "Проверка")
+    decision_id = db.record_routing_decision(
+        message_id=message_id,
+        thread_id=f"conversation-{conversation_id}",
+        participation_mode="DIRECT",
+        explicit_recipients=[],
+        inferred_recipients=[],
+        selected_responders=[],
+        excluded_responders={},
+        interruption_policy=None,
+        reason="test",
+        router_version="test",
+    )
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("PRAGMA foreign_keys = OFF")
+        conn.execute("DELETE FROM messages WHERE id = ?", (message_id,))
+
+    db.initialize()
+
+    assert all(row["id"] != decision_id for row in db.list_routing_decisions())
+    assert list(tmp_path.glob("roman.integrity_backup_*.sqlite3"))
+    with db.connect() as conn:
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []

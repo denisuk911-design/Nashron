@@ -193,10 +193,14 @@ class ProviderProvisioningService:
         self.health_service = health_service
 
     def ensure_assignments_for_existing_agents(self) -> None:
+        supported_provider_ids = {profile.provider_id for profile in self.registry.profiles()}
         for profile in self.database.list_agent_profiles():
             agent_id = str(profile["agent_id"])
             provider_id = str(profile["provider_id"] or "").strip()
-            if agent_id and provider_id:
+            # UNAVAILABLE and similar legacy values describe provisioning
+            # state; they are not provider definitions and cannot satisfy the
+            # provider assignment foreign key.
+            if agent_id and provider_id in supported_provider_ids:
                 self.database.upsert_agent_provider_assignment(agent_id, provider_id, "DRAFT")
 
     def readiness_for_employee(self, agent_id: str) -> str:
@@ -206,7 +210,7 @@ class ProviderProvisioningService:
         if str(profile["lifecycle_state"]) in ("SUSPENDED", "DISABLED", "ARCHIVED"):
             return "BLOCKED"
         provider_id = str(profile["provider_id"] or "")
-        if not provider_id:
+        if not provider_id or self.registry.get(provider_id) is None:
             return "PROVIDER_NOT_ASSIGNED"
         health = self.health_service.latest_health(provider_id) or self.health_service.check_provider(provider_id)
         if health.installation_status in ("NOT_INSTALLED", "UNSUPPORTED"):

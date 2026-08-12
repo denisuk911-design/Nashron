@@ -1,5 +1,6 @@
 from core.config_repository import ConfigurationRepository
 from core.database import Database
+from core.management_models import AgentProfile, OWNER_ROLE
 from core.management_service import ManagementService
 from core.provider_models import ProviderHealth
 from core.provider_service import ProviderHealthService, ProviderProvisioningService, ProviderRegistry
@@ -66,6 +67,36 @@ def test_existing_agents_get_provider_assignments(tmp_path):
 
     assert roman[0]["provider_id"] == "CODEX_CLI"
     assert petr[0]["provider_id"] == "GEMINI_CLI"
+
+
+def test_unassigned_legacy_employee_does_not_break_provider_bootstrap(tmp_path):
+    db = Database(tmp_path / "roman.sqlite3")
+    db.initialize()
+    management = ManagementService(db, ConfigurationRepository(tmp_path / "management"))
+    management.ensure_foundations(seed_legacy=False)
+    db.create_agent_profile(
+        AgentProfile(
+            agent_id="agent-unassigned",
+            display_name="Новый сотрудник",
+            description="Профиль ожидает выбора ИИ-движка.",
+            lifecycle_state="ACTIVE",
+            provider_id="UNAVAILABLE",
+            persona_id=None,
+            avatar_path=None,
+            aliases=(),
+        ),
+        actor=OWNER_ROLE,
+        reason="legacy fixture",
+    )
+    registry = ProviderRegistry(db)
+    registry.ensure_defaults()
+    health = ProviderHealthService(db, registry, {})
+    provisioning = ProviderProvisioningService(db, registry, health)
+
+    provisioning.ensure_assignments_for_existing_agents()
+
+    assert db.list_agent_provider_assignments("agent-unassigned") == []
+    assert provisioning.readiness_for_employee("agent-unassigned") == "PROVIDER_NOT_ASSIGNED"
 
 
 def test_ready_provider_makes_active_employee_ready(tmp_path):
