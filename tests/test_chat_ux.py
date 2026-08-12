@@ -1,4 +1,5 @@
 import os
+import time
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -239,6 +240,28 @@ def test_theme_catalog_has_distinct_background_definitions():
     assert ThemeManager.definition("night_city").pattern == "city"
     assert ThemeManager.definition("minimal").pattern == "none"
     assert ThemeManager.native_chrome_colors("warm_paper")[0] is False
+
+
+def test_long_chat_keeps_500_message_rows_usable():
+    _app()
+    widget = ChatWidget()
+    widget.resize(1100, 760)
+    widget.show()
+    QApplication.processEvents()
+
+    started = time.perf_counter()
+    for index in range(500):
+        widget.add_message("employee", f"Сообщение {index}: проверенный результат и короткое пояснение.")
+    QApplication.processEvents()
+
+    assert widget.messages.count() == 500
+    assert widget.messages.verticalScrollBar().maximum() > 0
+    assert time.perf_counter() - started < 15.0
+    widget.resize(900, 620)
+    widget.add_message("employee", "Сообщение после изменения размера")
+    QApplication.processEvents()
+    assert widget.messages.count() == 501
+    widget.deleteLater()
 
 
 def test_theme_text_contrast_is_readable_on_all_core_surfaces():

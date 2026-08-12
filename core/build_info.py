@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-APP_VERSION = "2.3.1"
+APP_VERSION = "2.4.2"
 
 
 def _resource_path() -> Path:

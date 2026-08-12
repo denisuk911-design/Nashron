@@ -31,24 +31,7 @@ for /f "delims=" %%i in ('powershell -NoProfile -Command "(Get-Date).ToUniversal
 ".venv\Scripts\python.exe" scripts\write_build_info.py --output build\build_info.json --version 2.4.2 --commit "%BUILD_COMMIT%" --timestamp "%BUILD_TIMESTAMP%"
 if errorlevel 1 exit /b 1
 
-set "CODEX_BINARY_ARG="
-if exist "vendor\codex\win-x64\codex.exe" (
-  set "CODEX_BINARY_ARG=--add-binary vendor\codex\win-x64\codex.exe;vendor\codex\win-x64"
-)
-
-".venv\Scripts\pyinstaller.exe" ^
-  --noconfirm ^
-  --windowed ^
-  --name "Team2050" ^
-  --add-data "prompts\roman_system.md;prompts" ^
-  --add-data "data\roman_identity.json;data" ^
-  --add-data "data\roman_timeline.json;data" ^
-  --add-data "data\agent_skills.json;data" ^
-  --add-data "data\app_settings.json;data" ^
-  --add-data "data\avatars;data\avatars" ^
-  --add-data "build\build_info.json;data" ^
-  %CODEX_BINARY_ARG% ^
-  app.py
+".venv\Scripts\pyinstaller.exe" --noconfirm --clean Team2050.spec
 
 if errorlevel 1 (
   echo Sborka EXE zavershilas s oshibkoy.
