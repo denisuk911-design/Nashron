@@ -184,6 +184,23 @@ class SettingsDialog(QDialog):
         )
         self.reduce_motion.setChecked(bool(settings.get("reduce_motion", False)))
 
+        self.message_sounds = QCheckBox(
+            {"ru": "Звуки сообщений", "uk": "Звуки повідомлень", "en": "Message sounds"}.get(language, "Звуки сообщений")
+        )
+        self.message_sounds.setChecked(bool(settings.get("message_sounds_enabled", True)))
+        self.send_sound = QCheckBox(
+            {"ru": "Звук отправки", "uk": "Звук надсилання", "en": "Send sound"}.get(language, "Звук отправки")
+        )
+        self.send_sound.setChecked(bool(settings.get("send_sound_enabled", True)))
+        self.receive_sound = QCheckBox(
+            {"ru": "Звук получения", "uk": "Звук отримання", "en": "Receive sound"}.get(language, "Звук получения")
+        )
+        self.receive_sound.setChecked(bool(settings.get("receive_sound_enabled", True)))
+        self.sound_volume = QSpinBox()
+        self.sound_volume.setRange(0, 100)
+        self.sound_volume.setSuffix(" %")
+        self.sound_volume.setValue(int(settings.get("message_sound_volume", 35)))
+
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
@@ -251,6 +268,13 @@ class SettingsDialog(QDialog):
         )
         layout.addRow(self.allow_local_tools)
         layout.addRow(self.reduce_motion)
+        layout.addRow(self.message_sounds)
+        layout.addRow(self.send_sound)
+        layout.addRow(self.receive_sound)
+        layout.addRow(
+            {"ru": "Громкость сообщений", "uk": "Гучність повідомлень", "en": "Message volume"}.get(language, "Громкость сообщений"),
+            self.sound_volume,
+        )
         layout.addRow(buttons)
         self._update_theme_preview()
 
@@ -319,4 +343,8 @@ class SettingsDialog(QDialog):
             "reduce_motion": self.reduce_motion.isChecked(),
             "user_avatar_path": self.user_avatar.text().strip(),
             "general_chat_response": self.general_response.currentData(),
+            "message_sounds_enabled": self.message_sounds.isChecked(),
+            "send_sound_enabled": self.send_sound.isChecked(),
+            "receive_sound_enabled": self.receive_sound.isChecked(),
+            "message_sound_volume": self.sound_volume.value(),
         }

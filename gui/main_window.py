@@ -32,6 +32,7 @@ from core.autonomy import AutonomyRequest, has_handoff_intent, is_stop_command, 
 from core.codex_client import CodexClient
 from core.build_info import build_label
 from core.claim_evidence import ClaimEvidenceValidator
+from core.chat_sound_service import ChatSoundService
 from core.config_repository import ConfigurationRepository
 from core.conversation_mode import ConversationMode, infer_mode
 from core.conversation_thread_service import ConversationThreadService
@@ -106,6 +107,7 @@ class MainWindow(QMainWindow):
         self.paths = settings_service.paths
         self.logger = logger
         self.settings = settings_service.load()
+        self.chat_sound_service = ChatSoundService(self.paths.data_dir / "sounds", self.settings)
         self._set_startup_state("SETTINGS_READY")
 
         self.database = Database(self.paths.database_path)
@@ -1304,6 +1306,7 @@ class MainWindow(QMainWindow):
     def _add_user_message(self, text: str) -> int:
         message_id = self.database.add_message(self.conversation_id, "user", text)
         self.chat.add_message("user", text, message_id)
+        self.chat_sound_service.play_send()
         return message_id
 
     def _add_live_guidance(self, text: str) -> None:
@@ -1659,6 +1662,7 @@ class MainWindow(QMainWindow):
             if content and not self._is_recent_duplicate_message(agent_key, content):
                 message_id = self.database.add_message(self.conversation_id, agent_key, content)
                 self.chat.add_message(agent_key, content, message_id)
+                self.chat_sound_service.play_receive()
                 self._mark_thread_questions_answered(agent_key, message_id)
                 claim_validation = self.claim_validator.validate(content, parsed_response.envelope)
                 self._show_claim_warning_if_needed(self.conversation_id, claim_validation.warning)
@@ -1885,6 +1889,7 @@ class MainWindow(QMainWindow):
                         message_id = self.database.add_message(conversation_id, agent_key, final_content)
                         self.chat.finish_agent_response(final_content)
                         self.chat.set_stream_message_id(message_id, final_content)
+                        self.chat_sound_service.play_receive()
                         self._mark_thread_questions_answered(agent_key, message_id)
                         claim_validation = self.claim_validator.validate(final_content, parsed_response.envelope)
                         self._show_claim_warning_if_needed(conversation_id, claim_validation.warning)
@@ -1912,6 +1917,7 @@ class MainWindow(QMainWindow):
                     if clean_part and not self._is_recent_duplicate_message(agent_key, clean_part):
                         message_id = self.database.add_message(conversation_id, agent_key, clean_part)
                         self.chat.add_message(agent_key, clean_part, message_id)
+                        self.chat_sound_service.play_receive()
                         self._mark_thread_questions_answered(agent_key, message_id)
                         claim_validation = self.claim_validator.validate(clean_part, parsed_response.envelope)
                         self._show_claim_warning_if_needed(conversation_id, claim_validation.warning)
@@ -2227,6 +2233,7 @@ class MainWindow(QMainWindow):
         values = dialog.values()
         self.settings.update(values)
         self.settings_service.save(self.settings)
+        self.chat_sound_service.configure(self.settings)
         self.team_router.general_chat_response = str(self.settings.get("general_chat_response", "SINGLE")).upper()
         self.codex_client.timeout_seconds = int(self.settings.get("codex_timeout_seconds", 180))
         self.gemini_client.timeout_seconds = int(self.settings.get("codex_timeout_seconds", 180))

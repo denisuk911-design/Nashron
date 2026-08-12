@@ -29,6 +29,10 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "chat_background_mode": "cover",
     "onboarding_skipped": False,
     "developer_mode": False,
+    "message_sounds_enabled": True,
+    "send_sound_enabled": True,
+    "receive_sound_enabled": True,
+    "message_sound_volume": 35,
 }
 
 DEFAULT_RESOURCE_TEXTS: dict[str, str] = {
