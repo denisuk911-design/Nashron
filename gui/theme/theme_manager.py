@@ -125,6 +125,7 @@ class ThemeBackdrop(QWidget):
         super().__init__()
         self._theme = theme if theme in THEME_COLORS else "dark"
         self._background_path = ""
+        self._background_pixmap = QPixmap()
         self._background_opacity = 18
         self._background_mode = "cover"
         self.setAttribute(Qt.WA_StyledBackground, True)
@@ -134,8 +135,15 @@ class ThemeBackdrop(QWidget):
         self.update()
 
     def set_background(self, path: str = "", opacity: int = 18, mode: str = "cover") -> None:
-        self._background_path = str(path or "").strip()
-        self._background_opacity = max(0, min(70, int(opacity)))
+        next_path = str(path or "").strip()
+        if next_path != self._background_path:
+            self._background_path = next_path
+            self._background_pixmap = QPixmap(next_path) if next_path else QPixmap()
+        try:
+            next_opacity = int(opacity)
+        except (TypeError, ValueError):
+            next_opacity = 18
+        self._background_opacity = max(0, min(70, next_opacity))
         self._background_mode = mode if mode in {"cover", "tile", "center"} else "cover"
         self.update()
 
@@ -144,7 +152,7 @@ class ThemeBackdrop(QWidget):
         painter = QPainter(self)
         painter.fillRect(self.rect(), QColor(colors["chat_bg"]))
         if self._background_path:
-            pixmap = QPixmap(self._background_path)
+            pixmap = self._background_pixmap
             if not pixmap.isNull() and self._background_opacity:
                 painter.save()
                 painter.setOpacity(self._background_opacity / 100.0)

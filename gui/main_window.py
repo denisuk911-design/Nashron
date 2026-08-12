@@ -1487,7 +1487,12 @@ class MainWindow(QMainWindow):
             self.active_workers[agent_key] = worker
         else:
             self.worker = worker
-            worker.delta_received.connect(self.chat.append_agent_delta)
+            append_delta = getattr(self.chat, "append_agent_delta", None)
+            if append_delta is None:
+                # Keep compatibility with older chat adapters while all new
+                # providers use the agent-neutral method name.
+                append_delta = self.chat.append_roman_delta
+            worker.delta_received.connect(append_delta)
             worker.status_received.connect(self.chat.set_activity_status)
             worker.run_status_received.connect(lambda status, run_id=run_handle.run_id: self._record_run_status(run_id, status))
             worker.finished_with_result.connect(self._generation_finished)

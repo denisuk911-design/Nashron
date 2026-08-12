@@ -581,6 +581,11 @@ class ChatWidget(QWidget):
         if not self.typewriter_timer.isActive():
             self.typewriter_timer.start()
 
+    # Keep the legacy worker-facing name as a compatibility alias. New code
+    # should use the provider-neutral method above.
+    def append_roman_delta(self, delta: str) -> None:
+        self.append_agent_delta(delta)
+
     def finish_agent_response(self, final_text: str) -> None:
         self.stop_typing_indicator()
         if self._stream_item is None:
@@ -604,6 +609,9 @@ class ChatWidget(QWidget):
             self._typewriter_queue.clear()
             self._stream_text = final_text
             self._update_stream_item()
+
+    def finish_roman_response(self, final_text: str) -> None:
+        self.finish_agent_response(final_text)
 
     def _flush_typewriter(self) -> None:
         if self._stream_item is None:
@@ -830,6 +838,11 @@ class ChatWidget(QWidget):
         return bar.maximum() - bar.value() <= self._bottom_threshold
 
     def _should_follow_output(self) -> bool:
+        # Reflow, resize, and external scrollbar updates can move the viewport
+        # without producing a wheel/drag event. If the user is visibly back at
+        # the end, restore live following before the next message is appended.
+        if not self._manual_scroll_active and self._is_at_bottom():
+            self._follow_new_messages = True
         return self._follow_new_messages
 
     def _on_user_scroll_started(self) -> None:
