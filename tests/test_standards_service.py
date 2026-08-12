@@ -3,6 +3,7 @@ import json
 from core.config_repository import ConfigurationRepository
 from core.database import Database
 from core.identity_service import IdentityService
+from core.management_models import AgentProfile
 from core.management_service import ManagementService
 from core.prompt_builder import PromptBuilder
 from core.standards_service import StandardsService
@@ -11,7 +12,14 @@ from core.standards_service import StandardsService
 def _database(tmp_path):
     db = Database(tmp_path / "roman.sqlite3")
     db.initialize()
-    ManagementService(db, ConfigurationRepository(tmp_path / "management")).ensure_foundations()
+    management = ManagementService(db, ConfigurationRepository(tmp_path / "management"))
+    management.ensure_foundations()
+    management.create_agent(
+        AgentProfile("agent-designer-fixture", "Андрій", "Test designer", "ACTIVE", "CODEX_CLI"),
+        ["DESIGN_ENGINEER"],
+        ["CHAT"],
+        reason="test fixture",
+    )
     return db
 
 
@@ -71,8 +79,8 @@ def test_prompt_builder_supplies_active_standards_and_records_usage(tmp_path):
     task_id = db.create_task("project-default", "KiCad task", None, "1.0")
     run_id = db.create_agent_run(
         task_id=task_id,
-        agent_id="agent-roman",
-        agent_key="roman",
+        agent_id="agent-designer-fixture",
+        agent_key="designer-fixture",
         logical_role="DESIGN_ENGINEER",
         provider="CODEX_CLI",
         prompt_hash=None,
@@ -80,7 +88,13 @@ def test_prompt_builder_supplies_active_standards_and_records_usage(tmp_path):
     )
     builder = PromptBuilder(prompt_path, IdentityService(identity_path), timeline_path, db, standards_service=standards)
 
-    prompt = builder.build(conversation_id, "KiCad DRC проверить", task_id=task_id, run_id=run_id)
+    prompt = builder.build(
+        conversation_id,
+        "KiCad DRC проверить",
+        agent_key="designer-fixture",
+        task_id=task_id,
+        run_id=run_id,
+    )
     usage = db.list_standard_usage()
 
     assert "PCB-DRC-001" in prompt

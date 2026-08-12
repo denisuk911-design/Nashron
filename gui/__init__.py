@@ -1,2 +1,1 @@
-"""PySide6 GUI for Roman 2050."""
-
+"""PySide6 GUI for Team2050."""

@@ -37,13 +37,14 @@ def test_work_task_becomes_goal_with_explicit_until_done_phrase():
     assert request.complete_on_goal
 
 
-def test_detects_peer_handoff_from_roman_to_petr():
-    text = "Петр, дам тебе структуру на просмотр. Проверь без воды."
+def test_detects_peer_handoff_from_dynamic_roster():
+    text = "Олена, дам тебе структуру на просмотр. Проверь без воды."
 
-    assert detect_peer_handoff(text, "roman") == "petr"
+    aliases = {"designer": {"Максим"}, "reviewer": {"Олена", "Олене"}}
+    assert detect_peer_handoff(text, "designer", aliases) == "reviewer"
 
 
 def test_peer_mention_without_action_does_not_handoff():
-    text = "Петр уже отвечал выше, я не буду повторять его позицию."
+    text = "Олена уже отвечала выше, я не буду повторять её позицию."
 
-    assert detect_peer_handoff(text, "roman") is None
+    assert detect_peer_handoff(text, "designer", {"reviewer": {"Олена"}}) is None

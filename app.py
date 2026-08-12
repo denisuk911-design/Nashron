@@ -37,13 +37,13 @@ def main() -> int:
     if unicode_errors:
         logger.error("unicode_catalog_invalid errors=%s", ";".join(unicode_errors))
     app = QApplication(sys.argv)
-    app.setApplicationName("Roman 2050")
+    app.setApplicationName("Team2050")
     app.setOrganizationName("Roman2050")
 
     lock = QLockFile(str(settings_service.paths.user_dir / "roman2050.lock"))
     lock.setStaleLockTime(30000)
     if not lock.tryLock(100):
-        QMessageBox.information(None, "Roman 2050", "Программа уже запущена")
+        QMessageBox.information(None, "Team2050", "Программа уже запущена")
         return 0
 
     splash = StartupSplash()

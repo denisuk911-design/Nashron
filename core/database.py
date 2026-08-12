@@ -1256,7 +1256,7 @@ class Database:
             cur = conn.execute("INSERT INTO conversations (title) VALUES (?)", (title,))
             return int(cur.lastrowid)
 
-    def ensure_single_conversation(self, title: str = "Роман Неслышев") -> int:
+    def ensure_single_conversation(self, title: str = "Командный чат") -> int:
         self.initialize()
         with self.connect() as conn:
             rows = conn.execute("SELECT id FROM conversations ORDER BY id ASC").fetchall()

@@ -1,6 +1,7 @@
 from core.config_repository import ConfigurationRepository
 from core.database import Database
 from core.management_service import ManagementService
+from core.management_models import AgentProfile
 from core.skill_package_service import SkillPackageService
 from core.skill_progress_service import SkillProgressService
 from core.skill_service import SkillService
@@ -9,7 +10,14 @@ from core.skill_service import SkillService
 def _database(tmp_path):
     db = Database(tmp_path / "roman.sqlite3")
     db.initialize()
-    ManagementService(db, ConfigurationRepository(tmp_path / "management")).ensure_foundations()
+    management = ManagementService(db, ConfigurationRepository(tmp_path / "management"))
+    management.ensure_foundations()
+    management.create_agent(
+        AgentProfile("agent-specialist-fixture", "Олена", "Test specialist", "ACTIVE", "CODEX_CLI"),
+        ["DOCUMENT_CONTROL_OFFICER"],
+        ["CHAT"],
+        reason="test fixture",
+    )
     return db
 
 
@@ -38,14 +46,17 @@ def test_skill_assignment_appears_in_progress_without_fake_percent(tmp_path):
     package_service = SkillPackageService(db)
     skill_id = package_service.create_package(name="Documentation control", purpose="Вести проектную документацию.")
 
-    package_service.assign_to_employee("agent-roman", skill_id)
+    package_service.assign_to_employee("agent-specialist-fixture", skill_id)
 
     progress = SkillProgressService(db, SkillService(tmp_path / "agent_skills.json"), tmp_path / "workspace").list_progress()
-    roman_skill = next(row for row in progress if row.agent_id == "agent-roman" and row.skill_title == "Documentation control")
+    specialist_skill = next(
+        row for row in progress
+        if row.agent_id == "agent-specialist-fixture" and row.skill_title == "Documentation control"
+    )
 
-    assert roman_skill.percent == 0
-    assert roman_skill.status == "Назначен"
-    assert "skill package" in roman_skill.basis
+    assert specialist_skill.percent == 0
+    assert specialist_skill.status == "Назначен"
+    assert "skill package" in specialist_skill.basis
 
 
 def test_invalid_skill_status_is_rejected(tmp_path):

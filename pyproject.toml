@@ -1,7 +1,7 @@
 [project]
-name = "roman2050"
+name = "team2050"
 version = "0.1.0"
-description = "Windows desktop chat client that uses Codex CLI to talk with Roman Neslyshev."
+description = "Windows desktop client for owner-managed teams of AI employees."
 requires-python = ">=3.12"
 dependencies = [
   "PySide6>=6.7",
@@ -16,4 +16,3 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-

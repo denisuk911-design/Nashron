@@ -252,11 +252,11 @@ class GeminiClient:
     def _friendly_error(message: str) -> str:
         lowered = message.lower()
         if "quota" in lowered or "exhausted" in lowered or "429" in lowered:
-            return "Петр недоступен: квота Gemini на выбранной модели исчерпана. Попробуйте позже или используйте другой ключ/тариф."
+            return "Сотрудник не смог ответить: квота Gemini на выбранной модели исчерпана. Попробуйте позже или смените ИИ-движок."
         if "api key" in lowered or "gemini_api_key" in lowered:
-            return "Петр недоступен: не задан или не принят GEMINI_API_KEY."
+            return "Сотрудник не смог ответить: Gemini не авторизован. Проверьте подключение ИИ-движка."
         if "model" in lowered and "not" in lowered:
-            return f"Петр недоступен: модель Gemini недоступна. Деталь: {message}"
+            return f"Сотрудник не смог ответить: модель Gemini недоступна. Деталь: {message}"
         return message
 
     @classmethod

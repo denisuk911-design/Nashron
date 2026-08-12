@@ -111,7 +111,7 @@ class MainWindow(QMainWindow):
         self._set_startup_state("DATABASE_READY")
         self.management_repository = ConfigurationRepository(self.paths.management_config_dir)
         self.management_service = ManagementService(self.database, self.management_repository)
-        self.management_service.ensure_foundations(seed_legacy=False)
+        self.management_service.ensure_foundations()
         self._set_startup_state("MANAGEMENT_READY")
         self.database.ensure_organization_conversations()
         self.active_organization_id = self.database.get_active_organization_id()
@@ -508,7 +508,7 @@ class MainWindow(QMainWindow):
             self.database.log_event("identity_loaded", identity_hash)
         except IdentityError as exc:
             self.identity_ok = False
-            QMessageBox.critical(self, "Ошибка личности", str(exc))
+            QMessageBox.critical(self, "Ошибка системного профиля", str(exc))
         # Provider version/authentication commands may wait on a CLI process.
         # They must not block construction of the interactive MainWindow.
         self._set_fast_provider_status()
@@ -942,7 +942,8 @@ class MainWindow(QMainWindow):
             self.worker = None
         if not self.pending_agent_keys:
             # The routing decision is authoritative. A delayed watchdog must
-            # never create a second decision and silently fall back to Roman.
+            # Never create a second decision and silently replace the router's
+            # selected employee.
             self.database.log_event("generation_restart_skipped_without_authorized_worker", str(message_id))
             self.pending_user_message = ""
             self.chat.set_busy(False)
@@ -1047,7 +1048,7 @@ class MainWindow(QMainWindow):
             f"Выбранный сотрудник: {selected}\n"
             f"Режим: {decision.participation_mode}\n"
             f"Причина: {decision.reason}\n"
-            "Резервный выбор Roman: не использован"
+            "Резервный выбор сотрудника: не использован"
         )
 
     def show_routing_diagnostic(self) -> None:
@@ -1309,9 +1310,6 @@ class MainWindow(QMainWindow):
             "готов",
             "понял",
             "по",
-            "роман",
-            "петр",
-            "пётр",
             "задача",
             "работаем",
         }
@@ -1658,16 +1656,16 @@ class MainWindow(QMainWindow):
 
     def _identity_is_ready(self) -> bool:
         if not self.identity_ok:
-            QMessageBox.warning(self, "Личность недоступна", "Чат заблокирован до восстановления канона личности.")
+            QMessageBox.warning(self, "Системный профиль недоступен", "Чат заблокирован до восстановления системного профиля.")
             return False
         try:
             if self.identity_service.check_for_change():
                 self.identity_ok = False
-                QMessageBox.warning(self, "Канон изменён", "Восстановите канон и перезапустите приложение.")
+                QMessageBox.warning(self, "Системный профиль изменён", "Восстановите системный профиль и перезапустите приложение.")
                 return False
         except IdentityError as exc:
             self.identity_ok = False
-            QMessageBox.warning(self, "Ошибка личности", str(exc))
+            QMessageBox.warning(self, "Ошибка системного профиля", str(exc))
             return False
         return True
 

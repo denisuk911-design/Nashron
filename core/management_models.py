@@ -226,25 +226,3 @@ ROLE_TEMPLATES = [
         ["requires_manual_review_before_activation"],
     ),
 ]
-
-
-DEFAULT_AGENT_PROFILES = [
-    AgentProfile(
-        agent_id="agent-roman",
-        display_name="Roman",
-        description="Current Codex-backed engineering execution agent.",
-        lifecycle_state="ACTIVE",
-        provider_id="CODEX_CLI",
-        persona_id="roman_2050",
-        aliases=("Роман",),
-    ),
-    AgentProfile(
-        agent_id="agent-petr",
-        display_name="Petr",
-        description="Current Gemini-backed QA/review agent.",
-        lifecycle_state="ACTIVE",
-        provider_id="GEMINI_CLI",
-        persona_id="petr_2050",
-        aliases=("Петр", "Пётр"),
-    ),
-]

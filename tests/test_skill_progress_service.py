@@ -1,6 +1,7 @@
 from core.config_repository import ConfigurationRepository
 from core.database import Database
 from core.management_service import ManagementService
+from core.management_models import AgentProfile
 from core.skill_progress_service import SkillProgressService
 from core.skill_service import SkillService
 
@@ -10,6 +11,12 @@ def _database(tmp_path):
     db.initialize()
     management = ManagementService(db, ConfigurationRepository(tmp_path / "management"))
     management.ensure_foundations()
+    management.create_agent(
+        AgentProfile("agent-specialist-fixture", "Олена", "Test specialist", "ACTIVE", "CODEX_CLI"),
+        ["DESIGN_ENGINEER"],
+        ["CHAT"],
+        reason="test fixture",
+    )
     db.ensure_project("project-default", "Default Project")
     return db
 
@@ -25,8 +32,8 @@ def test_progress_uses_real_runs_and_existing_files(tmp_path):
     task_id = db.create_task("project-default", "task", None, "1.0")
     run_id = db.create_agent_run(
         task_id=task_id,
-        agent_id="agent-roman",
-        agent_key="roman",
+        agent_id="agent-specialist-fixture",
+        agent_key="specialist-fixture",
         logical_role="DESIGN_ENGINEER",
         provider="CODEX_CLI",
         prompt_hash=None,
@@ -46,31 +53,31 @@ def test_progress_uses_real_runs_and_existing_files(tmp_path):
     )
 
     skills = SkillService(tmp_path / "agent_skills.json")
-    skills.learn_from_exchange("roman", "create docs standard", "Created docs/standard.md")
+    skills.learn_from_exchange("specialist-fixture", "create docs standard", "Created docs/standard.md")
 
     progress = SkillProgressService(db, skills, workspace).list_progress()
-    roman = next(row for row in progress if row.agent_key == "roman" and row.percent > 0)
+    specialist = next(row for row in progress if row.agent_key == "specialist-fixture" and row.percent > 0)
 
-    assert roman.uses == 1
-    assert roman.successful_runs == 1
-    assert roman.verified_files == 1
-    assert roman.status == "Показал результат"
-    assert roman.tasks_completed == 1
-    assert roman.reviews_passed == 0
-    assert roman.percent == 26
+    assert specialist.uses == 1
+    assert specialist.successful_runs == 1
+    assert specialist.verified_files == 1
+    assert specialist.status == "Показал результат"
+    assert specialist.tasks_completed == 1
+    assert specialist.reviews_passed == 0
+    assert specialist.percent == 26
 
 
 def test_skill_claim_without_evidence_has_zero_progress(tmp_path):
     db = _database(tmp_path)
     skills = SkillService(tmp_path / "agent_skills.json")
-    skills.learn_from_exchange("roman", "claim skill", "I learned it.")
+    skills.learn_from_exchange("specialist-fixture", "claim skill", "I learned it.")
 
     progress = SkillProgressService(db, skills, tmp_path / "workspace").list_progress()
-    roman = next(row for row in progress if row.agent_key == "roman")
+    specialist = next(row for row in progress if row.agent_key == "specialist-fixture")
 
-    assert roman.percent == 0
-    assert "сама по себе процент не повышает" in roman.basis
-    assert roman.status == "Назначен"
+    assert specialist.percent == 0
+    assert "сама по себе процент не повышает" in specialist.basis
+    assert specialist.status == "Назначен"
 
 
 def test_employee_without_real_skill_has_zero_progress(tmp_path):

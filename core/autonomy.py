@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 
 
 @dataclass(frozen=True)
@@ -125,7 +126,22 @@ def looks_like_work_goal(text: str) -> bool:
     return any(trigger in lowered for trigger in WORK_GOAL_TRIGGERS)
 
 
-def detect_peer_handoff(text: str, current_agent: str) -> str | None:
+def detect_peer_handoff(
+    text: str,
+    current_agent: str,
+    agent_aliases: dict[str, set[str]] | None = None,
+) -> str | None:
+    """Return an addressed peer only when the current roster is supplied."""
+    if not has_handoff_intent(text) or not agent_aliases:
+        return None
+    lowered = _compact(text).replace("ё", "е")
+    for agent_key, aliases in agent_aliases.items():
+        if agent_key == current_agent:
+            continue
+        for alias in aliases:
+            token = _compact(alias).replace("ё", "е")
+            if token and re.search(rf"(^|\W)@?{re.escape(token)}(\W|$)", lowered):
+                return agent_key
     return None
 
 

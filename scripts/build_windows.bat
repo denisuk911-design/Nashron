@@ -28,7 +28,7 @@ if errorlevel 1 exit /b 1
 if not exist "build" mkdir "build"
 for /f "delims=" %%i in ('git rev-parse --short HEAD') do set "BUILD_COMMIT=%%i"
 for /f "delims=" %%i in ('powershell -NoProfile -Command "(Get-Date).ToUniversalTime().ToString('o')"') do set "BUILD_TIMESTAMP=%%i"
-".venv\Scripts\python.exe" scripts\write_build_info.py --output build\build_info.json --version 2.3.1 --commit "%BUILD_COMMIT%" --timestamp "%BUILD_TIMESTAMP%"
+".venv\Scripts\python.exe" scripts\write_build_info.py --output build\build_info.json --version 2.4.2 --commit "%BUILD_COMMIT%" --timestamp "%BUILD_TIMESTAMP%"
 if errorlevel 1 exit /b 1
 
 set "CODEX_BINARY_ARG="
@@ -39,7 +39,7 @@ if exist "vendor\codex\win-x64\codex.exe" (
 ".venv\Scripts\pyinstaller.exe" ^
   --noconfirm ^
   --windowed ^
-  --name "Roman 2050" ^
+  --name "Team2050" ^
   --add-data "prompts\roman_system.md;prompts" ^
   --add-data "data\roman_identity.json;data" ^
   --add-data "data\roman_timeline.json;data" ^
@@ -56,4 +56,4 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo EXE sozdan v papke dist\Roman 2050
+echo EXE sozdan v papke dist\Team2050

@@ -11,7 +11,6 @@ from .database import Database
 from .management_models import (
     AGENT_LIFECYCLE_STATES,
     LIFECYCLE_TRANSITIONS,
-    DEFAULT_AGENT_PROFILES,
     OWNER_ONLY_PERMISSIONS,
     OWNER_ROLE,
     PERMISSIONS,
@@ -60,23 +59,10 @@ class ManagementService:
         self.database = database
         self.config_repository = config_repository
 
-    def ensure_foundations(self, seed_legacy: bool = True) -> None:
-        """Install shared templates without creating employees on a clean install.
-
-        ``seed_legacy`` remains available for migration compatibility and old
-        fixtures. The product runtime calls this with ``False``.
-        """
+    def ensure_foundations(self) -> None:
+        """Install shared role templates without creating employees."""
         for role in ROLE_TEMPLATES:
             self.database.upsert_role_profile(role)
-        if not seed_legacy:
-            return
-        for profile in DEFAULT_AGENT_PROFILES:
-            if self.database.get_agent_profile(profile.agent_id) is None:
-                self.database.create_agent_profile(profile, actor=OWNER_ROLE, reason="seed current agent")
-        self.database.assign_role_to_agent("agent-roman", "DESIGN_ENGINEER", actor=OWNER_ROLE, reason="seed current mapping")
-        self.database.assign_role_to_agent("agent-petr", "QA_ENGINEER", actor=OWNER_ROLE, reason="seed current mapping")
-        self.database.grant_agent_permission("agent-roman", "CHAT", actor=OWNER_ROLE, reason="seed current permission")
-        self.database.grant_agent_permission("agent-petr", "CHAT", actor=OWNER_ROLE, reason="seed current permission")
 
     def legacy_seed_agents(self) -> list[EmployeeSummary]:
         """Return old demo profiles for an explicit user cleanup flow only."""

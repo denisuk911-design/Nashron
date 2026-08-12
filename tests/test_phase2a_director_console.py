@@ -16,28 +16,39 @@ def make_service(tmp_path):
     db.initialize()
     service = ManagementService(db, ConfigurationRepository(tmp_path / "management"))
     service.ensure_foundations()
+    fixtures = (
+        ("agent-designer-fixture", "Design Fixture", "DESIGN_ENGINEER", "CODEX_CLI"),
+        ("agent-reviewer-fixture", "Review Fixture", "QA_ENGINEER", "GEMINI_CLI"),
+    )
+    for agent_id, display_name, role_id, provider_id in fixtures:
+        service.create_agent(
+            AgentProfile(agent_id, display_name, "Test employee", "ACTIVE", provider_id),
+            [role_id],
+            ["CHAT"],
+            reason="test fixture",
+        )
     return db, service
 
 
-def test_employee_list_contains_roman_and_petr_with_stable_ids(tmp_path):
+def test_employee_list_contains_explicit_fixtures_with_stable_ids(tmp_path):
     _db, service = make_service(tmp_path)
 
     employees = {employee.agent_id: employee for employee in service.list_employees()}
 
-    assert "agent-roman" in employees
-    assert "agent-petr" in employees
-    assert employees["agent-roman"].provider_id == "CODEX_CLI"
-    assert employees["agent-petr"].provider_id == "GEMINI_CLI"
+    assert "agent-designer-fixture" in employees
+    assert "agent-reviewer-fixture" in employees
+    assert employees["agent-designer-fixture"].provider_id == "CODEX_CLI"
+    assert employees["agent-reviewer-fixture"].provider_id == "GEMINI_CLI"
 
 
 def test_archived_filter_works(tmp_path):
     _db, service = make_service(tmp_path)
-    service.database.set_agent_lifecycle("agent-roman", "DISABLED", OWNER_ROLE, "prepare archive")
-    service.archive_agent("agent-roman", OWNER_ROLE, "test archive")
+    service.database.set_agent_lifecycle("agent-designer-fixture", "DISABLED", OWNER_ROLE, "prepare archive")
+    service.archive_agent("agent-designer-fixture", OWNER_ROLE, "test archive")
 
     archived = service.list_employees("ARCHIVED")
 
-    assert [employee.agent_id for employee in archived] == ["agent-roman"]
+    assert [employee.agent_id for employee in archived] == ["agent-designer-fixture"]
 
 
 def test_valid_draft_employee_creation_and_audit(tmp_path):
@@ -81,14 +92,14 @@ def test_provider_status_reports_executable_missing(tmp_path):
 
 def test_edit_display_name_preserves_stable_id(tmp_path):
     db, service = make_service(tmp_path)
-    before = db.get_agent_profile("agent-roman")
+    before = db.get_agent_profile("agent-designer-fixture")
 
     service.update_employee(
-        "agent-roman",
-        display_name="Roman Updated",
+        "agent-designer-fixture",
+        display_name="Designer Updated",
         description="same id",
         provider_id="CODEX_CLI",
-        persona_id="roman_2050",
+        persona_id="neutral_engineer",
         roles=["DESIGN_ENGINEER"],
         permission_grants=["CHAT"],
         permission_denies=[],
@@ -96,9 +107,9 @@ def test_edit_display_name_preserves_stable_id(tmp_path):
         reason="rename",
     )
 
-    after = db.get_agent_profile("agent-roman")
-    assert after["agent_id"] == "agent-roman"
-    assert after["display_name"] == "Roman Updated"
+    after = db.get_agent_profile("agent-designer-fixture")
+    assert after["agent_id"] == "agent-designer-fixture"
+    assert after["display_name"] == "Designer Updated"
 
 
 def test_optimistic_lock_conflict_detected(tmp_path):
@@ -106,11 +117,11 @@ def test_optimistic_lock_conflict_detected(tmp_path):
 
     with pytest.raises(RuntimeError):
         service.update_employee(
-            "agent-roman",
+            "agent-designer-fixture",
             display_name="Conflict",
             description="bad timestamp",
             provider_id="CODEX_CLI",
-            persona_id="roman_2050",
+            persona_id="neutral_engineer",
             roles=["DESIGN_ENGINEER"],
             permission_grants=["CHAT"],
             permission_denies=[],
@@ -147,8 +158,8 @@ def test_blocking_conflict_prevents_activation(tmp_path):
 def test_lifecycle_invalid_transition_rejected(tmp_path):
     _db, service = make_service(tmp_path)
 
-    service.archive_agent("agent-roman", OWNER_ROLE, "archive from the employee console")
-    assert _db.get_agent_profile("agent-roman")["lifecycle_state"] == "ARCHIVED"
+    service.archive_agent("agent-designer-fixture", OWNER_ROLE, "archive from the employee console")
+    assert _db.get_agent_profile("agent-designer-fixture")["lifecycle_state"] == "ARCHIVED"
 
 
 def test_draft_employee_can_be_deleted_permanently(tmp_path):

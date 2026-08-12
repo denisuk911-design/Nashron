@@ -74,6 +74,19 @@ PROVIDER_LABELS = {
     "UNAVAILABLE": "Не настроен",
 }
 
+PERSONA_PRESETS = {
+    "neutral_professional": {"ru": "Нейтральный профессионал", "uk": "Нейтральний професіонал", "en": "Neutral professional"},
+    "concise_engineer": {"ru": "Лаконичный инженер", "uk": "Лаконічний інженер", "en": "Concise engineer"},
+    "quality_reviewer": {"ru": "Технический рецензент", "uk": "Технічний рецензент", "en": "Technical reviewer"},
+    "document_specialist": {"ru": "Специалист по документам", "uk": "Фахівець із документів", "en": "Document specialist"},
+    "project_coordinator": {"ru": "Координатор проекта", "uk": "Координатор проєкту", "en": "Project coordinator"},
+}
+
+
+def fill_persona_combo(combo: QComboBox, language: str) -> None:
+    for persona_id, labels in PERSONA_PRESETS.items():
+        combo.addItem(labels.get(language, labels["en"]), persona_id)
+
 
 class DirectorConsoleDialog(QDialog):
     def __init__(
@@ -2256,7 +2269,7 @@ class AddEmployeeWizard(QWizard):
             description=self.identity.description.toPlainText().strip(),
             lifecycle_state=self.identity.lifecycle.currentData(),
             provider_id=self.provider.provider.currentData(),
-            persona_id=self.persona.persona.currentText().strip() or None,
+            persona_id=str(self.persona.persona.currentData() or "").strip() or None,
             avatar_path=self.identity.selected_avatar_path(),
         )
 
@@ -2536,7 +2549,7 @@ class PersonaPage(QWizardPage):
         super().__init__()
         self.setTitle(tr(language, "persona"))
         self.persona = QComboBox()
-        self.persona.addItems(["neutral_engineer", "roman_2050", "petr_2050", "document_control", "qa_reviewer"])
+        fill_persona_combo(self.persona, language)
         layout = QFormLayout(self)
         layout.addRow(tr(language, "persona"), self.persona)
 
@@ -2637,9 +2650,13 @@ class EditEmployeeDialog(QDialog):
             self.provider.addItem(PROVIDER_LABELS.get(provider, provider), provider)
         self.provider.setCurrentIndex(max(0, self.provider.findData(self.employee.provider_id)))
         self.persona = QComboBox()
-        self.persona.addItems(["neutral_engineer", "roman_2050", "petr_2050", "document_control", "qa_reviewer"])
+        fill_persona_combo(self.persona, language)
         if self.employee.persona_id:
-            self.persona.setCurrentIndex(max(0, self.persona.findText(self.employee.persona_id)))
+            index = self.persona.findData(self.employee.persona_id)
+            if index < 0:
+                self.persona.addItem(self.employee.persona_id, self.employee.persona_id)
+                index = self.persona.count() - 1
+            self.persona.setCurrentIndex(index)
         self.roles = QListWidget()
         self.roles.setSelectionMode(QListWidget.MultiSelection)
         for role in sorted(ROLE_IDS):
@@ -2725,7 +2742,7 @@ class EditEmployeeDialog(QDialog):
                 display_name=self.display_name.text().strip(),
                 description=self.description.toPlainText().strip(),
                 provider_id=str(self.provider.currentData()),
-                persona_id=self.persona.currentText().strip() or None,
+                persona_id=str(self.persona.currentData() or "").strip() or None,
                 avatar_path=self.avatar.text().strip() or None,
                 roles=self.selected_roles(),
                 permission_grants=self.selected_permissions(),

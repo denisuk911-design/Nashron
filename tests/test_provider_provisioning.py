@@ -43,6 +43,11 @@ def make_services(tmp_path, adapters=None):
     db.initialize()
     management = ManagementService(db, ConfigurationRepository(tmp_path / "management"))
     management.ensure_foundations()
+    for profile, role in (
+        (AgentProfile("agent-codex-fixture", "Codex Employee", "test", "ACTIVE", "CODEX_CLI"), "CUSTOM_ROLE"),
+        (AgentProfile("agent-gemini-fixture", "Gemini Employee", "test", "ACTIVE", "GEMINI_CLI"), "CUSTOM_ROLE"),
+    ):
+        management.create_agent(profile, [role], ["CHAT"])
     registry = ProviderRegistry(db)
     registry.ensure_defaults()
     health = ProviderHealthService(db, registry, adapters or {})
@@ -62,18 +67,18 @@ def test_provider_registry_seeds_codex_gemini_and_claude(tmp_path):
 def test_existing_agents_get_provider_assignments(tmp_path):
     db, _registry, _health, _provisioning = make_services(tmp_path)
 
-    roman = db.list_agent_provider_assignments("agent-roman")
-    petr = db.list_agent_provider_assignments("agent-petr")
+    codex = db.list_agent_provider_assignments("agent-codex-fixture")
+    gemini = db.list_agent_provider_assignments("agent-gemini-fixture")
 
-    assert roman[0]["provider_id"] == "CODEX_CLI"
-    assert petr[0]["provider_id"] == "GEMINI_CLI"
+    assert codex[0]["provider_id"] == "CODEX_CLI"
+    assert gemini[0]["provider_id"] == "GEMINI_CLI"
 
 
 def test_unassigned_legacy_employee_does_not_break_provider_bootstrap(tmp_path):
     db = Database(tmp_path / "roman.sqlite3")
     db.initialize()
     management = ManagementService(db, ConfigurationRepository(tmp_path / "management"))
-    management.ensure_foundations(seed_legacy=False)
+    management.ensure_foundations()
     db.create_agent_profile(
         AgentProfile(
             agent_id="agent-unassigned",
@@ -103,14 +108,14 @@ def test_ready_provider_makes_active_employee_ready(tmp_path):
     _db, _registry, health, provisioning = make_services(tmp_path, {"CODEX_CLI": ReadyAdapter()})
     health.check_provider("CODEX_CLI")
 
-    assert provisioning.readiness_for_employee("agent-roman") == "READY"
+    assert provisioning.readiness_for_employee("agent-codex-fixture") == "READY"
 
 
 def test_auth_required_provider_blocks_readiness(tmp_path):
     db, _registry, health, provisioning = make_services(tmp_path, {"GEMINI_CLI": AuthRequiredAdapter()})
     health.check_provider("GEMINI_CLI")
 
-    assert provisioning.readiness_for_employee("agent-petr") == "AUTHENTICATION_REQUIRED"
+    assert provisioning.readiness_for_employee("agent-gemini-fixture") == "AUTHENTICATION_REQUIRED"
     diagnostic = db.get_latest_provider_health("GEMINI_CLI")["diagnostic"]
     assert "api_key" not in diagnostic
     assert "GEMINI_API_KEY" not in diagnostic

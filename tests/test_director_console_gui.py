@@ -29,7 +29,7 @@ def make_service(tmp_path):
     return service, registry, health, provisioning
 
 
-def test_director_console_renders_employee_list(tmp_path):
+def test_director_console_renders_clean_employee_list(tmp_path):
     qapp()
     service, registry, health, provisioning = make_service(tmp_path)
 
@@ -37,7 +37,7 @@ def test_director_console_renders_employee_list(tmp_path):
 
     assert dialog.tabs.count() == 13
     assert dialog.tabs.tabText(1) == "Организация"
-    assert dialog.employee_tab.table.rowCount() >= 2
+    assert dialog.employee_tab.table.rowCount() == 0
 
 
 def test_director_console_renders_artifact_registry(tmp_path):

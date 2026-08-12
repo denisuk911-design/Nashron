@@ -150,11 +150,13 @@ class TeamRouter:
             return self._decision(ParticipationMode.REVIEW_REQUEST, selected, active_agents, explicit=mentions, reason="manual_review_request")
 
         if mentions:
-            mode = ParticipationMode.REVIEW_REQUEST if self._looks_like_review_request(text, mentions, active_agents) else ParticipationMode.DIRECT
-            selected = mentions[:2] if self._looks_like_team_discussion(text) and len(mentions) > 1 else mentions[:1] if len(mentions) == 1 else mentions
-            selected = [key for key in selected if key in eligible]
-            if len(selected) > 1:
+            if len(mentions) > 1:
                 mode = ParticipationMode.TEAM_CALL if self._looks_like_team_discussion(text) else ParticipationMode.MULTI_DIRECT
+                selected = mentions
+            else:
+                mode = ParticipationMode.REVIEW_REQUEST if self._looks_like_review_request(text, mentions, active_agents) else ParticipationMode.DIRECT
+                selected = mentions[:1]
+            selected = [key for key in selected if key in eligible]
             return self._decision(mode, selected, active_agents, explicit=selected, reason="explicit_name_or_alias")
 
         if active_owner and self._looks_like_continuation(text) and not self._looks_like_general_team_ping(text):
@@ -211,10 +213,16 @@ class TeamRouter:
 
     def _mentioned_agents(self, text: str, agents: list[ChatAgent]) -> list[str]:
         lowered = self._norm(text)
+        latinized = self._latinize(lowered)
         matches_by_token: dict[str, list[str]] = {}
         for agent in agents:
             for token in sorted(mention_tokens(agent), key=len, reverse=True):
-                if token and self._contains_token(lowered, token):
+                normalized_token = self._norm(token)
+                latin_token = self._latinize(normalized_token)
+                if normalized_token and (
+                    self._contains_token(lowered, normalized_token)
+                    or (latin_token and self._contains_token(latinized, latin_token))
+                ):
                     matches_by_token.setdefault(token, []).append(agent.key)
                     break
         ambiguous = {token for token, keys in matches_by_token.items() if len(set(keys)) > 1}
@@ -316,6 +324,20 @@ class TeamRouter:
     @staticmethod
     def _norm(text: str) -> str:
         return " ".join(text.lower().replace("ё", "е").split())
+
+    @staticmethod
+    def _latinize(text: str) -> str:
+        table = str.maketrans(
+            {
+                "а": "a", "б": "b", "в": "v", "г": "g", "ґ": "g", "д": "d",
+                "е": "e", "є": "ie", "ж": "zh", "з": "z", "и": "i", "і": "i",
+                "ї": "i", "й": "i", "к": "k", "л": "l", "м": "m", "н": "n",
+                "о": "o", "п": "p", "р": "r", "с": "s", "т": "t", "у": "u",
+                "ф": "f", "х": "kh", "ц": "ts", "ч": "ch", "ш": "sh", "щ": "shch",
+                "ъ": "", "ы": "y", "ь": "", "э": "e", "ю": "iu", "я": "ia",
+            }
+        )
+        return text.translate(table)
 
     @staticmethod
     def _dedupe(items: list[str]) -> list[str]:

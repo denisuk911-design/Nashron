@@ -4,9 +4,6 @@ import re
 from dataclasses import dataclass
 
 
-_SPEAKER_RE = re.compile(r"(?<![\wА-Яа-яЁё])(Роман|Петр|Пётр)\s*:", re.IGNORECASE)
-
-
 @dataclass(frozen=True)
 class ResponsePart:
     role: str
@@ -28,7 +25,7 @@ class ResponseSplitter:
             )
             matches = list(speaker_re.finditer(text))
         else:
-            matches = list(_SPEAKER_RE.finditer(text))
+            matches = []
         if not matches:
             return [ResponsePart(default_role, text)]
 
@@ -48,8 +45,20 @@ class ResponseSplitter:
         return ResponseSplitter._merge_neighbors(parts)
 
     @staticmethod
-    def has_multiple_speakers(text: str) -> bool:
-        return len({_role.group(1).lower().replace("ё", "е") for _role in _SPEAKER_RE.finditer(text)}) > 1
+    def has_multiple_speakers(text: str, speaker_aliases: dict[str, str] | None = None) -> bool:
+        aliases = {
+            str(label).strip().lower().replace("ё", "е"): role
+            for label, role in (speaker_aliases or {}).items()
+            if str(label).strip()
+        }
+        if not aliases:
+            return False
+        labels = sorted(aliases, key=len, reverse=True)
+        speaker_re = re.compile(
+            rf"(?<![\wА-Яа-яЁё])(?P<label>{'|'.join(re.escape(label) for label in labels)})\s*:",
+            re.IGNORECASE,
+        )
+        return len({aliases[match.group("label").lower().replace("ё", "е")] for match in speaker_re.finditer(text)}) > 1
 
     @staticmethod
     def _role_for(label: str, aliases: dict[str, str] | None = None) -> str:

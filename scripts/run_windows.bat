@@ -36,7 +36,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo Zapusk Roman 2050...
+echo Zapusk Team2050...
 "%APP_PYTHON%" app.py
 if errorlevel 1 (
   echo Prilozhenie zavershilos s oshibkoy.

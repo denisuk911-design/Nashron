@@ -156,7 +156,7 @@ class IntentResolver:
             intent = IntentType.CREATE
         else:
             intent = IntentType.UNKNOWN
-        handoff = bool(explicit) and any(token in normalized for token in ("у романа", "у петра", "у шушан", "бери", "передай", "передавай"))
+        handoff = bool(explicit) and any(token in normalized for token in ("бери", "передай", "передавай", "передача", "прими"))
         return UserIntent(
             intent=intent,
             operation=intent.value,

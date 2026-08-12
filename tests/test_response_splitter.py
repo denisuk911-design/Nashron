@@ -2,12 +2,13 @@ from core.response_splitter import ResponseSplitter
 
 
 def test_splits_inline_speaker_labels():
-    parts = ResponseSplitter.split("Роман: Начну. Петр: Подхвачу. Роман: Закрою.", "roman")
+    aliases = {"Анна": "anna", "Максим": "maxim"}
+    parts = ResponseSplitter.split("Анна: Начну. Максим: Подхвачу. Анна: Закрою.", "anna", aliases)
 
     assert [(part.role, part.content) for part in parts] == [
-        ("roman", "Начну."),
-        ("petr", "Подхвачу."),
-        ("roman", "Закрою."),
+        ("anna", "Начну."),
+        ("maxim", "Подхвачу."),
+        ("anna", "Закрою."),
     ]
 
 
@@ -20,9 +21,9 @@ def test_keeps_plain_response_on_default_role():
 
 
 def test_keeps_prefix_before_first_label():
-    parts = ResponseSplitter.split("Сначала мысль. Петр: Потом реплика.", "roman")
+    parts = ResponseSplitter.split("Сначала мысль. Максим: Потом реплика.", "anna", {"Максим": "maxim"})
 
     assert [(part.role, part.content) for part in parts] == [
-        ("roman", "Сначала мысль."),
-        ("petr", "Потом реплика."),
+        ("anna", "Сначала мысль."),
+        ("maxim", "Потом реплика."),
     ]

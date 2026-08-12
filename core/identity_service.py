@@ -13,9 +13,6 @@ class IdentityError(RuntimeError):
 
 
 class IdentityService:
-    REQUIRED_NAME = "Роман Неслышев"
-    REQUIRED_YEAR = 2050
-
     def __init__(
         self,
         identity_path: Path,
@@ -40,12 +37,12 @@ class IdentityService:
         return data
 
     def validate(self, data: dict[str, Any]) -> None:
-        if data.get("full_name") != self.REQUIRED_NAME:
-            raise IdentityError("Канон личности поврежден: неверное имя")
-        if data.get("current_year") != self.REQUIRED_YEAR:
-            raise IdentityError("Канон личности поврежден: неверный год")
+        if not str(data.get("full_name") or "").strip():
+            raise IdentityError("Системный профиль повреждён: не указано имя")
+        if not isinstance(data.get("current_year"), int):
+            raise IdentityError("Системный профиль повреждён: неверный формат года")
         if data.get("identity_locked") is not True:
-            raise IdentityError("Канон личности поврежден: identity_locked должен быть true")
+            raise IdentityError("Системный профиль повреждён: защита профиля должна быть включена")
 
     def sha256(self) -> str:
         digest = hashlib.sha256()
@@ -70,11 +67,11 @@ class IdentityService:
         current_hash = self.sha256()
         changed = current_hash != self.initial_hash
         if changed:
-            self.logger.warning("identity_file_changed sha256=%s", current_hash)
+            self.logger.warning("system_profile_changed sha256=%s", current_hash)
         return changed
 
     def restore_from_backup(self) -> None:
         if not self.backup_path.exists():
-            raise IdentityError("Резервная копия канона не найдена")
+            raise IdentityError("Резервная копия системного профиля не найдена")
         shutil.copyfile(self.backup_path, self.identity_path)
         self.initial_hash = self.sha256()

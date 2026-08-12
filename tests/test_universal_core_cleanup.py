@@ -6,11 +6,11 @@ from core.models import CodexResult
 from core.provider_result import normalize_provider_result
 
 
-def _service(tmp_path, *, seed_legacy=False):
+def _service(tmp_path):
     database = Database(tmp_path / "team.sqlite3")
     database.initialize()
     service = ManagementService(database, ConfigurationRepository(tmp_path / "management"))
-    service.ensure_foundations(seed_legacy=seed_legacy)
+    service.ensure_foundations()
     return database, service
 
 

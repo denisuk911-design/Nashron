@@ -16,20 +16,24 @@ def make_service(tmp_path):
     return db, service
 
 
-def test_management_foundations_seed_current_agents(tmp_path):
+def test_management_foundations_do_not_seed_demo_agents(tmp_path):
     db, _service = make_service(tmp_path)
 
-    agents = {row["agent_id"]: row for row in db.list_agent_profiles()}
-
-    assert "agent-roman" in agents
-    assert "agent-petr" in agents
-    assert agents["agent-roman"]["lifecycle_state"] == "ACTIVE"
+    assert db.list_agent_profiles() == []
 
 
 def test_duplicate_employee_id_rejected(tmp_path):
     _db, service = make_service(tmp_path)
+    existing = AgentProfile(
+        agent_id="agent-existing",
+        display_name="Existing",
+        description="Existing employee",
+        lifecycle_state="DRAFT",
+        provider_id="CODEX_CLI",
+    )
+    service.create_agent(existing, ["CUSTOM_ROLE"], ["CHAT"])
     profile = AgentProfile(
-        agent_id="agent-roman",
+        agent_id="agent-existing",
         display_name="Duplicate",
         description="Should fail",
         lifecycle_state="ACTIVE",
@@ -165,12 +169,20 @@ def test_agent_router_uses_created_employee_profile(tmp_path):
 
 def test_owner_can_suspend_and_reactivate_employee(tmp_path):
     db, service = make_service(tmp_path)
+    profile = AgentProfile(
+        agent_id="agent-lifecycle",
+        display_name="Lifecycle Employee",
+        description="Lifecycle fixture",
+        lifecycle_state="ACTIVE",
+        provider_id="CODEX_CLI",
+    )
+    service.create_agent(profile, ["CUSTOM_ROLE"], ["CHAT"])
 
-    service.suspend_agent("agent-roman", OWNER_ROLE, "pause")
-    assert db.get_agent_profile("agent-roman")["lifecycle_state"] == "SUSPENDED"
+    service.suspend_agent("agent-lifecycle", OWNER_ROLE, "pause")
+    assert db.get_agent_profile("agent-lifecycle")["lifecycle_state"] == "SUSPENDED"
 
-    service.reactivate_agent("agent-roman", OWNER_ROLE, "return")
-    assert db.get_agent_profile("agent-roman")["lifecycle_state"] == "ACTIVE"
+    service.reactivate_agent("agent-lifecycle", OWNER_ROLE, "return")
+    assert db.get_agent_profile("agent-lifecycle")["lifecycle_state"] == "ACTIVE"
 
 
 def test_configuration_repository_rejects_path_traversal(tmp_path):
