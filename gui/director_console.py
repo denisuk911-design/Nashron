@@ -432,48 +432,104 @@ class OrganizationActivationWizard(QWizard):
         self.template = template
         self.language = language
         self.activation = None
-        self.setWindowTitle("Создать организацию")
+        copy = {
+            "ru": {
+                "title": "Создать организацию", "step1": "Шаг 1. Название и размер",
+                "name_hint": "Например: Команда разработки продукта", "organization_name": "Название организации",
+                "team_size": "Размер команды", "preset": "Шаблон", "step2": "Шаг 2. Сотрудники и ИИ-движки",
+                "roster_hint": "Сотрудники будут созданы автоматически. Для выполнения задач назначьте подключённый ИИ-движок.",
+                "later": "Назначить позже", "create": "Создать нового", "existing": "Использовать существующего",
+                "choose_employee": "Выберите сотрудника", "step3": "Шаг 3. Порядок работы и структура",
+                "category": "Категория", "size": "Размер", "members": "Состав",
+                "workflow": "Порядок работы: результат каждого шага передаётся следующему ответственному.",
+                "step4": "Шаг 4. Подтверждение",
+                "confirm": "После подтверждения создаются сотрудники, роли, рабочая папка, маршрутизация и порядок работы. Неназначенный ИИ-движок не устанавливается автоматически.",
+                "name_missing": "Не указано название", "enter_name": "Введите название организации.",
+                "activation_failed": "Активация не завершена",
+            },
+            "uk": {
+                "title": "Створити організацію", "step1": "Крок 1. Назва і розмір",
+                "name_hint": "Наприклад: Команда розроблення продукту", "organization_name": "Назва організації",
+                "team_size": "Розмір команди", "preset": "Шаблон", "step2": "Крок 2. Співробітники та ШІ-рушії",
+                "roster_hint": "Співробітники будуть створені автоматично. Для виконання завдань призначте підключений ШІ-рушій.",
+                "later": "Призначити пізніше", "create": "Створити нового", "existing": "Використати наявного",
+                "choose_employee": "Оберіть співробітника", "step3": "Крок 3. Порядок роботи і структура",
+                "category": "Категорія", "size": "Розмір", "members": "Склад",
+                "workflow": "Порядок роботи: результат кожного кроку передається наступному відповідальному.",
+                "step4": "Крок 4. Підтвердження",
+                "confirm": "Після підтвердження створюються співробітники, ролі, робоча папка, маршрутизація і порядок роботи. Непризначений ШІ-рушій не встановлюється автоматично.",
+                "name_missing": "Не вказано назву", "enter_name": "Введіть назву організації.",
+                "activation_failed": "Активацію не завершено",
+            },
+            "en": {
+                "title": "Create organization", "step1": "Step 1. Name and size",
+                "name_hint": "For example: Product development team", "organization_name": "Organization name",
+                "team_size": "Team size", "preset": "Template", "step2": "Step 2. Employees and AI providers",
+                "roster_hint": "Employees will be created automatically. Assign a connected AI provider to perform tasks.",
+                "later": "Assign later", "create": "Create new", "existing": "Use existing",
+                "choose_employee": "Choose an employee", "step3": "Step 3. Workflow and structure",
+                "category": "Category", "size": "Size", "members": "Team",
+                "workflow": "Workflow: the result of each step is handed to the next responsible employee.",
+                "step4": "Step 4. Confirmation",
+                "confirm": "Confirmation creates employees, roles, workspace, routing and workflow. An unassigned AI provider is not installed automatically.",
+                "name_missing": "Name is missing", "enter_name": "Enter an organization name.",
+                "activation_failed": "Activation did not finish",
+            },
+        }.get(language, {})
+        if not copy:
+            copy = {
+                "title": "Create organization", "step1": "Step 1. Name and size", "name_hint": "Product team",
+                "organization_name": "Organization name", "team_size": "Team size", "preset": "Template",
+                "step2": "Step 2. Employees and AI providers", "roster_hint": "Assign connected AI providers.",
+                "later": "Assign later", "create": "Create new", "existing": "Use existing", "choose_employee": "Choose an employee",
+                "step3": "Step 3. Workflow and structure", "category": "Category", "size": "Size", "members": "Team",
+                "workflow": "Each result is handed to the next responsible employee.", "step4": "Step 4. Confirmation",
+                "confirm": "Create the organization and its employees.", "name_missing": "Name is missing",
+                "enter_name": "Enter an organization name.", "activation_failed": "Activation did not finish",
+            }
+        self._copy = copy
+        self.setWindowTitle(copy["title"])
         self.setMinimumSize(720, 560)
 
         identity = QWizardPage()
-        identity.setTitle("Шаг 1. Название и размер")
+        identity.setTitle(copy["step1"])
         self.organization_name = QLineEdit()
-        self.organization_name.setPlaceholderText("Например: Команда разработки продукта")
+        self.organization_name.setPlaceholderText(copy["name_hint"])
         self.team_size = QComboBox()
         for value in ("MINI", "STANDARD", "EXTENDED"):
             self.team_size.addItem(team_size_label(language, value), value)
         standard_index = self.team_size.findData("STANDARD")
         self.team_size.setCurrentIndex(standard_index if standard_index >= 0 else 0)
         form = QFormLayout(identity)
-        form.addRow("Название организации", self.organization_name)
-        form.addRow({"ru": "Размер команды", "uk": "Розмір команди", "en": "Team size"}[language], self.team_size)
+        form.addRow(copy["organization_name"], self.organization_name)
+        form.addRow(copy["team_size"], self.team_size)
         form.addRow(
-            {"ru": "Пресет", "uk": "Пресет", "en": "Preset"}[language],
+            copy["preset"],
             QLabel(f"{catalog_label(language, template.name)}\n{catalog_purpose(language, template.name, template.purpose)}"),
         )
         self.addPage(identity)
 
         roster = QWizardPage()
-        roster.setTitle("Шаг 2. Сотрудники и AI-движки")
+        roster.setTitle(copy["step2"])
         self.provider_boxes: dict[str, QComboBox] = {}
         self.mode_boxes: dict[str, QComboBox] = {}
         self.existing_boxes: dict[str, QComboBox] = {}
         roster_layout = QVBoxLayout(roster)
-        roster_layout.addWidget(QLabel("Сотрудники будут созданы организационно. Для выполнения задач назначьте Codex, Gemini или другой подключённый движок."))
+        roster_layout.addWidget(QLabel(copy["roster_hint"]))
         for role in template.roles:
             position = str(role.get("position") or role.get("role") or "Специалист")
             row = QHBoxLayout()
             row.addWidget(QLabel(catalog_label(language, position)), 2)
             provider = QComboBox()
-            for value, label in (("UNAVAILABLE", "Назначить позже"), ("CODEX_CLI", "Codex CLI"), ("GEMINI_CLI", "Gemini CLI"), ("CLAUDE_CLI", "Claude CLI")):
+            for value, label in (("UNAVAILABLE", copy["later"]), ("CODEX_CLI", "Codex CLI"), ("GEMINI_CLI", "Gemini CLI"), ("CLAUDE_CLI", "Claude CLI")):
                 provider.addItem(label, value)
             self.provider_boxes[position] = provider
             mode = QComboBox()
-            mode.addItem("Создать нового", "CREATE")
-            mode.addItem("Использовать существующего", "EXISTING")
+            mode.addItem(copy["create"], "CREATE")
+            mode.addItem(copy["existing"], "EXISTING")
             self.mode_boxes[position] = mode
             existing = QComboBox()
-            existing.addItem("Выберите сотрудника", "")
+            existing.addItem(copy["choose_employee"], "")
             for employee in service.database.list_agent_profiles():
                 existing.addItem(str(employee["display_name"]), str(employee["agent_id"]))
             self.existing_boxes[position] = existing
@@ -487,25 +543,25 @@ class OrganizationActivationWizard(QWizard):
         self.addPage(roster)
 
         workflow = QWizardPage()
-        workflow.setTitle("Шаг 3. Порядок работы и структура")
+        workflow.setTitle(copy["step3"])
         workflow_layout = QVBoxLayout(workflow)
-        structure = [f"Пресет: {catalog_label(language, template.name)}", f"Категория: {catalog_label(language, template.catalog_category)}", f"Размер: {team_size_label(language, template.recommended_team_size)}", "", "Состав:"]
+        structure = [f"{copy['preset']}: {catalog_label(language, template.name)}", f"{copy['category']}: {catalog_label(language, template.catalog_category)}", f"{copy['size']}: {team_size_label(language, template.recommended_team_size)}", "", f"{copy['members']}:"]
         structure.extend(f"  {index}. {catalog_label(language, str(role.get('position') or role.get('role') or 'Специалист'))}" for index, role in enumerate(template.roles, start=1))
-        structure.extend(["", "Порядок работы: роли выполняются по шагам, результат передаётся следующему ответственному."])
+        structure.extend(["", copy["workflow"]])
         workflow_layout.addWidget(QLabel("\n".join(structure)))
         workflow_layout.addStretch(1)
         self.addPage(workflow)
 
         confirmation = QWizardPage()
-        confirmation.setTitle("Шаг 4. Подтверждение")
+        confirmation.setTitle(copy["step4"])
         confirmation_layout = QVBoxLayout(confirmation)
-        confirmation_layout.addWidget(QLabel("После подтверждения создаются сотрудники, роли, workspace, routing и связь с workflow. Неназначенный AI-движок не устанавливается автоматически."))
+        confirmation_layout.addWidget(QLabel(copy["confirm"]))
         confirmation_layout.addStretch(1)
         self.addPage(confirmation)
 
     def accept(self) -> None:
         if not self.organization_name.text().strip():
-            QMessageBox.warning(self, "Не указано название", "Введите название организации.")
+            QMessageBox.warning(self, self._copy["name_missing"], self._copy["enter_name"])
             return
         assignments = {position: str(box.currentData()) for position, box in self.provider_boxes.items()}
         existing = {
@@ -522,7 +578,7 @@ class OrganizationActivationWizard(QWizard):
                 use_existing_agents=existing,
             )
         except Exception as exc:
-            QMessageBox.critical(self, "Активация не завершена", str(exc))
+            QMessageBox.critical(self, self._copy["activation_failed"], str(exc))
             return
         super().accept()
 

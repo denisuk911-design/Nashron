@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QFrame,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QListWidget,
     QListWidgetItem,
@@ -79,9 +80,9 @@ from core.work_context_service import (
     WorkContextService,
 )
 from gui.chat_widget import ChatWidget
-from gui.director_console import DirectorConsoleDialog
+from gui.director_console import DirectorConsoleDialog, OrganizationActivationWizard
 from gui.login_dialog import show_install_instructions
-from gui.localization import role_label
+from gui.localization import catalog_label, role_label
 from gui.settings_dialog import SettingsDialog
 from gui.theme import ThemeBackdrop, ThemeManager
 from gui.worker import GenerateWorker
@@ -150,6 +151,8 @@ class MainWindow(QMainWindow):
             management_service=self.management_service,
             workspace_root=self.paths.workspace_root,
             conversation_id=self.conversation_id,
+            avatar_dir=self.paths.avatar_dir,
+            identity_language=str(self.settings.get("interface_language", "ru")),
         )
         # Keep clean install limited to built-in presets and role templates;
         # domain/demo professions are loaded only when requested in the console.
@@ -421,8 +424,146 @@ class MainWindow(QMainWindow):
         self.chat.stop_requested.connect(self.stop_generation)
         self.chat.attach_requested.connect(self.attach_file)
         self.chat.copy_requested.connect(self.copy_chat_to_clipboard)
+        self.empty_team_panel = self._build_empty_team_panel()
+        layout.addWidget(self.empty_team_panel, 1)
         layout.addWidget(self.chat, 1)
+        self._update_empty_team_state()
         return panel
+
+    def _build_empty_team_panel(self) -> QWidget:
+        panel = QWidget()
+        panel.setObjectName("emptyTeamPanel")
+        outer = QVBoxLayout(panel)
+        outer.setContentsMargins(28, 28, 28, 28)
+        outer.addStretch(1)
+
+        content = QWidget()
+        content.setMaximumWidth(620)
+        layout = QVBoxLayout(content)
+        layout.setSpacing(14)
+        self.empty_team_title = QLabel()
+        self.empty_team_title.setObjectName("pageTitle")
+        self.empty_team_title.setAlignment(Qt.AlignCenter)
+        self.empty_team_text = QLabel()
+        self.empty_team_text.setObjectName("muted")
+        self.empty_team_text.setAlignment(Qt.AlignCenter)
+        self.empty_team_text.setWordWrap(True)
+        self.empty_team_language = QComboBox()
+        for label, value in (("Русский", "ru"), ("Українська", "uk"), ("English", "en")):
+            self.empty_team_language.addItem(label, value)
+        language = str(self.settings.get("interface_language", "ru"))
+        self.empty_team_language.setCurrentIndex(max(0, self.empty_team_language.findData(language)))
+        self.empty_team_language.currentIndexChanged.connect(self._change_first_run_language)
+
+        actions = QHBoxLayout()
+        self.connect_ai_button = QPushButton()
+        self.connect_ai_button.setObjectName("smallAction")
+        self.connect_ai_button.clicked.connect(self.show_director_console_preview)
+        self.create_team_button = QPushButton()
+        self.create_team_button.setObjectName("primaryButton")
+        self.create_team_button.clicked.connect(self._start_first_team_creation)
+        actions.addStretch(1)
+        actions.addWidget(self.connect_ai_button)
+        actions.addWidget(self.create_team_button)
+        actions.addStretch(1)
+        self.skip_onboarding_button = QPushButton()
+        self.skip_onboarding_button.setObjectName("smallAction")
+        self.skip_onboarding_button.clicked.connect(self._skip_onboarding)
+
+        layout.addWidget(self.empty_team_title)
+        layout.addWidget(self.empty_team_text)
+        layout.addWidget(self.empty_team_language, 0, Qt.AlignHCenter)
+        layout.addLayout(actions)
+        layout.addWidget(self.skip_onboarding_button, 0, Qt.AlignHCenter)
+        outer.addWidget(content, 0, Qt.AlignHCenter)
+        outer.addStretch(2)
+        self._translate_empty_team_panel(language)
+        return panel
+
+    def _translate_empty_team_panel(self, language: str) -> None:
+        labels = {
+            "ru": (
+                "Добро пожаловать в Team2050",
+                "У вас пока нет команды.",
+                "Подключить ИИ",
+                "Создать команду",
+                "Пропустить",
+            ),
+            "uk": (
+                "Ласкаво просимо до Team2050",
+                "У вас поки немає команди.",
+                "Підключити ШІ",
+                "Створити команду",
+                "Пропустити",
+            ),
+            "en": (
+                "Welcome to Team2050",
+                "You do not have a team yet.",
+                "Connect AI",
+                "Create team",
+                "Skip",
+            ),
+        }
+        title, text, connect, create, skip = labels.get(language, labels["ru"])
+        self.empty_team_title.setText(title)
+        self.empty_team_text.setText(text)
+        self.connect_ai_button.setText(connect)
+        self.create_team_button.setText(create)
+        self.skip_onboarding_button.setText(skip)
+
+    def _change_first_run_language(self) -> None:
+        language = str(self.empty_team_language.currentData() or "ru")
+        self.settings["interface_language"] = language
+        self.universal_platform_service.identity_language = language
+        self.settings_service.save(self.settings)
+        self.chat.set_language(language)
+        self._translate_empty_team_panel(language)
+
+    def _skip_onboarding(self) -> None:
+        self.settings["onboarding_skipped"] = True
+        self.settings_service.save(self.settings)
+        self._update_empty_team_state()
+
+    def _update_empty_team_state(self) -> None:
+        if not hasattr(self, "empty_team_panel") or not hasattr(self, "chat"):
+            return
+        has_team = bool(self.active_organization_id)
+        skipped = bool(self.settings.get("onboarding_skipped", False))
+        self.empty_team_panel.setVisible(not has_team and not skipped)
+        self.chat.setVisible(has_team or skipped)
+
+    def _start_first_team_creation(self) -> None:
+        language = str(self.settings.get("interface_language", "ru"))
+        templates = self.universal_platform_service.list_templates()
+        if not templates:
+            return
+        labels = [catalog_label(language, template.name) for template in templates]
+        titles = {
+            "ru": ("Создать команду", "Выберите шаблон:"),
+            "uk": ("Створити команду", "Оберіть шаблон:"),
+            "en": ("Create team", "Choose a template:"),
+        }
+        title, prompt = titles.get(language, titles["ru"])
+        selected, accepted = QInputDialog.getItem(self, title, prompt, labels, 0, False)
+        if not accepted:
+            return
+        template = templates[labels.index(selected)]
+        wizard = OrganizationActivationWizard(self.universal_platform_service, template, language, self)
+        if wizard.exec() != OrganizationActivationWizard.Accepted or wizard.activation is None:
+            return
+        self.settings["onboarding_skipped"] = False
+        self.settings_service.save(self.settings)
+        self._activate_organization_live(wizard.activation.organization.organization_id)
+
+    def _activate_organization_live(self, organization_id: str) -> None:
+        self._refresh_organization_selector()
+        index = self.organization_selector.findData(organization_id)
+        if index >= 0:
+            if self.active_organization_id != organization_id:
+                self._switch_organization(index)
+            else:
+                self.organization_selector.setCurrentIndex(index)
+        self._update_empty_team_state()
 
     def copy_chat_to_clipboard(self) -> None:
         from PySide6.QtWidgets import QApplication
@@ -559,6 +700,7 @@ class MainWindow(QMainWindow):
         for message in self.database.list_messages(self.conversation_id, limit=history_limit):
             if message.role != "system":
                 self.chat.add_message(message.role, self._display_text_from_raw_response(message.content), message.id, message.created_at[11:16])
+        self._update_empty_team_state()
 
     def _chat_agents(self) -> list[ChatAgent]:
         active_organization_id = self.active_organization_id
@@ -633,7 +775,7 @@ class MainWindow(QMainWindow):
         if user_avatar:
             avatars["user"] = user_avatar
         titles = {
-            agent.key: role_label(str(self.settings.get("language") or "ru"), agent.primary_role)
+            agent.key: role_label(str(self.settings.get("interface_language") or "ru"), agent.primary_role)
             for agent in agents
         }
         if hasattr(self, "chat"):
@@ -2035,9 +2177,7 @@ class MainWindow(QMainWindow):
         self.provider_provisioning_service.ensure_assignments_for_existing_agents()
         active_organization_id = self.database.get_active_organization_id()
         if active_organization_id != self.active_organization_id and active_organization_id:
-            index = self.organization_selector.findData(active_organization_id)
-            if index >= 0:
-                self.organization_selector.setCurrentIndex(index)
+            self._activate_organization_live(active_organization_id)
         elif active_organization_id is None and self.active_organization_id:
             self.active_organization_id = None
             self.conversation_id = self.database.ensure_general_conversation()
@@ -2052,6 +2192,7 @@ class MainWindow(QMainWindow):
         else:
             self._refresh_organization_selector()
             self._refresh_chat_agents()
+        self._update_empty_team_state()
 
     def logout(self) -> None:
         status = self.auth_service.logout()

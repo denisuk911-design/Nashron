@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import json
 import re
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from .database import Database
+from .employee_identity import generate_identity
 from .management_models import AgentProfile, ROLE_DEFAULT_PERMISSIONS, RoleProfile
 
 
@@ -114,11 +116,15 @@ class UniversalPlatformService:
         management_service: Any | None = None,
         workspace_root: Path | None = None,
         conversation_id: int | None = None,
+        avatar_dir: Path | None = None,
+        identity_language: str = "ru",
     ) -> None:
         self.database = database
         self.management_service = management_service
         self.workspace_root = workspace_root
         self.conversation_id = conversation_id
+        self.avatar_dir = avatar_dir
+        self.identity_language = identity_language
 
     def create_profession(self, name: str, description: str = "", **values: Any) -> Profession:
         name = name.strip()
@@ -275,6 +281,7 @@ class UniversalPlatformService:
         department_ids: dict[str, str] = {}
         member_ids: list[str] = []
         employee_ids: list[str] = []
+        used_employee_names: set[str] = set()
         missing_providers: list[str] = []
         for index, role in enumerate(roles, start=1):
             department_name = str(role.get("department") or "")
@@ -295,7 +302,13 @@ class UniversalPlatformService:
                 if existing_profile is not None:
                     provider = str(existing_profile["provider_id"] or "UNAVAILABLE")
             if agent_id is None:
-                agent_id = self._create_operational_employee(position, role_id, provider, role)
+                agent_id = self._create_operational_employee(
+                    position,
+                    role_id,
+                    provider,
+                    role,
+                    used_employee_names,
+                )
             if agent_id:
                 employee_ids.append(agent_id)
             provisioning = "READY" if provider in {"CODEX_CLI", "GEMINI_CLI", "CLAUDE_CLI"} else "UNASSIGNED"
@@ -583,13 +596,41 @@ class UniversalPlatformService:
             self.database.upsert_role_profile(RoleProfile(role_id, raw, str(role.get("description") or "Роль организации"), [str(item) for item in role.get("responsibilities", [])], [], "1.0"))
         return role_id
 
-    def _create_operational_employee(self, position: str, role_id: str, provider: str, role: dict[str, Any]) -> str:
+    def _create_operational_employee(
+        self,
+        position: str,
+        role_id: str,
+        provider: str,
+        role: dict[str, Any],
+        used_names: set[str] | None = None,
+    ) -> str:
+        used_names = used_names if used_names is not None else set()
+        identity = generate_identity(self.identity_language, "random", self.avatar_dir)
+        for _attempt in range(20):
+            if identity.name not in used_names:
+                break
+            identity = generate_identity(self.identity_language, "random", self.avatar_dir)
+        display_name = identity.name
+        if display_name in used_names:
+            display_name = f"{display_name} {len(used_names) + 1}"
+        used_names.add(display_name)
         if self.management_service is not None and hasattr(self.management_service, "generate_agent_id"):
-            agent_id = self.management_service.generate_agent_id(position)
+            agent_id = self.management_service.generate_agent_id(display_name)
         else:
-            agent_id = f"agent-{re.sub(r'[^a-z0-9]+', '-', position.lower()).strip('-') or 'employee'}-{uuid.uuid4().hex[:6]}"
+            agent_id = f"agent-{re.sub(r'[^a-z0-9]+', '-', display_name.lower()).strip('-') or 'employee'}-{uuid.uuid4().hex[:6]}"
         permissions = set(ROLE_DEFAULT_PERMISSIONS.get(role_id, {"CHAT"})) | {"CHAT"}
-        profile = AgentProfile(agent_id, position, str(role.get("description") or f"Сотрудник организации: {position}"), "ACTIVE", provider, str(role.get("persona_id") or ""), None, ())
+        role_description = str(role.get("description") or "").strip()
+        description = ". ".join(part for part in (position, role_description, identity.biography) if part)
+        profile = AgentProfile(
+            agent_id,
+            display_name,
+            description,
+            "ACTIVE",
+            provider,
+            str(role.get("persona_id") or "neutral_professional"),
+            identity.avatar_path,
+            (),
+        )
         self.database.create_agent_profile_with_assignments(profile, [role_id], sorted(permissions), "ORGANIZATION_OWNER", "organization activation")
         return agent_id
 

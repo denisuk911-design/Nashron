@@ -8,7 +8,7 @@ from core.database import Database
 from core.management_service import ManagementService
 from core.provider_service import ProviderHealthService, ProviderProvisioningService, ProviderRegistry
 from core.universal_platform_service import UniversalPlatformService
-from gui.director_console import AddEmployeeWizard, DirectorConsoleDialog
+from gui.director_console import AddEmployeeWizard, DirectorConsoleDialog, OrganizationActivationWizard
 
 
 def qapp():
@@ -99,3 +99,23 @@ def test_organization_catalog_renders_presets_and_empty_state(tmp_path):
 
     assert dialog.universal_tab.templates.count() >= 21
     assert dialog.universal_tab.organization_dashboard.toPlainText()
+
+
+def test_organization_activation_wizard_follows_interface_language(tmp_path):
+    qapp()
+    service, _registry, _health, _provisioning = make_service(tmp_path)
+    universal = UniversalPlatformService(service.database, management_service=service)
+    universal.seed_management_library()
+    template = next(item for item in universal.list_templates() if item.name == "SOLO_PROFESSIONAL")
+
+    expected_titles = {
+        "ru": "Создать организацию",
+        "uk": "Створити організацію",
+        "en": "Create organization",
+    }
+    for language, expected in expected_titles.items():
+        wizard = OrganizationActivationWizard(universal, template, language)
+        assert wizard.windowTitle() == expected
+        assert wizard._copy["organization_name"]
+        assert wizard._copy["confirm"]
+        wizard.close()

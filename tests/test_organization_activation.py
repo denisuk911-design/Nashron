@@ -28,7 +28,11 @@ def test_template_activation_creates_workspace_members_and_employees(tmp_path):
     assert len(activation.employee_ids) == 3
     assert database.get_organization_workspace(activation.organization.organization_id)["status"] == "READY_WITH_UNASSIGNED"
     assert database.get_active_organization_id() == activation.organization.organization_id
-    assert {agent.display_name for agent in list_chat_agents(database)} >= {"Assistant", "Researcher", "Reviewer"}
+    agents = list_chat_agents(database)
+    assert len(agents) == 3
+    assert len({agent.display_name for agent in agents}) == 3
+    assert {str(member["position"]) for member in members} == {"Assistant", "Researcher", "Reviewer"}
+    assert all(agent.display_name not in {"Assistant", "Researcher", "Reviewer"} for agent in agents)
 
 
 def test_management_library_is_data_driven_and_domain_neutral(tmp_path):

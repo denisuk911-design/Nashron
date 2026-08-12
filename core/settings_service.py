@@ -27,6 +27,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "chat_background_path": "",
     "chat_background_opacity": 18,
     "chat_background_mode": "cover",
+    "onboarding_skipped": False,
 }
 
 DEFAULT_RESOURCE_TEXTS: dict[str, str] = {

@@ -46,6 +46,48 @@ def _build_window(settings_service, monkeypatch):
 
 def test_main_window_bootstrap_first_run(tmp_path, monkeypatch):
     window = _build_window(_make_settings_service(tmp_path), monkeypatch)
+    assert window.active_organization_id is None
+    assert not window.empty_team_panel.isHidden()
+    assert window.chat.isHidden()
+    window.close()
+
+
+def test_first_run_can_be_skipped_without_creating_seed_employees(tmp_path, monkeypatch):
+    settings_service = _make_settings_service(tmp_path)
+    window = _build_window(settings_service, monkeypatch)
+
+    window._skip_onboarding()
+
+    assert window.empty_team_panel.isHidden()
+    assert not window.chat.isHidden()
+    assert window.database.list_organizations() == []
+    assert window.database.list_agent_profiles() == []
+    assert settings_service.load()["onboarding_skipped"] is True
+    window.close()
+
+
+def test_first_team_activation_refreshes_chat_without_restart(tmp_path, monkeypatch):
+    window = _build_window(_make_settings_service(tmp_path), monkeypatch)
+    template = next(
+        item for item in window.universal_platform_service.list_templates()
+        if item.name == "SOLO_PROFESSIONAL"
+    )
+    activation = window.universal_platform_service.activate_template(
+        template.template_id,
+        "Live team",
+        team_size="MINI",
+    )
+
+    window._activate_organization_live(activation.organization.organization_id)
+
+    assert window.active_organization_id == activation.organization.organization_id
+    assert window.conversation_id == window.database.ensure_organization_conversation(
+        activation.organization.organization_id,
+        activation.organization.name,
+    )
+    assert not window.chat.isHidden()
+    assert window.empty_team_panel.isHidden()
+    assert len(window._chat_agents()) == len(activation.employee_ids)
     window.close()
 
 
