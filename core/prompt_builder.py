@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Any
 
 from .agent_directory import agent_id_from_key, agent_spec_from_profile, get_chat_agent, list_chat_agents
-from .agents import AGENTS, ROMAN
 from .context_snapshot_service import ContextSnapshotService
 from .conversation_mode import ConversationMode
 from .database import Database
@@ -43,7 +42,7 @@ class PromptBuilder:
         conversation_id: int,
         user_message: str,
         allow_local_tools: bool = False,
-        agent_key: str = "roman",
+        agent_key: str = "",
         peer_context: str = "",
         autonomous_goal: str = "",
         autonomous_turn: int = 0,
@@ -58,17 +57,22 @@ class PromptBuilder:
         conversation_mode: str = "SOCIAL",
     ) -> str:
         agent_profile = get_chat_agent(self.database, agent_key)
-        agent = agent_spec_from_profile(agent_profile) if agent_profile is not None else AGENTS.get(agent_key, ROMAN)
+        agent = agent_spec_from_profile(agent_profile) if agent_profile is not None else AgentSpec(
+            key=agent_key or "employee",
+            display_name="Сотрудник",
+            engine_name="неизвестный провайдер",
+            voice="Ты универсальный сотрудник команды. Работай только в пределах назначенной роли и фактических данных.",
+        )
         team_agents = list_chat_agents(self.database, organization_id=organization_id)
         peers = [item for item in team_agents if item.key != agent.key]
-        peer = agent_spec_from_profile(peers[0]) if peers else (agent if organization_id else (AGENTS["petr"] if agent.key == "roman" else AGENTS["roman"]))
+        peer = agent_spec_from_profile(peers[0]) if peers else agent
         system_prompt = self.system_prompt_path.read_text(encoding="utf-8")
         identity = self.identity_service.load()
         timeline = self._load_timeline()
         memories = self.database.list_memories()
         skills = self.skill_service.list_for_prompt(agent.key) if self.skill_service is not None else []
         effective_permissions = self._effective_permissions(agent_profile)
-        structured_role = agent_profile.primary_role if agent_profile is not None else ("DESIGN_ENGINEER" if agent.key == "roman" else "QA_ENGINEER")
+        structured_role = agent_profile.primary_role if agent_profile is not None else "ASSISTANT"
         thread_owner_keys = self._thread_owner_keys(thread_context_lines or [])
         context_snapshot = ContextSnapshotService(self.database).build(
             conversation_id=conversation_id,
@@ -166,7 +170,7 @@ class PromptBuilder:
             f"Ближайший собеседник по контексту: {peer.display_name}. С ним можно спорить и уточнять план, но без длинных совещаний.",
             "Если пользователь явно назначил задачу одному сотруднику, второй не перетягивает ее на себя.",
             "Если задача не назначена, сначала коротко согласуйте план и исполнителя. Затем исполнитель решает задачу.",
-            "Если пользователь дал две отдельные задачи Роману и Петру, каждый отвечает только по своей части.",
+            "Если пользователь дал отдельные задачи сотрудникам, каждый отвечает только по своей части.",
             "КРИТИЧНО: пиши только свою реплику от первого лица. Не пиши за второго сотрудника, не вставляй диалог с метками 'Роман:' или 'Петр:' внутри своего ответа. "
             "Приложение само вызовет второго сотрудника отдельным сообщением.",
             "Ответы должны быть лаконичными: обычно 3-8 коротких строк, без полотен текста.",
@@ -195,7 +199,7 @@ class PromptBuilder:
             "",
             "ВАЖНО ПРО КОНКРЕТИКУ:",
             "Если пользователь спрашивает о будущем, быте, технологиях, городе, людях, работе, еде, новостях или чувствах, отвечай живо и конкретно. "
-            "Можно описывать сцены, предметы, привычки, слухи, личные впечатления и предположения Романа из 2050 года. "
+                "Можно описывать сцены, предметы, привычки, слухи, личные впечатления и рабочие предположения, если они явно обозначены как предположения. "
             "Не отвечай пустыми отказами вроде 'не знаю' без причины. Не меняй только зафиксированные личные факты из канона.",
             "",
             "ПАМЯТЬ О ПОЛЬЗОВАТЕЛЕ (это не биография Романа):",
@@ -258,16 +262,6 @@ class PromptBuilder:
                 "Не выводи технические логи или markdown-отчеты Codex без необходимости.",
             ]
         )
-        if agent.key == "petr":
-            parts.extend(
-                [
-                    "",
-                    "PETR COMMUNICATION RULE:",
-                    "Do not nag the user with phrases like 'give me work', 'stop chatting', 'enough talk', or similar.",
-                    "If there is no concrete QA finding, risk, check, or useful engineering recommendation, stay concise and neutral.",
-                    "Your job is independent engineering review, not pressuring the owner or filling the chat with discipline lectures.",
-                ]
-            )
         parts.extend(
             [
                 "",
@@ -361,13 +355,8 @@ class PromptBuilder:
         return []
 
     def role_label(self, role: str) -> str:
-        labels = {
-            "user": "Пользователь",
-            "roman": "Роман",
-            "petr": "Петр",
-            "system": "Система",
-        }
+        labels = {"user": "Пользователь", "system": "Система"}
         if role in labels:
             return labels[role]
         agent = get_chat_agent(self.database, role)
-        return agent.display_name if agent is not None else role
+        return agent.display_name if agent is not None else "Удалённый сотрудник"

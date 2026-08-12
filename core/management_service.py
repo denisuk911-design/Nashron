@@ -60,9 +60,16 @@ class ManagementService:
         self.database = database
         self.config_repository = config_repository
 
-    def ensure_foundations(self) -> None:
+    def ensure_foundations(self, seed_legacy: bool = True) -> None:
+        """Install shared templates without creating employees on a clean install.
+
+        ``seed_legacy`` remains available for migration compatibility and old
+        fixtures. The product runtime calls this with ``False``.
+        """
         for role in ROLE_TEMPLATES:
             self.database.upsert_role_profile(role)
+        if not seed_legacy:
+            return
         for profile in DEFAULT_AGENT_PROFILES:
             if self.database.get_agent_profile(profile.agent_id) is None:
                 self.database.create_agent_profile(profile, actor=OWNER_ROLE, reason="seed current agent")
@@ -70,6 +77,29 @@ class ManagementService:
         self.database.assign_role_to_agent("agent-petr", "QA_ENGINEER", actor=OWNER_ROLE, reason="seed current mapping")
         self.database.grant_agent_permission("agent-roman", "CHAT", actor=OWNER_ROLE, reason="seed current permission")
         self.database.grant_agent_permission("agent-petr", "CHAT", actor=OWNER_ROLE, reason="seed current permission")
+
+    def legacy_seed_agents(self) -> list[EmployeeSummary]:
+        """Return old demo profiles for an explicit user cleanup flow only."""
+        legacy_ids = {"agent-roman", "agent-petr", "agent-shushanna"}
+        legacy_personas = {"roman_2050", "petr_2050", "shushanna_2050"}
+        result: list[EmployeeSummary] = []
+        for row in self.database.list_agent_profiles():
+            if str(row["agent_id"]) in legacy_ids or str(row["persona_id"] or "") in legacy_personas:
+                result.append(self._summary_from_row(row))
+        return result
+
+    def cleanup_legacy_seed_agents(self, action: str, actor_role: str = OWNER_ROLE) -> list[str]:
+        """Archive or permanently remove legacy demo profiles explicitly."""
+        action = str(action or "").upper()
+        agents = self.legacy_seed_agents()
+        if action not in {"ARCHIVE", "DELETE"}:
+            raise ValueError("legacy_cleanup_action_required")
+        for employee in agents:
+            if action == "ARCHIVE":
+                self.archive_agent(employee.agent_id, actor_role, "Legacy demo cleanup")
+            else:
+                self.delete_agent(employee.agent_id, actor_role, confirmed=True)
+        return [employee.agent_id for employee in agents]
 
     @staticmethod
     def generate_agent_id(display_name: str) -> str:
@@ -308,12 +338,6 @@ class ManagementService:
         row = self.database.get_agent_profile(agent_id)
         if row is None:
             raise ValueError(f"Unknown agent profile: {agent_id}")
-        lifecycle = str(row["lifecycle_state"])
-        with self.database.connect() as conn:
-            runs = int(conn.execute("SELECT COUNT(*) AS count FROM agent_runs WHERE agent_id = ?", (agent_id,)).fetchone()["count"] or 0)
-            messages = int(conn.execute("SELECT COUNT(*) AS count FROM messages WHERE role = ?", (agent_id.removeprefix("agent-"),)).fetchone()["count"] or 0)
-        if lifecycle != "DRAFT" and (runs or messages):
-            raise ValueError("agent_has_history_archive_instead")
         self.database.delete_agent_profile(agent_id, actor=actor_role, reason="Employee permanently deleted")
         self.config_repository.resolve(f"employees/{agent_id}/profile.json").unlink(missing_ok=True)
 

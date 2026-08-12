@@ -127,10 +127,6 @@ def agent_spec_from_profile(agent: ChatAgent) -> AgentSpec:
 
 def mention_tokens(agent: ChatAgent) -> set[str]:
     tokens = {agent.key.lower(), agent.agent_id.lower()}
-    if agent.key == "roman":
-        tokens.update({"роман", "романа", "роману", "романе", "романом"})
-    if agent.key == "petr":
-        tokens.update({"петр", "пётр", "петра", "петру", "петре", "петром"})
     for part in agent.display_name.lower().replace("ё", "е").split():
         if len(part) >= 2:
             tokens.add(part)

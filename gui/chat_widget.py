@@ -157,7 +157,7 @@ class ChatWidget(QWidget):
         self._parallel_typing: dict[str, dict[str, object]] = {}
         self._stream_item: QListWidgetItem | None = None
         self._stream_widget: MessageWidget | None = None
-        self._stream_role = "roman"
+        self._stream_role = ""
         self._stream_text = ""
         self._stream_final_text = ""
         self._typewriter_queue: deque[str] = deque()
@@ -166,7 +166,7 @@ class ChatWidget(QWidget):
         self._completed_stream_role = ""
         self._completed_stream_text = ""
         self._scroll_animation: QPropertyAnimation | None = None
-        self._agent_labels = {"user": "Вы", "roman": "Роман", "petr": "Петр", "system": "Система"}
+        self._agent_labels = {"user": "Вы", "system": "Система"}
         self._agent_avatars: dict[str, str] = {}
         self._agent_titles: dict[str, str] = {"user": "Владелец"}
         self._recipient_keys: list[str] = []
@@ -312,7 +312,7 @@ class ChatWidget(QWidget):
             role,
             content,
             timestamp,
-            self._agent_labels.get(role),
+            self._label_for_role(role),
             self._agent_avatars.get(role),
             self._agent_titles.get(role),
         )
@@ -339,13 +339,21 @@ class ChatWidget(QWidget):
             if not content:
                 continue
             role = str(data.get("role") or "")
-            name = self._agent_labels.get(role, role)
+            name = self._label_for_role(role)
             title = self._agent_titles.get(role, "")
             timestamp = str(data.get("created_at") or "")
             suffix = f" ({title})" if title else ""
             prefix = f"[{timestamp}] " if timestamp else ""
             lines.append(f"{prefix}{name}{suffix}:\n{content}")
         return "\n\n".join(lines)
+
+    def _label_for_role(self, role: str) -> str:
+        if role.startswith("deleted:"):
+            parts = role.split(":", 2)
+            if len(parts) == 3 and parts[2].strip():
+                return f"Удалённый сотрудник · {parts[2].strip()}"
+            return "Удалённый сотрудник"
+        return self._agent_labels.get(role, role or "Сотрудник")
 
     def set_agent_labels(
         self,
@@ -405,7 +413,7 @@ class ChatWidget(QWidget):
         self.typewriter_timer.stop()
         self._stream_item = None
         self._stream_widget = None
-        self._stream_role = "roman"
+        self._stream_role = ""
         self._stream_text = ""
         self._stream_final_text = ""
         self._completed_stream_item = None
@@ -518,7 +526,7 @@ class ChatWidget(QWidget):
     def set_stream_role(self, role: str) -> None:
         self._stream_role = role
 
-    def begin_roman_response(self) -> None:
+    def begin_agent_response(self) -> None:
         if self._stream_item is not None:
             return
         self.stop_typing_indicator()
@@ -526,15 +534,15 @@ class ChatWidget(QWidget):
         self._stream_item = self.add_message(self._stream_role, "")
         self._stream_widget = self.messages.itemWidget(self._stream_item)
 
-    def append_roman_delta(self, delta: str) -> None:
+    def append_agent_delta(self, delta: str) -> None:
         if not delta:
             return
-        self.begin_roman_response()
+        self.begin_agent_response()
         self._typewriter_queue.extend(delta)
         if not self.typewriter_timer.isActive():
             self.typewriter_timer.start()
 
-    def finish_roman_response(self, final_text: str) -> None:
+    def finish_agent_response(self, final_text: str) -> None:
         self.stop_typing_indicator()
         if self._stream_item is None:
             if self._replace_completed_stream(final_text):
@@ -543,7 +551,7 @@ class ChatWidget(QWidget):
                 return
             if self._replace_recent_stream_duplicate(final_text):
                 return
-            self.begin_roman_response()
+            self.begin_agent_response()
             self._stream_final_text = final_text
             self._typewriter_queue.extend(final_text)
             if not self.typewriter_timer.isActive():
@@ -593,7 +601,7 @@ class ChatWidget(QWidget):
         if not clean:
             self.clear_activity_status()
             return
-        self.begin_roman_response()
+        self.begin_agent_response()
         widget = self._stream_widget or self.messages.itemWidget(self._stream_item)
         if isinstance(widget, MessageWidget):
             should_follow = self._should_follow_output()
@@ -647,7 +655,7 @@ class ChatWidget(QWidget):
             self._update_stream_item()
         self._stream_item = None
         self._stream_widget = None
-        self._stream_role = "roman"
+        self._stream_role = ""
         self._stream_text = ""
         self._stream_final_text = ""
         self._completed_stream_item = None
@@ -667,7 +675,7 @@ class ChatWidget(QWidget):
                 self.messages.takeItem(row)
         self._stream_item = None
         self._stream_widget = None
-        self._stream_role = "roman"
+        self._stream_role = ""
         self._stream_text = ""
         self._stream_final_text = ""
         self._completed_stream_item = None

@@ -13,16 +13,14 @@ class SkillService:
 
     def load(self) -> dict[str, list[dict[str, Any]]]:
         if not self.path.exists():
-            return {"roman": [], "petr": []}
+            return {}
         try:
             data = json.loads(self.path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
-            return {"roman": [], "petr": []}
+            return {}
         if not isinstance(data, dict):
-            return {"roman": [], "petr": []}
+            return {}
         cleaned = {str(agent_key): self._clean_list(value) for agent_key, value in data.items()}
-        cleaned.setdefault("roman", [])
-        cleaned.setdefault("petr", [])
         return cleaned
 
     def list_for_prompt(self, agent_key: str, limit: int = 8) -> list[str]:

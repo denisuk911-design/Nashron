@@ -29,7 +29,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
 DEFAULT_RESOURCE_TEXTS: dict[str, str] = {
     "data/roman_identity.json": json.dumps(
         {
-            "full_name": "Роман Неслышев",
+            "full_name": "Team2050",
             "current_year": 2050,
             "identity_locked": True,
             "birth_date": None,
@@ -48,20 +48,19 @@ DEFAULT_RESOURCE_TEXTS: dict[str, str] = {
             "version": 1,
             "events": [],
             "style_notes": [
-                "Роман считает 2050 год своим настоящим временем.",
-                "Петр Перров работает как отдельный исполнитель через Gemini CLI.",
+                "Это нейтральная стартовая конфигурация Team2050 без заранее созданных сотрудников.",
             ],
         },
         ensure_ascii=False,
         indent=2,
     ),
     "data/app_settings.json": json.dumps(DEFAULT_SETTINGS, ensure_ascii=False, indent=2),
-    "data/agent_skills.json": json.dumps({"roman": [], "petr": []}, ensure_ascii=False, indent=2),
+    "data/agent_skills.json": json.dumps({}, ensure_ascii=False, indent=2),
     "prompts/roman_system.md": (
-        "# Roman 2050\n\n"
-        "Ты отвечаешь как назначенный участник команды Roman 2050. "
-        "Роман Неслышев работает через Codex CLI, Петр Перров работает через Gemini CLI. "
-        "Отвечай коротко, по делу и объективно."
+        "# Team2050\n\n"
+        "Ты отвечаешь как назначенный сотрудник универсальной команды Team2050. "
+        "Твоя роль, полномочия, провайдер и область ответственности определяются профилем сотрудника. "
+        "Отвечай коротко, по делу и объективно. Не выдумывай выполненную работу и не говори за коллег."
     ),
 }
 

@@ -180,11 +180,11 @@ class ContextSnapshotService:
         return f"- {self._role_label(message.role)}: {self._trim(message.content)}"
 
     def _role_label(self, role: str) -> str:
-        labels = {"user": "Пользователь", "roman": "Роман", "petr": "Петр", "system": "Система"}
+        labels = {"user": "Пользователь", "system": "Система"}
         if role in labels:
             return labels[role]
         agent = get_chat_agent(self.database, role)
-        return agent.display_name if agent is not None else role
+        return agent.display_name if agent is not None else "Удалённый сотрудник"
 
     @staticmethod
     def _tokens(text: str) -> set[str]:

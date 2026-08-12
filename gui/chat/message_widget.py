@@ -62,7 +62,7 @@ class MessageWidget(QFrame):
         super().__init__()
         self.role = role
         self.content = content
-        object_name = "messageCardUser" if role == "user" else "messageCardPetr" if role == "petr" else "messageCard"
+        object_name = "messageCardUser" if role == "user" else "messageCard"
         self._max_card_width = 560 if role == "user" else 840
         self.setObjectName("messageRow")
         self.setFrameShape(QFrame.NoFrame)
@@ -88,7 +88,7 @@ class MessageWidget(QFrame):
         card_layout.setSpacing(6)
 
         header = QHBoxLayout()
-        author = QLabel(author_name or ("Вы" if role == "user" else "Петр" if role == "petr" else "Роман"))
+        author = QLabel(author_name or ("Вы" if role == "user" else "Сотрудник"))
         author.setObjectName("pageTitle")
         meta = QLabel(created_at or "сейчас")
         meta.setObjectName("messageMeta")

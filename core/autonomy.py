@@ -126,13 +126,6 @@ def looks_like_work_goal(text: str) -> bool:
 
 
 def detect_peer_handoff(text: str, current_agent: str) -> str | None:
-    lowered = text.lower()
-    peer = "petr" if current_agent == "roman" else "roman"
-    peer_names = ("петр", "пётр", "петру", "петра") if peer == "petr" else ("роман", "роману", "романа")
-    if not any(name in lowered for name in peer_names):
-        return None
-    if has_handoff_intent(text):
-        return peer
     return None
 
 

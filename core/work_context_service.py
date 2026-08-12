@@ -222,12 +222,6 @@ class ArtifactReferentResolver:
 
     @staticmethod
     def _source_hint(text: str) -> str:
-        if "у романа" in text or "роман" in text:
-            return "roman"
-        if "у петра" in text or "петр" in text:
-            return "petr"
-        if "у шушан" in text or "шушан" in text:
-            return "shushan"
         return ""
 
     def _result(self, rows: list[Any], reason: str) -> ArtifactReference:

@@ -6,17 +6,6 @@ from .agent_directory import get_chat_agent
 from .database import Database
 
 
-ROLE_BY_AGENT_KEY = {
-    "roman": "DESIGN_ENGINEER",
-    "petr": "QA_ENGINEER",
-}
-
-PROVIDER_BY_AGENT_KEY = {
-    "roman": "CODEX_CLI",
-    "petr": "GEMINI_CLI",
-}
-
-
 @dataclass(frozen=True)
 class AgentRoute:
     agent_key: str
@@ -42,8 +31,8 @@ class AgentRouter:
         return AgentRoute(
             agent_key=agent_key,
             agent_id=f"agent-{agent_key}",
-            role=ROLE_BY_AGENT_KEY.get(agent_key, "ASSISTANT"),
-            provider=PROVIDER_BY_AGENT_KEY.get(agent_key, "UNKNOWN"),
+            role="ASSISTANT",
+            provider="UNKNOWN",
         )
 
     def role_for_agent(self, agent_key: str) -> str:

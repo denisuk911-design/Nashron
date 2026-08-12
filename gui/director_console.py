@@ -196,6 +196,7 @@ class UniversalPlatformTab(QWidget):
         archive_organization = QPushButton("Архивировать")
         restore_organization = QPushButton("Восстановить")
         delete_organization = QPushButton("Удалить пустую")
+        cleanup_legacy = QPushButton("Демо-сотрудники")
         create_profession.clicked.connect(self.create_profession)
         create_organization.clicked.connect(self.create_organization)
         create_template.clicked.connect(self.create_template)
@@ -204,10 +205,11 @@ class UniversalPlatformTab(QWidget):
         archive_organization.clicked.connect(lambda: self.change_organization_status("ARCHIVED"))
         restore_organization.clicked.connect(lambda: self.change_organization_status("ACTIVE"))
         delete_organization.clicked.connect(self.delete_selected_organization)
+        cleanup_legacy.clicked.connect(self.cleanup_legacy_agents)
         self.template_search.textChanged.connect(self.refresh)
         self.organizations.currentItemChanged.connect(self._show_organization_dashboard)
         actions = QHBoxLayout()
-        for button in (create_profession, create_organization, create_template, instantiate, seed, archive_organization, restore_organization, delete_organization):
+        for button in (create_profession, create_organization, create_template, instantiate, seed, archive_organization, restore_organization, delete_organization, cleanup_legacy):
             actions.addWidget(button)
         columns = QHBoxLayout()
         columns.addLayout(self._column("Профессии", self.professions), 1)
@@ -304,7 +306,7 @@ class UniversalPlatformTab(QWidget):
         organization_id = self._selected_organization_id()
         if not organization_id:
             return
-        reply = QMessageBox.question(self, "Удалить организацию", "Удалить только пустую организацию? История её чата будет удалена.")
+        reply = QMessageBox.question(self, "Удалить организацию", "Удалить организацию навсегда? Её членство и история чата будут удалены, профили сотрудников останутся.")
         if reply != QMessageBox.Yes:
             return
         try:
@@ -312,6 +314,25 @@ class UniversalPlatformTab(QWidget):
             self.refresh()
         except Exception as exc:
             QMessageBox.warning(self, "Организация не удалена", friendly_error(str(exc), self.language))
+
+    def cleanup_legacy_agents(self) -> None:
+        management = getattr(self.service, "management_service", None)
+        if management is None:
+            return
+        legacy = management.legacy_seed_agents()
+        if not legacy:
+            QMessageBox.information(self, "Демо-сотрудники", "Демонстрационные сотрудники не найдены.")
+            return
+        names = ", ".join(item.display_name for item in legacy)
+        answer = QMessageBox.question(
+            self,
+            "Очистить демонстрационных сотрудников",
+            f"Найдены профили: {names}.\n\nДа — архивировать, Нет — отменить. Навсегда удалить можно в разделе «Сотрудники».",
+        )
+        if answer != QMessageBox.Yes:
+            return
+        management.cleanup_legacy_seed_agents("ARCHIVE")
+        self.refresh()
 
     def _show_organization_dashboard(self, current, _previous=None) -> None:
         if self.service is None or current is None:
@@ -739,7 +760,9 @@ class EmployeesTab(QWidget):
         reply = QMessageBox.question(
             self,
             "Удалить сотрудника навсегда",
-            "Удаление необратимо. Для сотрудника с историей используйте архив. Продолжить?",
+            "Профиль, настройки, доступы и персональная память будут удалены.\n"
+            "Общая история, задачи и артефакты останутся с пометкой удалённого автора.\n\n"
+            "Действие необратимо. Продолжить?",
         )
         if reply != QMessageBox.Yes:
             return

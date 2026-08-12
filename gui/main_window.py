@@ -23,12 +23,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from core.agents import AGENTS
 from core.agent_directory import ChatAgent, ROLE_NAMES, agent_id_from_key, get_chat_agent, list_chat_agents, mention_tokens
 from core.agent_router import AgentRouter
 from core.artifact_service import ArtifactService
 from core.auth_service import AuthService
-from core.autonomy import AutonomyRequest, detect_peer_handoff, has_handoff_intent, is_stop_command, parse_autonomy_request
+from core.autonomy import AutonomyRequest, has_handoff_intent, is_stop_command, parse_autonomy_request
 from core.codex_client import CodexClient
 from core.build_info import build_label
 from core.claim_evidence import ClaimEvidenceValidator
@@ -112,7 +111,7 @@ class MainWindow(QMainWindow):
         self._set_startup_state("DATABASE_READY")
         self.management_repository = ConfigurationRepository(self.paths.management_config_dir)
         self.management_service = ManagementService(self.database, self.management_repository)
-        self.management_service.ensure_foundations()
+        self.management_service.ensure_foundations(seed_legacy=False)
         self._set_startup_state("MANAGEMENT_READY")
         self.database.ensure_organization_conversations()
         self.active_organization_id = self.database.get_active_organization_id()
@@ -211,7 +210,7 @@ class MainWindow(QMainWindow):
         self.current_execution_contract: AgentExecutionContract | None = None
         self.worker: GenerateWorker | None = None
         self.active_workers: dict[str, GenerateWorker] = {}
-        self.current_agent_key = "roman"
+        self.current_agent_key = ""
         self.pending_agent_keys: list[str] = []
         self.authorized_worker_keys: set[str] = set()
         self.pending_user_message = ""
@@ -359,7 +358,7 @@ class MainWindow(QMainWindow):
         header = QHBoxLayout()
         logo = QLabel("◈")
         logo.setObjectName("brandMark")
-        title = QLabel("ROMAN\n2050")
+        title = QLabel("TEAM\n2050")
         title.setObjectName("brand")
         collapse = QToolButton()
         collapse.setText("‹")
@@ -569,22 +568,7 @@ class MainWindow(QMainWindow):
             if organization is None or str(organization["status"]).upper() != "ACTIVE":
                 return []
             roster = list_chat_agents(self.database, organization_id=active_organization_id)
-            if roster:
-                return roster
-            # A previously archived organization can retain member rows that point
-            # to archived profiles. Keep the active chat usable and make the repair
-            # visible in the event log instead of silently dropping every reply.
-            fallback = list_chat_agents(self.database)
-            if fallback:
-                logged = getattr(self, "_roster_fallback_logged", set())
-                if active_organization_id not in logged:
-                    self.database.log_event(
-                        "organization_roster_empty_fallback",
-                        f"organization={active_organization_id}; agents={','.join(agent.key for agent in fallback)}",
-                    )
-                    logged.add(active_organization_id)
-                    self._roster_fallback_logged = logged
-            return fallback
+            return roster
         return list_chat_agents(self.database)
 
     def _refresh_organization_selector(self) -> None:
@@ -660,6 +644,11 @@ class MainWindow(QMainWindow):
             widget = item.widget()
             if widget is not None:
                 widget.deleteLater()
+        if not agents:
+            empty = QLabel("В этой организации пока нет сотрудников. Добавьте первого сотрудника в разделе «Команда».")
+            empty.setObjectName("emptyRoster")
+            empty.setWordWrap(True)
+            roster.addWidget(empty)
         for agent in agents:
             label = QLabel(f"●  {agent.display_name} · {agent.engine_name}")
             label.setObjectName("online")
@@ -1496,7 +1485,7 @@ class MainWindow(QMainWindow):
             self.active_workers[agent_key] = worker
         else:
             self.worker = worker
-            worker.delta_received.connect(self.chat.append_roman_delta)
+            worker.delta_received.connect(self.chat.append_agent_delta)
             worker.status_received.connect(self.chat.set_activity_status)
             worker.run_status_received.connect(lambda status, run_id=run_handle.run_id: self._record_run_status(run_id, status))
             worker.finished_with_result.connect(self._generation_finished)
@@ -1534,9 +1523,11 @@ class MainWindow(QMainWindow):
             # A deliberate stop is not a provider failure and should not add noise to the chat.
             pass
         else:
-            content = result.error or f"Не удалось получить ответ: {agent_key}"
-            self.database.add_message(self.conversation_id, agent_key, content, status="error")
-            self.chat.add_message(agent_key, content)
+            detail = result.error or "Провайдер не вернул ответ"
+            content = f"Провайдер сотрудника не ответил: {detail}"
+            self.database.log_event("provider_runtime_error", f"{agent_key}: {detail}"[:1000])
+            self.database.add_message(self.conversation_id, "system", content, status="provider_error")
+            self.chat.add_message("system", content)
         if self.active_workers:
             self.worker = next(iter(self.active_workers.values()))
             return
@@ -1587,8 +1578,7 @@ class MainWindow(QMainWindow):
             return
         agent_key = self.worker.agent_key
         chat_agent = get_chat_agent(self.database, agent_key)
-        agent = AGENTS.get(agent_key)
-        name = chat_agent.display_name if chat_agent is not None else (agent.display_name if agent is not None else "Сотрудник")
+        name = chat_agent.display_name if chat_agent is not None else "Сотрудник"
         if stage == "soft":
             status = f"{name} отвечает дольше обычного"
             event = "response_latency_soft_warning"
@@ -1642,9 +1632,6 @@ class MainWindow(QMainWindow):
         mentioned = [key for key in self.team_router._mentioned_agents(content, agents) if key != author]
         if mentioned:
             return mentioned[0]
-        legacy_target = detect_peer_handoff(content, author)
-        if legacy_target and legacy_target in active_keys and legacy_target != author:
-            return legacy_target
         return None
 
     def _mark_contextual_handoff_started(self, agent_key: str, run_id: str) -> None:
@@ -1682,8 +1669,7 @@ class MainWindow(QMainWindow):
         conversation_id = worker.conversation_id if worker is not None else self.conversation_id
         agent_key = worker.agent_key if worker is not None else self.current_agent_key
         chat_agent = get_chat_agent(self.database, agent_key)
-        agent = AGENTS.get(agent_key)
-        agent_name = chat_agent.display_name if chat_agent is not None else (agent.display_name if agent is not None else "Агент")
+        agent_name = chat_agent.display_name if chat_agent is not None else "Сотрудник"
         if worker is not None and worker.run_id is not None:
             raw_response = result.content if result.ok else (result.error or "")
             self.task_orchestrator.finish_run(worker.run_id, result, raw_response)
@@ -1746,7 +1732,7 @@ class MainWindow(QMainWindow):
                         self.database.log_event("duplicate_agent_message_suppressed", agent_key)
                     else:
                         message_id = self.database.add_message(conversation_id, agent_key, final_content)
-                        self.chat.finish_roman_response(final_content)
+                        self.chat.finish_agent_response(final_content)
                         self.chat.set_stream_message_id(message_id, final_content)
                         self._mark_thread_questions_answered(agent_key, message_id)
                         claim_validation = self.claim_validator.validate(final_content, parsed_response.envelope)
@@ -1798,12 +1784,15 @@ class MainWindow(QMainWindow):
                 self._clear_goal_state()
                 self.pending_agent_keys = []
         else:
-            content = result.error or f"Не удалось получить ответ: {agent_name}"
-            status = "cancelled" if result.cancelled else "error"
-            stored_role = "system" if result.cancelled else agent_key
-            self.database.add_message(conversation_id, stored_role, content, status=status)
-            if not result.cancelled:
-                self.chat.add_message(agent_key, content)
+            detail = result.error or "Провайдер не вернул ответ"
+            if result.cancelled:
+                content = "Ответ остановлен пользователем."
+                self.database.add_message(conversation_id, "system", content, status="cancelled")
+            else:
+                content = f"Провайдер сотрудника не ответил: {detail}"
+                self.database.log_event("provider_runtime_error", f"{agent_key}: {detail}"[:1000])
+                self.database.add_message(conversation_id, "system", content, status="provider_error")
+            self.chat.add_message("system", content)
         self.worker = None
         self.cancellation_in_progress = False
         if not result.ok and self.conversation_id == conversation_id:

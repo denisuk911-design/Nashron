@@ -3052,18 +3052,37 @@ class Database:
             previous = conn.execute("SELECT * FROM agent_profiles WHERE agent_id = ?", (agent_id,)).fetchone()
             if previous is None:
                 raise ValueError(f"Unknown agent profile: {agent_id}")
-            tables = conn.execute(
-                "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
-            ).fetchall()
-            database_changes = ["agent_profiles"]
-            for table_row in tables:
-                table = str(table_row["name"])
-                if table == "agent_profiles":
-                    continue
-                columns = {str(column["name"]) for column in conn.execute(f'PRAGMA table_info("{table}")').fetchall()}
-                if "agent_id" in columns:
-                    conn.execute(f'DELETE FROM "{table}" WHERE agent_id = ?', (agent_id,))
-                    database_changes.append(table)
+            agent_key = agent_id.removeprefix("agent-")
+            display_name = str(previous["display_name"] or "сотрудник").replace("|", " ").strip()
+            deleted_role = f"deleted:{agent_key}:{display_name}"
+            conn.execute(
+                "UPDATE messages SET role = ? WHERE role = ?",
+                (deleted_role, agent_key),
+            )
+            # Keep shared history, runs, artifacts and audit evidence. Remove
+            # only identity-owned configuration and runtime state.
+            cleanup_tables = (
+                "agent_role_assignments",
+                "agent_permissions",
+                "agent_permission_denies",
+                "agent_provider_assignments",
+                "employee_skill_assignments",
+            )
+            database_changes = ["messages(author preserved)", *cleanup_tables, "agent_profiles"]
+            for table in cleanup_tables:
+                conn.execute(f'DELETE FROM "{table}" WHERE agent_id = ?', (agent_id,))
+            conn.execute(
+                "UPDATE active_work_contexts SET current_owner_agent_id = NULL, previous_owner_agent_id = NULL, source_agent_id = NULL WHERE current_owner_agent_id = ? OR previous_owner_agent_id = ? OR source_agent_id = ?",
+                (agent_id, agent_id, agent_id),
+            )
+            conn.execute(
+                "UPDATE artifact_payloads SET source_agent_id = NULL WHERE source_agent_id = ?",
+                (agent_id,),
+            )
+            conn.execute(
+                "UPDATE work_handoffs SET from_agent_id = NULL WHERE from_agent_id = ?",
+                (agent_id,),
+            )
             conn.execute("DELETE FROM agent_profiles WHERE agent_id = ?", (agent_id,))
             self._insert_management_audit(
                 conn,
@@ -3233,12 +3252,9 @@ class Database:
 
     def delete_organization(self, organization_id: str) -> None:
         with self.connect() as conn:
-            member_count = conn.execute(
-                "SELECT COUNT(*) AS count FROM organization_members WHERE organization_id = ?",
-                (organization_id,),
-            ).fetchone()["count"]
-            if int(member_count or 0):
-                raise ValueError("organization_not_empty")
+            # Permanent organization deletion also removes membership rows;
+            # employee profiles remain reusable in other organizations.
+            conn.execute("DELETE FROM organization_members WHERE organization_id = ?", (organization_id,))
             deleted = conn.execute("DELETE FROM organizations WHERE id = ?", (organization_id,)).rowcount
             if not deleted:
                 raise ValueError("unknown_organization")

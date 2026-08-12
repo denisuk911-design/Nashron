@@ -56,7 +56,7 @@ class ResponseSplitter:
         normalized = label.lower().replace("ё", "е")
         if aliases and normalized in aliases:
             return aliases[normalized]
-        return "petr" if normalized == "петр" else "roman"
+        return aliases.get(normalized, normalized.replace(" ", "-")) if aliases else normalized.replace(" ", "-")
 
     @staticmethod
     def _merge_neighbors(parts: list[ResponsePart]) -> list[ResponsePart]:

@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import QThread, Signal
 
 from core.models import CodexResult
+from core.provider_result import normalize_provider_result
 from core.prompt_builder import PromptBuilder
 from core.run_status import RunStatus, status_label
 
@@ -20,7 +21,7 @@ class GenerateWorker(QThread):
         conversation_id: int,
         user_message: str,
         allow_local_tools: bool = False,
-        agent_key: str = "roman",
+        agent_key: str = "",
         peer_context: str = "",
         autonomous_goal: str = "",
         autonomous_turn: int = 0,
@@ -77,12 +78,13 @@ class GenerateWorker(QThread):
             )
             self._set_status(RunStatus.STARTING_PROVIDER)
             self._set_status(RunStatus.WAITING_FOR_PROVIDER)
-            result = self.generation_client.generate(
+            raw_result = self.generation_client.generate(
                 prompt,
                 allow_full_access=self.allow_local_tools,
                 on_delta=self.delta_received.emit,
                 on_status=self._provider_status,
             )
+            result = normalize_provider_result(raw_result)
             if result.ok:
                 self._set_status(RunStatus.PREPARING_RESPONSE)
             elif result.timed_out:
@@ -92,7 +94,7 @@ class GenerateWorker(QThread):
             else:
                 self._set_status(RunStatus.FAILED)
         except Exception as exc:  # GUI boundary: report instead of crashing Qt thread.
-            result = CodexResult(False, "", None, 0.0, str(exc))
+            result = CodexResult(False, "", None, 0.0, f"{type(exc).__name__}: {exc}")
             self._set_status(RunStatus.FAILED)
         self.finished_with_result.emit(result)
 

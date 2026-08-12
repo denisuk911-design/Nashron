@@ -193,8 +193,11 @@ class ProviderProvisioningService:
         self.health_service = health_service
 
     def ensure_assignments_for_existing_agents(self) -> None:
-        self.database.upsert_agent_provider_assignment("agent-roman", "CODEX_CLI", "DRAFT")
-        self.database.upsert_agent_provider_assignment("agent-petr", "GEMINI_CLI", "DRAFT")
+        for profile in self.database.list_agent_profiles():
+            agent_id = str(profile["agent_id"])
+            provider_id = str(profile["provider_id"] or "").strip()
+            if agent_id and provider_id:
+                self.database.upsert_agent_provider_assignment(agent_id, provider_id, "DRAFT")
 
     def readiness_for_employee(self, agent_id: str) -> str:
         profile = self.database.get_agent_profile(agent_id)
