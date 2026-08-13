@@ -34,6 +34,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "chat_background_cycle": 0,
     "onboarding_skipped": False,
     "developer_mode": False,
+    "runtime_engine": "LEGACY",
     "message_sounds_enabled": True,
     "send_sound_enabled": True,
     "receive_sound_enabled": True,

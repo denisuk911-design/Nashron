@@ -231,6 +231,28 @@ class SettingsDialog(QDialog):
         self.sound_volume.setSuffix(" %")
         self.sound_volume.setValue(int(settings.get("message_sound_volume", 35)))
 
+        self.developer_mode = QCheckBox(
+            {
+                "ru": "Режим разработчика",
+                "uk": "Режим розробника",
+                "en": "Developer mode",
+            }.get(language, "Режим разработчика")
+        )
+        self.developer_mode.setChecked(bool(settings.get("developer_mode", False)))
+        self.runtime_engine = QComboBox()
+        self.runtime_engine.addItem(
+            {"ru": "Стабильный runtime", "uk": "Стабільний runtime", "en": "Stable runtime"}.get(language, "Стабильный runtime"),
+            "LEGACY",
+        )
+        self.runtime_engine.addItem(
+            {"ru": "Runtime V2 (только прототип)", "uk": "Runtime V2 (лише прототип)", "en": "Runtime V2 (prototype only)"}.get(language, "Runtime V2 (только прототип)"),
+            "V2_EXPERIMENTAL",
+        )
+        runtime_index = self.runtime_engine.findData(str(settings.get("runtime_engine", "LEGACY")))
+        self.runtime_engine.setCurrentIndex(runtime_index if runtime_index >= 0 else 0)
+        self.runtime_engine.setEnabled(self.developer_mode.isChecked())
+        self.developer_mode.toggled.connect(self.runtime_engine.setEnabled)
+
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
@@ -307,6 +329,11 @@ class SettingsDialog(QDialog):
         layout.addRow(
             {"ru": "Громкость сообщений", "uk": "Гучність повідомлень", "en": "Message volume"}.get(language, "Громкость сообщений"),
             self.sound_volume,
+        )
+        layout.addRow(self.developer_mode)
+        layout.addRow(
+            {"ru": "Экспериментальный runtime", "uk": "Експериментальний runtime", "en": "Experimental runtime"}.get(language, "Экспериментальный runtime"),
+            self.runtime_engine,
         )
         layout.addRow(buttons)
         self._update_theme_preview()
@@ -391,4 +418,6 @@ class SettingsDialog(QDialog):
             "send_sound_enabled": self.send_sound.isChecked(),
             "receive_sound_enabled": self.receive_sound.isChecked(),
             "message_sound_volume": self.sound_volume.value(),
+            "developer_mode": self.developer_mode.isChecked(),
+            "runtime_engine": self.runtime_engine.currentData() if self.developer_mode.isChecked() else "LEGACY",
         }

@@ -10,5 +10,7 @@
   "workspace_root": "",
   "reduce_motion": false,
   "interface_language": "ru",
-  "user_avatar_path": ""
+  "user_avatar_path": "",
+  "developer_mode": false,
+  "runtime_engine": "LEGACY"
 }
