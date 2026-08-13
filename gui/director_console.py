@@ -2323,10 +2323,17 @@ class ProviderCatalogDialog(QDialog):
             "en": ("Connection type", "Support", "Platforms", "Official source", "After selecting, use the available actions in the connection card."),
         }
         connection, support, platforms, source, hint = labels.get(self.language, labels["ru"])
+        states = {
+            "ru": {"CLI": "Командная строка", "API": "API", "LOCAL_RUNTIME": "Локальная модель", "GATEWAY": "Шлюз", "SUPPORTED": "Поддерживается", "EXPERIMENTAL": "Экспериментально", "CATALOG_ONLY": "Только в каталоге"},
+            "uk": {"CLI": "Командний рядок", "API": "API", "LOCAL_RUNTIME": "Локальна модель", "GATEWAY": "Шлюз", "SUPPORTED": "Підтримується", "EXPERIMENTAL": "Експериментально", "CATALOG_ONLY": "Лише в каталозі"},
+            "en": {},
+        }.get(self.language, {})
+        integration = states.get(profile.integration_type, profile.integration_type)
+        support_state = states.get(profile.support_status, profile.support_status.replace("_", " ").title())
         self.detail.setText(
             f"<b>{profile.display_name}</b><br>"
-            f"{connection}: {profile.integration_type}<br>"
-            f"{support}: {profile.support_status}<br>"
+            f"{connection}: {integration}<br>"
+            f"{support}: {support_state}<br>"
             f"{platforms}: {', '.join(profile.supported_os)}<br>"
             f"{source}: {profile.official_url or '-'}<br><br>{hint}"
         )
@@ -2592,7 +2599,7 @@ class ProvidersTab(QWidget):
     def _state_label(self, value: str) -> str:
         labels = {
             "ru": {"CLI": "Командная строка", "API": "API", "LOCAL_RUNTIME": "Локальная модель", "GATEWAY": "Шлюз", "OFFICIAL_CLI": "Официальный CLI", "OFFICIAL_API": "Официальный API", "CLOUD_PLATFORM": "Облачная платформа", "CUSTOM_GATEWAY": "Внешний шлюз", "SUPPORTED": "Поддерживается", "EXPERIMENTAL": "Экспериментально", "CATALOG_ONLY": "Только в каталоге", "NOT_INSTALLED": "Не установлен", "DETECTED": "Обнаружен", "INSTALLED": "Установлен", "AUTHENTICATED": "Вход выполнен", "AUTHENTICATION_REQUIRED": "Нужен вход", "NOT_AUTHENTICATED": "Вход не выполнен", "NOT_CHECKED": "Не проверено", "ACCESS_AVAILABLE": "Доступ есть", "ACCESS_UNAVAILABLE": "Доступа нет", "INSTALLATION_REQUIRED": "Требуется установка", "NOT_READY": "Не готов", "READY": "Готов", "DEGRADED": "Ограниченно готов", "BLOCKED": "Заблокирован", "UNKNOWN": "Неизвестно", "PARTIAL": "Частично", "UNSUPPORTED": "Не поддерживается", "ADAPTER_REQUIRED": "Нужен адаптер", "AVAILABLE": "Доступно", "chat": "Чат", "structured_response": "Структурированный ответ", "file_read": "Чтение файлов", "file_write": "Запись файлов", "command_execution": "Выполнение команд", "long_context": "Большой контекст"},
-            "uk": {"CLI": "Командний рядок", "API": "API", "LOCAL_RUNTIME": "Локальна модель", "GATEWAY": "Шлюз", "SUPPORTED": "Підтримується", "EXPERIMENTAL": "Експериментально", "CATALOG_ONLY": "Лише в каталозі", "NOT_INSTALLED": "Не встановлено", "DETECTED": "Виявлено", "INSTALLED": "Встановлено", "AUTHENTICATED": "Вхід виконано", "AUTHENTICATION_REQUIRED": "Потрібен вхід", "NOT_AUTHENTICATED": "Вхід не виконано", "NOT_CHECKED": "Не перевірено", "ACCESS_AVAILABLE": "Доступ є", "ACCESS_UNAVAILABLE": "Доступу немає", "INSTALLATION_REQUIRED": "Потрібне встановлення", "NOT_READY": "Не готово", "READY": "Готово", "DEGRADED": "Обмежено готово", "BLOCKED": "Заблоковано", "UNKNOWN": "Невідомо", "PARTIAL": "Частково", "UNSUPPORTED": "Не підтримується", "ADAPTER_REQUIRED": "Потрібен адаптер", "AVAILABLE": "Доступно", "chat": "Чат", "structured_response": "Структурована відповідь", "file_read": "Читання файлів", "file_write": "Запис файлів", "command_execution": "Виконання команд", "long_context": "Великий контекст"},
+            "uk": {"CLI": "Командний рядок", "API": "API", "LOCAL_RUNTIME": "Локальна модель", "GATEWAY": "Шлюз", "OFFICIAL_CLI": "Офіційний CLI", "OFFICIAL_API": "Офіційний API", "CLOUD_PLATFORM": "Хмарна платформа", "CUSTOM_GATEWAY": "Зовнішній шлюз", "SUPPORTED": "Підтримується", "EXPERIMENTAL": "Експериментально", "CATALOG_ONLY": "Лише в каталозі", "NOT_INSTALLED": "Не встановлено", "DETECTED": "Виявлено", "INSTALLED": "Встановлено", "AUTHENTICATED": "Вхід виконано", "AUTHENTICATION_REQUIRED": "Потрібен вхід", "NOT_AUTHENTICATED": "Вхід не виконано", "NOT_CHECKED": "Не перевірено", "ACCESS_AVAILABLE": "Доступ є", "ACCESS_UNAVAILABLE": "Доступу немає", "INSTALLATION_REQUIRED": "Потрібне встановлення", "NOT_READY": "Не готово", "READY": "Готово", "DEGRADED": "Обмежено готово", "BLOCKED": "Заблоковано", "UNKNOWN": "Невідомо", "PARTIAL": "Частково", "UNSUPPORTED": "Не підтримується", "ADAPTER_REQUIRED": "Потрібен адаптер", "AVAILABLE": "Доступно", "chat": "Чат", "structured_response": "Структурована відповідь", "file_read": "Читання файлів", "file_write": "Запис файлів", "command_execution": "Виконання команд", "long_context": "Великий контекст"},
             "en": {},
         }
         return labels.get(self.language, {}).get(value, value.replace("_", " ").title())
