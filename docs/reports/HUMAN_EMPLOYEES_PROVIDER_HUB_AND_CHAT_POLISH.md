@@ -101,7 +101,7 @@ Primary implementation references:
 - Focused scheduler, provider, theme, identity, asset and GUI tests: passed.
 - Full automated suite after the final corrective additions: 293 passed in 86.63 seconds.
 - Asset validator: passed, 0 errors and 1 documented audio fallback warning.
-- Packaged EXE build: passed for version 2.6.0 from final commit `5d54ea3`.
+- Packaged EXE build: passed for version 2.6.0; the exact source commit is embedded in `build_info.json` during each build.
 - Clean-profile packaged startup: passed; the process reached `USER_INTERACTIVE`, created a fresh SQLite database and remained alive until the 10-second smoke harness stopped it.
 - Packaged resources: 18 theme images and the complete avatar directory are present under `_internal/data`.
 
