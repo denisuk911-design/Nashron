@@ -219,6 +219,9 @@ class ManagementService:
         permission_denies: list[str],
         expected_updated_at: str | None,
         avatar_path: str | None = None,
+        preferred_name: str | None = None,
+        informal_name: str | None = None,
+        communication_profile: dict[str, object] | None = None,
         actor_role: str = OWNER_ROLE,
         reason: str = "",
         dry_run: bool = False,
@@ -257,9 +260,15 @@ class ManagementService:
             avatar_path=avatar_path,
             aliases=self._aliases_from_row(current),
             full_name=display_name,
-            preferred_name=str(current["preferred_name"] or "") if "preferred_name" in current.keys() else "",
-            informal_name=str(current["informal_name"] or "") if "informal_name" in current.keys() else "",
-            communication_profile=self._communication_profile_from_row(current),
+            preferred_name=(
+                str(current["preferred_name"] or "") if preferred_name is None and "preferred_name" in current.keys() else str(preferred_name or "")
+            ),
+            informal_name=(
+                str(current["informal_name"] or "") if informal_name is None and "informal_name" in current.keys() else str(informal_name or "")
+            ),
+            communication_profile=(
+                self._communication_profile_from_row(current) if communication_profile is None else dict(communication_profile)
+            ),
         )
         self.config_repository.write_json_atomic(
             f"employees/{agent_id}/profile.json",

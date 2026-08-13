@@ -32,6 +32,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "chat_background_rotation": "launch",
     "chat_background_remembered": "",
     "chat_background_cycle": 0,
+    "chat_background_cycle_applied": -1,
     "onboarding_skipped": False,
     "developer_mode": False,
     "runtime_engine": "LEGACY",

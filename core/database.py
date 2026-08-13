@@ -74,6 +74,7 @@ class Database:
             self._ensure_standards_schema(conn)
             self._ensure_management_schema(conn)
             self._ensure_provider_schema(conn)
+            self._repair_legacy_provider_diagnostics(conn)
             self._ensure_work_context_schema(conn)
             self._ensure_universal_schema(conn)
             self._ensure_organization_expansion_schema(conn)
@@ -153,6 +154,31 @@ class Database:
             WHERE message_id IS NOT NULL
               AND NOT EXISTS (SELECT 1 FROM messages WHERE messages.id = routing_decisions.message_id)
             """
+        )
+
+    @staticmethod
+    def _repair_legacy_provider_diagnostics(conn: sqlite3.Connection) -> None:
+        """Repair one known pre-Unicode-pipeline Codex status value.
+
+        Older Windows builds decoded the CP1251 bytes for ``авторизован`` as
+        CP1255, which produced Hebrew-looking text in the persisted diagnostic.
+        The current CLI pipeline is UTF-8; this migration only touches the exact
+        legacy value and only for an authenticated Codex check.
+        """
+        table_exists = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'provider_health_checks'"
+        ).fetchone()
+        if table_exists is None:
+            return
+        conn.execute(
+            """
+            UPDATE provider_health_checks
+            SET diagnostic = 'Codex: авторизован'
+            WHERE provider_id = 'CODEX_CLI'
+              AND authentication_status = 'AUTHENTICATED'
+              AND diagnostic = ?
+            """,
+            ("Codex: \u05d0\u05d2\u05e2\u05de\u05e0\u05d8\u05d7\u05de\u05d2\u05d0\u05dd",),
         )
 
     def _ensure_universal_schema(self, conn: sqlite3.Connection) -> None:

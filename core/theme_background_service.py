@@ -4,6 +4,7 @@ from datetime import date
 from pathlib import Path
 import hashlib
 import random
+from typing import Any
 
 
 THEME_COLLECTIONS = {
@@ -16,6 +17,16 @@ THEME_COLLECTIONS = {
     "city": "city",
     "night_city": "night_city",
 }
+
+
+def pending_background_cycle(settings: dict[str, Any]) -> tuple[int, bool, bool]:
+    """Return cycle state and migrate profiles created before applied-cycle tracking."""
+    cycle = int(settings.get("chat_background_cycle", 0))
+    applied_cycle = int(settings.get("chat_background_cycle_applied", -1))
+    if applied_cycle < 0:
+        settings["chat_background_cycle_applied"] = cycle
+        return cycle, False, True
+    return cycle, cycle != applied_cycle, False
 
 
 def collection_files(resource_root: Path, theme_id: str) -> list[Path]:

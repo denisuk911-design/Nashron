@@ -13,6 +13,21 @@ def test_missing_codex_cli(monkeypatch, tmp_path):
     assert result.error == "Codex CLI не найден"
 
 
+def test_login_status_uses_localized_unicode_diagnostic(monkeypatch, tmp_path):
+    monkeypatch.setattr(CodexClient, "is_available", lambda _self: True)
+    monkeypatch.setattr(CodexClient, "resolved_executable", lambda _self: "codex")
+    monkeypatch.setattr(
+        CodexClient,
+        "_run",
+        lambda _self, _command, timeout: subprocess.CompletedProcess(_command, 0, "", "Logged in using ChatGPT\n"),
+    )
+
+    status = CodexClient(workspace=tmp_path).login_status()
+
+    assert status.authorized
+    assert status.message == "Codex: авторизован"
+
+
 class FakeProcess:
     def __init__(self, returncode=0, stdout="Ответ Романа", stderr=""):
         self.returncode = returncode

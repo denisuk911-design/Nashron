@@ -1,7 +1,7 @@
 from datetime import date
 from pathlib import Path
 
-from core.theme_background_service import collection_files, select_background
+from core.theme_background_service import collection_files, pending_background_cycle, select_background
 
 
 def test_bundled_theme_collections_have_multiple_original_images():
@@ -20,3 +20,19 @@ def test_daily_background_is_stable_and_cycle_changes_selection():
 
     assert selected == repeated
     assert cycled != selected
+
+
+def test_background_cycle_is_consumed_once_and_legacy_profile_does_not_advance():
+    legacy = {"chat_background_cycle": 7}
+
+    cycle, pending, migrated = pending_background_cycle(legacy)
+
+    assert (cycle, pending, migrated) == (7, False, True)
+    assert legacy["chat_background_cycle_applied"] == 7
+
+    legacy["chat_background_cycle"] = 8
+    cycle, pending, migrated = pending_background_cycle(legacy)
+    assert (cycle, pending, migrated) == (8, True, False)
+
+    legacy["chat_background_cycle_applied"] = cycle
+    assert pending_background_cycle(legacy) == (8, False, False)

@@ -9,6 +9,40 @@ def test_database_creation(tmp_path):
     assert (tmp_path / "roman.sqlite3").exists()
 
 
+def test_initialize_repairs_legacy_codex_diagnostic_encoding(tmp_path):
+    path = tmp_path / "roman.sqlite3"
+    db = Database(path)
+    db.initialize()
+    with sqlite3.connect(path) as connection:
+        connection.execute("PRAGMA foreign_keys = OFF")
+        connection.execute(
+            """
+            INSERT INTO provider_health_checks (
+                id, provider_id, installation_status, authentication_status,
+                access_status, health_status, capability_status, diagnostic
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "PHC-LEGACY-ENCODING",
+                "CODEX_CLI",
+                "INSTALLED",
+                "AUTHENTICATED",
+                "ACCESS_AVAILABLE",
+                "READY",
+                "SUPPORTED",
+                "Codex: \u05d0\u05d2\u05e2\u05de\u05e0\u05d8\u05d7\u05de\u05d2\u05d0\u05dd",
+            ),
+        )
+
+    db.initialize()
+
+    with db.connect() as connection:
+        diagnostic = connection.execute(
+            "SELECT diagnostic FROM provider_health_checks WHERE id = 'PHC-LEGACY-ENCODING'"
+        ).fetchone()[0]
+    assert diagnostic == "Codex: авторизован"
+
+
 def test_save_and_read_messages(tmp_path):
     db = Database(tmp_path / "roman.sqlite3")
     db.initialize()

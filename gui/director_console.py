@@ -3307,8 +3307,10 @@ class EditEmployeeDialog(QDialog):
         if self.employee is None or self.row is None:
             raise ValueError("unknown employee")
         self.setWindowTitle(tr(language, "edit"))
-        self.resize(760, 620)
+        self.resize(820, 720)
         self.display_name = QLineEdit(self.employee.display_name)
+        self.preferred_name = QLineEdit(str(self.row["preferred_name"] or ""))
+        self.informal_name = QLineEdit(str(self.row["informal_name"] or ""))
         self.description = QTextEdit(str(self.row["description"]))
         self.description.setFixedHeight(90)
         self.avatar = QLineEdit(str(self.row["avatar_path"] or ""))
@@ -3338,6 +3340,47 @@ class EditEmployeeDialog(QDialog):
                 self.persona.addItem(self.employee.persona_id, self.employee.persona_id)
                 index = self.persona.count() - 1
             self.persona.setCurrentIndex(index)
+        try:
+            communication_profile = json.loads(str(self.row["communication_profile"] or "{}"))
+        except (TypeError, json.JSONDecodeError):
+            communication_profile = {}
+        self.communication_profile = communication_profile if isinstance(communication_profile, dict) else {}
+        self.communication_controls: dict[str, QSpinBox] = {}
+        communication_labels = {
+            "ru": {"directness": "Прямота", "warmth": "Доброжелательность", "formality": "Формальность", "humor": "Юмор", "assertiveness": "Настойчивость", "verbosity": "Подробность", "initiative": "Инициативность", "emotionality": "Эмоциональность"},
+            "uk": {"directness": "Прямота", "warmth": "Доброзичливість", "formality": "Формальність", "humor": "Гумор", "assertiveness": "Наполегливість", "verbosity": "Докладність", "initiative": "Ініціативність", "emotionality": "Емоційність"},
+            "en": {"directness": "Directness", "warmth": "Warmth", "formality": "Formality", "humor": "Humor", "assertiveness": "Assertiveness", "verbosity": "Verbosity", "initiative": "Initiative", "emotionality": "Emotionality"},
+        }.get(language, {})
+        for key in ("directness", "warmth", "formality", "humor", "assertiveness", "verbosity", "initiative", "emotionality"):
+            control = QSpinBox()
+            control.setRange(0 if key == "humor" else 1, 5)
+            control.setValue(int(self.communication_profile.get(key, 1 if key in {"humor", "verbosity"} else 3)))
+            control.setSuffix(" / 5")
+            self.communication_controls[key] = control
+        self.explanation_style = QComboBox()
+        explanation_labels = {
+            "ru": [("Коротко", "short"), ("Подробно", "detailed"), ("С примерами", "examples"), ("Технически", "technical")],
+            "uk": [("Коротко", "short"), ("Докладно", "detailed"), ("З прикладами", "examples"), ("Технічно", "technical")],
+            "en": [("Short", "short"), ("Detailed", "detailed"), ("With examples", "examples"), ("Technical", "technical")],
+        }
+        for label, value in explanation_labels.get(language, explanation_labels["ru"]):
+            self.explanation_style.addItem(label, value)
+        explanation_index = self.explanation_style.findData(self.communication_profile.get("explanation_style", "short"))
+        self.explanation_style.setCurrentIndex(max(0, explanation_index))
+        self.disagreement_style = QComboBox()
+        disagreement_labels = {
+            "ru": [("Сначала факты", "evidence_first"), ("Дипломатично", "diplomatic"), ("Прямо", "direct")],
+            "uk": [("Спочатку факти", "evidence_first"), ("Дипломатично", "diplomatic"), ("Прямо", "direct")],
+            "en": [("Evidence first", "evidence_first"), ("Diplomatic", "diplomatic"), ("Direct", "direct")],
+        }
+        for label, value in disagreement_labels.get(language, disagreement_labels["ru"]):
+            self.disagreement_style.addItem(label, value)
+        disagreement_index = self.disagreement_style.findData(self.communication_profile.get("disagreement_style", "evidence_first"))
+        self.disagreement_style.setCurrentIndex(max(0, disagreement_index))
+        regenerate_communication = QPushButton(
+            {"ru": "Сгенерировать стиль общения", "uk": "Згенерувати стиль спілкування", "en": "Generate communication style"}.get(language, "Сгенерировать стиль общения")
+        )
+        regenerate_communication.clicked.connect(self._regenerate_communication_profile)
         self.roles = QListWidget()
         self.roles.setSelectionMode(QListWidget.MultiSelection)
         for role in sorted(ROLE_IDS):
@@ -3366,22 +3409,44 @@ class EditEmployeeDialog(QDialog):
         buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self.save)
         buttons.rejected.connect(self.reject)
-        form = QFormLayout()
-        form.addRow(tr(language, "agent_id"), QLabel(self.agent_id))
-        form.addRow(tr(language, "name"), self.display_name)
-        form.addRow(tr(language, "description"), self.description)
-        form.addRow(tr(language, "avatar"), avatar_row)
-        form.addRow("", self.avatar)
-        form.addRow(tr(language, "provider"), self.provider)
-        form.addRow(tr(language, "persona"), self.persona)
+        general_tab = QWidget()
+        general_form = QFormLayout(general_tab)
+        general_form.addRow(tr(language, "agent_id"), QLabel(self.agent_id))
+        general_form.addRow(tr(language, "name"), self.display_name)
+        general_form.addRow({"ru": "Как обращаться", "uk": "Як звертатися", "en": "Preferred name"}.get(language, "Как обращаться"), self.preferred_name)
+        general_form.addRow({"ru": "Неформальное имя", "uk": "Неформальне ім'я", "en": "Informal name"}.get(language, "Неформальное имя"), self.informal_name)
+        general_form.addRow(tr(language, "description"), self.description)
+        general_form.addRow(tr(language, "avatar"), avatar_row)
+        general_form.addRow("", self.avatar)
+        general_form.addRow(tr(language, "provider"), self.provider)
+        general_form.addRow(tr(language, "persona"), self.persona)
+        communication_tab = QWidget()
+        communication_form = QFormLayout(communication_tab)
+        for key, control in self.communication_controls.items():
+            communication_form.addRow(communication_labels.get(key, key), control)
+        communication_form.addRow(
+            {"ru": "Стиль объяснений", "uk": "Стиль пояснень", "en": "Explanation style"}.get(language, "Стиль объяснений"),
+            self.explanation_style,
+        )
+        communication_form.addRow(
+            {"ru": "Стиль несогласия", "uk": "Стиль незгоди", "en": "Disagreement style"}.get(language, "Стиль несогласия"),
+            self.disagreement_style,
+        )
+        communication_form.addRow("", regenerate_communication)
+        access_tab = QWidget()
+        access_layout = QVBoxLayout(access_tab)
+        access_layout.addWidget(QLabel(tr(language, "roles")))
+        access_layout.addWidget(self.roles)
+        access_layout.addWidget(QLabel(tr(language, "direct_grants")))
+        access_layout.addWidget(self.permissions)
+        access_layout.addWidget(QLabel(tr(language, "direct_denies")))
+        access_layout.addWidget(self.denies)
+        tabs = QTabWidget()
+        tabs.addTab(general_tab, {"ru": "Профиль", "uk": "Профіль", "en": "Profile"}.get(language, "Профиль"))
+        tabs.addTab(communication_tab, {"ru": "Общение", "uk": "Спілкування", "en": "Communication"}.get(language, "Общение"))
+        tabs.addTab(access_tab, {"ru": "Роли и права", "uk": "Ролі та права", "en": "Roles and permissions"}.get(language, "Роли и права"))
         layout = QVBoxLayout(self)
-        layout.addLayout(form)
-        layout.addWidget(QLabel(tr(language, "roles")))
-        layout.addWidget(self.roles)
-        layout.addWidget(QLabel(tr(language, "direct_grants")))
-        layout.addWidget(self.permissions)
-        layout.addWidget(QLabel(tr(language, "direct_denies")))
-        layout.addWidget(self.denies)
+        layout.addWidget(tabs)
         layout.addWidget(buttons)
 
     def selected_roles(self) -> list[str]:
@@ -3414,6 +3479,25 @@ class EditEmployeeDialog(QDialog):
         if selected:
             self.avatar.setText(selected)
 
+    def _regenerate_communication_profile(self) -> None:
+        profile = generate_identity(self.language, "random", self.avatar_dir).communication_profile
+        self.communication_profile = dict(profile)
+        for key, control in self.communication_controls.items():
+            control.setValue(int(profile.get(key, control.value())))
+        explanation_index = self.explanation_style.findData(profile.get("explanation_style", "short"))
+        if explanation_index >= 0:
+            self.explanation_style.setCurrentIndex(explanation_index)
+        disagreement_index = self.disagreement_style.findData(profile.get("disagreement_style", "evidence_first"))
+        if disagreement_index >= 0:
+            self.disagreement_style.setCurrentIndex(disagreement_index)
+
+    def selected_communication_profile(self) -> dict[str, object]:
+        profile = dict(self.communication_profile)
+        profile.update({key: control.value() for key, control in self.communication_controls.items()})
+        profile["explanation_style"] = str(self.explanation_style.currentData() or "short")
+        profile["disagreement_style"] = str(self.disagreement_style.currentData() or "evidence_first")
+        return profile
+
     def save(self) -> None:
         try:
             preview = self.service.update_employee(
@@ -3423,6 +3507,9 @@ class EditEmployeeDialog(QDialog):
                 provider_id=str(self.provider.currentData()),
                 persona_id=str(self.persona.currentData() or "").strip() or None,
                 avatar_path=self.avatar.text().strip() or None,
+                preferred_name=self.preferred_name.text().strip(),
+                informal_name=self.informal_name.text().strip(),
+                communication_profile=self.selected_communication_profile(),
                 roles=self.selected_roles(),
                 permission_grants=self.selected_permissions(),
                 permission_denies=self.selected_denies(),

@@ -72,7 +72,7 @@ from core.thread_question_service import ThreadQuestionService
 from core.tool_access import agent_can_use_local_tools
 from core.task_orchestrator import TaskOrchestrator
 from core.task_state_service import TaskStateService
-from core.theme_background_service import select_background
+from core.theme_background_service import pending_background_cycle, select_background
 from core.workspace_service import WorkspaceService
 from core.universal_platform_service import UniversalPlatformService
 from core.work_context_service import (
@@ -2616,26 +2616,33 @@ class MainWindow(QMainWindow):
             custom_path = str(self.settings.get("chat_background_path", "")).strip()
             background_path = custom_path if custom_path and Path(custom_path).is_file() else ""
             if not background_path:
-                cycle = int(self.settings.get("chat_background_cycle", 0))
-                cache_key = f"{theme}:{cycle}"
+                cycle, cycle_pending, settings_changed = pending_background_cycle(self.settings)
+                cache_key = f"{theme}:{cycle}:{int(cycle_pending)}"
                 background_path = self._session_theme_backgrounds.get(cache_key, "")
                 if not background_path:
                     rotation = str(self.settings.get("chat_background_rotation", "launch"))
                     remembered = str(self.settings.get("chat_background_remembered", ""))
-                    selection_mode = "remember" if cycle and remembered else rotation
+                    selection_mode = "remember" if cycle_pending and remembered else rotation
                     background_path = select_background(
                         self.settings_service.resource_path("."),
                         theme,
                         selection_mode,
                         remembered,
-                        1 if cycle and remembered else 0,
+                        1 if cycle_pending and remembered else 0,
                     )
                     self._session_theme_backgrounds[cache_key] = background_path
                 if background_path:
                     remembered_changed = self.settings.get("chat_background_remembered") != background_path
                     self.settings["chat_background_remembered"] = background_path
-                    if remembered_changed and str(self.settings.get("chat_background_rotation", "launch")) in {"remember", "daily"}:
-                        self.settings_service.save(self.settings)
+                    settings_changed = settings_changed or (
+                        remembered_changed
+                        and str(self.settings.get("chat_background_rotation", "launch")) in {"remember", "daily"}
+                    )
+                if cycle_pending:
+                    self.settings["chat_background_cycle_applied"] = cycle
+                    settings_changed = True
+                if settings_changed:
+                    self.settings_service.save(self.settings)
             self.chat_panel.set_background(
                 background_path,
                 int(self.settings.get("chat_background_opacity", 18)),
