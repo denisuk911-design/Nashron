@@ -256,6 +256,10 @@ class ManagementService:
             persona_id=persona_id,
             avatar_path=avatar_path,
             aliases=self._aliases_from_row(current),
+            full_name=display_name,
+            preferred_name=str(current["preferred_name"] or "") if "preferred_name" in current.keys() else "",
+            informal_name=str(current["informal_name"] or "") if "informal_name" in current.keys() else "",
+            communication_profile=self._communication_profile_from_row(current),
         )
         self.config_repository.write_json_atomic(
             f"employees/{agent_id}/profile.json",
@@ -273,6 +277,10 @@ class ManagementService:
                 actor=actor_role,
                 reason=reason,
                 aliases=list(profile.aliases),
+                full_name=profile.full_name,
+                preferred_name=profile.preferred_name,
+                informal_name=profile.informal_name,
+                communication_profile=profile.communication_profile,
             )
             self.database.replace_agent_roles(agent_id, roles, actor_role, reason)
             self.database.replace_agent_permission_overrides(agent_id, permission_grants, permission_denies, actor_role, reason)
@@ -357,6 +365,14 @@ class ManagementService:
         )
         if not profile.display_name.strip():
             errors.append("empty_display_name")
+        normalized_name = profile.display_name.strip().casefold()
+        role_names = {
+            str(row["display_name"] or "").strip().casefold()
+            for row in self.database.list_role_profiles()
+            if str(row["role_id"]) in role_ids
+        }
+        if normalized_name in role_names or normalized_name in {role_id.casefold() for role_id in role_ids}:
+            errors.append("employee_name_must_be_human_not_role")
         return errors
 
     def _validate_common(
@@ -380,7 +396,8 @@ class ManagementService:
             errors.append("duplicate_agent_id")
         if lifecycle_state not in AGENT_LIFECYCLE_STATES:
             errors.append("invalid_lifecycle_state")
-        if provider_id not in PROVIDER_IDS:
+        configured_provider_ids = {str(row["provider_id"]) for row in self.database.list_provider_definitions()}
+        if provider_id not in configured_provider_ids | PROVIDER_IDS:
             errors.append("invalid_provider")
         if provider_id == "UNAVAILABLE" and lifecycle_state == "ACTIVE":
             errors.append("active_employee_requires_available_provider")
@@ -473,6 +490,10 @@ class ManagementService:
             "persona_id": profile.persona_id,
             "avatar_path": profile.avatar_path,
             "aliases": list(profile.aliases),
+            "full_name": profile.full_name or profile.display_name,
+            "preferred_name": profile.preferred_name,
+            "informal_name": profile.informal_name,
+            "communication_profile": profile.communication_profile,
             "roles": roles,
             "permission_grants": grants,
             "permission_denies": denies,
@@ -485,3 +506,11 @@ class ManagementService:
         except (KeyError, TypeError, ValueError, json.JSONDecodeError):
             return ()
         return tuple(str(alias).strip() for alias in raw if str(alias).strip()) if isinstance(raw, list) else ()
+
+    @staticmethod
+    def _communication_profile_from_row(row) -> dict[str, object]:
+        try:
+            raw = json.loads(str(row["communication_profile"] or "{}"))
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+            return {}
+        return raw if isinstance(raw, dict) else {}

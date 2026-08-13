@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QProgressBar,
     QPushButton,
+    QSpinBox,
     QTableWidget,
     QTableWidgetItem,
     QTabWidget,
@@ -54,6 +55,8 @@ from core.knowledge_service import KNOWLEDGE_STATUSES, SOURCE_AUTHORITIES, Knowl
 from core.learning_evidence_service import LearningEvidenceService
 from core.learning_manager_service import LearningManagerService
 from core.provider_service import ProviderHealthService, ProviderProvisioningService, ProviderRegistry
+from core.provider_lifecycle_service import ProviderLifecycleService
+from core.secure_storage import SecureStorageUnavailable, WindowsCredentialStore
 from core.product_metrics_service import ProductMetricsService
 from core.skill_progress_service import SkillProgressService
 from core.skill_package_service import SkillPackageService
@@ -2296,15 +2299,14 @@ class ProvidersTab(QWidget):
         self.provisioning_service = provisioning_service
         self.management_service = management_service
         self.language = language
-        self.table = QTableWidget(0, 9)
+        self.table = QTableWidget(0, 8)
         self.table.setHorizontalHeaderLabels(
             [
                 tr(language, "provider"),
-                tr(language, "adapter"),
+                {"ru": "Тип", "uk": "Тип", "en": "Type"}.get(language, "Тип"),
+                {"ru": "Поддержка", "uk": "Підтримка", "en": "Support"}.get(language, "Поддержка"),
                 tr(language, "install"),
-                tr(language, "version"),
                 tr(language, "auth"),
-                tr(language, "access"),
                 tr(language, "health"),
                 tr(language, "capabilities"),
                 tr(language, "employees"),
@@ -2318,10 +2320,26 @@ class ProvidersTab(QWidget):
         self.table.itemSelectionChanged.connect(self.show_selected)
         refresh = QPushButton(tr(language, "repeat_check"))
         refresh.clicked.connect(self.run_checks)
+        self.install_button = QPushButton({"ru": "Установить", "uk": "Встановити", "en": "Install"}.get(language, "Установить"))
+        self.auth_button = QPushButton({"ru": "Войти", "uk": "Увійти", "en": "Sign in"}.get(language, "Войти"))
+        self.update_button = QPushButton({"ru": "Обновить", "uk": "Оновити", "en": "Update"}.get(language, "Обновить"))
+        self.uninstall_button = QPushButton({"ru": "Удалить", "uk": "Видалити", "en": "Uninstall"}.get(language, "Удалить"))
+        self.key_button = QPushButton({"ru": "Задать ключ API", "uk": "Задати ключ API", "en": "Set API key"}.get(language, "Задать ключ API"))
+        self.docs_button = QPushButton({"ru": "Официальная документация", "uk": "Офіційна документація", "en": "Official documentation"}.get(language, "Официальная документация"))
+        self.install_button.clicked.connect(lambda: self.run_action("install"))
+        self.auth_button.clicked.connect(lambda: self.run_action("authenticate"))
+        self.update_button.clicked.connect(lambda: self.run_action("update"))
+        self.uninstall_button.clicked.connect(lambda: self.run_action("uninstall"))
+        self.key_button.clicked.connect(self.configure_api_key)
+        self.docs_button.clicked.connect(self.open_documentation)
+        actions = QHBoxLayout()
+        for button in (refresh, self.install_button, self.auth_button, self.update_button, self.uninstall_button, self.key_button, self.docs_button):
+            actions.addWidget(button)
+        actions.addStretch(1)
         layout = QVBoxLayout(self)
         layout.addWidget(QLabel(tr(language, "provider_page_note")))
         layout.addWidget(self.table, 2)
-        layout.addWidget(refresh)
+        layout.addLayout(actions)
         layout.addWidget(QLabel(tr(language, "diagnostics")))
         layout.addWidget(self.detail, 1)
 
@@ -2334,13 +2352,12 @@ class ProvidersTab(QWidget):
             assigned = [employee.display_name for employee in employees if employee.provider_id == profile.provider_id]
             values = [
                 profile.display_name,
-                profile.adapter_id,
-                health.installation_status,
-                health.detected_version or tr(self.language, "not_checked"),
-                health.authentication_status,
-                health.access_status,
-                health.health_status,
-                health.capability_status,
+                self._state_label(profile.integration_type),
+                self._state_label(profile.support_status),
+                self._state_label(health.installation_status),
+                self._state_label(health.authentication_status),
+                self._state_label(health.health_status),
+                self._state_label(health.capability_status),
                 ", ".join(assigned) or tr(self.language, "no"),
             ]
             for column, value in enumerate(values):
@@ -2349,6 +2366,7 @@ class ProvidersTab(QWidget):
                 self.table.setItem(row, column, item)
         if profiles:
             self.table.selectRow(0)
+        self._update_actions()
 
     def selected_provider_id(self) -> str | None:
         items = self.table.selectedItems()
@@ -2366,15 +2384,17 @@ class ProvidersTab(QWidget):
             self.detail.setPlainText(tr(self.language, "unknown_provider"))
             return
         lines = [
-            f"{tr(self.language, 'provider_id')}: {profile.provider_id}",
             f"{tr(self.language, 'display_name')}: {profile.display_name}",
-            f"{tr(self.language, 'family')}: {profile.provider_family}",
-            f"{tr(self.language, 'adapter')}: {profile.adapter_id}",
-            f"{tr(self.language, 'executables')}: {', '.join(profile.executable_names)}",
-            f"{tr(self.language, 'install_strategy')}: {profile.installation_strategy}",
-            f"{tr(self.language, 'auth_strategy')}: {profile.authentication_strategy}",
-            f"{tr(self.language, 'required_capabilities')}: {', '.join(profile.required_capabilities) or tr(self.language, 'no')}",
-            f"{tr(self.language, 'limitations')}: {', '.join(profile.known_limitations) or tr(self.language, 'no')}",
+            f"{self._text('integration')}: {self._state_label(profile.integration_type)}",
+            f"{self._text('support')}: {self._state_label(profile.support_status)}",
+            f"{self._text('official_source')}: {profile.official_url or tr(self.language, 'no')}",
+            f"{tr(self.language, 'required_capabilities')}: {', '.join(self._state_label(item) for item in profile.required_capabilities) or tr(self.language, 'no')}",
+            f"{self._text('capability_matrix')}: "
+            + ", ".join(
+                f"{self._state_label(capability)}: {self._state_label(state)}"
+                for capability, state in profile.capability_matrix.items()
+            ),
+            f"{tr(self.language, 'limitations')}: {self._limitations_text(profile)}",
             "",
             f"{tr(self.language, 'last_health')}:",
         ]
@@ -2383,20 +2403,119 @@ class ProvidersTab(QWidget):
         else:
             lines.extend(
                 [
-                    f"{tr(self.language, 'install')}: {health.installation_status}",
-                    f"{tr(self.language, 'auth')}: {health.authentication_status}",
-                    f"{tr(self.language, 'access')}: {health.access_status}",
-                    f"{tr(self.language, 'health')}: {health.health_status}",
-                    f"{tr(self.language, 'capabilities')}: {health.capability_status}",
-                    f"{tr(self.language, 'diagnostics')}: {health.diagnostic}",
+                    f"{tr(self.language, 'install')}: {self._state_label(health.installation_status)}",
+                    f"{tr(self.language, 'auth')}: {self._state_label(health.authentication_status)}",
+                    f"{tr(self.language, 'access')}: {self._state_label(health.access_status)}",
+                    f"{tr(self.language, 'health')}: {self._state_label(health.health_status)}",
+                    f"{tr(self.language, 'capabilities')}: {self._state_label(health.capability_status)}",
+                    f"{tr(self.language, 'diagnostics')}: {self._diagnostic_text(health)}",
                 ]
             )
         self.detail.setPlainText("\n".join(lines))
+        self._update_actions()
 
     def run_checks(self) -> None:
         for profile in self.registry.profiles():
             self.health_service.check_provider(profile.provider_id)
         self.refresh()
+
+    def _selected_profile(self):
+        provider_id = self.selected_provider_id()
+        return self.registry.get(provider_id) if provider_id else None
+
+    def _update_actions(self) -> None:
+        profile = self._selected_profile()
+        self.install_button.setEnabled(bool(profile and profile.install_command))
+        self.auth_button.setEnabled(bool(profile and profile.auth_command))
+        self.update_button.setEnabled(bool(profile and profile.update_command))
+        self.uninstall_button.setEnabled(bool(profile and profile.uninstall_command))
+        self.key_button.setEnabled(bool(profile and profile.credential_kind in {"API_KEY", "OPTIONAL_API_KEY"}))
+        self.docs_button.setEnabled(bool(profile and profile.official_url))
+
+    def run_action(self, action: str) -> None:
+        profile = self._selected_profile()
+        if profile is None:
+            return
+        try:
+            command = ProviderLifecycleService.command_for(profile, action)
+        except ValueError as exc:
+            QMessageBox.information(self, self._text("connections"), str(exc))
+            return
+        prompt = self._text("confirm_command").format(command=" ".join(command))
+        if QMessageBox.question(self, self._text("connections"), prompt) != QMessageBox.Yes:
+            return
+        try:
+            ProviderLifecycleService.start(profile, action)
+            self.health_service.database.log_event("provider_lifecycle_started", f"{profile.provider_id}:{action}")
+        except OSError as exc:
+            QMessageBox.warning(self, self._text("connections"), str(exc))
+
+    def configure_api_key(self) -> None:
+        profile = self._selected_profile()
+        if profile is None or profile.credential_kind not in {"API_KEY", "OPTIONAL_API_KEY"}:
+            return
+        secret, ok = QInputDialog.getText(self, self._text("api_key"), self._text("api_key_prompt"), QLineEdit.Password)
+        if not ok or not secret.strip():
+            return
+        try:
+            reference = WindowsCredentialStore().write(profile.provider_id, secret.strip())
+        except (SecureStorageUnavailable, OSError) as exc:
+            QMessageBox.warning(self, self._text("api_key"), str(exc))
+            return
+        self.health_service.database.log_event("provider_credential_saved", f"{profile.provider_id}:{reference}")
+        QMessageBox.information(self, self._text("api_key"), self._text("api_key_saved"))
+
+    def open_documentation(self) -> None:
+        profile = self._selected_profile()
+        if profile is not None and profile.official_url:
+            QDesktopServices.openUrl(QUrl(profile.official_url))
+
+    def _text(self, key: str) -> str:
+        values = {
+            "ru": {"integration": "Способ подключения", "support": "Статус поддержки", "official_source": "Официальный источник", "capability_matrix": "Матрица возможностей", "connections": "ИИ и подключения", "confirm_command": "Будет запущена официальная команда:\n\n{command}\n\nПродолжить?", "api_key": "Ключ API", "api_key_prompt": "Введите ключ. Он будет сохранён в Диспетчере учётных данных Windows и не попадёт в базу Team2050.", "api_key_saved": "Ключ сохранён в защищённом хранилище Windows."},
+            "uk": {"integration": "Спосіб підключення", "support": "Статус підтримки", "official_source": "Офіційне джерело", "capability_matrix": "Матриця можливостей", "connections": "ШІ та підключення", "confirm_command": "Буде запущено офіційну команду:\n\n{command}\n\nПродовжити?", "api_key": "Ключ API", "api_key_prompt": "Введіть ключ. Його буде збережено в Диспетчері облікових даних Windows, а не в базі Team2050.", "api_key_saved": "Ключ збережено в захищеному сховищі Windows."},
+            "en": {"integration": "Connection type", "support": "Support status", "official_source": "Official source", "capability_matrix": "Capability matrix", "connections": "AI and connections", "confirm_command": "The official command will be started:\n\n{command}\n\nContinue?", "api_key": "API key", "api_key_prompt": "Enter the key. It will be stored in Windows Credential Manager, not in the Team2050 database.", "api_key_saved": "The key was stored in Windows Credential Manager."},
+        }
+        return values.get(self.language, values["ru"]).get(key, key)
+
+    def _state_label(self, value: str) -> str:
+        labels = {
+            "ru": {"CLI": "Командная строка", "API": "API", "LOCAL_RUNTIME": "Локальная модель", "GATEWAY": "Шлюз", "SUPPORTED": "Поддерживается", "EXPERIMENTAL": "Экспериментально", "CATALOG_ONLY": "Только в каталоге", "NOT_INSTALLED": "Не установлен", "DETECTED": "Обнаружен", "INSTALLED": "Установлен", "AUTHENTICATED": "Вход выполнен", "AUTHENTICATION_REQUIRED": "Нужен вход", "NOT_AUTHENTICATED": "Вход не выполнен", "NOT_CHECKED": "Не проверено", "ACCESS_AVAILABLE": "Доступ есть", "ACCESS_UNAVAILABLE": "Доступа нет", "INSTALLATION_REQUIRED": "Требуется установка", "NOT_READY": "Не готов", "READY": "Готов", "DEGRADED": "Ограниченно готов", "BLOCKED": "Заблокирован", "UNKNOWN": "Неизвестно", "PARTIAL": "Частично", "UNSUPPORTED": "Не поддерживается", "ADAPTER_REQUIRED": "Нужен адаптер", "AVAILABLE": "Доступно", "chat": "Чат", "structured_response": "Структурированный ответ", "file_read": "Чтение файлов", "file_write": "Запись файлов", "command_execution": "Выполнение команд", "long_context": "Большой контекст"},
+            "uk": {"CLI": "Командний рядок", "API": "API", "LOCAL_RUNTIME": "Локальна модель", "GATEWAY": "Шлюз", "SUPPORTED": "Підтримується", "EXPERIMENTAL": "Експериментально", "CATALOG_ONLY": "Лише в каталозі", "NOT_INSTALLED": "Не встановлено", "DETECTED": "Виявлено", "INSTALLED": "Встановлено", "AUTHENTICATED": "Вхід виконано", "AUTHENTICATION_REQUIRED": "Потрібен вхід", "NOT_AUTHENTICATED": "Вхід не виконано", "NOT_CHECKED": "Не перевірено", "ACCESS_AVAILABLE": "Доступ є", "ACCESS_UNAVAILABLE": "Доступу немає", "INSTALLATION_REQUIRED": "Потрібне встановлення", "NOT_READY": "Не готово", "READY": "Готово", "DEGRADED": "Обмежено готово", "BLOCKED": "Заблоковано", "UNKNOWN": "Невідомо", "PARTIAL": "Частково", "UNSUPPORTED": "Не підтримується", "ADAPTER_REQUIRED": "Потрібен адаптер", "AVAILABLE": "Доступно", "chat": "Чат", "structured_response": "Структурована відповідь", "file_read": "Читання файлів", "file_write": "Запис файлів", "command_execution": "Виконання команд", "long_context": "Великий контекст"},
+            "en": {},
+        }
+        return labels.get(self.language, {}).get(value, value.replace("_", " ").title())
+
+    def _limitations_text(self, profile) -> str:
+        if not profile.known_limitations:
+            return tr(self.language, "no")
+        messages = {
+            "ru": "Адаптер выполнения ещё не реализован и не прошёл проверку.",
+            "uk": "Адаптер виконання ще не реалізовано та не перевірено.",
+            "en": "; ".join(profile.known_limitations),
+        }
+        return messages.get(self.language, messages["ru"])
+
+    def _diagnostic_text(self, health) -> str:
+        if self.language == "en":
+            return health.diagnostic or "No diagnostic details"
+        labels = {
+            "ru": {
+                "READY": "Подключение проверено и готово к работе.",
+                "DEGRADED": "Подключение найдено, но часть проверок ещё не пройдена.",
+                "NOT_READY": "Подключение пока не готово. Проверьте установку и вход.",
+                "BLOCKED": "Подключение заблокировано текущей конфигурацией.",
+                "UNKNOWN": "Состояние подключения пока не определено.",
+            },
+            "uk": {
+                "READY": "Підключення перевірено й готове до роботи.",
+                "DEGRADED": "Підключення знайдено, але частину перевірок ще не пройдено.",
+                "NOT_READY": "Підключення ще не готове. Перевірте встановлення та вхід.",
+                "BLOCKED": "Підключення заблоковано поточною конфігурацією.",
+                "UNKNOWN": "Стан підключення ще не визначено.",
+            },
+        }
+        return labels.get(self.language, labels["ru"]).get(health.health_status, self._state_label(health.health_status))
 
 
 class ProductDiagnosticsTab(QWidget):
@@ -2423,6 +2542,11 @@ class ProductDiagnosticsTab(QWidget):
         self.question_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.question_table.setEditTriggers(QTableWidget.NoEditTriggers)
 
+        self.send_pipeline_table = QTableWidget(0, 9)
+        self.send_pipeline_table.setHorizontalHeaderLabels(["Время", "Трасса", "Пузырь, мс", "UI возвращён", "Сохранено", "Маршрут", "Провайдер", "Отрисовано", "Бюджет"])
+        self.send_pipeline_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.send_pipeline_table.setEditTriggers(QTableWidget.NoEditTriggers)
+
         accept_question = QPushButton("Принять ответ")
         accept_question.clicked.connect(self.accept_question_answer)
         reopen_question = QPushButton("Вернуть в работу")
@@ -2444,6 +2568,8 @@ class ProductDiagnosticsTab(QWidget):
         layout.addWidget(self.thread_table, 1)
         layout.addWidget(QLabel("Открытые и закрытые вопросы владельца"))
         layout.addWidget(self.question_table, 1)
+        layout.addWidget(QLabel("Задержки отправки сообщений"))
+        layout.addWidget(self.send_pipeline_table, 1)
         layout.addLayout(question_buttons)
         layout.addWidget(refresh)
 
@@ -2453,6 +2579,7 @@ class ProductDiagnosticsTab(QWidget):
             self.routing_table.setRowCount(0)
             self.thread_table.setRowCount(0)
             self.question_table.setRowCount(0)
+            self.send_pipeline_table.setRowCount(0)
             return
         metrics = self.service.metrics()
         self.metrics_table.setRowCount(len(metrics))
@@ -2505,6 +2632,13 @@ class ProductDiagnosticsTab(QWidget):
                 if column == 0:
                     item.setData(Qt.UserRole, question.question_id)
                 self.question_table.setItem(row_index, column, item)
+
+        traces = self.service.recent_send_pipeline_diagnostics()
+        self.send_pipeline_table.setRowCount(len(traces))
+        for row_index, trace in enumerate(traces):
+            values = [trace.created_at, trace.trace_id, trace.bubble_ms, trace.event_loop_ms, trace.persisted_ms, trace.routing_ms, trace.provider_ms, trace.rendered_ms, trace.budget]
+            for column, value in enumerate(values):
+                self.send_pipeline_table.setItem(row_index, column, QTableWidgetItem(value))
 
     def _selected_question_id(self) -> str | None:
         row = self.question_table.currentRow()
@@ -2621,6 +2755,10 @@ class AddEmployeeWizard(QWizard):
             provider_id=self.provider.provider.currentData(),
             persona_id=str(self.persona.persona.currentData() or "").strip() or None,
             avatar_path=self.identity.selected_avatar_path(),
+            full_name=self.identity.display_name.text().strip(),
+            preferred_name=self.identity.preferred_name.text().strip(),
+            informal_name=self.identity.informal_name.text().strip(),
+            communication_profile=self.identity.selected_communication_profile(),
         )
 
     def selected_roles(self) -> list[str]:
@@ -2667,6 +2805,21 @@ class IdentityPage(QWizardPage):
         self.display_name = QLineEdit()
         self.description = QTextEdit()
         self.description.setFixedHeight(80)
+        self.preferred_name = QLineEdit()
+        self.informal_name = QLineEdit()
+        self.communication_profile: dict[str, object] = {}
+        self.communication_controls: dict[str, QSpinBox] = {}
+        communication_labels = {
+            "ru": {"directness": "Прямота", "warmth": "Доброжелательность", "formality": "Формальность", "humor": "Юмор", "assertiveness": "Настойчивость", "verbosity": "Подробность", "initiative": "Инициативность"},
+            "uk": {"directness": "Прямота", "warmth": "Доброзичливість", "formality": "Формальність", "humor": "Гумор", "assertiveness": "Наполегливість", "verbosity": "Докладність", "initiative": "Ініціативність"},
+            "en": {"directness": "Directness", "warmth": "Warmth", "formality": "Formality", "humor": "Humor", "assertiveness": "Assertiveness", "verbosity": "Verbosity", "initiative": "Initiative"},
+        }.get(language, {})
+        for key in ("directness", "warmth", "formality", "humor", "assertiveness", "verbosity", "initiative"):
+            control = QSpinBox()
+            control.setRange(0 if key == "humor" else 1, 5)
+            control.setValue(1 if key in {"humor", "verbosity"} else 3)
+            control.setSuffix(" / 5")
+            self.communication_controls[key] = control
         self.gender = QComboBox()
         gender_labels = {
             "ru": [("Случайный", "random"), ("Женский", "female"), ("Мужской", "male")],
@@ -2701,9 +2854,13 @@ class IdentityPage(QWizardPage):
         row.addWidget(generate)
         form = QFormLayout(self)
         form.addRow(tr(language, "name"), self.display_name)
+        form.addRow({"ru": "Как обращаться", "uk": "Як звертатися", "en": "Preferred name"}.get(language, "Как обращаться"), self.preferred_name)
+        form.addRow({"ru": "Неформальное имя", "uk": "Неформальне ім'я", "en": "Informal name"}.get(language, "Неформальное имя"), self.informal_name)
         form.addRow(tr(language, "gender"), self.gender)
         form.addRow(tr(language, "agent_id"), row)
         form.addRow(tr(language, "description"), self.description)
+        for key, control in self.communication_controls.items():
+            form.addRow(communication_labels.get(key, key), control)
         form.addRow(tr(language, "avatar"), avatar_row)
         form.addRow("", self.avatar)
         form.addRow("", generate_personality)
@@ -2725,6 +2882,11 @@ class IdentityPage(QWizardPage):
         )
         self.display_name.setText(identity.name)
         self.description.setPlainText(identity.biography)
+        self.preferred_name.setText(identity.preferred_name)
+        self.informal_name.setText(identity.informal_name)
+        self.communication_profile = dict(identity.communication_profile)
+        for key, control in self.communication_controls.items():
+            control.setValue(int(identity.communication_profile.get(key, control.value())))
         if identity.avatar_path:
             self.avatar.setText(identity.avatar_path)
             index = self.avatar_choice.findData(identity.avatar_path)
@@ -2734,6 +2896,11 @@ class IdentityPage(QWizardPage):
 
     def selected_avatar_path(self) -> str | None:
         return self.avatar.text().strip() or None
+
+    def selected_communication_profile(self) -> dict[str, object]:
+        profile = {key: control.value() for key, control in self.communication_controls.items()}
+        profile["disagreement_style"] = str(self.communication_profile.get("disagreement_style", "evidence_first"))
+        return profile
 
     def _load_avatar_choices(self) -> None:
         self.avatar_choice.addItem(tr(self.language, "not_set"), "")
@@ -2887,9 +3054,21 @@ class ProviderPage(QWizardPage):
         provider_id = str(self.provider.currentData())
         health = self.provider_health_service.latest_health(provider_id) or self.provider_health_service.check_provider(provider_id)
         self.status.setText(
-            f"install={health.installation_status}; auth={health.authentication_status}; "
-            f"access={health.access_status}; health={health.health_status}"
+            self._status_text(provider_id, health)
         )
+
+    def _status_text(self, provider_id: str, health) -> str:
+        profile = self.provider_health_service.registry.get(provider_id)
+        support = profile.support_status if profile is not None else "CATALOG_ONLY"
+        labels = {
+            "ru": {"SUPPORTED": "поддерживается", "EXPERIMENTAL": "экспериментально", "CATALOG_ONLY": "только в каталоге", "INSTALLED": "установлен", "NOT_INSTALLED": "не установлен", "AUTHENTICATED": "вход выполнен", "AUTHENTICATION_REQUIRED": "нужен вход", "NOT_AUTHENTICATED": "вход не выполнен", "READY": "готов", "NOT_READY": "не готов", "DEGRADED": "ограниченно готов", "BLOCKED": "заблокирован", "UNKNOWN": "неизвестно"},
+            "uk": {"SUPPORTED": "підтримується", "EXPERIMENTAL": "експериментально", "CATALOG_ONLY": "лише в каталозі", "INSTALLED": "встановлено", "NOT_INSTALLED": "не встановлено", "AUTHENTICATED": "вхід виконано", "AUTHENTICATION_REQUIRED": "потрібен вхід", "NOT_AUTHENTICATED": "вхід не виконано", "READY": "готово", "NOT_READY": "не готово", "DEGRADED": "обмежено готово", "BLOCKED": "заблоковано", "UNKNOWN": "невідомо"},
+            "en": {},
+        }.get(self.language, {})
+        label = lambda value: labels.get(value, value.replace("_", " ").title())
+        prefixes = {"ru": ("Поддержка", "Установка", "Авторизация", "Готовность"), "uk": ("Підтримка", "Встановлення", "Авторизація", "Готовність"), "en": ("Support", "Installation", "Authentication", "Readiness")}
+        support_title, install_title, auth_title, health_title = prefixes.get(self.language, prefixes["ru"])
+        return f"{support_title}: {label(support)}\n{install_title}: {label(health.installation_status)}\n{auth_title}: {label(health.authentication_status)}\n{health_title}: {label(health.health_status)}"
 
 
 class PersonaPage(QWizardPage):

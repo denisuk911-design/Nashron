@@ -61,6 +61,7 @@ from core.response_cleaner import ResponseCleaner
 from core.response_latency import ResponseLatencyPolicy
 from core.response_splitter import ResponseSplitter
 from core.settings_service import SettingsService
+from core.send_pipeline_trace import SendPipelineTrace
 from core.skill_progress_service import SkillProgressService
 from core.skill_package_service import SkillPackageService
 from core.skill_service import SkillService
@@ -71,6 +72,7 @@ from core.thread_question_service import ThreadQuestionService
 from core.tool_access import agent_can_use_local_tools
 from core.task_orchestrator import TaskOrchestrator
 from core.task_state_service import TaskStateService
+from core.theme_background_service import select_background
 from core.workspace_service import WorkspaceService
 from core.universal_platform_service import UniversalPlatformService
 from core.work_context_service import (
@@ -83,6 +85,7 @@ from core.work_context_service import (
     UserIntent,
     WorkContextService,
 )
+from core.provider_scheduler import ProviderScheduler
 from gui.chat_widget import ChatWidget
 from gui.director_console import DirectorConsoleDialog, OrganizationActivationWizard
 from gui.login_dialog import show_install_instructions
@@ -109,6 +112,7 @@ class MainWindow(QMainWindow):
         self.paths = settings_service.paths
         self.logger = logger
         self.settings = settings_service.load()
+        self._session_theme_backgrounds: dict[str, str] = {}
         self.chat_sound_service = ChatSoundService(self.paths.data_dir / "sounds", self.settings)
         self._set_startup_state("SETTINGS_READY")
 
@@ -227,6 +231,7 @@ class MainWindow(QMainWindow):
         self.current_execution_contract: AgentExecutionContract | None = None
         self.worker: GenerateWorker | None = None
         self.active_workers: dict[str, GenerateWorker] = {}
+        self.provider_scheduler = ProviderScheduler()
         self.current_agent_key = ""
         self.pending_agent_keys: list[str] = []
         self.authorized_worker_keys: set[str] = set()
@@ -251,6 +256,7 @@ class MainWindow(QMainWindow):
         self.interrupting_current_run = False
         self.cancellation_in_progress = False
         self.live_guidance: list[str] = []
+        self._active_send_trace: SendPipelineTrace | None = None
         self.identity_ok = False
         self.codex_authorized = False
         self.codex_version = "неизвестно"
@@ -879,42 +885,80 @@ class MainWindow(QMainWindow):
             return
         if not self._identity_is_ready():
             return
+        trace = SendPipelineTrace()
+        trace.mark("send_clicked")
+        self.chat.reset_stream()
+        item = self.chat.add_message("user", text)
+        trace.mark("bubble_created")
+        self._clear_composer_input()
+        self.chat_sound_service.play_send()
+        self._active_send_trace = trace
+        QTimer.singleShot(0, lambda: self._continue_send_message(text, item, trace))
+
+    def _continue_send_message(self, text: str, item, trace: SendPipelineTrace) -> None:
+        trace.mark("event_loop_returned")
+        message_id = self.database.add_message(self.conversation_id, "user", text)
+        bind_message_id = getattr(self.chat, "bind_message_id", None)
+        if callable(bind_message_id):
+            bind_message_id(item, message_id)
+        trace.mark("persisted")
         self._update_conversation_mode(text)
         autonomy = self._autonomy_from_text(text)
         if autonomy.enabled:
             self.conversation_mode = ConversationMode.WORK
             self._refresh_work_context_strip()
         if autonomy.enabled and autonomy.complete_on_goal and self.active_organization_id:
-            self.chat.reset_stream()
-            message_id = self._add_user_message(text)
-            self._clear_composer_input()
             if self._start_director_goal(text, message_id):
+                trace.mark("runs_queued")
+                self._flush_send_trace()
                 return
+        trace.mark("routing_started")
         agent_keys = self._route_agents(text, self._manual_routing())
+        trace.mark("routing_finished")
+        trace.set_agents(agent_keys)
         self.database.log_event("chat_route_selected", ",".join(agent_keys))
         if not agent_keys:
-            message_id = self._add_user_message(text)
-            self._clear_composer_input()
             self._record_last_routing_decision(message_id)
             self._persist_thread_from_last_decision(message_id, None, text)
             self._record_thread_question_from_last_decision(message_id, text)
+            self._flush_send_trace(final=True)
             return
         agent_keys = self._autonomous_initial_agents(agent_keys, autonomy)
         if not self._agents_are_ready(agent_keys):
+            self._flush_send_trace(final=True)
             return
         if self._any_agent_allows_local_tools(agent_keys):
             self.database.log_event("local_tools_enabled_for_request", ",".join(agent_keys))
-        self.chat.reset_stream()
-        message_id = self._add_user_message(text)
-        self._clear_composer_input()
         if not self._prepare_work_context(text, message_id, agent_keys):
+            self._flush_send_trace(final=True)
             return
         if self._prepare_generation_state(text, message_id, agent_keys, autonomy):
             self._record_last_routing_decision(message_id)
             self._persist_thread_from_last_decision(message_id, self.task_orchestrator.current_task_id, text)
             self._record_thread_question_from_last_decision(message_id, text)
+            trace.mark("runs_queued")
+            self._flush_send_trace()
             self._start_next_agent_run()
             QTimer.singleShot(1200, lambda mid=message_id: self._ensure_generation_started(mid))
+        else:
+            self._flush_send_trace(final=True)
+
+    def _mark_send_stage(self, stage: str, agent_key: str = "") -> None:
+        trace = getattr(self, "_active_send_trace", None)
+        if trace is None:
+            return
+        trace.mark(f"{stage}:{agent_key}" if agent_key else stage)
+
+    def _flush_send_trace(self, final: bool = False) -> None:
+        trace = getattr(self, "_active_send_trace", None)
+        if trace is None:
+            return
+        try:
+            self.database.log_event("send_pipeline_trace", trace.to_json())
+        except Exception:
+            self.logger.exception("send_pipeline_trace_not_recorded")
+        if final:
+            self._active_send_trace = None
 
     def _clear_composer_input(self) -> None:
         clear_input = getattr(getattr(self, "chat", None), "clear_input", None)
@@ -1514,6 +1558,8 @@ class MainWindow(QMainWindow):
         self.pending_user_message = ""
         self.last_peer_context = ""
         self.pending_contextual_handoffs = []
+        if hasattr(self, "provider_scheduler"):
+            self.provider_scheduler.clear()
         self.chat.discard_stream()
         if is_stop_command(text):
             self.queued_user_message = None
@@ -1547,6 +1593,8 @@ class MainWindow(QMainWindow):
         self.pending_user_message = ""
         self.last_peer_context = ""
         self.pending_contextual_handoffs = []
+        if hasattr(self, "provider_scheduler"):
+            self.provider_scheduler.clear()
         self.queued_user_message = None
         self.interrupting_current_run = False
         self.cancellation_in_progress = False
@@ -1634,7 +1682,13 @@ class MainWindow(QMainWindow):
             self.chat.send_button.setVisible(False)
             self.chat.stop_button.setVisible(True)
             for agent_key in agent_keys:
-                self._launch_agent_run(agent_key, parallel=True)
+                agent = get_chat_agent(self.database, agent_key)
+                provider_id = agent.provider_id if agent is not None else "UNAVAILABLE"
+                if self.provider_scheduler.enqueue(agent_key, provider_id):
+                    self.chat.start_agent_typing(agent_key)
+                    self.chat.set_agent_activity_status(agent_key, "Ожидает запуска провайдера")
+                    self._mark_send_stage("typing_started", agent_key)
+            self._drain_provider_scheduler()
             return
         if not self.pending_agent_keys:
             if self.autonomous_active:
@@ -1675,6 +1729,7 @@ class MainWindow(QMainWindow):
             self.pending_contextual_handoffs = []
             self.chat.set_busy(False)
             self.refresh_codex_status()
+            self._flush_send_trace(final=True)
             return
         agent_key = self.pending_agent_keys.pop(0)
         self._launch_agent_run(agent_key, parallel=False)
@@ -1687,6 +1742,16 @@ class MainWindow(QMainWindow):
             return False
         mode = getattr(decision.participation_mode, "value", str(decision.participation_mode))
         return mode in {"TEAM_CALL", "GENERAL_TEAM_PING", "MULTI_DIRECT"}
+
+    def _drain_provider_scheduler(self) -> None:
+        for scheduled in self.provider_scheduler.startable():
+            self.chat.set_agent_activity_status(scheduled.agent_key, "Провайдер запускается")
+            self._launch_agent_run(scheduled.agent_key, parallel=True)
+            if scheduled.agent_key not in self.active_workers:
+                self.provider_scheduler.complete(scheduled.agent_key)
+                self.chat.stop_agent_typing(scheduled.agent_key)
+        if self.active_workers:
+            self.worker = next(iter(self.active_workers.values()))
 
     def _launch_agent_run(self, agent_key: str, parallel: bool = False) -> None:
         if not self._worker_agent_is_authorized(agent_key):
@@ -1748,11 +1813,13 @@ class MainWindow(QMainWindow):
             except Exception:
                 self.logger.exception("execution_contract_not_created")
         if parallel:
-            self.chat.start_agent_typing(agent_key)
+            if agent_key not in getattr(self.chat, "_parallel_typing", {}):
+                self.chat.start_agent_typing(agent_key)
         else:
             self.chat.reset_stream()
             self.chat.set_stream_role(agent_key)
             self.chat.set_busy(True, self.pending_user_message)
+            self._mark_send_stage("typing_started", agent_key)
         builder = PromptBuilder(
             self.paths.system_prompt_path,
             self.identity_service,
@@ -1802,12 +1869,18 @@ class MainWindow(QMainWindow):
             worker.run_status_received.connect(lambda status, run_id=run_handle.run_id: self._record_run_status(run_id, status))
             worker.finished_with_result.connect(self._generation_finished)
         worker.start()
+        self._mark_send_stage("provider_started", agent_key)
+        trace = getattr(self, "_active_send_trace", None)
+        if trace is not None and "provider_started" not in trace.stages_ms:
+            trace.mark("provider_started")
         self._mark_contextual_handoff_started(agent_key, run_handle.run_id)
         if not parallel:
             self._start_response_latency_timers(agent_key)
 
     def _generation_finished_parallel(self, agent_key: str, worker: GenerateWorker, result) -> None:
         self.active_workers.pop(agent_key, None)
+        self.provider_scheduler.complete(agent_key)
+        self._mark_send_stage("response_ready", agent_key)
         self.chat.stop_agent_typing(agent_key)
         raw_response = result.content if result.ok else (result.error or "")
         if worker.run_id is not None:
@@ -1821,6 +1894,7 @@ class MainWindow(QMainWindow):
             if content and not self._is_recent_duplicate_message(agent_key, content):
                 message_id = self.database.add_message(self.conversation_id, agent_key, content)
                 self.chat.add_message(agent_key, content, message_id)
+                self._mark_send_stage("response_rendered", agent_key)
                 self.chat_sound_service.play_receive()
                 self._mark_thread_questions_answered(agent_key, message_id)
                 claim_validation = self.claim_validator.validate(content, parsed_response.envelope)
@@ -1842,6 +1916,9 @@ class MainWindow(QMainWindow):
             self.database.log_event("provider_runtime_error", f"{agent_key}: {detail}"[:1000])
             self.database.add_message(self.conversation_id, "system", content, status="provider_error")
             self.chat.add_message("system", content)
+            self._mark_send_stage("response_rendered", agent_key)
+        if self.provider_scheduler.has_pending:
+            self._drain_provider_scheduler()
         if self.active_workers:
             self.worker = next(iter(self.active_workers.values()))
             return
@@ -1852,6 +1929,7 @@ class MainWindow(QMainWindow):
         self._stop_response_latency_timers()
         self.chat.set_busy(False)
         self.refresh_codex_status()
+        self._flush_send_trace(final=True)
 
     def _allow_local_tools_for_agent(self, agent_key: str) -> bool:
         return agent_can_use_local_tools(
@@ -1984,6 +2062,7 @@ class MainWindow(QMainWindow):
         agent_key = worker.agent_key if worker is not None else self.current_agent_key
         chat_agent = get_chat_agent(self.database, agent_key)
         agent_name = chat_agent.display_name if chat_agent is not None else "Сотрудник"
+        self._mark_send_stage("response_ready", agent_key)
         if worker is not None and worker.run_id is not None:
             raw_response = result.content if result.ok else (result.error or "")
             self.task_orchestrator.finish_run(worker.run_id, result, raw_response)
@@ -2123,6 +2202,7 @@ class MainWindow(QMainWindow):
                 self.database.log_event("provider_runtime_error", f"{agent_key}: {detail}"[:1000])
                 self.database.add_message(conversation_id, "system", content, status="provider_error")
             self.chat.add_message("system", content)
+        self._mark_send_stage("response_rendered", agent_key)
         if getattr(self, "active_director_action", None) is not None:
             try:
                 self._complete_director_action(
@@ -2150,6 +2230,7 @@ class MainWindow(QMainWindow):
             self.last_peer_context = ""
             self.pending_contextual_handoffs = []
             self.refresh_codex_status()
+            self._flush_send_trace(final=True)
             return
         self._start_next_agent_run()
 
@@ -2502,10 +2583,35 @@ class MainWindow(QMainWindow):
         self._apply_native_window_chrome(theme)
         if hasattr(self, "chat_panel") and isinstance(self.chat_panel, ThemeBackdrop):
             self.chat_panel.set_theme(theme)
+            custom_path = str(self.settings.get("chat_background_path", "")).strip()
+            background_path = custom_path if custom_path and Path(custom_path).is_file() else ""
+            if not background_path:
+                cycle = int(self.settings.get("chat_background_cycle", 0))
+                cache_key = f"{theme}:{cycle}"
+                background_path = self._session_theme_backgrounds.get(cache_key, "")
+                if not background_path:
+                    rotation = str(self.settings.get("chat_background_rotation", "launch"))
+                    remembered = str(self.settings.get("chat_background_remembered", ""))
+                    selection_mode = "remember" if cycle and remembered else rotation
+                    background_path = select_background(
+                        self.settings_service.resource_path("."),
+                        theme,
+                        selection_mode,
+                        remembered,
+                        1 if cycle and remembered else 0,
+                    )
+                    self._session_theme_backgrounds[cache_key] = background_path
+                if background_path:
+                    remembered_changed = self.settings.get("chat_background_remembered") != background_path
+                    self.settings["chat_background_remembered"] = background_path
+                    if remembered_changed and str(self.settings.get("chat_background_rotation", "launch")) in {"remember", "daily"}:
+                        self.settings_service.save(self.settings)
             self.chat_panel.set_background(
-                str(self.settings.get("chat_background_path", "")),
+                background_path,
                 int(self.settings.get("chat_background_opacity", 18)),
                 str(self.settings.get("chat_background_mode", "cover")),
+                int(self.settings.get("chat_background_darkening", 45)),
+                int(self.settings.get("chat_background_blur", 0)),
             )
         if bool(self.settings.get("reduce_motion", False)) or not self.isVisible():
             return

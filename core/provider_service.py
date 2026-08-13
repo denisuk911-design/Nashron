@@ -137,6 +137,15 @@ class ProviderRegistry:
                 setup_instructions=row["setup_instructions"] or "",
                 known_limitations=self.database.loads(row["known_limitations"], []),
                 required_capabilities=self.database.loads(row["required_capabilities"], []),
+                integration_type=str(row["integration_type"] or "CLI"),
+                support_status=str(row["support_status"] or "CATALOG_ONLY"),
+                official_url=str(row["official_url"] or ""),
+                install_command=self.database.loads(row["install_command"], []),
+                auth_command=self.database.loads(row["auth_command"], []),
+                update_command=self.database.loads(row["update_command"], []),
+                uninstall_command=self.database.loads(row["uninstall_command"], []),
+                capability_matrix=self.database.loads(row["capability_matrix"], {}),
+                credential_kind=str(row["credential_kind"] or "NONE"),
                 provider_schema_version=row["provider_schema_version"],
             )
             for row in rows

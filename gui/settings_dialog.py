@@ -68,6 +68,9 @@ class SettingsDialog(QDialog):
                 ("Тихий лес", "dark_forest"),
                 ("Инженерная мастерская", "dark_amber"),
                 ("Ночной город", "night_city"),
+                ("Город", "city"),
+                ("Горы", "mountains"),
+                ("Глубокий космос", "space"),
                 ("Тёплая бумага", "warm_paper"),
                 ("Минимализм", "minimal"),
                 ("Светлая", "light"),
@@ -79,6 +82,9 @@ class SettingsDialog(QDialog):
                 ("Тихий ліс", "dark_forest"),
                 ("Інженерна майстерня", "dark_amber"),
                 ("Нічне місто", "night_city"),
+                ("Місто", "city"),
+                ("Гори", "mountains"),
+                ("Глибокий космос", "space"),
                 ("Теплий папір", "warm_paper"),
                 ("Мінімалізм", "minimal"),
                 ("Світла", "light"),
@@ -90,6 +96,9 @@ class SettingsDialog(QDialog):
                 ("Quiet forest", "dark_forest"),
                 ("Engineering workshop", "dark_amber"),
                 ("Night city", "night_city"),
+                ("City", "city"),
+                ("Mountains", "mountains"),
+                ("Deep space", "space"),
                 ("Warm paper", "warm_paper"),
                 ("Minimal", "minimal"),
                 ("Light", "light"),
@@ -159,6 +168,10 @@ class SettingsDialog(QDialog):
         background_layout.setContentsMargins(0, 0, 0, 0)
         background_layout.addWidget(self.chat_background)
         background_layout.addWidget(browse_background)
+        self.background_cycle = int(settings.get("chat_background_cycle", 0))
+        other_background = QPushButton({"ru": "Другой фон", "uk": "Інший фон", "en": "Another background"}.get(language, "Другой фон"))
+        other_background.clicked.connect(self._choose_another_background)
+        background_layout.addWidget(other_background)
 
         self.background_opacity = QSpinBox()
         self.background_opacity.setRange(0, 70)
@@ -166,14 +179,31 @@ class SettingsDialog(QDialog):
         self.background_opacity.setValue(int(settings.get("chat_background_opacity", 18)))
         self.background_mode = QComboBox()
         mode_labels = {
-            "ru": [("Заполнить", "cover"), ("Замостить", "tile"), ("По центру", "center")],
-            "uk": [("Заповнити", "cover"), ("Замостити", "tile"), ("По центру", "center")],
-            "en": [("Cover", "cover"), ("Tile", "tile"), ("Center", "center")],
-        }.get(language, [("Заполнить", "cover"), ("Замостить", "tile"), ("По центру", "center")])
+            "ru": [("Заполнить с обрезкой", "cover"), ("Вписать целиком", "fit"), ("По центру", "center"), ("Растянуть", "stretch"), ("Замостить", "tile")],
+            "uk": [("Заповнити з обрізанням", "cover"), ("Вписати повністю", "fit"), ("По центру", "center"), ("Розтягнути", "stretch"), ("Замостити", "tile")],
+            "en": [("Cover and crop", "cover"), ("Fit", "fit"), ("Center", "center"), ("Stretch", "stretch"), ("Tile", "tile")],
+        }.get(language, [("Заполнить с обрезкой", "cover"), ("Вписать целиком", "fit")])
         for label, value in mode_labels:
             self.background_mode.addItem(label, value)
         mode_index = self.background_mode.findData(str(settings.get("chat_background_mode", "cover")))
         self.background_mode.setCurrentIndex(mode_index if mode_index >= 0 else 0)
+        self.background_darkening = QSpinBox()
+        self.background_darkening.setRange(0, 90)
+        self.background_darkening.setSuffix(" %")
+        self.background_darkening.setValue(int(settings.get("chat_background_darkening", 45)))
+        self.background_blur = QSpinBox()
+        self.background_blur.setRange(0, 20)
+        self.background_blur.setValue(int(settings.get("chat_background_blur", 0)))
+        self.background_rotation = QComboBox()
+        rotation_labels = {
+            "ru": [("Менять при каждом запуске", "launch"), ("Запомнить выбранный", "remember"), ("Менять раз в день", "daily")],
+            "uk": [("Змінювати при кожному запуску", "launch"), ("Запам'ятати обраний", "remember"), ("Змінювати раз на день", "daily")],
+            "en": [("Change on every launch", "launch"), ("Remember selected", "remember"), ("Change daily", "daily")],
+        }.get(language, [("Менять при каждом запуске", "launch")])
+        for label, value in rotation_labels:
+            self.background_rotation.addItem(label, value)
+        rotation_index = self.background_rotation.findData(str(settings.get("chat_background_rotation", "launch")))
+        self.background_rotation.setCurrentIndex(rotation_index if rotation_index >= 0 else 0)
 
         self.reduce_motion = QCheckBox(
             {
@@ -259,6 +289,9 @@ class SettingsDialog(QDialog):
         layout.addRow({"ru": "Фон чата", "uk": "Фон чату", "en": "Chat background"}.get(language, "Фон чата"), background_row)
         layout.addRow({"ru": "Прозрачность фона", "uk": "Прозорість фону", "en": "Background opacity"}.get(language, "Прозрачность фона"), self.background_opacity)
         layout.addRow({"ru": "Размещение фона", "uk": "Розміщення фону", "en": "Background placement"}.get(language, "Размещение фона"), self.background_mode)
+        layout.addRow({"ru": "Затемнение", "uk": "Затемнення", "en": "Darkening"}.get(language, "Затемнение"), self.background_darkening)
+        layout.addRow({"ru": "Размытие", "uk": "Розмиття", "en": "Blur"}.get(language, "Размытие"), self.background_blur)
+        layout.addRow({"ru": "Смена встроенного фона", "uk": "Зміна вбудованого фону", "en": "Built-in background rotation"}.get(language, "Смена встроенного фона"), self.background_rotation)
         layout.addRow(labels["workspace"], workspace_row)
         layout.addRow({"ru": "Мой аватар", "uk": "Мій аватар", "en": "My avatar"}.get(language, "Мой аватар"), avatar_row)
         layout.addRow(labels["language"], self.language)
@@ -303,6 +336,10 @@ class SettingsDialog(QDialog):
         if selected:
             self.chat_background.setText(selected)
 
+    def _choose_another_background(self) -> None:
+        self.chat_background.clear()
+        self.background_cycle += 1
+
     def _update_theme_preview(self) -> None:
         previews = {
             "dark": ("#081421", "#f3f6fb", "#7357ff"),
@@ -311,6 +348,9 @@ class SettingsDialog(QDialog):
             "dark_forest": ("#0c211c", "#f3f6fb", "#7968e8"),
             "dark_amber": ("#211a10", "#f3f6fb", "#806be3"),
             "night_city": ("#0b1324", "#f3f6fb", "#6c63ff"),
+            "city": ("#131d29", "#f3f6fb", "#6977e8"),
+            "mountains": ("#151d24", "#f3f6fb", "#747dd7"),
+            "space": ("#0c1020", "#f3f6fb", "#7868f4"),
             "warm_paper": ("#f4eee3", "#292622", "#7561c9"),
             "minimal": ("#101216", "#f3f6fb", "#667085"),
             "light": ("#f7faff", "#162033", "#6757d8"),
@@ -337,6 +377,10 @@ class SettingsDialog(QDialog):
             "chat_background_path": self.chat_background.text().strip(),
             "chat_background_opacity": self.background_opacity.value(),
             "chat_background_mode": self.background_mode.currentData(),
+            "chat_background_darkening": self.background_darkening.value(),
+            "chat_background_blur": self.background_blur.value(),
+            "chat_background_rotation": self.background_rotation.currentData(),
+            "chat_background_cycle": self.background_cycle,
             "interface_language": self.language.currentData(),
             "allow_local_tools": self.allow_local_tools.isChecked(),
             "workspace_root": self.workspace.text().strip(),

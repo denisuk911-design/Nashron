@@ -234,6 +234,35 @@ def test_dynamic_employee_gets_relevant_context_without_unrelated_history(tmp_pa
     assert "ГОСТ" in prompt
     assert "xxyyzz" not in prompt
 
+def test_social_prompt_uses_human_communication_profile_without_role_pressure(tmp_path):
+    builder, db = make_builder(tmp_path)
+    service = ManagementService(db, ConfigurationRepository(tmp_path / "management"))
+    service.ensure_foundations()
+    service.create_agent(
+        AgentProfile(
+            "agent-olena-social",
+            "Олена Коваль",
+            "Инженер по качеству",
+            "ACTIVE",
+            "CODEX_CLI",
+            preferred_name="Олена",
+            informal_name="Лена",
+            communication_profile={"directness": 4, "warmth": 4, "formality": 2, "humor": 2, "verbosity": 1},
+        ),
+        ["QA_ENGINEER"],
+        ["CHAT"],
+        reason="test",
+    )
+    conversation_id = db.create_conversation()
+
+    prompt = builder.build(conversation_id, "Как настроение?", agent_key="olena-social", conversation_mode="SOCIAL")
+
+    assert "тебя обычно зовут Олена" in prompt
+    assert "прямота 4/5" in prompt
+    assert "профессия не должна становиться темой без рабочего запроса" in prompt
+    assert "Не предлагай работу" in prompt
+
+
 def test_runtime_selects_only_relevant_verified_skill_packages():
     class DatabaseStub:
         def list_employee_skill_assignments(self, _agent_id):

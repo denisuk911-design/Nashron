@@ -101,6 +101,24 @@ THEME_COLORS = {
         cyan_dark="#3e9fe0", violet="#6c63ff", violet_dark="#4b43c8", roman_bubble="#14243e",
         petr_bubble="#132d35", dialog_bg="#0c1424",
     ),
+    "city": _dark_variant(
+        bg="#101720", chat_bg="#131d29", surface="#1a2735", surface_alt="#223244",
+        surface_hover="#2b4055", line="#38526b", line_soft="#263b50", cyan="#82d4d8",
+        cyan_dark="#5a9bbd", violet="#6977e8", violet_dark="#4b57bd", roman_bubble="#1d2c3d",
+        petr_bubble="#183535", dialog_bg="#131d29",
+    ),
+    "mountains": _dark_variant(
+        bg="#10161c", chat_bg="#151d24", surface="#1c2730", surface_alt="#26333d",
+        surface_hover="#33434f", line="#455965", line_soft="#303f49", cyan="#9bc7c8",
+        cyan_dark="#729baa", violet="#747dd7", violet_dark="#555eaf", roman_bubble="#22313e",
+        petr_bubble="#203b35", dialog_bg="#151d24",
+    ),
+    "space": _dark_variant(
+        bg="#080a13", chat_bg="#0c1020", surface="#141a2d", surface_alt="#1c2440",
+        surface_hover="#273154", line="#38456e", line_soft="#252e4c", cyan="#79d8e7",
+        cyan_dark="#4b95c4", violet="#7868f4", violet_dark="#5646c7", roman_bubble="#19223a",
+        petr_bubble="#173433", dialog_bg="#0c1020",
+    ),
     "warm_paper": {
         **LIGHT_COLORS,
         "bg": "#e9e2d5", "chat_bg": "#f4eee3", "surface": "#fffaf1", "surface_alt": "#eee5d6",
@@ -138,6 +156,9 @@ _THEME_PATTERNS = {
     "dark_forest": ("forest", 30),
     "dark_amber": ("workshop", 30),
     "night_city": ("city", 34),
+    "city": ("city", 18),
+    "mountains": ("graphite", 16),
+    "space": ("stars", 18),
     "warm_paper": ("paper", 20),
     "minimal": ("none", 0),
 }
@@ -165,13 +186,22 @@ class ThemeBackdrop(QWidget):
         self._background_pixmap = QPixmap()
         self._background_opacity = 18
         self._background_mode = "cover"
+        self._background_darkening = 45
+        self._background_blur = 0
         self.setAttribute(Qt.WA_StyledBackground, True)
 
     def set_theme(self, theme: str) -> None:
         self._theme = theme if theme in THEME_DEFINITIONS else "dark"
         self.update()
 
-    def set_background(self, path: str = "", opacity: int = 18, mode: str = "cover") -> None:
+    def set_background(
+        self,
+        path: str = "",
+        opacity: int = 18,
+        mode: str = "cover",
+        darkening: int = 45,
+        blur: int = 0,
+    ) -> None:
         next_path = str(path or "").strip()
         if next_path != self._background_path:
             self._background_path = next_path
@@ -181,7 +211,9 @@ class ThemeBackdrop(QWidget):
         except (TypeError, ValueError):
             next_opacity = 18
         self._background_opacity = max(0, min(70, next_opacity))
-        self._background_mode = mode if mode in {"cover", "tile", "center"} else "cover"
+        self._background_mode = mode if mode in {"cover", "fit", "tile", "center", "stretch"} else "cover"
+        self._background_darkening = max(0, min(90, int(darkening)))
+        self._background_blur = max(0, min(20, int(blur)))
         self.update()
 
     def paintEvent(self, event) -> None:
@@ -192,6 +224,15 @@ class ThemeBackdrop(QWidget):
         if self._background_path:
             pixmap = self._background_pixmap
             if not pixmap.isNull() and self._background_opacity:
+                if self._background_blur:
+                    factor = max(2, min(12, self._background_blur // 2 + 2))
+                    small = pixmap.scaled(
+                        max(1, pixmap.width() // factor),
+                        max(1, pixmap.height() // factor),
+                        Qt.IgnoreAspectRatio,
+                        Qt.SmoothTransformation,
+                    )
+                    pixmap = small.scaled(pixmap.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
                 painter.save()
                 painter.setOpacity(self._background_opacity / 100.0)
                 if self._background_mode == "tile":
@@ -200,6 +241,13 @@ class ThemeBackdrop(QWidget):
                     x = (self.width() - pixmap.width()) // 2
                     y = (self.height() - pixmap.height()) // 2
                     painter.drawPixmap(x, y, pixmap)
+                elif self._background_mode == "fit":
+                    scaled = pixmap.scaled(self.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                    x = (self.width() - scaled.width()) // 2
+                    y = (self.height() - scaled.height()) // 2
+                    painter.drawPixmap(x, y, scaled)
+                elif self._background_mode == "stretch":
+                    painter.drawPixmap(self.rect(), pixmap)
                 else:
                     scaled = pixmap.scaled(self.size(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
                     x = (self.width() - scaled.width()) // 2
@@ -207,7 +255,7 @@ class ThemeBackdrop(QWidget):
                     painter.drawPixmap(x, y, scaled)
                 painter.restore()
                 overlay = QColor(colors["chat_bg"])
-                overlay.setAlpha(150 if self._theme in {"light", "warm_paper"} else 170)
+                overlay.setAlpha(round(255 * self._background_darkening / 100))
                 painter.fillRect(self.rect(), overlay)
         pen = QPen(QColor(colors["line"]))
         pen.setWidth(1)

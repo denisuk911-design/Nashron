@@ -47,6 +47,19 @@ class QuestionDiagnostic:
     answered_by: str
 
 
+@dataclass(frozen=True)
+class SendPipelineDiagnostic:
+    created_at: str
+    trace_id: str
+    bubble_ms: str
+    event_loop_ms: str
+    persisted_ms: str
+    routing_ms: str
+    provider_ms: str
+    rendered_ms: str
+    budget: str
+
+
 class ProductMetricsService:
     """Local, evidence-based product metrics for the owner console."""
 
@@ -170,6 +183,48 @@ class ProductMetricsService:
                 f"Всего findings: {finding_counts['total']}; blocking HIGH/CRITICAL: {finding_counts['blocking']}; повторов: {finding_counts['repeated']}.",
             ),
         ]
+
+    def recent_send_pipeline_diagnostics(self, limit: int = 30) -> list[SendPipelineDiagnostic]:
+        with self.database.connect() as conn:
+            rows = conn.execute(
+                "SELECT created_at, detail FROM app_events WHERE event_type = 'send_pipeline_trace' ORDER BY id DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        diagnostics: list[SendPipelineDiagnostic] = []
+        seen: set[str] = set()
+        for row in rows:
+            try:
+                payload = json.loads(str(row["detail"] or "{}"))
+            except json.JSONDecodeError:
+                continue
+            trace_id = str(payload.get("trace_id") or "")
+            if not trace_id or trace_id in seen:
+                continue
+            seen.add(trace_id)
+            stages = payload.get("stages_ms") if isinstance(payload.get("stages_ms"), dict) else {}
+            provider_values = [float(value) for key, value in stages.items() if str(key).startswith("provider_started")]
+            rendered_values = [float(value) for key, value in stages.items() if str(key).startswith("response_rendered")]
+            diagnostics.append(
+                SendPipelineDiagnostic(
+                    created_at=str(row["created_at"]),
+                    trace_id=trace_id,
+                    bubble_ms=self._ms(stages.get("bubble_created")),
+                    event_loop_ms=self._ms(stages.get("event_loop_returned")),
+                    persisted_ms=self._ms(stages.get("persisted")),
+                    routing_ms=self._ms(stages.get("routing_finished")),
+                    provider_ms=self._ms(min(provider_values) if provider_values else None),
+                    rendered_ms=self._ms(max(rendered_values) if rendered_values else None),
+                    budget="OK" if bool(payload.get("bubble_budget_ok")) else "SLOW",
+                )
+            )
+        return diagnostics
+
+    @staticmethod
+    def _ms(value) -> str:
+        try:
+            return f"{float(value):.1f}"
+        except (TypeError, ValueError):
+            return "-"
 
     def recent_routing_diagnostics(self, limit: int = 20) -> list[RoutingDiagnostic]:
         diagnostics: list[RoutingDiagnostic] = []

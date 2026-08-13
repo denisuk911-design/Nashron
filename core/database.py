@@ -1178,6 +1178,10 @@ class Database:
                 persona_id TEXT,
                 avatar_path TEXT,
                 aliases TEXT NOT NULL DEFAULT '[]',
+                full_name TEXT NOT NULL DEFAULT '',
+                preferred_name TEXT NOT NULL DEFAULT '',
+                informal_name TEXT NOT NULL DEFAULT '',
+                communication_profile TEXT NOT NULL DEFAULT '{}',
                 schema_version TEXT NOT NULL,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -1238,6 +1242,14 @@ class Database:
         columns = {str(row["name"]) for row in conn.execute("PRAGMA table_info(agent_profiles)").fetchall()}
         if "aliases" not in columns:
             conn.execute("ALTER TABLE agent_profiles ADD COLUMN aliases TEXT NOT NULL DEFAULT '[]'")
+        for name, definition in {
+            "full_name": "TEXT NOT NULL DEFAULT ''",
+            "preferred_name": "TEXT NOT NULL DEFAULT ''",
+            "informal_name": "TEXT NOT NULL DEFAULT ''",
+            "communication_profile": "TEXT NOT NULL DEFAULT '{}'",
+        }.items():
+            if name not in columns:
+                conn.execute(f"ALTER TABLE agent_profiles ADD COLUMN {name} {definition}")
         conn.execute(
             "INSERT OR REPLACE INTO schema_meta (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
             ("management_schema_version", "1.0"),
@@ -1260,6 +1272,15 @@ class Database:
                 setup_instructions TEXT,
                 known_limitations TEXT NOT NULL DEFAULT '[]',
                 required_capabilities TEXT NOT NULL DEFAULT '[]',
+                integration_type TEXT NOT NULL DEFAULT 'CLI',
+                support_status TEXT NOT NULL DEFAULT 'CATALOG_ONLY',
+                official_url TEXT NOT NULL DEFAULT '',
+                install_command TEXT NOT NULL DEFAULT '[]',
+                auth_command TEXT NOT NULL DEFAULT '[]',
+                update_command TEXT NOT NULL DEFAULT '[]',
+                uninstall_command TEXT NOT NULL DEFAULT '[]',
+                capability_matrix TEXT NOT NULL DEFAULT '{}',
+                credential_kind TEXT NOT NULL DEFAULT 'NONE',
                 provider_schema_version TEXT NOT NULL,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -1376,6 +1397,20 @@ class Database:
             );
             """
         )
+        provider_columns = {str(row["name"]) for row in conn.execute("PRAGMA table_info(provider_definitions)").fetchall()}
+        for name, definition in {
+            "integration_type": "TEXT NOT NULL DEFAULT 'CLI'",
+            "support_status": "TEXT NOT NULL DEFAULT 'CATALOG_ONLY'",
+            "official_url": "TEXT NOT NULL DEFAULT ''",
+            "install_command": "TEXT NOT NULL DEFAULT '[]'",
+            "auth_command": "TEXT NOT NULL DEFAULT '[]'",
+            "update_command": "TEXT NOT NULL DEFAULT '[]'",
+            "uninstall_command": "TEXT NOT NULL DEFAULT '[]'",
+            "capability_matrix": "TEXT NOT NULL DEFAULT '{}'",
+            "credential_kind": "TEXT NOT NULL DEFAULT 'NONE'",
+        }.items():
+            if name not in provider_columns:
+                conn.execute(f"ALTER TABLE provider_definitions ADD COLUMN {name} {definition}")
         conn.execute(
             "INSERT OR REPLACE INTO schema_meta (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
             ("provider_schema_version", "1.0"),
@@ -3131,6 +3166,10 @@ class Database:
         actor: str,
         reason: str,
         aliases: list[str] | tuple[str, ...] | None = None,
+        full_name: str = "",
+        preferred_name: str = "",
+        informal_name: str = "",
+        communication_profile: dict[str, object] | None = None,
     ) -> None:
         with self.connect() as conn:
             previous = conn.execute("SELECT * FROM agent_profiles WHERE agent_id = ?", (agent_id,)).fetchone()
@@ -3142,10 +3181,14 @@ class Database:
             conn.execute(
                 """
                 UPDATE agent_profiles
-                SET display_name = ?, description = ?, provider_id = ?, persona_id = ?, avatar_path = ?, aliases = ?, updated_at = CURRENT_TIMESTAMP
+                SET display_name = ?, description = ?, provider_id = ?, persona_id = ?, avatar_path = ?, aliases = ?,
+                    full_name = ?, preferred_name = ?, informal_name = ?, communication_profile = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE agent_id = ?
                 """,
-                (display_name, description, provider_id, persona_id, avatar_path, stored_aliases, agent_id),
+                (
+                    display_name, description, provider_id, persona_id, avatar_path, stored_aliases,
+                    full_name or display_name, preferred_name, informal_name, self._json(communication_profile or {}), agent_id,
+                ),
             )
             self._insert_management_audit(
                 conn,
@@ -3162,6 +3205,10 @@ class Database:
                         "persona_id": persona_id,
                         "avatar_path": avatar_path,
                         "aliases": json.loads(stored_aliases) if isinstance(stored_aliases, str) else list(stored_aliases),
+                        "full_name": full_name or display_name,
+                        "preferred_name": preferred_name,
+                        "informal_name": informal_name,
+                        "communication_profile": communication_profile or {},
                     }
                 ),
                 database_changes=["agent_profiles"],
@@ -3941,9 +3988,11 @@ class Database:
                     provider_id, display_name, provider_family, adapter_id, supported_os,
                     installation_strategy, authentication_strategy, executable_names,
                     minimum_supported_version, recommended_version, setup_instructions,
-                    known_limitations, required_capabilities, provider_schema_version
+                    known_limitations, required_capabilities, integration_type, support_status,
+                    official_url, install_command, auth_command, update_command, uninstall_command,
+                    capability_matrix, credential_kind, provider_schema_version
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(provider_id) DO UPDATE SET
                     display_name = excluded.display_name,
                     provider_family = excluded.provider_family,
@@ -3957,6 +4006,15 @@ class Database:
                     setup_instructions = excluded.setup_instructions,
                     known_limitations = excluded.known_limitations,
                     required_capabilities = excluded.required_capabilities,
+                    integration_type = excluded.integration_type,
+                    support_status = excluded.support_status,
+                    official_url = excluded.official_url,
+                    install_command = excluded.install_command,
+                    auth_command = excluded.auth_command,
+                    update_command = excluded.update_command,
+                    uninstall_command = excluded.uninstall_command,
+                    capability_matrix = excluded.capability_matrix,
+                    credential_kind = excluded.credential_kind,
                     provider_schema_version = excluded.provider_schema_version,
                     updated_at = CURRENT_TIMESTAMP
                 """,
@@ -3974,6 +4032,15 @@ class Database:
                     profile.setup_instructions,
                     self._json(profile.known_limitations),
                     self._json(profile.required_capabilities),
+                    profile.integration_type,
+                    profile.support_status,
+                    profile.official_url,
+                    self._json(profile.install_command),
+                    self._json(profile.auth_command),
+                    self._json(profile.update_command),
+                    self._json(profile.uninstall_command),
+                    self._json(profile.capability_matrix),
+                    profile.credential_kind,
                     profile.provider_schema_version,
                 ),
             )
@@ -4101,9 +4168,10 @@ class Database:
             """
             INSERT INTO agent_profiles (
                 agent_id, display_name, description, lifecycle_state, provider_id,
-                persona_id, avatar_path, aliases, schema_version
+                persona_id, avatar_path, aliases, full_name, preferred_name, informal_name,
+                communication_profile, schema_version
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 profile.agent_id,
@@ -4114,6 +4182,10 @@ class Database:
                 profile.persona_id,
                 profile.avatar_path,
                 self._json(list(profile.aliases)),
+                profile.full_name or profile.display_name,
+                profile.preferred_name,
+                profile.informal_name,
+                self._json(profile.communication_profile),
                 profile.schema_version,
             ),
         )

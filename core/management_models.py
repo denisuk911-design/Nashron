@@ -165,6 +165,10 @@ class AgentProfile:
     persona_id: str | None = None
     avatar_path: str | None = None
     aliases: tuple[str, ...] = ()
+    full_name: str = ""
+    preferred_name: str = ""
+    informal_name: str = ""
+    communication_profile: dict[str, object] = field(default_factory=dict)
     schema_version: str = MANAGEMENT_SCHEMA_VERSION
 
 

@@ -630,6 +630,10 @@ class UniversalPlatformService:
             str(role.get("persona_id") or "neutral_professional"),
             identity.avatar_path,
             (),
+            identity.full_name,
+            identity.preferred_name,
+            identity.informal_name,
+            identity.communication_profile,
         )
         self.database.create_agent_profile_with_assignments(profile, [role_id], sorted(permissions), "ORGANIZATION_OWNER", "organization activation")
         return agent_id

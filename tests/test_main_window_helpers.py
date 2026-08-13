@@ -238,3 +238,39 @@ def test_contextual_handoff_started_is_recorded_once():
 
     assert window.pending_contextual_handoffs == [("petr", "roman")]
     assert database.events == [("contextual_handoff_started", "roman->shushan; run=RUN-1")]
+
+
+def test_send_renders_and_clears_before_persistence_or_routing(monkeypatch):
+    events = []
+    callbacks = []
+
+    class FakeChat:
+        def reset_stream(self):
+            events.append("reset")
+
+        def add_message(self, role, text):
+            events.append(("bubble", role, text))
+            return object()
+
+    class FakeSound:
+        def play_send(self):
+            events.append("sound")
+
+    class FakeDatabase:
+        def add_message(self, *_args):
+            events.append("persisted")
+
+    window = MainWindow.__new__(MainWindow)
+    window.worker = None
+    window.chat = FakeChat()
+    window.chat_sound_service = FakeSound()
+    window.database = FakeDatabase()
+    window._clear_dead_worker = lambda: None
+    window._identity_is_ready = lambda: True
+    window._clear_composer_input = lambda: events.append("cleared")
+    monkeypatch.setattr("gui.main_window.QTimer.singleShot", lambda _delay, callback: callbacks.append(callback))
+
+    MainWindow.send_message(window, "Короткое сообщение")
+
+    assert events == ["reset", ("bubble", "user", "Короткое сообщение"), "cleared", "sound"]
+    assert len(callbacks) == 1

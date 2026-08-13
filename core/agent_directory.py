@@ -41,6 +41,10 @@ class ChatAgent:
     avatar_path: str | None
     lifecycle_state: str = "ACTIVE"
     aliases: tuple[str, ...] = ()
+    full_name: str = ""
+    preferred_name: str = ""
+    informal_name: str = ""
+    communication_profile: dict[str, object] | None = None
 
     @property
     def primary_role(self) -> str:
@@ -81,6 +85,10 @@ def list_chat_agents(
         except (KeyError, TypeError, ValueError, json.JSONDecodeError):
             raw_aliases = []
         aliases = tuple(str(alias).strip() for alias in raw_aliases if str(alias).strip()) if isinstance(raw_aliases, list) else ()
+        try:
+            raw_communication = json.loads(str(row["communication_profile"] or "{}"))
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+            raw_communication = {}
         agents.append(
             ChatAgent(
                 key=agent_key_from_id(agent_id),
@@ -93,6 +101,10 @@ def list_chat_agents(
                 avatar_path=str(row["avatar_path"]) if row["avatar_path"] else None,
                 lifecycle_state=str(row["lifecycle_state"]),
                 aliases=aliases,
+                full_name=str(row["full_name"] or row["display_name"]) if "full_name" in row.keys() else str(row["display_name"]),
+                preferred_name=str(row["preferred_name"] or "") if "preferred_name" in row.keys() else "",
+                informal_name=str(row["informal_name"] or "") if "informal_name" in row.keys() else "",
+                communication_profile=raw_communication if isinstance(raw_communication, dict) else {},
             )
         )
     return agents
@@ -109,11 +121,27 @@ def get_chat_agent(database: Database, agent_key: str) -> ChatAgent | None:
 def agent_spec_from_profile(agent: ChatAgent) -> AgentSpec:
     role_name = ROLE_NAMES.get(agent.primary_role, agent.primary_role.replace("_", " ").lower())
     description = f" Описание профиля: {agent.description.strip()}" if agent.description.strip() else ""
+    communication = agent.communication_profile or {}
+    directness = int(communication.get("directness", 3))
+    warmth = int(communication.get("warmth", 3))
+    humor = int(communication.get("humor", 1))
+    formality = int(communication.get("formality", 3))
+    verbosity = int(communication.get("verbosity", 2))
+    address_name = agent.preferred_name.strip() or agent.display_name.split()[0]
+    style = (
+        f"В общении тебя обычно зовут {address_name}. "
+        f"Профиль общения: прямота {directness}/5, доброжелательность {warmth}/5, "
+        f"формальность {formality}/5, юмор {humor}/5, подробность {verbosity}/5. "
+        "Соблюдай эти параметры естественно, без перечисления их собеседнику. "
+    )
     voice = (
-        f"Ты {agent.display_name}. Ты работаешь как {role_name} через {agent.engine_name}. "
+        f"Твоё полное имя: {agent.full_name or agent.display_name}. В чате ты отображаешься как {agent.display_name}. "
+        f"Ты работаешь как {role_name} через {agent.engine_name}. "
+        f"{style}"
         "Отвечай от первого лица, коротко, предметно и профессионально. "
         "Не изображай других сотрудников и не пиши диалог с их именами внутри своего ответа. "
         "Если задача относится к твоей роли, бери свою часть. Если видишь риск, ошибку или слабый план, укажи конкретно. "
+        "В социальном разговоре веди себя как человек с собственной манерой общения: профессия не должна становиться темой без рабочего запроса. "
         "Если данных мало, попроси недостающий минимум, без занудства и давления на пользователя."
         f"{description}"
     )

@@ -396,6 +396,13 @@ class ChatWidget(QWidget):
         self._follow_output_if_needed(should_follow)
         return item
 
+    @staticmethod
+    def bind_message_id(item: QListWidgetItem, message_id: int) -> None:
+        data = item.data(Qt.UserRole)
+        if isinstance(data, dict):
+            data["id"] = message_id
+            item.setData(Qt.UserRole, data)
+
     def transcript_text(self, selected_only: bool = True) -> str:
         items = self.messages.selectedItems() if selected_only else []
         if not items:
