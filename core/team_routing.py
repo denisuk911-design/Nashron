@@ -214,6 +214,24 @@ class TeamRouter:
     def _mentioned_agents(self, text: str, agents: list[ChatAgent]) -> list[str]:
         lowered = self._norm(text)
         latinized = self._latinize(lowered)
+        full_name_matches: list[str] = []
+        for agent in agents:
+            identity_phrases = {
+                self._norm(agent.display_name),
+                self._norm(agent.full_name),
+            }
+            for phrase in identity_phrases:
+                if " " not in phrase:
+                    continue
+                latin_phrase = self._latinize(phrase)
+                if self._contains_token(lowered, phrase) or (
+                    latin_phrase and self._contains_token(latinized, latin_phrase)
+                ):
+                    full_name_matches.append(agent.key)
+                    break
+        if full_name_matches:
+            return self._dedupe(full_name_matches)
+
         matches_by_token: dict[str, list[str]] = {}
         for agent in agents:
             for token in sorted(mention_tokens(agent), key=len, reverse=True):

@@ -1330,7 +1330,12 @@ class MainWindow(QMainWindow):
         self.last_routing_text = text
         self.last_routing_owner_before = list(self.last_addressed_agent_keys)
         try:
-            configured_agents = list_chat_agents(self.database, active_only=False, include_without_chat=True)
+            configured_agents = list_chat_agents(
+                self.database,
+                active_only=False,
+                include_without_chat=True,
+                organization_id=getattr(self, "active_organization_id", None),
+            )
         except AttributeError:
             # Lightweight test doubles and pre-Phase-A integrations may expose
             # only the active roster. They still get the same routing policy.
@@ -2000,9 +2005,24 @@ class MainWindow(QMainWindow):
 
     def _client_for_agent(self, agent_key: str):
         route = self.agent_router.route(agent_key)
+        safe_agent_key = re.sub(r"[^A-Za-z0-9_.-]+", "_", agent_key).strip("._") or "employee"
         if route.provider == "GEMINI_CLI":
-            return self.gemini_client
-        return self.codex_client
+            client = self.gemini_client
+            return GeminiClient(
+                executable=client.executable,
+                workspace=Path(client.workspace) / "agents" / safe_agent_key,
+                timeout_seconds=client.timeout_seconds,
+                api_key=client.api_key,
+                model=client.model,
+                logger=client.logger,
+            )
+        client = self.codex_client
+        return CodexClient(
+            executable=client.executable,
+            workspace=Path(client.workspace) / "agents" / safe_agent_key,
+            timeout_seconds=client.timeout_seconds,
+            logger=client.logger,
+        )
 
     def _schedule_contextual_next_turn(self, author: str, content: str) -> None:
         if self.autonomous_active or getattr(self, "conversation_mode", ConversationMode.WORK) != ConversationMode.WORK:

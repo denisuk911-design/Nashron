@@ -26,6 +26,18 @@ ROLE_NAMES = {
     "LEARNING_COORDINATOR": "координатор обучения и развития навыков",
     "RESEARCH_ASSISTANT": "исследователь источников и даташитов",
     "CUSTOM_ROLE": "сотрудник с пользовательской ролью",
+    "CUSTOM_ENGAGEMENT_LEAD": "руководитель взаимодействия с клиентом",
+    "CUSTOM_DOMAIN_SPECIALIST": "профильный специалист",
+    "CUSTOM_ANALYST": "аналитик",
+    "CUSTOM_REVIEWER": "рецензент",
+    "CUSTOM_TECHNICAL_REVIEWER": "технический рецензент",
+    "CUSTOM_CRITICAL_REVIEWER": "критический рецензент",
+    "CUSTOM_DEVELOPER": "разработчик",
+    "CUSTOM_SOFTWARE_ENGINEER": "инженер-программист",
+    "CUSTOM_ARCHITECT": "архитектор",
+    "CUSTOM_QA": "специалист по качеству",
+    "CUSTOM_DESIGNER": "дизайнер",
+    "CUSTOM_PRODUCT_LEAD": "руководитель продукта",
 }
 
 

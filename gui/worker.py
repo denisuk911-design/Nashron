@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import threading
+
 from PySide6.QtCore import QThread, Signal
 
 from core.models import CodexResult
@@ -54,9 +56,13 @@ class GenerateWorker(QThread):
         self.execution_contract_lines = execution_contract_lines or []
         self.organization_id = organization_id
         self.conversation_mode = conversation_mode
+        self._cancel_requested = threading.Event()
 
     def run(self) -> None:
         try:
+            if self._cancel_requested.is_set():
+                self._finish_cancelled()
+                return
             self._set_status(RunStatus.PREPARING_CONTEXT)
             prompt = self.prompt_builder.build(
                 self.conversation_id,
@@ -76,6 +82,9 @@ class GenerateWorker(QThread):
                 organization_id=self.organization_id,
                 conversation_mode=self.conversation_mode,
             )
+            if self._cancel_requested.is_set():
+                self._finish_cancelled()
+                return
             self._set_status(RunStatus.STARTING_PROVIDER)
             self._set_status(RunStatus.WAITING_FOR_PROVIDER)
             raw_result = self.generation_client.generate(
@@ -114,4 +123,9 @@ class GenerateWorker(QThread):
         self.status_received.emit(clean)
 
     def cancel(self) -> None:
+        self._cancel_requested.set()
         self.generation_client.cancel()
+
+    def _finish_cancelled(self) -> None:
+        self._set_status(RunStatus.CANCELLED)
+        self.finished_with_result.emit(CodexResult(False, "", None, 0.0, "Запрос отменен", cancelled=True))

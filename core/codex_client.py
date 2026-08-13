@@ -128,6 +128,8 @@ class CodexClient:
         on_delta: Callable[[str], None] | None = None,
         on_status: Callable[[str], None] | None = None,
     ) -> CodexResult:
+        if self._cancel_requested:
+            return CodexResult(False, "", None, 0.0, "Запрос отменен", cancelled=True)
         if not self.is_available():
             return CodexResult(False, "", None, 0.0, "Codex CLI не найден")
         executable = self.resolved_executable()
@@ -160,7 +162,6 @@ class CodexClient:
         ]
         if on_delta is not None:
             command.insert(command.index("--color"), "--json")
-        self._cancel_requested = False
         self.logger.info("codex_request_started sandbox=%s", sandbox)
         try:
             if on_delta is None:

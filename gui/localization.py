@@ -578,6 +578,35 @@ CATALOG_LABELS = {
     "en": {},
 }
 
+_GENERIC_CATALOG_LABELS = {
+    "CONSULTING_TEAM": ("Консультационная команда", "Консультаційна команда"),
+    "Consulting Team": ("Консультационная команда", "Консультаційна команда"),
+    "Engagement Lead": ("Руководитель проекта", "Керівник проєкту"),
+    "Domain Specialist": ("Профильный специалист", "Профільний фахівець"),
+    "Researcher": ("Исследователь", "Дослідник"),
+    "Analyst": ("Аналитик", "Аналітик"),
+    "Reviewer": ("Рецензент", "Рецензент"),
+    "Documentation": ("Специалист по документации", "Фахівець із документації"),
+    "Project Lead": ("Руководитель проекта", "Керівник проєкту"),
+    "Design Engineer": ("Инженер-проектировщик", "Інженер-проєктувальник"),
+    "Component Specialist": ("Специалист по компонентам", "Фахівець із компонентів"),
+    "Independent Reviewer": ("Независимый рецензент", "Незалежний рецензент"),
+    "Test Engineer": ("Инженер по тестированию", "Інженер із тестування"),
+    "Product Lead": ("Руководитель продукта", "Керівник продукту"),
+    "Developer": ("Разработчик", "Розробник"),
+    "Designer": ("Дизайнер", "Дизайнер"),
+    "QA": ("Специалист по качеству", "Фахівець із якості"),
+    "Expert": ("Эксперт", "Експерт"),
+    "Critical Reviewer": ("Критический рецензент", "Критичний рецензент"),
+    "Project Manager": ("Руководитель проекта", "Керівник проєкту"),
+    "Operations": ("Операционная работа", "Операційна робота"),
+    "Engineering": ("Разработка", "Розроблення"),
+    "Research": ("Исследования", "Дослідження"),
+    "Business": ("Бизнес", "Бізнес"),
+}
+CATALOG_LABELS["ru"].update({key: labels[0] for key, labels in _GENERIC_CATALOG_LABELS.items()})
+CATALOG_LABELS["uk"].update({key: labels[1] for key, labels in _GENERIC_CATALOG_LABELS.items()})
+
 _EXTENDED_PRESET_LABELS = {
     "PCB_ENGINEERING_TEAM": ("Команда проектирования PCB", "Команда проєктування PCB"),
     "EMBEDDED_SYSTEMS_TEAM": ("Команда встраиваемых систем", "Команда вбудованих систем"),
@@ -734,7 +763,11 @@ def tr(language: str, key: str) -> str:
 
 def role_label(language: str, role_id: str) -> str:
     language = normalize_language(language)
-    return ROLE_LABELS.get(language, {}).get(role_id, role_id.replace("_", " ").title())
+    translated = ROLE_LABELS.get(language, {}).get(role_id)
+    if translated:
+        return translated
+    raw = role_id[7:] if role_id.startswith("CUSTOM_") else role_id
+    return catalog_label(language, raw.replace("_", " ").title())
 
 
 def status_label(language: str, status: str) -> str:

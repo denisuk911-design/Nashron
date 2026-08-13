@@ -70,6 +70,8 @@ class GeminiClient:
         on_delta=None,
         on_status=None,
     ) -> CodexResult:
+        if self._cancel_requested:
+            return CodexResult(False, "", None, 0.0, "Запрос Gemini отменен", cancelled=True)
         if not self.is_available():
             return CodexResult(False, "", None, 0.0, "Gemini CLI не найден")
         if not self.has_api_key():
@@ -91,7 +93,6 @@ class GeminiClient:
         if api_key:
             env["GEMINI_API_KEY"] = api_key
 
-        self._cancel_requested = False
         self.logger.info("gemini_request_started tools=%s", bool(allow_full_access))
         try:
             self._process = subprocess.Popen(

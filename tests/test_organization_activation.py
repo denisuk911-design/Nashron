@@ -33,6 +33,11 @@ def test_template_activation_creates_workspace_members_and_employees(tmp_path):
     assert len({agent.display_name for agent in agents}) == 3
     assert {str(member["position"]) for member in members} == {"Assistant", "Researcher", "Reviewer"}
     assert all(agent.display_name not in {"Assistant", "Researcher", "Reviewer"} for agent in agents)
+    roles_by_position = {str(member["position"]): str(member["role_id"]) for member in members}
+    assert roles_by_position["Reviewer"] == "QA_ENGINEER"
+    for agent in agents:
+        permissions = set(database.list_agent_permissions(agent.agent_id))
+        assert {"CHAT", "READ_WORKSPACE", "WRITE_WORKSPACE", "RUN_COMMANDS", "CREATE_DOCUMENTS"} <= permissions
 
 
 def test_management_library_is_data_driven_and_domain_neutral(tmp_path):

@@ -1,6 +1,10 @@
+from pathlib import Path
+
 from gui.main_window import MainWindow
 from core.agent_directory import ChatAgent, mention_tokens
 from core.autonomy import parse_autonomy_request
+from core.codex_client import CodexClient
+from core.gemini_client import GeminiClient
 from core.team_routing import ParticipationMode, TeamRouter
 
 
@@ -65,6 +69,49 @@ def test_followup_routes_to_last_addressed_employee():
 
     assert MainWindow._route_agents(window, "попробуй еще раз") == ["employee-8556d8"]
     assert MainWindow._route_agents(window, "Шушанне нужно создать документ") == ["employee-8556d8"]
+
+
+def test_direct_address_ignores_same_named_employee_in_another_organization(monkeypatch):
+    class FakeDatabase:
+        def log_event(self, *_args):
+            pass
+
+    local_agent = ChatAgent(
+        "employee-local",
+        "agent-employee-local",
+        "Диана Вебер",
+        "GEMINI_CLI",
+        ["CUSTOM_ANALYST"],
+        "local-diana",
+        "",
+        None,
+    )
+    foreign_agent = ChatAgent(
+        "employee-foreign",
+        "agent-employee-foreign",
+        "Диана Вебер",
+        "CODEX_CLI",
+        ["CUSTOM_ANALYST"],
+        "foreign-diana",
+        "",
+        None,
+    )
+    requested_organizations = []
+
+    def fake_list_chat_agents(_database, *, active_only=True, include_without_chat=False, organization_id=None):
+        requested_organizations.append(organization_id)
+        return [local_agent] if organization_id == "organization-local" else [local_agent, foreign_agent]
+
+    monkeypatch.setattr("gui.main_window.list_chat_agents", fake_list_chat_agents)
+    window = MainWindow.__new__(MainWindow)
+    window.database = FakeDatabase()
+    window.team_router = TeamRouter()
+    window.active_organization_id = "organization-local"
+    window.last_addressed_agent_keys = []
+    window._chat_agents = lambda: [local_agent]
+
+    assert MainWindow._route_agents(window, "Диана Вебер, как дела?") == ["employee-local"]
+    assert requested_organizations == ["organization-local"]
 
 
 def test_direct_work_task_for_dynamic_employee_is_not_auto_expanded():
@@ -277,3 +324,39 @@ def test_send_renders_and_clears_before_persistence_or_routing(monkeypatch):
     assert "send_clicked" in window._active_send_trace.stages_ms
     assert "user_bubble_created" in window._active_send_trace.stages_ms
     assert window._active_send_trace.payload()["bubble_budget_ok"]
+
+
+def test_each_parallel_agent_gets_an_isolated_cli_client(tmp_path):
+    class Route:
+        def __init__(self, provider):
+            self.provider = provider
+
+    class Router:
+        def route(self, agent_key):
+            return Route("GEMINI_CLI" if agent_key.endswith("gemini") else "CODEX_CLI")
+
+    window = MainWindow.__new__(MainWindow)
+    window.agent_router = Router()
+    window.codex_client = CodexClient(executable="codex", workspace=tmp_path / "codex", timeout_seconds=91)
+    window.gemini_client = GeminiClient(
+        executable="gemini",
+        workspace=tmp_path / "gemini",
+        timeout_seconds=92,
+        api_key="test-key",
+        model="test-model",
+    )
+
+    codex_a = MainWindow._client_for_agent(window, "employee-a")
+    codex_b = MainWindow._client_for_agent(window, "employee-b")
+    gemini = MainWindow._client_for_agent(window, "employee-gemini")
+
+    assert codex_a is not codex_b
+    assert codex_a is not window.codex_client
+    assert codex_a.workspace == Path(tmp_path / "codex" / "agents" / "employee-a")
+    assert codex_b.workspace == Path(tmp_path / "codex" / "agents" / "employee-b")
+    assert codex_a.timeout_seconds == 91
+    assert gemini is not window.gemini_client
+    assert gemini.workspace == Path(tmp_path / "gemini" / "agents" / "employee-gemini")
+    assert gemini.timeout_seconds == 92
+    assert gemini.api_key == "test-key"
+    assert gemini.model == "test-model"

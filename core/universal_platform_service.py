@@ -618,7 +618,9 @@ class UniversalPlatformService:
             agent_id = self.management_service.generate_agent_id(display_name)
         else:
             agent_id = f"agent-{re.sub(r'[^a-z0-9]+', '-', display_name.lower()).strip('-') or 'employee'}-{uuid.uuid4().hex[:6]}"
-        permissions = set(ROLE_DEFAULT_PERMISSIONS.get(role_id, {"CHAT"})) | {"CHAT"}
+        permissions = set(ROLE_DEFAULT_PERMISSIONS.get(role_id, ROLE_DEFAULT_PERMISSIONS["CUSTOM_ROLE"])) | {"CHAT"}
+        if "REVIEWER" in role_id or role_id in {"QA_ENGINEER", "VERIFICATION_ENGINEER"}:
+            permissions.update({"REVIEW_ARTIFACTS", "CREATE_FINDINGS"})
         role_description = str(role.get("description") or "").strip()
         description = ". ".join(part for part in (position, role_description, identity.biography) if part)
         profile = AgentProfile(

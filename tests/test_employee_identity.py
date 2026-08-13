@@ -56,6 +56,8 @@ def test_identity_generator_has_human_scale_variety_and_balanced_origin():
     assert len(unique_names) >= 300
     assert 200 <= ukrainian_count <= 300
     assert all(identity.preferred_name in identity.name for identity in generated)
+    forbidden_defaults = {"roman", "petr", "shushan", "shushanna", "vasian"}
+    assert not any(token in identity.name.lower().split() for identity in generated for token in forbidden_defaults)
 
 
 def test_every_valid_avatar_can_participate_in_generation(tmp_path, monkeypatch):

@@ -46,6 +46,20 @@ class FakeProcess:
         self.terminated = True
 
 
+def test_cancel_before_generate_does_not_start_gemini(monkeypatch, tmp_path):
+    monkeypatch.setattr("core.gemini_client.shutil.which", lambda _name: "gemini")
+    monkeypatch.setattr(
+        "core.gemini_client.subprocess.Popen",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("Gemini process must not start")),
+    )
+    client = GeminiClient(workspace=tmp_path, api_key="secret")
+
+    client.cancel()
+    result = client.generate("prompt")
+
+    assert result.cancelled
+
+
 def test_generate_uses_gemini_prompt_and_env(monkeypatch, tmp_path):
     captured = {}
     monkeypatch.setattr("core.gemini_client.shutil.which", lambda _name: "gemini")

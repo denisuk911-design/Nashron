@@ -34,6 +34,27 @@ def test_name_at_end_is_still_direct_address():
     assert decision.selected == ["shushan"]
 
 
+def test_full_name_disambiguates_employees_with_the_same_first_name():
+    agents = [
+        ChatAgent("diana-weber", "agent-diana-weber", "Диана Вебер", "GEMINI_CLI", ["CUSTOM_ANALYST"], None, "", None),
+        ChatAgent("diana-martin", "agent-diana-martin", "Диана Мартин", "CODEX_CLI", ["CUSTOM_REVIEWER"], None, "", None),
+    ]
+
+    decision = TeamRouter().decide("Диана Вебер, как настроение?", agents)
+
+    assert decision.selected == ["diana-weber"]
+    assert decision.explicit_recipients == ["diana-weber"]
+
+
+def test_ambiguous_first_name_does_not_pick_an_employee_at_random():
+    agents = [
+        ChatAgent("diana-weber", "agent-diana-weber", "Диана Вебер", "GEMINI_CLI", ["CUSTOM_ANALYST"], None, "", None),
+        ChatAgent("diana-martin", "agent-diana-martin", "Диана Мартин", "CODEX_CLI", ["CUSTOM_REVIEWER"], None, "", None),
+    ]
+
+    assert TeamRouter()._mentioned_agents("Диана, как настроение?", agents) == []
+
+
 def test_two_named_employees_create_team_discussion_subset():
     decision = TeamRouter().decide("Роман и Петр, обсудите решение.", _agents())
 

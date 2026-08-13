@@ -72,6 +72,20 @@ def test_cancel_process(tmp_path):
     assert process.terminated
 
 
+def test_cancel_before_generate_does_not_start_codex(monkeypatch, tmp_path):
+    monkeypatch.setattr("core.codex_client.shutil.which", lambda _name: "codex")
+    monkeypatch.setattr(
+        "core.codex_client.subprocess.Popen",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("Codex process must not start")),
+    )
+    client = CodexClient(workspace=tmp_path)
+
+    client.cancel()
+    result = client.generate("prompt")
+
+    assert result.cancelled
+
+
 def test_full_access_flag_changes_sandbox(monkeypatch, tmp_path):
     captured = {}
     monkeypatch.setattr("core.codex_client.shutil.which", lambda _name: "codex")
