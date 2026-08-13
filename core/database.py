@@ -3543,12 +3543,24 @@ class Database:
 
     def delete_organization(self, organization_id: str) -> None:
         with self.connect() as conn:
+            workspace = conn.execute(
+                "SELECT conversation_id FROM organization_workspaces WHERE organization_id = ?",
+                (organization_id,),
+            ).fetchone()
+            conversation_id = int(workspace["conversation_id"]) if workspace and workspace["conversation_id"] is not None else None
             # Permanent organization deletion also removes membership rows;
             # employee profiles remain reusable in other organizations.
             conn.execute("DELETE FROM organization_members WHERE organization_id = ?", (organization_id,))
             deleted = conn.execute("DELETE FROM organizations WHERE id = ?", (organization_id,)).rowcount
             if not deleted:
                 raise ValueError("unknown_organization")
+            if conversation_id is not None:
+                still_referenced = conn.execute(
+                    "SELECT 1 FROM organization_workspaces WHERE conversation_id = ?",
+                    (conversation_id,),
+                ).fetchone()
+                if still_referenced is None:
+                    conn.execute("DELETE FROM conversations WHERE id = ?", (conversation_id,))
 
     def create_organization_activation_event(self, organization_id: str, event_type: str, status: str, detail: dict[str, Any] | None = None) -> str:
         event_id = f"OAE-{uuid.uuid4().hex[:12].upper()}"

@@ -67,6 +67,8 @@ def test_archive_restore_and_delete_empty_organization(tmp_path):
     database.initialize()
     service = UniversalPlatformService(database)
     organization = service.create_organization("Temporary Team")
+    conversation_id = database.ensure_organization_conversation(organization.organization_id)
+    database.add_message(conversation_id, "user", "Temporary context")
 
     service.archive_organization(organization.organization_id)
     assert database.list_organizations("ARCHIVED")[0]["id"] == organization.organization_id
@@ -74,3 +76,7 @@ def test_archive_restore_and_delete_empty_organization(tmp_path):
     assert database.list_organizations("ACTIVE")[0]["id"] == organization.organization_id
     service.delete_organization(organization.organization_id)
     assert not database.list_organizations()
+    assert not database.list_messages(conversation_id)
+    assert all(item.id != conversation_id for item in database.list_conversations())
+    with database.connect() as connection:
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
