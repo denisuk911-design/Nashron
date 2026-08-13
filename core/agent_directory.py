@@ -127,11 +127,14 @@ def agent_spec_from_profile(agent: ChatAgent) -> AgentSpec:
     humor = int(communication.get("humor", 1))
     formality = int(communication.get("formality", 3))
     verbosity = int(communication.get("verbosity", 2))
+    emotionality = int(communication.get("emotionality", 3))
+    explanation_style = str(communication.get("explanation_style", "short"))
     address_name = agent.preferred_name.strip() or agent.display_name.split()[0]
     style = (
         f"В общении тебя обычно зовут {address_name}. "
         f"Профиль общения: прямота {directness}/5, доброжелательность {warmth}/5, "
-        f"формальность {formality}/5, юмор {humor}/5, подробность {verbosity}/5. "
+        f"формальность {formality}/5, юмор {humor}/5, подробность {verbosity}/5, "
+        f"эмоциональность {emotionality}/5, объяснения {explanation_style}. "
         "Соблюдай эти параметры естественно, без перечисления их собеседнику. "
     )
     voice = (

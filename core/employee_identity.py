@@ -123,6 +123,8 @@ def _generate_communication_profile() -> dict[str, object]:
         "assertiveness": random.randint(2, 5),
         "verbosity": random.randint(1, 3),
         "initiative": random.randint(2, 5),
+        "emotionality": random.randint(1, 5),
+        "explanation_style": random.choice(("short", "detailed", "examples", "technical")),
         "disagreement_style": random.choice(("evidence_first", "diplomatic", "direct")),
     }
 
@@ -144,5 +146,7 @@ def _pick_avatar(avatar_dir: Path | None, gender: str) -> str | None:
     matching = [path for path in available if gender_token in path.stem.lower()]
     # Every valid catalog item remains eligible; matching portraits only receive
     # a preference so a generated identity usually has a plausible photo.
-    pool = matching if matching and random.random() < 0.8 else available
+    # Prefer a matching portrait while still sampling the full catalog of
+    # portraits, illustrations, animals and meme-style avatars broadly.
+    pool = matching if matching and random.random() < 0.55 else available
     return str(random.choice(pool))

@@ -39,8 +39,8 @@ def _validate_theme_manifest(root: Path, result: AssetValidationResult) -> None:
     required = {"city", "forest", "ocean", "mountains", "night_city", "space"}
     for collection in sorted(required):
         entries = collections.get(collection, [])
-        if not isinstance(entries, list) or len(entries) < 2:
-            result.errors.append(f"theme_collection:{collection}:needs_multiple_images")
+        if not isinstance(entries, list) or len(entries) < 3:
+            result.errors.append(f"theme_collection:{collection}:needs_at_least_three_images")
             continue
         for relative in entries:
             path = manifest_path.parent / str(relative)

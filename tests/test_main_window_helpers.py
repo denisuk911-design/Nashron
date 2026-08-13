@@ -274,3 +274,6 @@ def test_send_renders_and_clears_before_persistence_or_routing(monkeypatch):
 
     assert events == ["reset", ("bubble", "user", "Короткое сообщение"), "cleared", "sound"]
     assert len(callbacks) == 1
+    assert "send_clicked" in window._active_send_trace.stages_ms
+    assert "user_bubble_created" in window._active_send_trace.stages_ms
+    assert window._active_send_trace.payload()["bubble_budget_ok"]

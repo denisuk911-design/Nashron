@@ -31,7 +31,10 @@ class SendPipelineTrace:
             "started_at": self.started_at,
             "agents": self.agents,
             "stages_ms": dict(self.stages_ms),
-            "bubble_budget_ok": self.stages_ms.get("bubble_created", 51.0) <= 50.0,
+            "bubble_budget_ok": self.stages_ms.get(
+                "user_bubble_created",
+                self.stages_ms.get("bubble_created", 51.0),
+            ) <= 50.0,
         }
 
     def to_json(self) -> str:

@@ -4,12 +4,12 @@
   "generator": "OpenAI built-in image generation",
   "license": "Original generated assets for the Team2050 project",
   "collections": {
-    "city": ["city/city-01.png", "city/city-02.png"],
-    "forest": ["forest/forest-01.png", "forest/forest-02.png"],
-    "ocean": ["ocean/ocean-01.png", "ocean/ocean-02.png"],
-    "mountains": ["mountains/mountains-01.png", "mountains/mountains-02.png"],
-    "night_city": ["night_city/night-city-01.png", "night_city/night-city-02.png"],
-    "space": ["space/space-01.png", "space/space-02.png"]
+    "city": ["city/city-01.png", "city/city-02.png", "city/city-03.png"],
+    "forest": ["forest/forest-01.png", "forest/forest-02.png", "forest/forest-03.png"],
+    "ocean": ["ocean/ocean-01.png", "ocean/ocean-02.png", "ocean/ocean-03.png"],
+    "mountains": ["mountains/mountains-01.png", "mountains/mountains-02.png", "mountains/mountains-03.png"],
+    "night_city": ["night_city/night-city-01.png", "night_city/night-city-02.png", "night_city/night-city-03.png"],
+    "space": ["space/space-01.png", "space/space-02.png", "space/space-03.png"]
   },
   "provenance": {
     "city": "Original generated panoramic European city scenes",

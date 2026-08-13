@@ -2283,6 +2283,55 @@ class PermissionsTab(QWidget):
         self.detail.setPlainText("\n".join(lines))
 
 
+class ProviderCatalogDialog(QDialog):
+    def __init__(self, profiles, language: str, parent=None) -> None:
+        super().__init__(parent)
+        self.profiles = list(profiles)
+        self.language = language
+        self.setWindowTitle({"ru": "Добавить ИИ", "uk": "Додати ШІ", "en": "Add AI"}.get(language, "Добавить ИИ"))
+        self.setMinimumWidth(620)
+        self.provider = QComboBox()
+        for profile in self.profiles:
+            self.provider.addItem(f"{profile.display_name} · {profile.integration_type}", profile.provider_id)
+        self.detail = QLabel()
+        self.detail.setWordWrap(True)
+        self.detail.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.provider.currentIndexChanged.connect(self.refresh_detail)
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel({"ru": "Выберите подключение из проверенного каталога. Готовность указана без преувеличений.", "uk": "Оберіть підключення з перевіреного каталогу. Готовність указано без перебільшень.", "en": "Choose a connection from the verified catalog. Readiness is stated conservatively."}.get(language, "")))
+        layout.addWidget(self.provider)
+        layout.addWidget(self.detail)
+        layout.addStretch(1)
+        layout.addWidget(buttons)
+        self.refresh_detail()
+
+    def selected_provider_id(self) -> str:
+        return str(self.provider.currentData() or "")
+
+    def refresh_detail(self) -> None:
+        provider_id = self.selected_provider_id()
+        profile = next((item for item in self.profiles if item.provider_id == provider_id), None)
+        if profile is None:
+            self.detail.clear()
+            return
+        labels = {
+            "ru": ("Тип подключения", "Поддержка", "Платформы", "Официальный источник", "После выбора используйте доступные действия в карточке подключения."),
+            "uk": ("Тип підключення", "Підтримка", "Платформи", "Офіційне джерело", "Після вибору скористайтеся доступними діями в картці підключення."),
+            "en": ("Connection type", "Support", "Platforms", "Official source", "After selecting, use the available actions in the connection card."),
+        }
+        connection, support, platforms, source, hint = labels.get(self.language, labels["ru"])
+        self.detail.setText(
+            f"<b>{profile.display_name}</b><br>"
+            f"{connection}: {profile.integration_type}<br>"
+            f"{support}: {profile.support_status}<br>"
+            f"{platforms}: {', '.join(profile.supported_os)}<br>"
+            f"{source}: {profile.official_url or '-'}<br><br>{hint}"
+        )
+
+
 class ProvidersTab(QWidget):
     def __init__(
         self,
@@ -2320,20 +2369,24 @@ class ProvidersTab(QWidget):
         self.table.itemSelectionChanged.connect(self.show_selected)
         refresh = QPushButton(tr(language, "repeat_check"))
         refresh.clicked.connect(self.run_checks)
+        self.add_button = QPushButton({"ru": "Добавить ИИ", "uk": "Додати ШІ", "en": "Add AI"}.get(language, "Добавить ИИ"))
+        self.add_button.clicked.connect(self.open_catalog)
         self.install_button = QPushButton({"ru": "Установить", "uk": "Встановити", "en": "Install"}.get(language, "Установить"))
         self.auth_button = QPushButton({"ru": "Войти", "uk": "Увійти", "en": "Sign in"}.get(language, "Войти"))
         self.update_button = QPushButton({"ru": "Обновить", "uk": "Оновити", "en": "Update"}.get(language, "Обновить"))
-        self.uninstall_button = QPushButton({"ru": "Удалить", "uk": "Видалити", "en": "Uninstall"}.get(language, "Удалить"))
+        self.uninstall_button = QPushButton({"ru": "Удалить CLI с компьютера", "uk": "Видалити CLI з комп'ютера", "en": "Uninstall CLI from computer"}.get(language, "Удалить CLI с компьютера"))
         self.key_button = QPushButton({"ru": "Задать ключ API", "uk": "Задати ключ API", "en": "Set API key"}.get(language, "Задать ключ API"))
+        self.disconnect_button = QPushButton({"ru": "Удалить подключение", "uk": "Видалити підключення", "en": "Remove connection"}.get(language, "Удалить подключение"))
         self.docs_button = QPushButton({"ru": "Официальная документация", "uk": "Офіційна документація", "en": "Official documentation"}.get(language, "Официальная документация"))
         self.install_button.clicked.connect(lambda: self.run_action("install"))
         self.auth_button.clicked.connect(lambda: self.run_action("authenticate"))
         self.update_button.clicked.connect(lambda: self.run_action("update"))
         self.uninstall_button.clicked.connect(lambda: self.run_action("uninstall"))
         self.key_button.clicked.connect(self.configure_api_key)
+        self.disconnect_button.clicked.connect(self.disconnect_provider)
         self.docs_button.clicked.connect(self.open_documentation)
         actions = QHBoxLayout()
-        for button in (refresh, self.install_button, self.auth_button, self.update_button, self.uninstall_button, self.key_button, self.docs_button):
+        for button in (self.add_button, refresh, self.install_button, self.auth_button, self.update_button, self.key_button, self.disconnect_button, self.uninstall_button, self.docs_button):
             actions.addWidget(button)
         actions.addStretch(1)
         layout = QVBoxLayout(self)
@@ -2388,6 +2441,8 @@ class ProvidersTab(QWidget):
             f"{self._text('integration')}: {self._state_label(profile.integration_type)}",
             f"{self._text('support')}: {self._state_label(profile.support_status)}",
             f"{self._text('official_source')}: {profile.official_url or tr(self.language, 'no')}",
+            f"{self._text('catalog_class')}: {self._state_label(profile.catalog_class)}",
+            f"{self._text('last_verified')}: {profile.last_verified or tr(self.language, 'no')}",
             f"{tr(self.language, 'required_capabilities')}: {', '.join(self._state_label(item) for item in profile.required_capabilities) or tr(self.language, 'no')}",
             f"{self._text('capability_matrix')}: "
             + ", ".join(
@@ -2395,6 +2450,7 @@ class ProvidersTab(QWidget):
                 for capability, state in profile.capability_matrix.items()
             ),
             f"{tr(self.language, 'limitations')}: {self._limitations_text(profile)}",
+            f"{self._text('credential')}: {self._credential_preview(profile)}",
             "",
             f"{tr(self.language, 'last_health')}:",
         ]
@@ -2430,6 +2486,7 @@ class ProvidersTab(QWidget):
         self.update_button.setEnabled(bool(profile and profile.update_command))
         self.uninstall_button.setEnabled(bool(profile and profile.uninstall_command))
         self.key_button.setEnabled(bool(profile and profile.credential_kind in {"API_KEY", "OPTIONAL_API_KEY"}))
+        self.disconnect_button.setEnabled(bool(profile and profile.credential_kind in {"API_KEY", "OPTIONAL_API_KEY"}))
         self.docs_button.setEnabled(bool(profile and profile.official_url))
 
     def run_action(self, action: str) -> None:
@@ -2441,7 +2498,19 @@ class ProvidersTab(QWidget):
         except ValueError as exc:
             QMessageBox.information(self, self._text("connections"), str(exc))
             return
-        prompt = self._text("confirm_command").format(command=" ".join(command))
+        assigned = [
+            employee.display_name
+            for employee in self.management_service.list_employees()
+            if employee.provider_id == profile.provider_id
+        ]
+        prompt = self._text("confirm_command").format(
+            command=" ".join(command),
+            source=profile.official_url or "-",
+            platforms=", ".join(profile.supported_os),
+            product=profile.display_name,
+        )
+        if action == "uninstall" and assigned:
+            prompt += self._text("shared_warning").format(count=len(assigned), employees=", ".join(assigned))
         if QMessageBox.question(self, self._text("connections"), prompt) != QMessageBox.Yes:
             return
         try:
@@ -2464,6 +2533,36 @@ class ProvidersTab(QWidget):
             return
         self.health_service.database.log_event("provider_credential_saved", f"{profile.provider_id}:{reference}")
         QMessageBox.information(self, self._text("api_key"), self._text("api_key_saved"))
+        self.health_service.check_provider(profile.provider_id)
+        self.refresh()
+
+    def disconnect_provider(self) -> None:
+        profile = self._selected_profile()
+        if profile is None or profile.credential_kind not in {"API_KEY", "OPTIONAL_API_KEY"}:
+            return
+        if QMessageBox.question(self, self._text("connections"), self._text("disconnect_confirm")) != QMessageBox.Yes:
+            return
+        try:
+            removed = WindowsCredentialStore().delete(profile.provider_id)
+        except (SecureStorageUnavailable, OSError) as exc:
+            QMessageBox.warning(self, self._text("connections"), str(exc))
+            return
+        self.health_service.database.log_event("provider_connection_removed", profile.provider_id)
+        if removed:
+            self.health_service.check_provider(profile.provider_id)
+        self.refresh()
+
+    def open_catalog(self) -> None:
+        dialog = ProviderCatalogDialog(self.registry.profiles(), self.language, self)
+        if dialog.exec() != QDialog.Accepted:
+            return
+        provider_id = dialog.selected_provider_id()
+        for row in range(self.table.rowCount()):
+            item = self.table.item(row, 0)
+            if item is not None and str(item.data(Qt.UserRole)) == provider_id:
+                self.table.selectRow(row)
+                self.table.scrollToItem(item)
+                break
 
     def open_documentation(self) -> None:
         profile = self._selected_profile()
@@ -2472,15 +2571,27 @@ class ProvidersTab(QWidget):
 
     def _text(self, key: str) -> str:
         values = {
-            "ru": {"integration": "Способ подключения", "support": "Статус поддержки", "official_source": "Официальный источник", "capability_matrix": "Матрица возможностей", "connections": "ИИ и подключения", "confirm_command": "Будет запущена официальная команда:\n\n{command}\n\nПродолжить?", "api_key": "Ключ API", "api_key_prompt": "Введите ключ. Он будет сохранён в Диспетчере учётных данных Windows и не попадёт в базу Team2050.", "api_key_saved": "Ключ сохранён в защищённом хранилище Windows."},
-            "uk": {"integration": "Спосіб підключення", "support": "Статус підтримки", "official_source": "Офіційне джерело", "capability_matrix": "Матриця можливостей", "connections": "ШІ та підключення", "confirm_command": "Буде запущено офіційну команду:\n\n{command}\n\nПродовжити?", "api_key": "Ключ API", "api_key_prompt": "Введіть ключ. Його буде збережено в Диспетчері облікових даних Windows, а не в базі Team2050.", "api_key_saved": "Ключ збережено в захищеному сховищі Windows."},
-            "en": {"integration": "Connection type", "support": "Support status", "official_source": "Official source", "capability_matrix": "Capability matrix", "connections": "AI and connections", "confirm_command": "The official command will be started:\n\n{command}\n\nContinue?", "api_key": "API key", "api_key_prompt": "Enter the key. It will be stored in Windows Credential Manager, not in the Team2050 database.", "api_key_saved": "The key was stored in Windows Credential Manager."},
+            "ru": {"integration": "Способ подключения", "support": "Статус поддержки", "official_source": "Официальный источник", "catalog_class": "Официальный класс", "last_verified": "Проверено по документации", "capability_matrix": "Матрица возможностей", "credential": "Защищённый ключ", "connections": "ИИ и подключения", "confirm_command": "Продукт: {product}\nИсточник: {source}\nПлатформы: {platforms}\n\nБудет запущена официальная команда:\n{command}\n\nПродолжить?", "shared_warning": "\n\nЭтот движок используют сотрудники ({count}): {employees}. После удаления они не смогут отвечать через него.", "disconnect_confirm": "Удалить защищённый ключ и отключить это API от Team2050? Сотрудники сохранят назначение, но не смогут работать до нового подключения.", "api_key": "Ключ API", "api_key_prompt": "Введите ключ. Он будет сохранён в Диспетчере учётных данных Windows и не попадёт в базу Team2050.", "api_key_saved": "Ключ сохранён в защищённом хранилище Windows."},
+            "uk": {"integration": "Спосіб підключення", "support": "Статус підтримки", "official_source": "Офіційне джерело", "catalog_class": "Офіційний клас", "last_verified": "Перевірено за документацією", "capability_matrix": "Матриця можливостей", "credential": "Захищений ключ", "connections": "ШІ та підключення", "confirm_command": "Продукт: {product}\nДжерело: {source}\nПлатформи: {platforms}\n\nБуде запущено офіційну команду:\n{command}\n\nПродовжити?", "shared_warning": "\n\nЦей рушій використовують співробітники ({count}): {employees}. Після видалення вони не зможуть відповідати через нього.", "disconnect_confirm": "Видалити захищений ключ і відключити цей API від Team2050? Призначення співробітників збережуться, але вони не працюватимуть до нового підключення.", "api_key": "Ключ API", "api_key_prompt": "Введіть ключ. Його буде збережено в Диспетчері облікових даних Windows, а не в базі Team2050.", "api_key_saved": "Ключ збережено в захищеному сховищі Windows."},
+            "en": {"integration": "Connection type", "support": "Support status", "official_source": "Official source", "catalog_class": "Official class", "last_verified": "Documentation verified", "capability_matrix": "Capability matrix", "credential": "Secure key", "connections": "AI and connections", "confirm_command": "Product: {product}\nSource: {source}\nPlatforms: {platforms}\n\nThe official command will be started:\n{command}\n\nContinue?", "shared_warning": "\n\nEmployees use this engine ({count}): {employees}. They will not be able to answer through it after uninstall.", "disconnect_confirm": "Delete the protected key and disconnect this API from Team2050? Employee assignments remain but cannot run until reconnected.", "api_key": "API key", "api_key_prompt": "Enter the key. It will be stored in Windows Credential Manager, not in the Team2050 database.", "api_key_saved": "The key was stored in Windows Credential Manager."},
         }
         return values.get(self.language, values["ru"]).get(key, key)
 
+    def _credential_preview(self, profile) -> str:
+        if profile.credential_kind not in {"API_KEY", "OPTIONAL_API_KEY"}:
+            return tr(self.language, "no")
+        try:
+            secret = WindowsCredentialStore().read(profile.provider_id)
+        except (SecureStorageUnavailable, OSError):
+            secret = None
+        if not secret:
+            return {"ru": "не задан", "uk": "не задано", "en": "not configured"}.get(self.language, "не задан")
+        suffix = secret[-4:] if len(secret) >= 4 else "****"
+        return f"••••••••{suffix}"
+
     def _state_label(self, value: str) -> str:
         labels = {
-            "ru": {"CLI": "Командная строка", "API": "API", "LOCAL_RUNTIME": "Локальная модель", "GATEWAY": "Шлюз", "SUPPORTED": "Поддерживается", "EXPERIMENTAL": "Экспериментально", "CATALOG_ONLY": "Только в каталоге", "NOT_INSTALLED": "Не установлен", "DETECTED": "Обнаружен", "INSTALLED": "Установлен", "AUTHENTICATED": "Вход выполнен", "AUTHENTICATION_REQUIRED": "Нужен вход", "NOT_AUTHENTICATED": "Вход не выполнен", "NOT_CHECKED": "Не проверено", "ACCESS_AVAILABLE": "Доступ есть", "ACCESS_UNAVAILABLE": "Доступа нет", "INSTALLATION_REQUIRED": "Требуется установка", "NOT_READY": "Не готов", "READY": "Готов", "DEGRADED": "Ограниченно готов", "BLOCKED": "Заблокирован", "UNKNOWN": "Неизвестно", "PARTIAL": "Частично", "UNSUPPORTED": "Не поддерживается", "ADAPTER_REQUIRED": "Нужен адаптер", "AVAILABLE": "Доступно", "chat": "Чат", "structured_response": "Структурированный ответ", "file_read": "Чтение файлов", "file_write": "Запись файлов", "command_execution": "Выполнение команд", "long_context": "Большой контекст"},
+            "ru": {"CLI": "Командная строка", "API": "API", "LOCAL_RUNTIME": "Локальная модель", "GATEWAY": "Шлюз", "OFFICIAL_CLI": "Официальный CLI", "OFFICIAL_API": "Официальный API", "CLOUD_PLATFORM": "Облачная платформа", "CUSTOM_GATEWAY": "Внешний шлюз", "SUPPORTED": "Поддерживается", "EXPERIMENTAL": "Экспериментально", "CATALOG_ONLY": "Только в каталоге", "NOT_INSTALLED": "Не установлен", "DETECTED": "Обнаружен", "INSTALLED": "Установлен", "AUTHENTICATED": "Вход выполнен", "AUTHENTICATION_REQUIRED": "Нужен вход", "NOT_AUTHENTICATED": "Вход не выполнен", "NOT_CHECKED": "Не проверено", "ACCESS_AVAILABLE": "Доступ есть", "ACCESS_UNAVAILABLE": "Доступа нет", "INSTALLATION_REQUIRED": "Требуется установка", "NOT_READY": "Не готов", "READY": "Готов", "DEGRADED": "Ограниченно готов", "BLOCKED": "Заблокирован", "UNKNOWN": "Неизвестно", "PARTIAL": "Частично", "UNSUPPORTED": "Не поддерживается", "ADAPTER_REQUIRED": "Нужен адаптер", "AVAILABLE": "Доступно", "chat": "Чат", "structured_response": "Структурированный ответ", "file_read": "Чтение файлов", "file_write": "Запись файлов", "command_execution": "Выполнение команд", "long_context": "Большой контекст"},
             "uk": {"CLI": "Командний рядок", "API": "API", "LOCAL_RUNTIME": "Локальна модель", "GATEWAY": "Шлюз", "SUPPORTED": "Підтримується", "EXPERIMENTAL": "Експериментально", "CATALOG_ONLY": "Лише в каталозі", "NOT_INSTALLED": "Не встановлено", "DETECTED": "Виявлено", "INSTALLED": "Встановлено", "AUTHENTICATED": "Вхід виконано", "AUTHENTICATION_REQUIRED": "Потрібен вхід", "NOT_AUTHENTICATED": "Вхід не виконано", "NOT_CHECKED": "Не перевірено", "ACCESS_AVAILABLE": "Доступ є", "ACCESS_UNAVAILABLE": "Доступу немає", "INSTALLATION_REQUIRED": "Потрібне встановлення", "NOT_READY": "Не готово", "READY": "Готово", "DEGRADED": "Обмежено готово", "BLOCKED": "Заблоковано", "UNKNOWN": "Невідомо", "PARTIAL": "Частково", "UNSUPPORTED": "Не підтримується", "ADAPTER_REQUIRED": "Потрібен адаптер", "AVAILABLE": "Доступно", "chat": "Чат", "structured_response": "Структурована відповідь", "file_read": "Читання файлів", "file_write": "Запис файлів", "command_execution": "Виконання команд", "long_context": "Великий контекст"},
             "en": {},
         }
@@ -2810,16 +2921,29 @@ class IdentityPage(QWizardPage):
         self.communication_profile: dict[str, object] = {}
         self.communication_controls: dict[str, QSpinBox] = {}
         communication_labels = {
-            "ru": {"directness": "Прямота", "warmth": "Доброжелательность", "formality": "Формальность", "humor": "Юмор", "assertiveness": "Настойчивость", "verbosity": "Подробность", "initiative": "Инициативность"},
-            "uk": {"directness": "Прямота", "warmth": "Доброзичливість", "formality": "Формальність", "humor": "Гумор", "assertiveness": "Наполегливість", "verbosity": "Докладність", "initiative": "Ініціативність"},
-            "en": {"directness": "Directness", "warmth": "Warmth", "formality": "Formality", "humor": "Humor", "assertiveness": "Assertiveness", "verbosity": "Verbosity", "initiative": "Initiative"},
+            "ru": {"directness": "Прямота", "warmth": "Доброжелательность", "formality": "Формальность", "humor": "Юмор", "assertiveness": "Настойчивость", "verbosity": "Подробность", "initiative": "Инициативность", "emotionality": "Эмоциональность"},
+            "uk": {"directness": "Прямота", "warmth": "Доброзичливість", "formality": "Формальність", "humor": "Гумор", "assertiveness": "Наполегливість", "verbosity": "Докладність", "initiative": "Ініціативність", "emotionality": "Емоційність"},
+            "en": {"directness": "Directness", "warmth": "Warmth", "formality": "Formality", "humor": "Humor", "assertiveness": "Assertiveness", "verbosity": "Verbosity", "initiative": "Initiative", "emotionality": "Emotionality"},
         }.get(language, {})
-        for key in ("directness", "warmth", "formality", "humor", "assertiveness", "verbosity", "initiative"):
+        for key in ("directness", "warmth", "formality", "humor", "assertiveness", "verbosity", "initiative", "emotionality"):
             control = QSpinBox()
             control.setRange(0 if key == "humor" else 1, 5)
             control.setValue(1 if key in {"humor", "verbosity"} else 3)
             control.setSuffix(" / 5")
             self.communication_controls[key] = control
+            control.valueChanged.connect(self._refresh_communication_summary)
+        self.explanation_style = QComboBox()
+        explanation_labels = {
+            "ru": [("Коротко", "short"), ("Подробно", "detailed"), ("С примерами", "examples"), ("Технически", "technical")],
+            "uk": [("Коротко", "short"), ("Докладно", "detailed"), ("З прикладами", "examples"), ("Технічно", "technical")],
+            "en": [("Short", "short"), ("Detailed", "detailed"), ("With examples", "examples"), ("Technical", "technical")],
+        }
+        for label, value in explanation_labels.get(language, explanation_labels["ru"]):
+            self.explanation_style.addItem(label, value)
+        self.explanation_style.currentIndexChanged.connect(self._refresh_communication_summary)
+        self.communication_summary = QLabel()
+        self.communication_summary.setWordWrap(True)
+        self.communication_summary.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.gender = QComboBox()
         gender_labels = {
             "ru": [("Случайный", "random"), ("Женский", "female"), ("Мужской", "male")],
@@ -2861,11 +2985,14 @@ class IdentityPage(QWizardPage):
         form.addRow(tr(language, "description"), self.description)
         for key, control in self.communication_controls.items():
             form.addRow(communication_labels.get(key, key), control)
+        form.addRow({"ru": "Стиль объяснений", "uk": "Стиль пояснень", "en": "Explanation style"}.get(language, "Стиль объяснений"), self.explanation_style)
+        form.addRow({"ru": "Профиль общения", "uk": "Профіль спілкування", "en": "Communication profile"}.get(language, "Профиль общения"), self.communication_summary)
         form.addRow(tr(language, "avatar"), avatar_row)
         form.addRow("", self.avatar)
         form.addRow("", generate_personality)
         form.addRow(tr(language, "status"), self.lifecycle)
         self._apply_avatar_choice()
+        self._refresh_communication_summary()
 
     def generate_id_if_empty(self) -> None:
         if not self.agent_id.text().strip():
@@ -2887,6 +3014,9 @@ class IdentityPage(QWizardPage):
         self.communication_profile = dict(identity.communication_profile)
         for key, control in self.communication_controls.items():
             control.setValue(int(identity.communication_profile.get(key, control.value())))
+        explanation_index = self.explanation_style.findData(identity.communication_profile.get("explanation_style", "short"))
+        if explanation_index >= 0:
+            self.explanation_style.setCurrentIndex(explanation_index)
         if identity.avatar_path:
             self.avatar.setText(identity.avatar_path)
             index = self.avatar_choice.findData(identity.avatar_path)
@@ -2899,8 +3029,25 @@ class IdentityPage(QWizardPage):
 
     def selected_communication_profile(self) -> dict[str, object]:
         profile = {key: control.value() for key, control in self.communication_controls.items()}
+        profile["explanation_style"] = str(self.explanation_style.currentData() or "short")
         profile["disagreement_style"] = str(self.communication_profile.get("disagreement_style", "evidence_first"))
         return profile
+
+    def _refresh_communication_summary(self) -> None:
+        profile = {key: control.value() for key, control in self.communication_controls.items()}
+        scale = {
+            "ru": (("сдержанное", "живое"), ("официальное", "дружеское"), ("кратко", "подробно")),
+            "uk": (("стримане", "живе"), ("офіційне", "дружнє"), ("коротко", "докладно")),
+            "en": (("reserved", "lively"), ("formal", "friendly"), ("brief", "detailed")),
+        }.get(self.language)
+        if scale is None:
+            scale = (("сдержанное", "живое"), ("официальное", "дружеское"), ("кратко", "подробно"))
+        tone = scale[0][1] if profile.get("emotionality", 3) >= 4 else scale[0][0]
+        relation = scale[1][1] if profile.get("formality", 3) <= 2 else scale[1][0]
+        detail = scale[2][1] if profile.get("verbosity", 2) >= 3 else scale[2][0]
+        self.communication_summary.setText(
+            f"{tone}; {relation}; {detail}; {self.explanation_style.currentText().lower()}"
+        )
 
     def _load_avatar_choices(self) -> None:
         self.avatar_choice.addItem(tr(self.language, "not_set"), "")

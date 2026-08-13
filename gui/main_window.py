@@ -889,7 +889,7 @@ class MainWindow(QMainWindow):
         trace.mark("send_clicked")
         self.chat.reset_stream()
         item = self.chat.add_message("user", text)
-        trace.mark("bubble_created")
+        trace.mark("user_bubble_created")
         self._clear_composer_input()
         self.chat_sound_service.play_send()
         self._active_send_trace = trace
@@ -901,7 +901,7 @@ class MainWindow(QMainWindow):
         bind_message_id = getattr(self.chat, "bind_message_id", None)
         if callable(bind_message_id):
             bind_message_id(item, message_id)
-        trace.mark("persisted")
+        trace.mark("message_persisted")
         self._update_conversation_mode(text)
         autonomy = self._autonomy_from_text(text)
         if autonomy.enabled:
@@ -914,7 +914,7 @@ class MainWindow(QMainWindow):
                 return
         trace.mark("routing_started")
         agent_keys = self._route_agents(text, self._manual_routing())
-        trace.mark("routing_finished")
+        trace.mark("routing_completed")
         trace.set_agents(agent_keys)
         self.database.log_event("chat_route_selected", ",".join(agent_keys))
         if not agent_keys:
@@ -937,6 +937,8 @@ class MainWindow(QMainWindow):
             self._persist_thread_from_last_decision(message_id, self.task_orchestrator.current_task_id, text)
             self._record_thread_question_from_last_decision(message_id, text)
             trace.mark("runs_queued")
+            for index, agent_key in enumerate(agent_keys, start=1):
+                trace.mark(f"run_{index}_queued:{agent_key}")
             self._flush_send_trace()
             self._start_next_agent_run()
             QTimer.singleShot(1200, lambda mid=message_id: self._ensure_generation_started(mid))
@@ -948,6 +950,14 @@ class MainWindow(QMainWindow):
         if trace is None:
             return
         trace.mark(f"{stage}:{agent_key}" if agent_key else stage)
+        if agent_key and agent_key in trace.agents:
+            index = trace.agents.index(agent_key) + 1
+            if stage == "provider_started":
+                trace.mark(f"provider_{index}_started")
+        if stage == "typing_started":
+            trace.mark("typing_visible")
+        elif stage in {"response_ready", "response_rendered"}:
+            trace.mark(stage)
 
     def _flush_send_trace(self, final: bool = False) -> None:
         trace = getattr(self, "_active_send_trace", None)

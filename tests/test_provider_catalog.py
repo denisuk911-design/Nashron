@@ -16,6 +16,14 @@ def test_provider_catalog_has_honest_product_scale(tmp_path):
     assert len(profiles) >= 20
     assert supported == {"CODEX_CLI", "GEMINI_CLI"}
     assert all(profile.official_url for profile in profiles)
+    assert all(profile.last_verified == "2026-08-13" for profile in profiles)
+    assert {profile.catalog_class for profile in profiles} >= {
+        "OFFICIAL_CLI",
+        "OFFICIAL_API",
+        "LOCAL_RUNTIME",
+        "CLOUD_PLATFORM",
+        "CUSTOM_GATEWAY",
+    }
 
 
 def test_deepseek_is_api_only_without_fake_install_command():

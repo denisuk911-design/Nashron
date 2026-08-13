@@ -33,11 +33,11 @@ Employee profiles now persist these independent fields:
 
 The generator uses a 50/50 Ukrainian/international origin decision and a much larger combinatorial pool. The profession no longer becomes the employee's name or dominates every social reply. The prompt uses the communication profile to shape tone while retaining role discipline during real work.
 
-Generation validation covers 500 identities. The golden test requires at least 300 distinct names and a Ukrainian share between 40% and 60%. The packaged catalog contains 96 valid selectable avatars; source sheets are excluded and every valid catalog entry is eligible for generation.
+Generation validation covers 500 identities. The golden test requires at least 300 distinct names and a Ukrainian share between 40% and 60%. The packaged catalog contains 96 valid selectable avatars; source sheets are excluded and every valid catalog entry is eligible for generation. With the deterministic 500-employee distribution seed, the generator reaches at least 80 avatars and at least 400 distinct communication profiles.
 
 ## Theme backgrounds
 
-The release includes 12 original generated bitmap backgrounds, two in each collection:
+The release includes 18 original generated bitmap backgrounds, three in each collection:
 
 - city;
 - forest;
@@ -54,13 +54,13 @@ Custom wallpaper has priority over the built-in collection. Independent controls
 
 The Director Console section is named “ИИ и подключения” / “ШІ та підключення” / “AI and connections”. It lists connection type, honest support state, installation, authentication, health, capability matrix and assigned employees.
 
-The catalog contains 24 provider profiles:
+The catalog contains 24 provider profiles. “Добавить ИИ” opens the verified catalog and focuses the selected connection card. Each profile records its official class and documentation verification date:
 
 - fully supported adapters: Codex CLI and Gemini CLI;
 - experimental definitions without a production execution adapter: Claude Code and GitHub Copilot CLI;
 - catalog-only API, gateway and local runtimes: OpenAI, Anthropic, Gemini API, DeepSeek, Azure OpenAI, Mistral, Groq, OpenRouter, Bedrock, Vertex AI, GitHub Models, Cerebras, Cohere, Together, Ollama, LM Studio, llama.cpp, vLLM, LocalAI and NVIDIA NIM.
 
-DeepSeek is represented as API-only and has no invented CLI installer. Lifecycle buttons are enabled only when the catalog has a structured official command for that action. The program never constructs shell commands from user text.
+DeepSeek is represented as API-only and has no invented CLI installer. Lifecycle buttons are enabled only when the catalog has a structured official command for that action. The program never constructs shell commands from user text. Removing an API connection deletes its key from Windows Credential Manager; uninstalling a CLI is a separate action and warns when employees still depend on it.
 
 API secrets are written to Windows Credential Manager through `WindowsCredentialStore`; SQLite stores only a non-secret credential reference in the audit event. Secrets are not written to logs or employee profiles.
 
@@ -79,13 +79,31 @@ Primary implementation references:
 
 `Team2050.spec` now packages both avatars and theme backgrounds.
 
+## Final metrics
+
+- Send → bubble target: `<= 50 ms`; measured per message and shown in Diagnostics (the test harness verifies render-before-persist ordering, while real machine values are recorded at runtime).
+- Generated identity sample: 500.
+- Unique names in deterministic RU sample: 359.
+- Ukrainian/international selection: 50/50 random policy; golden range 40–60%.
+- Avatar library selectable: 96.
+- Avatars reached in deterministic 500-employee sample: 92 of 96.
+- Communication profiles reached in deterministic sample: 500.
+- Theme collections: 6.
+- Backgrounds per collection: 3.
+- Provider catalog: 24.
+- Fully supported: 2.
+- Experimental: 2.
+- Catalog only: 20.
+
 ## Verification
 
 - Python compile check: passed.
-- Focused scheduler, provider, theme, identity, asset and GUI tests: 29 passed.
-- Full automated suite: 292 passed in 87.56 seconds.
+- Focused scheduler, provider, theme, identity, asset and GUI tests: passed.
+- Full automated suite after the final corrective additions: 293 passed in 86.63 seconds.
 - Asset validator: passed, 0 errors and 1 documented audio fallback warning.
-- Packaged EXE smoke: recorded after the final build below.
+- Packaged EXE build: passed for version 2.6.0 from commit `8eef62c`.
+- Clean-profile packaged startup: passed; the process reached `USER_INTERACTIVE`, created a fresh SQLite database and remained alive until the 10-second smoke harness stopped it.
+- Packaged resources: 18 theme images and the complete avatar directory are present under `_internal/data`.
 
 ## Honest limitations
 

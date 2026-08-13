@@ -99,6 +99,27 @@ class MissingProviderAdapter:
         self.provider_id = profile.provider_id
 
     def check_health(self) -> ProviderHealth:
+        if self.profile.integration_type == "API" and self.profile.credential_kind in {"API_KEY", "OPTIONAL_API_KEY"}:
+            try:
+                from .secure_storage import WindowsCredentialStore
+
+                configured = bool(WindowsCredentialStore().read(self.profile.provider_id))
+            except Exception:
+                configured = False
+            return ProviderHealth(
+                self.provider_id,
+                None,
+                "INSTALLED",
+                "AUTHENTICATED" if configured else "AUTHENTICATION_REQUIRED",
+                "NOT_CHECKED",
+                "DEGRADED" if configured else "NOT_READY",
+                "UNSUPPORTED",
+                diagnostic=(
+                    "API credential is stored securely; the execution adapter is not implemented."
+                    if configured
+                    else "API credential is not configured and the execution adapter is not implemented."
+                ),
+            )
         found = next((name for name in self.profile.executable_names if shutil.which(name)), None)
         return ProviderHealth(
             self.provider_id,
@@ -146,6 +167,8 @@ class ProviderRegistry:
                 uninstall_command=self.database.loads(row["uninstall_command"], []),
                 capability_matrix=self.database.loads(row["capability_matrix"], {}),
                 credential_kind=str(row["credential_kind"] or "NONE"),
+                catalog_class=str(row["catalog_class"] or "UNSUPPORTED"),
+                last_verified=str(row["last_verified"] or ""),
                 provider_schema_version=row["provider_schema_version"],
             )
             for row in rows

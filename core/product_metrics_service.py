@@ -202,16 +202,21 @@ class ProductMetricsService:
                 continue
             seen.add(trace_id)
             stages = payload.get("stages_ms") if isinstance(payload.get("stages_ms"), dict) else {}
-            provider_values = [float(value) for key, value in stages.items() if str(key).startswith("provider_started")]
+            provider_values = [
+                float(value)
+                for key, value in stages.items()
+                if str(key).startswith("provider_started")
+                or (str(key).startswith("provider_") and str(key).endswith("_started"))
+            ]
             rendered_values = [float(value) for key, value in stages.items() if str(key).startswith("response_rendered")]
             diagnostics.append(
                 SendPipelineDiagnostic(
                     created_at=str(row["created_at"]),
                     trace_id=trace_id,
-                    bubble_ms=self._ms(stages.get("bubble_created")),
+                    bubble_ms=self._ms(stages.get("user_bubble_created", stages.get("bubble_created"))),
                     event_loop_ms=self._ms(stages.get("event_loop_returned")),
-                    persisted_ms=self._ms(stages.get("persisted")),
-                    routing_ms=self._ms(stages.get("routing_finished")),
+                    persisted_ms=self._ms(stages.get("message_persisted", stages.get("persisted"))),
+                    routing_ms=self._ms(stages.get("routing_completed", stages.get("routing_finished"))),
                     provider_ms=self._ms(min(provider_values) if provider_values else None),
                     rendered_ms=self._ms(max(rendered_values) if rendered_values else None),
                     budget="OK" if bool(payload.get("bubble_budget_ok")) else "SLOW",

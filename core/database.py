@@ -1281,6 +1281,8 @@ class Database:
                 uninstall_command TEXT NOT NULL DEFAULT '[]',
                 capability_matrix TEXT NOT NULL DEFAULT '{}',
                 credential_kind TEXT NOT NULL DEFAULT 'NONE',
+                catalog_class TEXT NOT NULL DEFAULT 'UNSUPPORTED',
+                last_verified TEXT NOT NULL DEFAULT '',
                 provider_schema_version TEXT NOT NULL,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -1408,6 +1410,8 @@ class Database:
             "uninstall_command": "TEXT NOT NULL DEFAULT '[]'",
             "capability_matrix": "TEXT NOT NULL DEFAULT '{}'",
             "credential_kind": "TEXT NOT NULL DEFAULT 'NONE'",
+            "catalog_class": "TEXT NOT NULL DEFAULT 'UNSUPPORTED'",
+            "last_verified": "TEXT NOT NULL DEFAULT ''",
         }.items():
             if name not in provider_columns:
                 conn.execute(f"ALTER TABLE provider_definitions ADD COLUMN {name} {definition}")
@@ -3990,9 +3994,9 @@ class Database:
                     minimum_supported_version, recommended_version, setup_instructions,
                     known_limitations, required_capabilities, integration_type, support_status,
                     official_url, install_command, auth_command, update_command, uninstall_command,
-                    capability_matrix, credential_kind, provider_schema_version
+                    capability_matrix, credential_kind, catalog_class, last_verified, provider_schema_version
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(provider_id) DO UPDATE SET
                     display_name = excluded.display_name,
                     provider_family = excluded.provider_family,
@@ -4015,6 +4019,8 @@ class Database:
                     uninstall_command = excluded.uninstall_command,
                     capability_matrix = excluded.capability_matrix,
                     credential_kind = excluded.credential_kind,
+                    catalog_class = excluded.catalog_class,
+                    last_verified = excluded.last_verified,
                     provider_schema_version = excluded.provider_schema_version,
                     updated_at = CURRENT_TIMESTAMP
                 """,
@@ -4041,6 +4047,8 @@ class Database:
                     self._json(profile.uninstall_command),
                     self._json(profile.capability_matrix),
                     profile.credential_kind,
+                    profile.catalog_class,
+                    profile.last_verified,
                     profile.provider_schema_version,
                 ),
             )

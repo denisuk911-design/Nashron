@@ -71,3 +71,23 @@ def test_every_valid_avatar_can_participate_in_generation(tmp_path, monkeypatch)
         selected.append(_pick_avatar(tmp_path, "female"))
 
     assert set(selected) == {str(path) for path in avatars}
+
+
+def test_500_generated_employees_use_the_broad_avatar_and_personality_catalog():
+    import random
+
+    avatar_dir = Path(__file__).resolve().parents[1] / "data" / "avatars"
+    state = random.getstate()
+    try:
+        random.seed(2050)
+        generated = [generate_identity("ru", avatar_dir=avatar_dir) for _ in range(500)]
+    finally:
+        random.setstate(state)
+
+    unique_avatars = {identity.avatar_path for identity in generated}
+    unique_profiles = {
+        tuple(sorted(identity.communication_profile.items()))
+        for identity in generated
+    }
+    assert len(unique_avatars) >= 80
+    assert len(unique_profiles) >= 400

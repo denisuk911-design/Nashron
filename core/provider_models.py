@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 
 PROVIDER_SCHEMA_VERSION = "1.0"
@@ -102,6 +102,8 @@ class ProviderProfile:
     uninstall_command: list[str] = field(default_factory=list)
     capability_matrix: dict[str, str] = field(default_factory=dict)
     credential_kind: str = "NONE"
+    catalog_class: str = "UNSUPPORTED"
+    last_verified: str = ""
     provider_schema_version: str = PROVIDER_SCHEMA_VERSION
 
 
@@ -225,4 +227,24 @@ DEFAULT_PROVIDER_PROFILES = [
     ProviderProfile("VLLM_LOCAL", "vLLM", "vllm", "vllm_local", ["Linux"], "python_package", "none", ["vllm"], integration_type="LOCAL_RUNTIME", support_status="CATALOG_ONLY", official_url="https://docs.vllm.ai/en/latest/getting_started/quickstart.html"),
     ProviderProfile("LOCALAI_RUNTIME", "LocalAI", "localai", "localai_runtime", ["Windows", "macOS", "Linux"], "container_or_binary", "none", [], integration_type="LOCAL_RUNTIME", support_status="CATALOG_ONLY", official_url="https://localai.io/basics/getting_started/"),
     ProviderProfile("NVIDIA_NIM_API", "NVIDIA NIM API", "nvidia", "nvidia_nim_api", ["Windows", "macOS", "Linux"], "none", "api_key", [], integration_type="API", support_status="CATALOG_ONLY", official_url="https://docs.api.nvidia.com/nim/", credential_kind="API_KEY"),
+]
+
+
+def _catalog_class(profile: ProviderProfile) -> str:
+    if profile.integration_type == "CLI":
+        return "OFFICIAL_CLI"
+    if profile.integration_type == "API":
+        return "OFFICIAL_API"
+    if profile.integration_type == "LOCAL_RUNTIME":
+        return "LOCAL_RUNTIME"
+    if profile.provider_id in {"AZURE_OPENAI_API", "AWS_BEDROCK", "VERTEX_AI"}:
+        return "CLOUD_PLATFORM"
+    if profile.integration_type == "GATEWAY":
+        return "CUSTOM_GATEWAY"
+    return "UNSUPPORTED"
+
+
+DEFAULT_PROVIDER_PROFILES = [
+    replace(profile, catalog_class=_catalog_class(profile), last_verified="2026-08-13")
+    for profile in DEFAULT_PROVIDER_PROFILES
 ]
