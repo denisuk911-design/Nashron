@@ -33,6 +33,14 @@ def test_supervisor_decomposes_goal_and_assigns_by_competency(tmp_path):
     assert items[2].dependencies == [items[0].work_item_id, items[1].work_item_id]
 
 
+def test_simple_work_item_does_not_launch_whole_team(tmp_path):
+    engine = HybridWorkflowEngine("org", employees(), tmp_path)
+    goal = engine.create_goal("Create one file as a simple note")
+    plan = engine.create_plan(goal.goal_id)
+
+    assert len(plan.work_item_ids) == 1
+
+
 def test_goal_runs_through_action_tool_observation_artifacts_review_rework(tmp_path):
     engine = HybridWorkflowEngine("org", employees(), tmp_path)
     goal = engine.create_goal("Prepare technical specification for converter")
@@ -47,6 +55,7 @@ def test_goal_runs_through_action_tool_observation_artifacts_review_rework(tmp_p
     assert all(evidence.passed for evidence in state.evidence.values() if evidence.evidence_type == "TOOL_OBSERVATION")
     assert state.findings
     assert any(artifact.revision == 2 for artifact in state.artifacts.values() if artifact.artifact_type == "TECHNICAL_SPECIFICATION")
+    assert any(evidence.evidence_type == "SOURCE_RECORD" and evidence.passed for evidence in state.evidence.values())
 
 
 def test_handoff_contains_real_artifacts_for_reviewer(tmp_path):

@@ -5,7 +5,9 @@ from core.agent_directory import ChatAgent, mention_tokens
 from core.autonomy import parse_autonomy_request
 from core.codex_client import CodexClient
 from core.gemini_client import GeminiClient
+from core.runtime_v3_service import RuntimeV3GoalResult
 from core.team_routing import ParticipationMode, TeamRouter
+from runtime_v3.models import RuntimeState
 
 
 def test_autonomous_done_marker_can_be_inline():
@@ -175,6 +177,97 @@ def test_manual_goal_mode_forces_autonomous_goal():
     assert autonomy.enabled
     assert autonomy.complete_on_goal
     assert autonomy.goal == "Создайте документ и проверьте его"
+
+
+def test_runtime_v3_goal_mode_runs_service_and_records_result(tmp_path):
+    events = []
+
+    class FakeChat:
+        def __init__(self):
+            self.messages = []
+            self.statuses = []
+            self.busy = []
+            self.typing = []
+            self.bound = []
+
+        def goal_mode_requested(self):
+            return True
+
+        def set_goal_status(self, *args):
+            self.statuses.append(args)
+
+        def set_busy(self, value):
+            self.busy.append(value)
+
+        def start_agent_typing(self, *args):
+            self.typing.append(("start", args))
+
+        def stop_agent_typing(self, *args):
+            self.typing.append(("stop", args))
+
+        def add_message(self, role, text):
+            item = object()
+            self.messages.append((role, text, item))
+            return item
+
+        def bind_message_id(self, item, message_id):
+            self.bound.append((item, message_id))
+
+    class FakeDatabase:
+        def add_message(self, conversation_id, role, text):
+            events.append(("message", conversation_id, role, text))
+            return len(events)
+
+        def log_event(self, *args):
+            events.append(("event", *args))
+
+    class FakeSound:
+        def play_receive(self):
+            events.append(("receive",))
+
+    class FakeService:
+        def run_goal(self, organization_id, objective, agents):
+            events.append(("run_goal", organization_id, objective, list(agents)))
+            return RuntimeV3GoalResult(True, "Цель выполнена.\nАртефакты: 1.", RuntimeState(organization_id), tmp_path)
+
+    window = MainWindow.__new__(MainWindow)
+    window.settings = {"developer_mode": True, "runtime_engine": "HYBRID_V3_EXPERIMENTAL"}
+    window.chat = FakeChat()
+    window.database = FakeDatabase()
+    window.chat_sound_service = FakeSound()
+    window.runtime_v3_goal_service = FakeService()
+    window.active_organization_id = "organization-test"
+    window.conversation_id = "conversation-test"
+    window.logger = type("Logger", (), {"exception": lambda *_args: None})()
+    window._chat_agents = lambda: [
+        ChatAgent("roman", "agent-roman", "Roman", "CODEX_CLI", ["DESIGN_ENGINEER"], "roman_2050", "", None),
+    ]
+
+    handled = MainWindow._try_start_runtime_v3_goal(window, "Цель: создать спецификацию", 7)
+
+    assert handled
+    assert events[0][0] == "run_goal"
+    assert events[0][1:3] == ("organization-test", "Цель: создать спецификацию")
+    assert ("event", "runtime_v3_goal_completed", "message_id=7; artifacts=0; evidence=0") in events
+    assert any(event[:3] == ("message", "conversation-test", "runtime_v3") for event in events)
+    assert ("receive",) in events
+    assert window.chat.busy == [True, False]
+    assert window.chat.statuses[0] == (True, "Цель: создать спецификацию", 0)
+    assert window.chat.statuses[-1] == (False,)
+
+
+def test_runtime_v3_goal_mode_requires_developer_runtime():
+    class FakeChat:
+        def goal_mode_requested(self):
+            return True
+
+    window = MainWindow.__new__(MainWindow)
+    window.settings = {"developer_mode": False, "runtime_engine": "HYBRID_V3_EXPERIMENTAL"}
+    window.chat = FakeChat()
+    window.active_organization_id = "organization-test"
+    window.runtime_v3_goal_service = object()
+
+    assert not MainWindow._try_start_runtime_v3_goal(window, "Цель: создать спецификацию", 7)
 
 
 def test_goal_turn_limit_has_safe_minimum():

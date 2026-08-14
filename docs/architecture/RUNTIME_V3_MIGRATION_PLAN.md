@@ -41,12 +41,21 @@ Move checkpoint repository from JSON to SQLite tables while keeping the same Tea
 
 ## Stage 3: GUI Goal Mode
 
+Status: started for the local deterministic V3 slice.
+
 Add an experimental Goal mode to the packaged GUI:
 
 - normal chat remains stable;
 - social chat does not create goals;
 - goal prompt creates plan and shows user-friendly statuses;
 - internal enums and IDs are projected into readable text.
+
+Current implementation:
+
+- `HYBRID_V3_EXPERIMENTAL` is selectable only with developer mode enabled.
+- Manual chat Goal mode routes the prompt into `RuntimeV3GoalService`.
+- The GUI receives a short user-friendly projection from V3 instead of raw state IDs.
+- Legacy chat remains the default when the flag is off.
 
 ## Stage 4: Provider Adapters
 

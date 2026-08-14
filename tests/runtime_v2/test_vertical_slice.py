@@ -19,6 +19,7 @@ def test_runtime_v2_creates_verifies_and_persists_text_file(tmp_path):
     service = RuntimeV2Service(repository, tmp_path)
     adapter = LocalTextFileProviderAdapter()
     request = parse_create_text_file("создай файл runtime_v2_real.txt точно RUNTIME_V2_REAL_OK")
+    assert request is not None
     state = service.create_task(request, "agent-roman", "org-test", adapter.provider_id)
 
     result = service.execute(state.runtime_task_id, request, adapter)
@@ -39,6 +40,7 @@ def test_runtime_v2_repeated_execute_is_idempotent(tmp_path):
     service = RuntimeV2Service(repository, tmp_path)
     adapter = LocalTextFileProviderAdapter()
     request = parse_create_text_file("create file runtime_v2_real.txt exactly RUNTIME_V2_REAL_OK")
+    assert request is not None
     state = service.create_task(request, "agent-roman", "org-test", adapter.provider_id)
 
     first = service.execute(state.runtime_task_id, request, adapter)
@@ -56,6 +58,7 @@ def test_runtime_v2_recovers_after_effect_commit_crash(tmp_path):
     service = RuntimeV2Service(repository, tmp_path)
     adapter = LocalTextFileProviderAdapter()
     request = parse_create_text_file("создай файл runtime_v2_real.txt точно RUNTIME_V2_REAL_OK")
+    assert request is not None
     state = service.create_task(request, "agent-roman", "org-test", adapter.provider_id)
 
     try:

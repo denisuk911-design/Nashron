@@ -57,7 +57,7 @@ class ClientProviderAdapter:
         request.physical_workspace.mkdir(parents=True, exist_ok=True)
         self.client.workspace = request.physical_workspace
         prompt = (
-            "Выполни только одну bounded-задачу в текущей рабочей папке. "
+            "Выполни только одну ограниченную задачу в текущей рабочей папке. "
             f"Создай файл {request.filename} и запиши в него точно одну строку: {request.content}. "
             "Не создавай другие файлы, не меняй существующие и после записи проверь содержимое. "
             "Ответь кратко: имя файла и результат проверки."

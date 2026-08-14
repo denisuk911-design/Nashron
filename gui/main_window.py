@@ -59,6 +59,7 @@ from core.provider_service import (
 )
 from core.response_cleaner import ResponseCleaner
 from core.response_latency import ResponseLatencyPolicy
+from core.runtime_v3_service import RuntimeV3GoalService
 from core.response_splitter import ResponseSplitter
 from core.settings_service import SettingsService
 from core.send_pipeline_trace import SendPipelineTrace
@@ -93,6 +94,7 @@ from gui.localization import catalog_label, role_label
 from gui.settings_dialog import SettingsDialog
 from gui.theme import ThemeBackdrop, ThemeManager
 from gui.worker import GenerateWorker
+from runtime_v2.feature_flag import RuntimeEngine, selected_runtime
 
 
 class MainWindow(QMainWindow):
@@ -188,6 +190,7 @@ class MainWindow(QMainWindow):
         self.settings["workspace_root"] = str(self.workspace_service.root)
         self.settings_service.save(self.settings)
         self.artifact_service = ArtifactService(self.database, self.workspace_service.root)
+        self.runtime_v3_goal_service = RuntimeV3GoalService(self.workspace_service.root / "runtime_v3_goals")
         self.codex_client = CodexClient(
             workspace=self.workspace_service.chat_runtime,
             timeout_seconds=int(self.settings.get("codex_timeout_seconds", 180)),
@@ -799,6 +802,8 @@ class MainWindow(QMainWindow):
             agent.key: role_label(str(self.settings.get("interface_language") or "ru"), agent.primary_role)
             for agent in agents
         }
+        labels["runtime_v3"] = "Supervisor"
+        titles["runtime_v3"] = "Runtime V3"
         if hasattr(self, "chat"):
             self.chat.set_agent_labels(labels, avatars, titles)
         roster = getattr(self, "team_roster_layout", None)
@@ -907,6 +912,10 @@ class MainWindow(QMainWindow):
         if autonomy.enabled:
             self.conversation_mode = ConversationMode.WORK
             self._refresh_work_context_strip()
+        if self._try_start_runtime_v3_goal(text, message_id):
+            trace.mark("runtime_v3_goal_completed")
+            self._flush_send_trace(final=True)
+            return
         if autonomy.enabled and autonomy.complete_on_goal and self.active_organization_id:
             if self._start_director_goal(text, message_id):
                 trace.mark("runs_queued")
@@ -944,6 +953,43 @@ class MainWindow(QMainWindow):
             QTimer.singleShot(1200, lambda mid=message_id: self._ensure_generation_started(mid))
         else:
             self._flush_send_trace(final=True)
+
+    def _try_start_runtime_v3_goal(self, text: str, message_id: int | None) -> bool:
+        if selected_runtime(self.settings) != RuntimeEngine.HYBRID_V3_EXPERIMENTAL:
+            return False
+        goal_requested = bool(getattr(self.chat, "goal_mode_requested", lambda: False)())
+        if not goal_requested:
+            return False
+        if not self.active_organization_id:
+            return False
+        service = getattr(self, "runtime_v3_goal_service", None)
+        if service is None:
+            return False
+        self.chat.set_goal_status(True, text, 0)
+        self.chat.set_busy(True)
+        self.chat.start_agent_typing("runtime_v3", "создаю план")
+        try:
+            result = service.run_goal(self.active_organization_id, text, self._chat_agents())
+        except Exception as exc:
+            self.logger.exception("runtime_v3_goal_failed")
+            result_text = f"Цель не выполнена: {type(exc).__name__}: {exc}"
+        else:
+            result_text = result.summary
+            self.database.log_event(
+                "runtime_v3_goal_completed" if result.ok else "runtime_v3_goal_incomplete",
+                f"message_id={message_id}; artifacts={len(result.state.artifacts)}; evidence={len(result.state.evidence)}",
+            )
+        finally:
+            self.chat.stop_agent_typing("runtime_v3")
+            self.chat.set_busy(False)
+            self.chat.set_goal_status(False)
+        response_item = self.chat.add_message("runtime_v3", result_text)
+        response_id = self.database.add_message(self.conversation_id, "runtime_v3", result_text)
+        bind_message_id = getattr(self.chat, "bind_message_id", None)
+        if callable(bind_message_id):
+            bind_message_id(response_item, response_id)
+        self.chat_sound_service.play_receive()
+        return True
 
     def _mark_send_stage(self, stage: str, agent_key: str = "") -> None:
         trace = getattr(self, "_active_send_trace", None)
@@ -984,6 +1030,8 @@ class MainWindow(QMainWindow):
         if autonomy.enabled:
             self.conversation_mode = ConversationMode.WORK
             self._refresh_work_context_strip()
+        if self._try_start_runtime_v3_goal(text, message_id):
+            return
         agent_keys = self._route_agents(text, self._manual_routing())
         self.database.log_event("chat_route_selected", ",".join(agent_keys))
         if not agent_keys:

@@ -248,6 +248,10 @@ class SettingsDialog(QDialog):
             {"ru": "Runtime V2 (только прототип)", "uk": "Runtime V2 (лише прототип)", "en": "Runtime V2 (prototype only)"}.get(language, "Runtime V2 (только прототип)"),
             "V2_EXPERIMENTAL",
         )
+        self.runtime_engine.addItem(
+            {"ru": "Hybrid Runtime V3 (цели, тестовый)", "uk": "Hybrid Runtime V3 (цілі, тестовий)", "en": "Hybrid Runtime V3 (goals, experimental)"}.get(language, "Hybrid Runtime V3 (цели, тестовый)"),
+            "HYBRID_V3_EXPERIMENTAL",
+        )
         runtime_index = self.runtime_engine.findData(str(settings.get("runtime_engine", "LEGACY")))
         self.runtime_engine.setCurrentIndex(runtime_index if runtime_index >= 0 else 0)
         self.runtime_engine.setEnabled(self.developer_mode.isChecked())

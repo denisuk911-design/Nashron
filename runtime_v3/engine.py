@@ -179,6 +179,18 @@ class HybridWorkflowEngine:
             True,
         )
         self.state.evidence[evidence.evidence_id] = evidence
+        if artifact.artifact_type == "SOURCE_RESEARCH":
+            source_evidence = Evidence(
+                new_id("evidence"),
+                item.goal_id,
+                item.work_item_id,
+                "SOURCE_RECORD",
+                action.action_id,
+                observation.observation_id,
+                "research artifact contains source evidence section",
+                "source evidence" in Path(path).read_text(encoding="utf-8").lower(),
+            )
+            self.state.evidence[source_evidence.evidence_id] = source_evidence
 
     def _review(self, item: WorkItem, action: Action) -> Observation:
         findings: list[dict] = []

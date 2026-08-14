@@ -17,11 +17,11 @@ DEFAULT_PROMPT = "создай файл runtime_v2_real.txt точно RUNTIME_V
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run the bounded Runtime V2 test slice.")
-    parser.add_argument("--prompt", default=DEFAULT_PROMPT, help="Bounded file creation prompt.")
-    parser.add_argument("--workspace", default=str(PROJECT_ROOT / ".tmp_runtime_v2_smoke"), help="Test workspace root.")
-    parser.add_argument("--database", default="", help="SQLite database path. Defaults to <workspace>/runtime_v2.sqlite3.")
-    parser.add_argument("--crash-after-effect", action="store_true", help="Simulate a crash after file write and recover.")
+    parser = argparse.ArgumentParser(description="Запустить ограниченный тестовый срез Runtime V2.")
+    parser.add_argument("--prompt", default=DEFAULT_PROMPT, help="Команда на создание тестового файла.")
+    parser.add_argument("--workspace", default=str(PROJECT_ROOT / ".tmp_runtime_v2_smoke"), help="Папка тестового запуска.")
+    parser.add_argument("--database", default="", help="Путь к SQLite. По умолчанию <workspace>/runtime_v2.sqlite3.")
+    parser.add_argument("--crash-after-effect", action="store_true", help="Сымитировать сбой после записи файла и проверить восстановление.")
     return parser
 
 

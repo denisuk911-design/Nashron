@@ -142,6 +142,7 @@ Implemented:
 
 - Supervisor-owned plan creation.
 - Competency-based WorkItem assignment.
+- Experimental packaged GUI Goal mode hook behind `HYBRID_V3_EXPERIMENTAL`.
 - Action -> Tool -> Observation execution.
 - Artifact and Evidence creation after successful effects.
 - Fake claim rejection.
@@ -153,7 +154,6 @@ Implemented:
 
 Not yet implemented:
 
-- Packaged GUI Goal mode.
 - Real provider adapters.
 - Real web/source research tool.
 - SQLite-backed V3 state.

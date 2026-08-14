@@ -19,6 +19,22 @@ class GoalSupervisor:
     def create_plan(self, goal: Goal) -> tuple[Plan, list[WorkItem]]:
         if self.is_social(goal.objective):
             return Plan(new_id("plan"), goal.goal_id, self.supervisor_employee_id, []), []
+        if self._is_simple_single_item(goal.objective):
+            employee = self._select_employee(["engineering", "specification", "documentation"])
+            item = WorkItem(
+                new_id("work"),
+                goal.goal_id,
+                goal.objective,
+                employee.employee_id,
+                required_capabilities=["single-work-item"],
+                required_tools=["filesystem.write"],
+                expected_artifact_types=["WORK_PRODUCT"],
+                acceptance_criteria=["artifact created"],
+                evidence_requirements=["successful filesystem.write observation"],
+                status=WorkItemStatus.READY,
+            )
+            plan = Plan(new_id("plan"), goal.goal_id, self.supervisor_employee_id, [item.work_item_id])
+            return plan, [item]
         spec_employee = self._select_employee(["requirements", "specification", "engineering"])
         research_employee = self._select_employee(["research", "components"])
         reviewer = self._select_employee(["review", "qa", "evidence"])
@@ -67,3 +83,10 @@ class GoalSupervisor:
             if any(token in " ".join(competencies) for token in required):
                 return employee
         return self.employees[0]
+
+    @staticmethod
+    def _is_simple_single_item(text: str) -> bool:
+        normalized = " ".join(str(text or "").lower().split())
+        complex_tokens = ("research", "review", "controller", "24", "12", "specification", "преобраз", "контроллер", "исслед")
+        simple_tokens = ("one file", "single file", "прост", "один файл", "заметка")
+        return any(token in normalized for token in simple_tokens) and not any(token in normalized for token in complex_tokens)
