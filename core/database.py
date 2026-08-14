@@ -80,12 +80,19 @@ class Database:
             self._ensure_organization_expansion_schema(conn)
             self._ensure_learning_evidence_schema(conn)
             self._ensure_director_schema(conn)
+            self._ensure_runtime_v2_schema(conn)
             self._repair_renamed_message_foreign_keys(conn)
             self._repair_orphaned_routing_decisions(conn)
         # A legacy writable-schema migration could leave freed pages outside
         # SQLite's freelist. Run the same narrowly scoped check after schema
         # repair so the problem cannot be recreated by an old database.
         self._prepare_existing_storage()
+
+    @staticmethod
+    def _ensure_runtime_v2_schema(conn: sqlite3.Connection) -> None:
+        from runtime_v2.sqlite_repository import ensure_runtime_v2_schema
+
+        ensure_runtime_v2_schema(conn)
 
     def _prepare_existing_storage(self) -> None:
         if not self.path.exists() or self.path.stat().st_size == 0:
