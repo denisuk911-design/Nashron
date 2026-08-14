@@ -1,0 +1,22 @@
+{
+  "ok": true,
+  "handled_by_gui": true,
+  "organization_id": "ORG-C0845F3B0066",
+  "goal": "Подготовьте техническую спецификацию преобразователя 24 В -> 12 В, 5 А и подберите подходящий контроллер.",
+  "summary": "Цель выполнена.\nПлан: 3 рабочих пункта.\nАртефакты: 3.\nИсточники/доказательства: 1.\nПроверка: найдены замечания, исправлены.\nРезультаты:\n- specification.md, ревизия 1\n- controller_research.md, ревизия 1\n- specification.md, ревизия 2",
+  "goal_count": 1,
+  "work_items": 3,
+  "actions": 4,
+  "observations": 4,
+  "artifacts": 3,
+  "evidence": 4,
+  "findings": 1,
+  "handoffs": 2,
+  "message_rows": 1,
+  "screenshot": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_runtime_v3_packaged_gui_smoke\\runtime_v3_gui_smoke.png",
+  "checks_passed": true,
+  "returncode": 0,
+  "exe": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\Team2050.exe",
+  "work_dir": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_runtime_v3_packaged_gui_smoke",
+  "evidence_screenshot": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\HybridRuntimeV3\\runtime_v3_packaged_gui_smoke.png"
+}

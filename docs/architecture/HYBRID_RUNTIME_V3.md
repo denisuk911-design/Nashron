@@ -142,7 +142,7 @@ Implemented:
 
 - Supervisor-owned plan creation.
 - Competency-based WorkItem assignment.
-- Experimental packaged GUI Goal mode hook behind `HYBRID_V3_EXPERIMENTAL`.
+- Experimental packaged GUI Goal mode behind `HYBRID_V3_EXPERIMENTAL`, verified by packaged golden smoke.
 - Action -> Tool -> Observation execution.
 - Artifact and Evidence creation after successful effects.
 - Fake claim rejection.

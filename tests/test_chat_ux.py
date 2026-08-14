@@ -278,3 +278,13 @@ def test_theme_text_contrast_is_readable_on_all_core_surfaces():
         colors = ThemeManager.definition(theme_id).colors
         for surface in ("bg", "chat_bg", "surface", "surface_alt", "input", "dialog_bg"):
             assert ratio(colors["text"], colors[surface]) >= 7.0, (theme_id, surface)
+
+
+def test_agent_typing_accepts_activity_status_text():
+    _app()
+    widget = ChatWidget()
+    widget.start_agent_typing("runtime_v3", "создаю план")
+
+    assert widget._parallel_typing["runtime_v3"]["status"] == "создаю план"
+    assert "создаю план" in widget._parallel_typing["runtime_v3"]["label"].text()
+    widget.deleteLater()

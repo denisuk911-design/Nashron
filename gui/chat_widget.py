@@ -513,7 +513,7 @@ class ChatWidget(QWidget):
             self.stop_typing_indicator()
             self.stop_all_agent_typing()
 
-    def start_agent_typing(self, agent_key: str) -> None:
+    def start_agent_typing(self, agent_key: str, status: str = "") -> None:
         self.stop_agent_typing(agent_key)
         item = QListWidgetItem()
         item.setFlags(Qt.NoItemFlags)
@@ -523,7 +523,7 @@ class ChatWidget(QWidget):
         label.setTextFormat(Qt.PlainText)
         self.messages.addItem(item)
         self.messages.setItemWidget(item, label)
-        self._parallel_typing[agent_key] = {"item": item, "label": label, "status": "", "frame": 0}
+        self._parallel_typing[agent_key] = {"item": item, "label": label, "status": status.strip(), "frame": 0}
         if not self.typing_timer.isActive():
             self.typing_timer.start()
         self._advance_typing()
