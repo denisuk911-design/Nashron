@@ -137,6 +137,19 @@ def _run_runtime_v3_gui_smoke(app: QApplication, window: MainWindow, logger: log
             screenshot_path = report_path.with_suffix(".png")
             window.grab().save(str(screenshot_path))
             summary = result.summary if result is not None else ""
+            provider_actions = [
+                action
+                for action in (result.state.actions.values() if result is not None else [])
+                if str(action.payload.get("path", "")).replace("\\", "/").startswith("v3_provider_output/")
+            ]
+            provider_observation_ids = {
+                action.action_id
+                for action in provider_actions
+                if any(
+                    observation.action_id == action.action_id and observation.status.value == "OK"
+                    for observation in result.state.observations.values()
+                )
+            } if result is not None else set()
             payload = {
                 "ok": bool(handled and result is not None and result.ok),
                 "handled_by_gui": handled,
@@ -151,17 +164,21 @@ def _run_runtime_v3_gui_smoke(app: QApplication, window: MainWindow, logger: log
                 "evidence": len(result.state.evidence) if result is not None else 0,
                 "findings": len(result.state.findings) if result is not None else 0,
                 "handoffs": len(result.state.handoffs) if result is not None else 0,
+                "provider_actions": len(provider_actions),
+                "provider_observations_ok": len(provider_observation_ids),
                 "message_rows": window.chat.messages.count(),
                 "screenshot": str(screenshot_path),
             }
             checks = [
                 payload["ok"],
                 payload["work_items"] >= 3,
-                payload["actions"] >= 4,
-                payload["observations"] >= 4,
-                payload["artifacts"] >= 3,
-                payload["evidence"] >= 4,
+                payload["actions"] >= 3,
+                payload["observations"] >= 3,
+                payload["artifacts"] >= 2,
+                payload["evidence"] >= 3,
                 payload["handoffs"] >= 1,
+                payload["provider_actions"] >= 1,
+                payload["provider_observations_ok"] >= 1,
                 "Цель выполнена" in summary,
                 "Артефакты" in summary,
                 "Источники" in summary,

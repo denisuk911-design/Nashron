@@ -190,7 +190,6 @@ class MainWindow(QMainWindow):
         self.settings["workspace_root"] = str(self.workspace_service.root)
         self.settings_service.save(self.settings)
         self.artifact_service = ArtifactService(self.database, self.workspace_service.root)
-        self.runtime_v3_goal_service = RuntimeV3GoalService(self.workspace_service.root / "runtime_v3_goals")
         self.codex_client = CodexClient(
             workspace=self.workspace_service.chat_runtime,
             timeout_seconds=int(self.settings.get("codex_timeout_seconds", 180)),
@@ -200,6 +199,10 @@ class MainWindow(QMainWindow):
             workspace=self.workspace_service.gemini_runtime,
             timeout_seconds=int(self.settings.get("codex_timeout_seconds", 180)),
             logger=logger,
+        )
+        self.runtime_v3_goal_service = RuntimeV3GoalService(
+            self.workspace_service.root / "runtime_v3_goals",
+            provider_clients={"CODEX_CLI": self.codex_client, "GEMINI_CLI": self.gemini_client},
         )
         self.provider_registry = ProviderRegistry(self.database)
         self.provider_registry.ensure_defaults()

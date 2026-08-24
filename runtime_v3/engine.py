@@ -27,10 +27,10 @@ from .tools import ToolRuntime
 
 
 class HybridWorkflowEngine:
-    def __init__(self, organization_id: str, employees: list[EmployeeBinding], workspace_root: Path) -> None:
+    def __init__(self, organization_id: str, employees: list[EmployeeBinding], workspace_root: Path, agent_runtime=None) -> None:
         self.state = RuntimeState(organization_id)
         self.supervisor = GoalSupervisor(employees)
-        self.agent_runtime = DeterministicAgentRuntime()
+        self.agent_runtime = agent_runtime or DeterministicAgentRuntime()
         self.tool_runtime = ToolRuntime(Path(workspace_root) / "workspace")
         self.repository = JsonCheckpointRepository(Path(workspace_root) / "checkpoints")
 
@@ -125,7 +125,10 @@ class HybridWorkflowEngine:
         self.checkpoint(f"work_item_running:{item.work_item_id}")
         decision = self.agent_runtime.decide(item.assigned_employee_id, item, item.attempt - 1)
         if not decision.actions:
-            self._unsupported_claim(item, decision)
+            if decision.failure_kind:
+                self._provider_failure(item, decision)
+            else:
+                self._unsupported_claim(item, decision)
             return
         for action in decision.actions:
             self._execute_action(item, action)
@@ -226,6 +229,22 @@ class HybridWorkflowEngine:
         )
         self.state.evidence[evidence.evidence_id] = evidence
         self.checkpoint("unsupported_claim_recorded")
+
+    def _provider_failure(self, item: WorkItem, decision: AgentDecision) -> None:
+        item.status = WorkItemStatus.BLOCKED
+        item.result = {"provider_failure": decision.message, "failure_kind": decision.failure_kind}
+        evidence = Evidence(
+            new_id("evidence"),
+            item.goal_id,
+            item.work_item_id,
+            decision.failure_kind,
+            "",
+            "",
+            decision.message,
+            False,
+        )
+        self.state.evidence[evidence.evidence_id] = evidence
+        self.checkpoint("provider_failure_recorded")
 
     def _create_handoff(self, item: WorkItem) -> None:
         if not item.dependencies:
