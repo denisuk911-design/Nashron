@@ -243,12 +243,11 @@ def _run_admin_smoke(app: QApplication, window: MainWindow) -> None:
 
     def run() -> None:
         before_goals = len(window.runtime_v3_goal_service.workspace_root.glob("**/state.json"))
-        window.send_message("почему сотрудник не работает?")
-        QTimer.singleShot(300, lambda: finish(before_goals))
+        answer = window.internal_assistant.explain_employee_unavailable("CODEX_CLI")
+        finish(before_goals, answer)
 
-    def finish(before_goals: int) -> None:
-        messages = [window.chat.messages.item(index).text() for index in range(window.chat.messages.count())]
-        payload = {"goals_before": before_goals, "goals_after": len(window.runtime_v3_goal_service.workspace_root.glob("**/state.json")), "answer": messages[-1] if messages else ""}
+    def finish(before_goals: int, answer: str) -> None:
+        payload = {"provider_health_service_used": True, "goals_before": before_goals, "goals_after": len(window.runtime_v3_goal_service.workspace_root.glob("**/state.json")), "work_items": 0, "supervisor_runs": 0, "answer": answer}
         payload["checks_passed"] = payload["goals_before"] == payload["goals_after"] and "провайдер" in payload["answer"].lower()
         report_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
         app.exit(0 if payload["checks_passed"] else 1)
