@@ -181,7 +181,9 @@ def test_runtime_v3_resume_retries_provider_blocked_work_item(tmp_path):
     state = resumed.resume()
 
     assert state.goals[goal.goal_id].status.value == "COMPLETED"
-    assert len(state.provider_runs) == 2
+    # First failure is retried autonomously; restart performs the final recovery.
+    assert len(state.provider_runs) == 3
+    assert [run.status for run in state.provider_runs.values()] == ["FAILED", "FAILED", "SUCCEEDED"]
     assert state.artifacts
 
 
