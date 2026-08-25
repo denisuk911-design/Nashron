@@ -77,6 +77,11 @@ class GoalSupervisor:
         plan = Plan(new_id("plan"), goal.goal_id, self.supervisor_employee_id, [spec.work_item_id, research.work_item_id, review.work_item_id])
         return plan, [spec, research, review]
 
+    @staticmethod
+    def can_retry_without_human(item: WorkItem) -> bool:
+        """Ordinary transient provider failures get one autonomous retry."""
+        return item.result.get("failure_kind") == "PROVIDER_FAILURE" and item.attempt < 2
+
     def _select_employee(self, required: list[str]) -> EmployeeBinding:
         for employee in self.employees:
             competencies = {item.lower() for item in employee.competencies + [employee.role]}

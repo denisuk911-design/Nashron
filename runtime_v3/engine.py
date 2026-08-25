@@ -122,6 +122,11 @@ class HybridWorkflowEngine:
             for item in list(self.state.work_items.values()):
                 if item.goal_id != goal.goal_id:
                     continue
+                if item.status == WorkItemStatus.BLOCKED and self.supervisor.can_retry_without_human(item):
+                    item.status = WorkItemStatus.READY
+                    item.result = {"replanned_from": "PROVIDER_FAILURE", "attempt": item.attempt + 1}
+                    self.checkpoint(f"supervisor_replanned:{item.work_item_id}")
+                    progress = True
                 if item.status == WorkItemStatus.PENDING and self._dependencies_complete(item):
                     item.input_artifact_ids = self._dependency_artifacts(item)
                     item.status = WorkItemStatus.READY
