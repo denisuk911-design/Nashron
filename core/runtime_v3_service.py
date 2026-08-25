@@ -35,11 +35,15 @@ class RuntimeV3GoalService:
         provider_bindings = {
             employees[0].employee_id: employees[0].provider_binding_id
         } if self.provider_adapters and employees and employees[0].provider_binding_id in self.provider_adapters else {}
+        fallback_bindings = {
+            employee_id: [provider_id for provider_id in self.provider_adapters if provider_id != primary]
+            for employee_id, primary in provider_bindings.items()
+        }
         engine = HybridWorkflowEngine(
             organization_id,
             employees,
             self.workspace_root / organization_id,
-            agent_runtime=ProviderAgentRuntime(self.provider_adapters, provider_bindings) if provider_bindings else None,
+            agent_runtime=ProviderAgentRuntime(self.provider_adapters, provider_bindings, fallback_bindings) if provider_bindings else None,
         )
         goal = engine.create_goal(objective)
         engine.create_plan(goal.goal_id)

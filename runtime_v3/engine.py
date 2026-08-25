@@ -63,6 +63,9 @@ class HybridWorkflowEngine:
 
     def resume(self):
         self.state = self.repository.load()
+        for item in self.state.work_items.values():
+            if item.status == WorkItemStatus.BLOCKED and item.result.get("failure_kind") == "PROVIDER_FAILURE":
+                item.status = WorkItemStatus.READY
         for goal in list(self.state.goals.values()):
             if goal.status not in {GoalStatus.COMPLETED, GoalStatus.CANCELLED, GoalStatus.FAILED}:
                 self._run_until_blocked(goal)
@@ -124,9 +127,11 @@ class HybridWorkflowEngine:
         item.attempt += 1
         self.checkpoint(f"work_item_running:{item.work_item_id}")
         decision = self.agent_runtime.decide(item.assigned_employee_id, item, item.attempt - 1)
-        if decision.provider_run is not None:
-            self.state.provider_runs[decision.provider_run.run_id] = decision.provider_run
-            self.checkpoint(f"provider_run_finished:{decision.provider_run.run_id}")
+        provider_runs = decision.provider_runs or ([decision.provider_run] if decision.provider_run is not None else [])
+        for provider_run in provider_runs:
+            self.state.provider_runs[provider_run.run_id] = provider_run
+        if provider_runs:
+            self.checkpoint(f"provider_run_finished:{provider_runs[-1].run_id}")
         if not decision.actions:
             if decision.failure_kind:
                 self._provider_failure(item, decision)

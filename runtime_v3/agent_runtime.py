@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 import json
 from typing import Protocol
 
-from core.provider_execution import ProviderExecutionAdapter, ProviderExecutionRequest
+from core.provider_execution import ProviderExecutionAdapter, ProviderExecutionRequest, ProviderExecutionResult
 
 from .models import Action, ActionType, ProviderRun, WorkItem, new_id, utc_now
 
@@ -16,6 +16,7 @@ class AgentDecision:
     claim_completed: bool = False
     failure_kind: str = ""
     provider_run: ProviderRun | None = None
+    provider_runs: list[ProviderRun] = field(default_factory=list)
 
 
 class DeterministicAgentRuntime:
@@ -80,55 +81,49 @@ class ProviderAgentRuntime:
         self,
         providers: dict[str, ProviderExecutionAdapter],
         employee_provider_ids: dict[str, str],
+        fallback_provider_ids: dict[str, list[str]] | None = None,
         fallback: DeterministicAgentRuntime | None = None,
     ) -> None:
         self.providers = dict(providers)
         self.employee_provider_ids = dict(employee_provider_ids)
+        self.fallback_provider_ids = {key: list(value) for key, value in (fallback_provider_ids or {}).items()}
         self.fallback = fallback or DeterministicAgentRuntime()
         self.provider_work_item_ids: set[str] = set()
 
     def decide(self, employee_id: str, work_item: WorkItem, attempt: int) -> AgentDecision:
-        provider_id = self.employee_provider_ids.get(employee_id, "")
-        provider = self.providers.get(provider_id)
-        if provider is None or work_item.work_item_id in self.provider_work_item_ids:
+        primary_provider_id = self.employee_provider_ids.get(employee_id, "")
+        if not primary_provider_id or work_item.work_item_id in self.provider_work_item_ids:
             return self.fallback.decide(employee_id, work_item, attempt)
 
-        self.provider_work_item_ids.add(work_item.work_item_id)
-        request = ProviderExecutionRequest(
-            new_id("provider-run"),
-            employee_id,
-            provider_id,
-            work_item.work_item_id,
-            self._prompt_for(work_item),
-            utc_now(),
-        )
-        try:
-            result = provider.execute(request)
-        except Exception as exc:
-            provider_run = ProviderRun(
-                request.run_id,
-                request.employee_id,
-                request.provider_id,
-                request.work_item_id,
-                "FAILED",
-                request.started_at,
-                utc_now(),
-                f"{type(exc).__name__}: {exc}",
-            )
-            return AgentDecision(message=provider_run.error, failure_kind="PROVIDER_FAILURE", provider_run=provider_run)
-        provider_run = ProviderRun(
-            result.run_id,
-            result.employee_id,
-            result.provider_id,
-            result.work_item_id,
-            result.status,
-            result.started_at,
-            result.finished_at,
-            result.error,
-        )
-        if result.status != "SUCCEEDED":
-            return AgentDecision(message=result.error or "provider failure", failure_kind="PROVIDER_FAILURE", provider_run=provider_run)
-        return self._parse_action(work_item, employee_id, result.content, provider_run)
+        provider_ids = [primary_provider_id, *self.fallback_provider_ids.get(employee_id, [])]
+        runs: list[ProviderRun] = []
+        for provider_id in dict.fromkeys(provider_ids):
+            provider = self.providers.get(provider_id)
+            if provider is None:
+                continue
+            request = ProviderExecutionRequest(new_id("provider-run"), employee_id, provider_id, work_item.work_item_id, self._prompt_for(work_item), utc_now())
+            try:
+                result = provider.execute(request)
+            except Exception as exc:
+                result = ProviderExecutionResult(
+                    request.run_id,
+                    employee_id,
+                    provider_id,
+                    work_item.work_item_id,
+                    "FAILED",
+                    request.started_at,
+                    utc_now(),
+                    error=f"{type(exc).__name__}: {exc}",
+                )
+            provider_run = ProviderRun(result.run_id, result.employee_id, result.provider_id, result.work_item_id, result.status, result.started_at, result.finished_at, result.error)
+            runs.append(provider_run)
+            if result.status == "SUCCEEDED":
+                self.provider_work_item_ids.add(work_item.work_item_id)
+                decision = self._parse_action(work_item, employee_id, result.content, provider_run)
+                decision.provider_runs = runs
+                return decision
+        detail = runs[-1].error if runs else "no provider adapter is available"
+        return AgentDecision(message=detail or "provider failure", failure_kind="PROVIDER_FAILURE", provider_run=runs[-1] if runs else None, provider_runs=runs)
 
     @staticmethod
     def _prompt_for(work_item: WorkItem) -> str:

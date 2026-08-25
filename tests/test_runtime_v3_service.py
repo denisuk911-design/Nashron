@@ -1,6 +1,9 @@
 from core.agent_directory import ChatAgent
 from core.provider_execution import ProviderExecutionResult
 from core.runtime_v3_service import RuntimeV3GoalService
+from runtime_v3.agent_runtime import ProviderAgentRuntime
+from runtime_v3.engine import HybridWorkflowEngine
+from runtime_v3.models import EmployeeBinding
 from runtime_v3.models import load_state
 
 
@@ -99,6 +102,44 @@ def test_runtime_v3_second_provider_adapter_uses_the_same_contract(tmp_path):
     run = next(iter(result.state.provider_runs.values()))
     assert run.provider_id == "SECOND_PROVIDER"
     assert run.action_count == 1
+
+
+def test_runtime_v3_fails_over_to_next_provider_adapter(tmp_path):
+    failed = FakeProviderAdapter("CODEX_CLI", error="primary unavailable")
+    recovered = FakeProviderAdapter(
+        "GEMINI_CLI",
+        '{"action":"filesystem.write","path":"v3_provider_output/failover.md","content":"# Failover\\ncontroller: verified"}',
+    )
+    service = RuntimeV3GoalService(tmp_path, provider_adapters={"CODEX_CLI": failed, "GEMINI_CLI": recovered})
+    agents = [ChatAgent("roman", "agent-roman", "Roman", "CODEX_CLI", ["DESIGN_ENGINEER"], "roman_2050", "", None)]
+
+    result = service.run_goal("org", "Create one file as a simple note", agents)
+
+    assert result.ok
+    assert len(result.state.provider_runs) == 2
+    assert [run.status for run in result.state.provider_runs.values()] == ["FAILED", "SUCCEEDED"]
+    assert result.state.artifacts
+
+
+def test_runtime_v3_resume_retries_provider_blocked_work_item(tmp_path):
+    adapter = FakeProviderAdapter("CODEX_CLI", error="temporary provider failure")
+    employee = EmployeeBinding("engineer", "Engineer", "engineering", ["engineering"], "CODEX_CLI")
+    runtime = ProviderAgentRuntime({"CODEX_CLI": adapter}, {"engineer": "CODEX_CLI"})
+    engine = HybridWorkflowEngine("org", [employee], tmp_path, agent_runtime=runtime)
+    goal = engine.create_goal("Create one file as a simple note")
+    engine.create_plan(goal.goal_id)
+    engine.start(goal.goal_id)
+    assert any(item.status.value == "BLOCKED" for item in engine.state.work_items.values())
+
+    adapter.error = ""
+    adapter.content = '{"action":"filesystem.write","path":"v3_provider_output/resumed.md","content":"# Resumed\\ncontroller: verified"}'
+    resumed = HybridWorkflowEngine("org", [employee], tmp_path, agent_runtime=ProviderAgentRuntime({"CODEX_CLI": adapter}, {"engineer": "CODEX_CLI"}))
+    resumed.repository = engine.repository
+    state = resumed.resume()
+
+    assert state.goals[goal.goal_id].status.value == "COMPLETED"
+    assert len(state.provider_runs) == 2
+    assert state.artifacts
 
 
 def test_runtime_v3_goal_service_keeps_social_chat_out_of_workflow(tmp_path):
