@@ -137,3 +137,21 @@ def test_checkpoint_resume_preserves_completed_work(tmp_path):
     assert state.goals[goal.goal_id].status == GoalStatus.COMPLETED
     assert len(state.artifacts) == artifact_count
     assert len(state.checkpoints) >= checkpoint_count
+
+
+def test_resume_recovers_interrupted_running_work_item(tmp_path):
+    engine = HybridWorkflowEngine("org", employees(), tmp_path)
+    goal = engine.create_goal("Create one file as a simple note")
+    engine.create_plan(goal.goal_id)
+    item = next(iter(engine.state.work_items.values()))
+    item.status = WorkItemStatus.RUNNING
+    engine.checkpoint("simulated_crash_during_work")
+
+    resumed = HybridWorkflowEngine("org", employees(), tmp_path)
+    resumed.repository = engine.repository
+    state = resumed.resume()
+
+    assert state.goals[goal.goal_id].status == GoalStatus.COMPLETED
+    assert item.work_item_id in state.work_items
+    assert state.work_items[item.work_item_id].attempt == 1
+    assert len(state.artifacts) == 1

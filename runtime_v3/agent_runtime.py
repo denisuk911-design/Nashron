@@ -90,6 +90,10 @@ class ProviderAgentRuntime:
         self.fallback = fallback or DeterministicAgentRuntime()
         self.provider_work_item_ids: set[str] = set()
 
+    def restore_completed_work_items(self, work_item_ids: set[str]) -> None:
+        """Restore idempotency markers from durable runtime state after restart."""
+        self.provider_work_item_ids.update(work_item_ids)
+
     def decide(self, employee_id: str, work_item: WorkItem, attempt: int) -> AgentDecision:
         primary_provider_id = self.employee_provider_ids.get(employee_id, "")
         if not primary_provider_id or work_item.work_item_id in self.provider_work_item_ids:

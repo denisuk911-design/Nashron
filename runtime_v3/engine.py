@@ -64,7 +64,16 @@ class HybridWorkflowEngine:
 
     def resume(self):
         self.state = self.repository.load()
+        if hasattr(self.agent_runtime, "restore_completed_work_items"):
+            confirmed_provider_items = {
+                run.work_item_id
+                for run in self.state.provider_runs.values()
+                if run.status == "SUCCEEDED" and run.action_count > 0
+            }
+            self.agent_runtime.restore_completed_work_items(confirmed_provider_items)
         for item in self.state.work_items.values():
+            if item.status == WorkItemStatus.RUNNING:
+                item.status = WorkItemStatus.READY
             if item.status == WorkItemStatus.BLOCKED and item.result.get("failure_kind") == "PROVIDER_FAILURE":
                 item.status = WorkItemStatus.READY
         for goal in list(self.state.goals.values()):
