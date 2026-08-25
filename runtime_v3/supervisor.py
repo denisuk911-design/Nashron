@@ -95,6 +95,48 @@ class GoalSupervisor:
         """Ordinary transient provider failures get one autonomous retry."""
         return item.result.get("failure_kind") == "PROVIDER_FAILURE" and item.attempt < 2
 
+    def replan(self, item: WorkItem, all_items: list[WorkItem]) -> dict | None:
+        """Return a bounded, graph-safe recovery plan for an executable work item."""
+        if item.attempt >= 2 or "artifact.review" in item.required_tools:
+            return None
+        previous_employee_id = item.assigned_employee_id
+        replacement = self._select_alternate_employee(item)
+        completed_dependencies = {
+            dependency.work_item_id
+            for dependency in all_items
+            if dependency.status == WorkItemStatus.COMPLETED
+        }
+        retained_dependencies = [dependency for dependency in item.dependencies if dependency not in completed_dependencies]
+        active_items = [
+            candidate
+            for candidate in all_items
+            if candidate.work_item_id != item.work_item_id and candidate.status not in {WorkItemStatus.COMPLETED, WorkItemStatus.FAILED}
+        ]
+        replanned_view = WorkItem(
+            item.work_item_id, item.goal_id, item.objective, replacement.employee_id,
+            dependencies=retained_dependencies,
+        )
+        strategy = self.choose_strategy([*active_items, replanned_view])
+        return {
+            "previous_employee_id": previous_employee_id,
+            "employee_id": replacement.employee_id,
+            "dependencies": retained_dependencies,
+            "strategy": strategy,
+        }
+
+    def _select_alternate_employee(self, item: WorkItem) -> EmployeeBinding:
+        capabilities = {value.lower() for value in item.required_capabilities}
+        alternatives = [employee for employee in self.employees if employee.employee_id != item.assigned_employee_id]
+        for employee in self.employees:
+            if employee.employee_id == item.assigned_employee_id:
+                continue
+            employee_capabilities = " ".join(employee.competencies + [employee.role]).lower()
+            if not capabilities or any(capability in employee_capabilities for capability in capabilities):
+                return employee
+        if alternatives:
+            return alternatives[0]
+        return next(employee for employee in self.employees if employee.employee_id == item.assigned_employee_id)
+
     def _select_employee(self, required: list[str]) -> EmployeeBinding:
         for employee in self.employees:
             competencies = {item.lower() for item in employee.competencies + [employee.role]}

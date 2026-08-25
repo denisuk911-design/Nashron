@@ -124,10 +124,7 @@ class HybridWorkflowEngine:
             for item in list(self.state.work_items.values()):
                 if item.goal_id != goal.goal_id:
                     continue
-                if item.status == WorkItemStatus.BLOCKED and self.supervisor.can_retry_without_human(item):
-                    item.status = WorkItemStatus.READY
-                    item.result = {"replanned_from": "PROVIDER_FAILURE", "attempt": item.attempt + 1}
-                    self.checkpoint(f"supervisor_replanned:{item.work_item_id}")
+                if item.status in {WorkItemStatus.BLOCKED, WorkItemStatus.FAILED, WorkItemStatus.REWORK} and self._replan_item(goal, item):
                     progress = True
                 if item.status == WorkItemStatus.PENDING and self._dependencies_complete(item):
                     item.input_artifact_ids = self._dependency_artifacts(item)
@@ -145,6 +142,38 @@ class HybridWorkflowEngine:
                 self._execute_item(runnable[0])
                 progress = True
             self._update_goal(goal)
+
+    def _replan_item(self, goal: Goal, item: WorkItem) -> bool:
+        previous_status = item.status
+        decision = self.supervisor.replan(
+            item,
+            [candidate for candidate in self.state.work_items.values() if candidate.goal_id == goal.goal_id],
+        )
+        if decision is None:
+            return False
+        completed_dependency_artifacts = self._dependency_artifacts(item)
+        item.input_artifact_ids = list(dict.fromkeys([*item.input_artifact_ids, *completed_dependency_artifacts]))
+        item.assigned_employee_id = decision["employee_id"]
+        item.dependencies = decision["dependencies"]
+        item.status = WorkItemStatus.READY
+        previous_result = dict(item.result)
+        item.result = {
+            "replanned_from": previous_result.get("failure_kind") or previous_status.value,
+            "replan_count": int(previous_result.get("replan_count", 0)) + 1,
+            "previous_employee_id": decision["previous_employee_id"],
+            "employee_id": decision["employee_id"],
+            "strategy": decision["strategy"],
+        }
+        plan = self.state.plans.get(goal.plan_id or "")
+        if plan is not None:
+            plan.strategy = decision["strategy"]
+        evidence = Evidence(
+            new_id("evidence"), goal.goal_id, item.work_item_id, "SUPERVISOR_REPLAN", "", "",
+            f"replanned after {previous_result.get('failure_kind') or previous_status.value}", True,
+        )
+        self.state.evidence[evidence.evidence_id] = evidence
+        self.checkpoint(f"supervisor_replanned:{item.work_item_id}")
+        return True
 
     def _execute_item(self, item: WorkItem) -> None:
         item.status = WorkItemStatus.RUNNING
@@ -287,7 +316,10 @@ class HybridWorkflowEngine:
                 )
                 self.state.findings[finding.finding_id] = finding
                 findings.append({"finding_id": finding.finding_id, "artifact_id": artifact_id})
-                if owner.attempt >= self.max_rework_attempts:
+                artifact_revisions = sum(
+                    1 for candidate in self.state.artifacts.values() if candidate.work_item_id == owner.work_item_id
+                )
+                if artifact_revisions >= self.max_rework_attempts:
                     owner.status = WorkItemStatus.FAILED
                     owner.result = {
                         "escalation": "MAX_REWORK_ATTEMPTS_EXCEEDED",

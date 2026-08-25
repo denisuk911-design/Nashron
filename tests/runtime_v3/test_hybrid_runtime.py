@@ -88,6 +88,131 @@ def test_concurrent_executor_runs_independent_agent_decisions_in_parallel(tmp_pa
     assert len(state.artifacts) == 2
 
 
+def test_failed_work_is_replanned_to_an_alternate_employee_and_succeeds(tmp_path):
+    class FailOnceRuntime:
+        def decide(self, employee_id, work_item, attempt):
+            path = "../bad.md" if attempt == 0 else "artifacts/recovered.md"
+            return AgentDecision(actions=[Action(
+                new_id("action"), work_item.work_item_id, employee_id, ActionType.FILESYSTEM_WRITE,
+                {"path": path, "content": "recovered"},
+            )])
+
+    team = [
+        EmployeeBinding("engineer-a", "Engineer A", "engineering", ["engineering", "specification"]),
+        EmployeeBinding("engineer-b", "Engineer B", "engineering", ["engineering", "specification"]),
+    ]
+    engine = HybridWorkflowEngine("org", team, tmp_path, agent_runtime=FailOnceRuntime())
+    goal = engine.create_goal("Create one file as a simple note")
+    engine.create_plan(goal.goal_id)
+
+    state = engine.start(goal.goal_id)
+    item = next(iter(state.work_items.values()))
+
+    assert state.goals[goal.goal_id].status == GoalStatus.COMPLETED
+    assert item.assigned_employee_id == "engineer-b"
+    assert item.attempt == 2
+    assert any(evidence.evidence_type == "SUPERVISOR_REPLAN" for evidence in state.evidence.values())
+
+
+def test_blocked_provider_work_is_replanned_once_without_an_infinite_loop(tmp_path):
+    class ProviderFailsThenWorks:
+        def __init__(self):
+            self.calls = 0
+
+        def decide(self, employee_id, work_item, attempt):
+            self.calls += 1
+            if self.calls == 1:
+                return AgentDecision(message="temporary provider outage", failure_kind="PROVIDER_FAILURE")
+            return AgentDecision(actions=[Action(
+                new_id("action"), work_item.work_item_id, employee_id, ActionType.FILESYSTEM_WRITE,
+                {"path": "artifacts/provider-recovered.md", "content": "recovered"},
+            )])
+
+    runtime = ProviderFailsThenWorks()
+    engine = HybridWorkflowEngine("org", employees(), tmp_path, agent_runtime=runtime)
+    goal = engine.create_goal("Create one file as a simple note")
+    engine.create_plan(goal.goal_id)
+
+    state = engine.start(goal.goal_id)
+
+    assert state.goals[goal.goal_id].status == GoalStatus.COMPLETED
+    assert runtime.calls == 2
+    assert sum(evidence.evidence_type == "SUPERVISOR_REPLAN" for evidence in state.evidence.values()) == 1
+
+
+def test_rework_replans_the_work_graph_and_preserves_handoff_inputs(tmp_path):
+    engine = HybridWorkflowEngine("org", employees(), tmp_path)
+    goal = engine.create_goal("Prepare technical specification for converter")
+    engine.create_plan(goal.goal_id)
+
+    state = engine.start(goal.goal_id)
+    specification = next(item for item in state.work_items.values() if "specification" in item.objective.lower())
+
+    assert state.goals[goal.goal_id].status == GoalStatus.COMPLETED
+    assert specification.attempt == 2
+    assert any(evidence.evidence_type == "SUPERVISOR_REPLAN" for evidence in state.evidence.values())
+    assert all(handoff.artifact_ids for handoff in state.handoffs.values())
+
+
+def test_provider_failure_does_not_consume_the_content_rework_budget(tmp_path):
+    class TemporarySpecificationProviderFailure(DeterministicAgentRuntime):
+        def __init__(self):
+            self.failed = False
+
+        def decide(self, employee_id, work_item, attempt):
+            if "specification" in work_item.objective.lower() and not self.failed:
+                self.failed = True
+                return AgentDecision(message="temporary outage", failure_kind="PROVIDER_FAILURE")
+            return super().decide(employee_id, work_item, attempt)
+
+    engine = HybridWorkflowEngine(
+        "org", employees(), tmp_path, agent_runtime=TemporarySpecificationProviderFailure(), max_rework_attempts=2
+    )
+    goal = engine.create_goal("Prepare technical specification for converter")
+    engine.create_plan(goal.goal_id)
+
+    state = engine.start(goal.goal_id)
+
+    assert state.goals[goal.goal_id].status == GoalStatus.COMPLETED
+    assert any(artifact.revision == 2 for artifact in state.artifacts.values())
+
+
+def test_replan_removes_completed_dependencies_from_the_active_work_graph():
+    supervisor = GoalSupervisor(employees())
+    completed = WorkItem("completed", "goal", "source", "researcher", status=WorkItemStatus.COMPLETED)
+    blocked = WorkItem(
+        "blocked", "goal", "publish", "engineer", dependencies=[completed.work_item_id],
+        required_capabilities=["engineering"], status=WorkItemStatus.BLOCKED, attempt=1,
+    )
+
+    decision = supervisor.replan(blocked, [completed, blocked])
+
+    assert decision is not None
+    assert decision["dependencies"] == []
+    assert decision["strategy"] == "SEQUENTIAL"
+
+
+def test_persistent_blocked_work_stops_after_the_autonomous_replan_limit(tmp_path):
+    class AlwaysBlockedRuntime:
+        def __init__(self):
+            self.calls = 0
+
+        def decide(self, employee_id, work_item, attempt):
+            self.calls += 1
+            return AgentDecision(message="provider unavailable", failure_kind="PROVIDER_FAILURE")
+
+    runtime = AlwaysBlockedRuntime()
+    engine = HybridWorkflowEngine("org", employees(), tmp_path, agent_runtime=runtime)
+    goal = engine.create_goal("Create one file as a simple note")
+    engine.create_plan(goal.goal_id)
+
+    state = engine.start(goal.goal_id)
+
+    assert runtime.calls == 2
+    assert state.goals[goal.goal_id].status == GoalStatus.RUNNING
+    assert next(iter(state.work_items.values())).status == WorkItemStatus.BLOCKED
+
+
 def test_goal_runs_through_action_tool_observation_artifacts_review_rework(tmp_path):
     engine = HybridWorkflowEngine("org", employees(), tmp_path)
     goal = engine.create_goal("Prepare technical specification for converter")
