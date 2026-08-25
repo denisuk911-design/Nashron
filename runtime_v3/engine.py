@@ -139,13 +139,15 @@ class HybridWorkflowEngine:
                 self._unsupported_claim(item, decision)
             return
         for action in decision.actions:
-            self._execute_action(item, action)
+            if not self._execute_action(item, action):
+                self.checkpoint(f"work_item_failed:{item.work_item_id}")
+                return
         if item.status != WorkItemStatus.REWORK:
             item.status = WorkItemStatus.COMPLETED
             item.result = {"artifact_ids": self._artifacts_for_item(item.work_item_id)}
         self.checkpoint(f"work_item_finished:{item.work_item_id}")
 
-    def _execute_action(self, item: WorkItem, action: Action) -> None:
+    def _execute_action(self, item: WorkItem, action: Action) -> bool:
         self.state.actions[action.action_id] = action
         if action.action_type == ActionType.REVIEW_ARTIFACT:
             observation = self._review(item, action)
@@ -155,11 +157,12 @@ class HybridWorkflowEngine:
         if observation.status != ObservationStatus.OK:
             item.status = WorkItemStatus.FAILED
             item.result = {"failed_observation_id": observation.observation_id}
-            return
+            return False
         if action.action_type == ActionType.FILESYSTEM_WRITE:
             self._create_artifact_from_write(item, action, observation)
         elif action.action_type == ActionType.REVIEW_ARTIFACT:
             item.result = {"review_observation_id": observation.observation_id}
+        return True
 
     def _create_artifact_from_write(self, item: WorkItem, action: Action, observation: Observation) -> None:
         path = observation.data["path"]
