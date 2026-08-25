@@ -27,12 +27,13 @@ from .tools import ToolRuntime
 
 
 class HybridWorkflowEngine:
-    def __init__(self, organization_id: str, employees: list[EmployeeBinding], workspace_root: Path, agent_runtime=None) -> None:
+    def __init__(self, organization_id: str, employees: list[EmployeeBinding], workspace_root: Path, agent_runtime=None, max_rework_attempts: int = 2) -> None:
         self.state = RuntimeState(organization_id)
         self.supervisor = GoalSupervisor(employees)
         self.agent_runtime = agent_runtime or DeterministicAgentRuntime()
         self.tool_runtime = ToolRuntime(Path(workspace_root) / "workspace")
         self.repository = JsonCheckpointRepository(Path(workspace_root) / "checkpoints")
+        self.max_rework_attempts = max(1, max_rework_attempts)
 
     def create_goal(self, objective: str) -> Goal:
         goal = Goal(new_id("goal"), objective)
@@ -118,6 +119,8 @@ class HybridWorkflowEngine:
                     self._create_handoff(item)
                     progress = True
                 if item.status in {WorkItemStatus.READY, WorkItemStatus.REWORK} and self._dependencies_complete(item):
+                    if item.status == WorkItemStatus.REWORK and "artifact.review" in item.required_tools:
+                        item.input_artifact_ids = self._dependency_artifacts(item)
                     self._execute_item(item)
                     progress = True
             self._update_goal(goal)
@@ -243,10 +246,28 @@ class HybridWorkflowEngine:
                 )
                 self.state.findings[finding.finding_id] = finding
                 findings.append({"finding_id": finding.finding_id, "artifact_id": artifact_id})
-                owner.status = WorkItemStatus.REWORK
+                if owner.attempt >= self.max_rework_attempts:
+                    owner.status = WorkItemStatus.FAILED
+                    owner.result = {
+                        "escalation": "MAX_REWORK_ATTEMPTS_EXCEEDED",
+                        "finding_ids": [finding.finding_id],
+                        "acceptance_criteria": owner.acceptance_criteria,
+                    }
+                    escalation = Evidence(
+                        new_id("evidence"), item.goal_id, owner.work_item_id, "REWORK_ESCALATION", action.action_id,
+                        "", "maximum rework attempts exceeded", False,
+                    )
+                    self.state.evidence[escalation.evidence_id] = escalation
+                else:
+                    owner.status = WorkItemStatus.REWORK
+                    owner.result = {"finding_ids": [finding.finding_id], "acceptance_criteria": owner.acceptance_criteria}
         if findings:
             # The reviewer is retried after the reworked artifact is produced.
             item.status = WorkItemStatus.REWORK
+        if not findings:
+            for finding in self.state.findings.values():
+                if finding.goal_id == item.goal_id:
+                    finding.status = "RESOLVED"
         return Observation(
             new_id("obs"),
             action.action_id,

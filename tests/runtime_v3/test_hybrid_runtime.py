@@ -1,5 +1,5 @@
 from runtime_v3 import GoalStatus, HybridWorkflowEngine, WorkItemStatus
-from runtime_v3.agent_runtime import AgentDecision
+from runtime_v3.agent_runtime import AgentDecision, DeterministicAgentRuntime
 from runtime_v3.models import Action, ActionType, EmployeeBinding, Goal, WorkItem, new_id
 
 
@@ -99,6 +99,27 @@ def test_failed_tool_observation_cannot_close_work_item(tmp_path):
     assert item.status == WorkItemStatus.FAILED
     assert state.goals[goal.goal_id].status == GoalStatus.FAILED
     assert not state.artifacts
+
+
+def test_repeated_rework_escalates_after_configured_limit(tmp_path):
+    class AlwaysBadSpecificationRuntime(DeterministicAgentRuntime):
+        def decide(self, employee_id, work_item, attempt):
+            if "specification" in work_item.objective.lower():
+                return AgentDecision(actions=[Action(
+                    new_id("action"), work_item.work_item_id, employee_id, ActionType.FILESYSTEM_WRITE,
+                    {"path": "artifacts/specification.md", "content": "# Technical specification\nMissing control section."},
+                )])
+            return super().decide(employee_id, work_item, attempt)
+
+    engine = HybridWorkflowEngine("org", employees(), tmp_path, agent_runtime=AlwaysBadSpecificationRuntime(), max_rework_attempts=2)
+    goal = engine.create_goal("Prepare technical specification for converter")
+    engine.create_plan(goal.goal_id)
+    state = engine.start(goal.goal_id)
+
+    assert state.goals[goal.goal_id].status == GoalStatus.FAILED
+    assert any(item.result.get("escalation") == "MAX_REWORK_ATTEMPTS_EXCEEDED" for item in state.work_items.values())
+    assert any(item.evidence_type == "REWORK_ESCALATION" and not item.passed for item in state.evidence.values())
+    assert any(artifact.revision == 2 for artifact in state.artifacts.values())
 
 
 def test_checkpoint_resume_preserves_completed_work(tmp_path):
