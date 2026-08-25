@@ -40,6 +40,7 @@ from core.database import Database
 from core.director_service import DirectorAction, DirectorService
 from core.gemini_client import GeminiClient
 from core.identity_service import IdentityError, IdentityService
+from core.internal_assistant_service import Team2050InternalAssistant
 from core.finding_service import FindingService
 from core.knowledge_service import KnowledgeService
 from core.knowledge_application_service import KnowledgeApplicationService
@@ -692,6 +693,7 @@ class MainWindow(QMainWindow):
             "provider_fast_status",
             f"codex_available={codex_available}; gemini_available={gemini_available}",
         )
+        self.internal_assistant = Team2050InternalAssistant(self.provider_health_service)
 
     def refresh_codex_status(self) -> None:
         if not self.codex_client.is_available():
@@ -912,6 +914,14 @@ class MainWindow(QMainWindow):
             bind_message_id(item, message_id)
         trace.mark("message_persisted")
         self._update_conversation_mode(text)
+        if "почему сотрудник не работает" in text.lower():
+            agent = get_chat_agent(self.current_agent_key)
+            provider_id = agent.provider_id if agent else "CODEX_CLI"
+            answer = self.internal_assistant.explain_employee_unavailable(provider_id)
+            self.chat.add_message("assistant", answer)
+            self.database.add_message(self.conversation_id, "assistant", answer)
+            self._flush_send_trace(final=True)
+            return
         autonomy = self._autonomy_from_text(text)
         if autonomy.enabled:
             self.conversation_mode = ConversationMode.WORK
