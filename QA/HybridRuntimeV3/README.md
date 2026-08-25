@@ -33,6 +33,8 @@ cmd /c scripts\build_windows.bat
 
 ## Latest Local Results
 
+- `TEAM2050-V3-GOLDEN-GOAL-006`: packaged GUI passed with two real provider-backed production WorkItems, one controlled finding, rework revision 2, and final independent review: 3 WorkItems, 5 actions, 5 observations, 3 artifacts, 4 evidence records, 2 provider runs.
+
 - `pytest tests\runtime_v3 tests\runtime_v2\test_intent_and_feature_flag.py -q`: 9 passed.
 - `pytest tests\runtime_v2 tests\runtime_v3 tests\test_database.py -q`: 50 passed.
 - `pytest -q`: 347 passed.

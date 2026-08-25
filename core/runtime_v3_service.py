@@ -32,9 +32,14 @@ class RuntimeV3GoalService:
                 EmployeeBinding("employee-engineer", "Инженер", "engineering", ["engineering", "specification"]),
                 EmployeeBinding("employee-reviewer", "Проверяющий", "qa", ["review", "qa", "evidence"]),
             ]
+        # Production work uses the configured provider. Review stays local and
+        # independent so it can actually read the artifacts produced by peers.
         provider_bindings = {
-            employees[0].employee_id: employees[0].provider_binding_id
-        } if self.provider_adapters and employees and employees[0].provider_binding_id in self.provider_adapters else {}
+            employee.employee_id: employee.provider_binding_id
+            for employee in employees
+            if self._is_provider_execution_role(employee)
+            and employee.provider_binding_id in self.provider_adapters
+        }
         fallback_bindings = {
             employee_id: [provider_id for provider_id in self.provider_adapters if provider_id != primary]
             for employee_id, primary in provider_bindings.items()
@@ -69,6 +74,11 @@ class RuntimeV3GoalService:
                 )
             )
         return values
+
+    @staticmethod
+    def _is_provider_execution_role(employee: EmployeeBinding) -> bool:
+        capabilities = " ".join([employee.role, *employee.competencies]).lower()
+        return not any(token in capabilities for token in ("qa", "review", "audit", "evidence"))
 
     @staticmethod
     def project_for_chat(state: RuntimeState, goal_id: str) -> str:

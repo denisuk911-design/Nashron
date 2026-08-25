@@ -29,6 +29,22 @@ class FakeProviderAdapter:
         )
 
 
+class GoldenProviderAdapter(FakeProviderAdapter):
+    def execute(self, request) -> ProviderExecutionResult:
+        if "controller research" in request.prompt.lower():
+            self.content = (
+                '{"action":"filesystem.write","path":"v3_provider_output/controller_research.md",'
+                '"content":"# Controller research\\nCandidate: TI LM5146.\\n'
+                'Source evidence: https://www.ti.com/lit/ds/symlink/lm5146.pdf"}'
+            )
+        else:
+            self.content = (
+                '{"action":"filesystem.write","path":"v3_provider_output/specification.md",'
+                '"content":"# Technical specification\\nInput: 24 V.\\nOutput: 12 V, 5 A.\\nController: TI LM5146."}'
+            )
+        return super().execute(request)
+
+
 def test_runtime_v3_goal_service_returns_user_friendly_projection(tmp_path):
     service = RuntimeV3GoalService(tmp_path)
     agents = [
@@ -69,6 +85,33 @@ def test_runtime_v3_goal_uses_provider_action_then_real_tool_observation(tmp_pat
     assert run.action_count == 1
     restored = load_state(result.workspace_root / "checkpoints" / "state.json")
     assert restored.provider_runs[run.run_id].provider_id == "CODEX_CLI"
+
+
+def test_runtime_v3_golden_goal_uses_two_provider_items_then_rework_and_final_review(tmp_path):
+    provider = GoldenProviderAdapter("CODEX_CLI")
+    service = RuntimeV3GoalService(tmp_path, provider_adapters={"CODEX_CLI": provider})
+    agents = [
+        ChatAgent("engineer", "agent-engineer", "Engineer", "CODEX_CLI", ["DESIGN_ENGINEER"], "engineer", "", None),
+        ChatAgent("researcher", "agent-researcher", "Researcher", "CODEX_CLI", ["RESEARCH_ASSISTANT"], "researcher", "", None),
+        ChatAgent("reviewer", "agent-reviewer", "Reviewer", "CODEX_CLI", ["QA_ENGINEER"], "reviewer", "", None),
+    ]
+
+    result = service.run_goal("org", "Prepare technical specification for 24 V to 12 V 5 A converter and select a controller.", agents)
+
+    assert result.ok
+    assert len(result.state.work_items) == 3
+    assert len(provider.prompts) == 2
+    assert len(result.state.provider_runs) == 2
+    assert all(run.status == "SUCCEEDED" and run.action_count == 1 for run in result.state.provider_runs.values())
+    assert len(result.state.findings) >= 1
+    assert len(result.state.actions) >= 5
+    assert len(result.state.observations) >= 5
+    assert any(
+        artifact.artifact_type == "TECHNICAL_SPECIFICATION" and artifact.revision >= 2
+        for artifact in result.state.artifacts.values()
+    )
+    assert any(evidence.evidence_type == "SOURCE_RECORD" and evidence.passed for evidence in result.state.evidence.values())
+    assert all(item.status.value == "COMPLETED" for item in result.state.work_items.values())
 
 
 def test_runtime_v3_provider_failure_blocks_work_without_artifact(tmp_path):

@@ -205,15 +205,45 @@ class HybridWorkflowEngine:
 
     def _review(self, item: WorkItem, action: Action) -> Observation:
         findings: list[dict] = []
+        latest_revisions = {
+            artifact.work_item_id: max(
+                candidate.revision
+                for candidate in self.state.artifacts.values()
+                if candidate.work_item_id == artifact.work_item_id
+            )
+            for artifact in self.state.artifacts.values()
+        }
         for artifact_id in action.payload.get("artifact_ids", []):
             artifact = self.state.artifacts[artifact_id]
+            if artifact.revision != latest_revisions[artifact.work_item_id]:
+                continue
             content = Path(artifact.path).read_text(encoding="utf-8")
-            if artifact.artifact_type == "TECHNICAL_SPECIFICATION" and "controller" not in content.lower():
-                finding = Finding(new_id("finding"), item.goal_id, item.work_item_id, item.assigned_employee_id, artifact_id, "MAJOR", "Specification does not mention controller")
+            owner = self.state.work_items[artifact.work_item_id]
+            requires_golden_rework = "force rework" in owner.objective.lower() and artifact.revision == 1
+            missing_controller = artifact.artifact_type == "TECHNICAL_SPECIFICATION" and "controller" not in content.lower()
+            missing_source_evidence = artifact.artifact_type == "SOURCE_RESEARCH" and "source evidence" not in content.lower()
+            if requires_golden_rework or missing_controller or missing_source_evidence:
+                if missing_source_evidence:
+                    description = "Research artifact does not contain source evidence"
+                elif requires_golden_rework:
+                    description = "Initial specification revision requires controlled rework"
+                else:
+                    description = "Specification does not mention controller"
+                finding = Finding(
+                    new_id("finding"),
+                    item.goal_id,
+                    item.work_item_id,
+                    item.assigned_employee_id,
+                    artifact_id,
+                    "MAJOR",
+                    description,
+                )
                 self.state.findings[finding.finding_id] = finding
                 findings.append({"finding_id": finding.finding_id, "artifact_id": artifact_id})
-                owner = self.state.work_items[artifact.work_item_id]
                 owner.status = WorkItemStatus.REWORK
+        if findings:
+            # The reviewer is retried after the reworked artifact is produced.
+            item.status = WorkItemStatus.REWORK
         return Observation(
             new_id("obs"),
             action.action_id,

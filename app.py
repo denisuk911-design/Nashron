@@ -151,6 +151,25 @@ def _run_runtime_v3_gui_smoke(app: QApplication, window: MainWindow, logger: log
                 )
             } if result is not None else set()
             provider_runs = list(result.state.provider_runs.values()) if result is not None else []
+            artifacts = list(result.state.artifacts.values()) if result is not None else []
+            evidence = list(result.state.evidence.values()) if result is not None else []
+            review_actions = [
+                action
+                for action in (result.state.actions.values() if result is not None else [])
+                if action.action_type.value == "artifact.review"
+            ]
+            rework_artifacts = [
+                artifact
+                for artifact in artifacts
+                if artifact.artifact_type == "TECHNICAL_SPECIFICATION" and artifact.revision >= 2
+            ]
+            passed_source_evidence = [
+                item for item in evidence if item.evidence_type == "SOURCE_RECORD" and item.passed
+            ]
+            completed_work_items = [
+                item for item in (result.state.work_items.values() if result is not None else [])
+                if item.status.value == "COMPLETED"
+            ]
             payload = {
                 "ok": bool(handled and result is not None and result.ok),
                 "handled_by_gui": handled,
@@ -170,21 +189,30 @@ def _run_runtime_v3_gui_smoke(app: QApplication, window: MainWindow, logger: log
                 "provider_runs": len(provider_runs),
                 "provider_run_statuses": sorted(run.status for run in provider_runs),
                 "provider_run_action_count": sum(run.action_count for run in provider_runs),
+                "review_actions": len(review_actions),
+                "rework_artifacts": len(rework_artifacts),
+                "passed_source_evidence": len(passed_source_evidence),
+                "completed_work_items": len(completed_work_items),
                 "message_rows": window.chat.messages.count(),
                 "screenshot": str(screenshot_path),
             }
             checks = [
                 payload["ok"],
                 payload["work_items"] >= 3,
-                payload["actions"] >= 3,
-                payload["observations"] >= 3,
-                payload["artifacts"] >= 2,
-                payload["evidence"] >= 3,
+                payload["actions"] >= 5,
+                payload["observations"] >= 5,
+                payload["artifacts"] >= 3,
+                payload["evidence"] >= 4,
+                payload["findings"] >= 1,
                 payload["handoffs"] >= 1,
-                payload["provider_actions"] >= 1,
-                payload["provider_observations_ok"] >= 1,
-                payload["provider_runs"] >= 1,
-                payload["provider_run_action_count"] >= 1,
+                payload["provider_actions"] >= 2,
+                payload["provider_observations_ok"] >= 2,
+                payload["provider_runs"] >= 2,
+                payload["provider_run_action_count"] >= 2,
+                payload["review_actions"] >= 2,
+                payload["rework_artifacts"] >= 1,
+                payload["passed_source_evidence"] >= 1,
+                payload["completed_work_items"] == payload["work_items"],
                 "Цель выполнена" in summary,
                 "Артефакты" in summary,
                 "Источники" in summary,

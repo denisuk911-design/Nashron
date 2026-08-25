@@ -61,7 +61,7 @@ class DeterministicAgentRuntime:
                 "# Controller research\n\n"
                 "Candidate: TI LM5146 buck controller.\n"
                 "Input: 24 V. Output: 12 V 5 A.\n"
-                "Source evidence: datasheet review placeholder for V3 prototype.\n"
+                "Source evidence: TI LM5146 datasheet, https://www.ti.com/lit/ds/symlink/lm5146.pdf.\n"
             )
         if attempt == 0 and "force rework" in work_item.objective.lower():
             return "# Technical specification\n\n24 V to 12 V converter draft. Control section is missing.\n"
@@ -75,7 +75,7 @@ class DeterministicAgentRuntime:
 
 
 class ProviderAgentRuntime:
-    """Uses one real provider-backed work item and delegates the rest to fallback."""
+    """Executes assigned production work through provider adapters with local retry fallback."""
 
     def __init__(
         self,
@@ -135,6 +135,7 @@ class ProviderAgentRuntime:
                 "Use a relative .md path under v3_provider_output/.",
                 "Write a concise factual work product satisfying the objective.",
                 "For a technical specification, include the word controller.",
+                "For controller research, include a 'Source evidence' section with an authoritative source URL.",
                 '{"action":"filesystem.write","path":"v3_provider_output/result.md","content":"..."}',
                 f"Objective: {work_item.objective}",
                 f"Acceptance criteria: {', '.join(work_item.acceptance_criteria) or 'artifact created'}",
