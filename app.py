@@ -45,6 +45,10 @@ def _runtime_v3_smoke_enabled() -> bool:
     return os.environ.get("TEAM2050_RUNTIME_V3_GUI_SMOKE") == "1"
 
 
+def _admin_smoke_enabled() -> bool:
+    return os.environ.get("TEAM2050_ADMIN_SMOKE") == "1"
+
+
 def _prepare_runtime_v3_smoke_settings(settings_service: SettingsService) -> None:
     if not _runtime_v3_smoke_enabled():
         return
@@ -234,6 +238,24 @@ def _run_runtime_v3_gui_smoke(app: QApplication, window: MainWindow, logger: log
     QTimer.singleShot(0, run)
 
 
+def _run_admin_smoke(app: QApplication, window: MainWindow) -> None:
+    report_path = Path(os.environ["TEAM2050_ADMIN_SMOKE_REPORT"])
+
+    def run() -> None:
+        before_goals = len(window.runtime_v3_goal_service.workspace_root.glob("**/state.json"))
+        window.send_message("почему сотрудник не работает?")
+        QTimer.singleShot(300, lambda: finish(before_goals))
+
+    def finish(before_goals: int) -> None:
+        messages = [window.chat.messages.item(index).text() for index in range(window.chat.messages.count())]
+        payload = {"goals_before": before_goals, "goals_after": len(window.runtime_v3_goal_service.workspace_root.glob("**/state.json")), "answer": messages[-1] if messages else ""}
+        payload["checks_passed"] = payload["goals_before"] == payload["goals_after"] and "провайдер" in payload["answer"].lower()
+        report_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+        app.exit(0 if payload["checks_passed"] else 1)
+
+    QTimer.singleShot(0, run)
+
+
 def main() -> int:
     settings_service = SettingsService()
     _prepare_runtime_v3_smoke_settings(settings_service)
@@ -263,6 +285,8 @@ def main() -> int:
     splash.close()
     if _runtime_v3_smoke_enabled():
         _run_runtime_v3_gui_smoke(app, window, logger)
+    elif _admin_smoke_enabled():
+        _run_admin_smoke(app, window)
     return app.exec()
 
 
