@@ -184,6 +184,19 @@ class Handoff:
 
 
 @dataclass
+class ProviderRun:
+    run_id: str
+    employee_id: str
+    provider_id: str
+    work_item_id: str
+    status: str
+    started_at: str
+    finished_at: str
+    error: str = ""
+    action_count: int = 0
+
+
+@dataclass
 class RuntimeState:
     organization_id: str
     goals: dict[str, Goal] = field(default_factory=dict)
@@ -195,6 +208,7 @@ class RuntimeState:
     evidence: dict[str, Evidence] = field(default_factory=dict)
     findings: dict[str, Finding] = field(default_factory=dict)
     handoffs: dict[str, Handoff] = field(default_factory=dict)
+    provider_runs: dict[str, ProviderRun] = field(default_factory=dict)
     checkpoints: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -212,6 +226,7 @@ class RuntimeState:
         state.evidence = {key: Evidence(**item) for key, item in value.get("evidence", {}).items()}
         state.findings = {key: Finding(**item) for key, item in value.get("findings", {}).items()}
         state.handoffs = {key: Handoff(**item) for key, item in value.get("handoffs", {}).items()}
+        state.provider_runs = {key: ProviderRun(**item) for key, item in value.get("provider_runs", {}).items()}
         state.checkpoints = list(value.get("checkpoints", []))
         return state
 

@@ -200,19 +200,20 @@ class MainWindow(QMainWindow):
             timeout_seconds=int(self.settings.get("codex_timeout_seconds", 180)),
             logger=logger,
         )
+        self.provider_adapters = {
+            "CODEX_CLI": CodexProviderAdapter(self.codex_client),
+            "GEMINI_CLI": GeminiProviderAdapter(self.gemini_client),
+        }
         self.runtime_v3_goal_service = RuntimeV3GoalService(
             self.workspace_service.root / "runtime_v3_goals",
-            provider_clients={"CODEX_CLI": self.codex_client, "GEMINI_CLI": self.gemini_client},
+            provider_adapters=self.provider_adapters,
         )
         self.provider_registry = ProviderRegistry(self.database)
         self.provider_registry.ensure_defaults()
         self.provider_health_service = ProviderHealthService(
             self.database,
             self.provider_registry,
-            {
-                "CODEX_CLI": CodexProviderAdapter(self.codex_client),
-                "GEMINI_CLI": GeminiProviderAdapter(self.gemini_client),
-            },
+            self.provider_adapters,
         )
         self.provider_provisioning_service = ProviderProvisioningService(
             self.database,

@@ -4,7 +4,9 @@ from dataclasses import dataclass, field
 import json
 from typing import Protocol
 
-from .models import Action, ActionType, WorkItem, new_id
+from core.provider_execution import ProviderExecutionAdapter, ProviderExecutionRequest
+
+from .models import Action, ActionType, ProviderRun, WorkItem, new_id, utc_now
 
 
 @dataclass
@@ -13,11 +15,7 @@ class AgentDecision:
     actions: list[Action] = field(default_factory=list)
     claim_completed: bool = False
     failure_kind: str = ""
-
-
-class ProviderClient(Protocol):
-    def generate(self, prompt: str, allow_full_access: bool = False):
-        ...
+    provider_run: ProviderRun | None = None
 
 
 class DeterministicAgentRuntime:
@@ -80,7 +78,7 @@ class ProviderAgentRuntime:
 
     def __init__(
         self,
-        providers: dict[str, ProviderClient],
+        providers: dict[str, ProviderExecutionAdapter],
         employee_provider_ids: dict[str, str],
         fallback: DeterministicAgentRuntime | None = None,
     ) -> None:
@@ -96,11 +94,41 @@ class ProviderAgentRuntime:
             return self.fallback.decide(employee_id, work_item, attempt)
 
         self.provider_work_item_ids.add(work_item.work_item_id)
-        result = provider.generate(self._prompt_for(work_item), allow_full_access=False)
-        if not getattr(result, "ok", False):
-            detail = str(getattr(result, "error", "provider returned no usable result")).strip()
-            return AgentDecision(message=detail or "provider failure", failure_kind="PROVIDER_FAILURE")
-        return self._parse_action(work_item, employee_id, str(getattr(result, "content", "")))
+        request = ProviderExecutionRequest(
+            new_id("provider-run"),
+            employee_id,
+            provider_id,
+            work_item.work_item_id,
+            self._prompt_for(work_item),
+            utc_now(),
+        )
+        try:
+            result = provider.execute(request)
+        except Exception as exc:
+            provider_run = ProviderRun(
+                request.run_id,
+                request.employee_id,
+                request.provider_id,
+                request.work_item_id,
+                "FAILED",
+                request.started_at,
+                utc_now(),
+                f"{type(exc).__name__}: {exc}",
+            )
+            return AgentDecision(message=provider_run.error, failure_kind="PROVIDER_FAILURE", provider_run=provider_run)
+        provider_run = ProviderRun(
+            result.run_id,
+            result.employee_id,
+            result.provider_id,
+            result.work_item_id,
+            result.status,
+            result.started_at,
+            result.finished_at,
+            result.error,
+        )
+        if result.status != "SUCCEEDED":
+            return AgentDecision(message=result.error or "provider failure", failure_kind="PROVIDER_FAILURE", provider_run=provider_run)
+        return self._parse_action(work_item, employee_id, result.content, provider_run)
 
     @staticmethod
     def _prompt_for(work_item: WorkItem) -> str:
@@ -119,17 +147,18 @@ class ProviderAgentRuntime:
         )
 
     @staticmethod
-    def _parse_action(work_item: WorkItem, employee_id: str, content: str) -> AgentDecision:
+    def _parse_action(work_item: WorkItem, employee_id: str, content: str, provider_run: ProviderRun) -> AgentDecision:
         try:
             payload = json.loads(content.strip())
         except json.JSONDecodeError:
-            return AgentDecision(message="provider response is not valid JSON", failure_kind="PROVIDER_INVALID_ACTION")
+            return AgentDecision(message="provider response is not valid JSON", failure_kind="PROVIDER_INVALID_ACTION", provider_run=provider_run)
         if not isinstance(payload, dict) or payload.get("action") != ActionType.FILESYSTEM_WRITE.value:
-            return AgentDecision(message="provider proposed an unsupported action", failure_kind="PROVIDER_INVALID_ACTION")
+            return AgentDecision(message="provider proposed an unsupported action", failure_kind="PROVIDER_INVALID_ACTION", provider_run=provider_run)
         path = str(payload.get("path") or "").replace("\\", "/").strip()
         artifact_content = str(payload.get("content") or "").strip()
         if not path.startswith("v3_provider_output/") or not path.endswith(".md") or not artifact_content:
-            return AgentDecision(message="provider action failed validation", failure_kind="PROVIDER_INVALID_ACTION")
+            return AgentDecision(message="provider action failed validation", failure_kind="PROVIDER_INVALID_ACTION", provider_run=provider_run)
+        provider_run.action_count = 1
         return AgentDecision(
             message="provider action accepted",
             actions=[
@@ -141,4 +170,5 @@ class ProviderAgentRuntime:
                     {"path": path, "content": artifact_content},
                 )
             ],
+            provider_run=provider_run,
         )

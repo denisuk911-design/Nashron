@@ -124,6 +124,9 @@ class HybridWorkflowEngine:
         item.attempt += 1
         self.checkpoint(f"work_item_running:{item.work_item_id}")
         decision = self.agent_runtime.decide(item.assigned_employee_id, item, item.attempt - 1)
+        if decision.provider_run is not None:
+            self.state.provider_runs[decision.provider_run.run_id] = decision.provider_run
+            self.checkpoint(f"provider_run_finished:{decision.provider_run.run_id}")
         if not decision.actions:
             if decision.failure_kind:
                 self._provider_failure(item, decision)

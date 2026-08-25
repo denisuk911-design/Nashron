@@ -1,7 +1,7 @@
 {
   "ok": true,
   "handled_by_gui": true,
-  "organization_id": "ORG-7CC26FF10120",
+  "organization_id": "ORG-F1405FD25E7F",
   "goal": "Подготовьте техническую спецификацию преобразователя 24 В -> 12 В, 5 А и подберите подходящий контроллер.",
   "summary": "Цель выполнена.\nПлан: 3 рабочих пункта.\nАртефакты: 2.\nИсточники/доказательства: 1.\nПроверка: замечаний нет.\nРезультаты:\n- result.md, ревизия 1\n- controller_research.md, ревизия 1",
   "goal_count": 1,
@@ -14,6 +14,11 @@
   "handoffs": 2,
   "provider_actions": 1,
   "provider_observations_ok": 1,
+  "provider_runs": 1,
+  "provider_run_statuses": [
+    "SUCCEEDED"
+  ],
+  "provider_run_action_count": 1,
   "message_rows": 1,
   "screenshot": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_runtime_v3_packaged_gui_smoke\\runtime_v3_gui_smoke.png",
   "checks_passed": true,

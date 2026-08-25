@@ -3,9 +3,11 @@ from __future__ import annotations
 import shutil
 import time
 from dataclasses import asdict
+from datetime import datetime, timezone
 from typing import Protocol
 
 from .database import Database
+from .provider_execution import ProviderExecutionRequest, ProviderExecutionResult
 from .provider_models import DEFAULT_PROVIDER_PROFILES, ProviderHealth, ProviderProfile
 
 
@@ -60,6 +62,21 @@ class CodexProviderAdapter:
             diagnostic=diagnostic,
         )
 
+    def execute(self, request: ProviderExecutionRequest) -> ProviderExecutionResult:
+        result = self.codex_client.generate(request.prompt, allow_full_access=False)
+        finished_at = datetime.now(timezone.utc).isoformat()
+        return ProviderExecutionResult(
+            request.run_id,
+            request.employee_id,
+            self.provider_id,
+            request.work_item_id,
+            "SUCCEEDED" if result.ok else "FAILED",
+            request.started_at,
+            finished_at,
+            content=result.content if result.ok else "",
+            error=str(result.error or "") if not result.ok else "",
+        )
+
 
 class GeminiProviderAdapter:
     provider_id = "GEMINI_CLI"
@@ -90,6 +107,21 @@ class GeminiProviderAdapter:
             "DEGRADED" if authenticated else "NOT_READY",
             "NOT_CHECKED",
             diagnostic="API key detected." if authenticated else "GEMINI_API_KEY is not configured.",
+        )
+
+    def execute(self, request: ProviderExecutionRequest) -> ProviderExecutionResult:
+        result = self.gemini_client.generate(request.prompt, allow_full_access=False)
+        finished_at = datetime.now(timezone.utc).isoformat()
+        return ProviderExecutionResult(
+            request.run_id,
+            request.employee_id,
+            self.provider_id,
+            request.work_item_id,
+            "SUCCEEDED" if result.ok else "FAILED",
+            request.started_at,
+            finished_at,
+            content=result.content if result.ok else "",
+            error=str(result.error or "") if not result.ok else "",
         )
 
 

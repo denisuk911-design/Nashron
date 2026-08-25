@@ -21,9 +21,9 @@ class RuntimeV3GoalResult:
 class RuntimeV3GoalService:
     """Application boundary for experimental V3 Goal mode."""
 
-    def __init__(self, workspace_root: Path, provider_clients: dict[str, object] | None = None) -> None:
+    def __init__(self, workspace_root: Path, provider_adapters: dict[str, object] | None = None) -> None:
         self.workspace_root = Path(workspace_root)
-        self.provider_clients = dict(provider_clients or {})
+        self.provider_adapters = dict(provider_adapters or {})
 
     def run_goal(self, organization_id: str, objective: str, agents: Iterable[ChatAgent]) -> RuntimeV3GoalResult:
         employees = self._employee_bindings(list(agents))
@@ -34,12 +34,12 @@ class RuntimeV3GoalService:
             ]
         provider_bindings = {
             employees[0].employee_id: employees[0].provider_binding_id
-        } if self.provider_clients and employees and employees[0].provider_binding_id in self.provider_clients else {}
+        } if self.provider_adapters and employees and employees[0].provider_binding_id in self.provider_adapters else {}
         engine = HybridWorkflowEngine(
             organization_id,
             employees,
             self.workspace_root / organization_id,
-            agent_runtime=ProviderAgentRuntime(self.provider_clients, provider_bindings) if provider_bindings else None,
+            agent_runtime=ProviderAgentRuntime(self.provider_adapters, provider_bindings) if provider_bindings else None,
         )
         goal = engine.create_goal(objective)
         engine.create_plan(goal.goal_id)

@@ -150,6 +150,7 @@ def _run_runtime_v3_gui_smoke(app: QApplication, window: MainWindow, logger: log
                     for observation in result.state.observations.values()
                 )
             } if result is not None else set()
+            provider_runs = list(result.state.provider_runs.values()) if result is not None else []
             payload = {
                 "ok": bool(handled and result is not None and result.ok),
                 "handled_by_gui": handled,
@@ -166,6 +167,9 @@ def _run_runtime_v3_gui_smoke(app: QApplication, window: MainWindow, logger: log
                 "handoffs": len(result.state.handoffs) if result is not None else 0,
                 "provider_actions": len(provider_actions),
                 "provider_observations_ok": len(provider_observation_ids),
+                "provider_runs": len(provider_runs),
+                "provider_run_statuses": sorted(run.status for run in provider_runs),
+                "provider_run_action_count": sum(run.action_count for run in provider_runs),
                 "message_rows": window.chat.messages.count(),
                 "screenshot": str(screenshot_path),
             }
@@ -179,6 +183,8 @@ def _run_runtime_v3_gui_smoke(app: QApplication, window: MainWindow, logger: log
                 payload["handoffs"] >= 1,
                 payload["provider_actions"] >= 1,
                 payload["provider_observations_ok"] >= 1,
+                payload["provider_runs"] >= 1,
+                payload["provider_run_action_count"] >= 1,
                 "Цель выполнена" in summary,
                 "Артефакты" in summary,
                 "Источники" in summary,
