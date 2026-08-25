@@ -1,6 +1,9 @@
 from runtime_v3 import GoalStatus, HybridWorkflowEngine, WorkItemStatus
 from runtime_v3.agent_runtime import AgentDecision, DeterministicAgentRuntime
-from runtime_v3.models import Action, ActionType, EmployeeBinding, Goal, WorkItem, new_id
+import time
+
+from runtime_v3.models import Action, ActionType, EmployeeBinding, Goal, Plan, WorkItem, new_id
+from runtime_v3.supervisor import GoalSupervisor
 
 
 def employees():
@@ -32,6 +35,7 @@ def test_supervisor_decomposes_goal_and_assigns_by_competency(tmp_path):
     assert items[1].assigned_employee_id == "researcher"
     assert items[2].assigned_employee_id == "reviewer"
     assert items[2].dependencies == [items[0].work_item_id, items[1].work_item_id]
+    assert plan.strategy == "HANDOFF"
 
 
 def test_simple_work_item_does_not_launch_whole_team(tmp_path):
@@ -40,6 +44,48 @@ def test_simple_work_item_does_not_launch_whole_team(tmp_path):
     plan = engine.create_plan(goal.goal_id)
 
     assert len(plan.work_item_ids) == 1
+    assert plan.strategy == "SEQUENTIAL"
+
+
+def test_supervisor_selects_all_orchestration_strategies_from_dependencies():
+    supervisor = GoalSupervisor(employees())
+    first = WorkItem("first", "goal", "first", "engineer")
+    second = WorkItem("second", "goal", "second", "researcher")
+    dependent = WorkItem("review", "goal", "review", "reviewer", dependencies=["first"])
+
+    assert supervisor.choose_strategy([first]) == "SEQUENTIAL"
+    assert supervisor.choose_strategy([first, second]) == "CONCURRENT"
+    assert supervisor.choose_strategy([first, dependent]) == "HANDOFF"
+
+
+def test_concurrent_executor_runs_independent_agent_decisions_in_parallel(tmp_path):
+    class SlowRuntime:
+        def __init__(self):
+            self.started: list[float] = []
+
+        def decide(self, employee_id, work_item, attempt):
+            self.started.append(time.monotonic())
+            time.sleep(0.15)
+            return AgentDecision(actions=[Action(
+                new_id("action"), work_item.work_item_id, employee_id, ActionType.FILESYSTEM_WRITE,
+                {"path": f"artifacts/{work_item.work_item_id}.md", "content": work_item.objective},
+            )])
+
+    runtime = SlowRuntime()
+    engine = HybridWorkflowEngine("org", employees(), tmp_path, agent_runtime=runtime)
+    goal = Goal("goal-concurrent", "parallel independent work")
+    first = WorkItem("work-first", goal.goal_id, "first", "engineer", status=WorkItemStatus.READY)
+    second = WorkItem("work-second", goal.goal_id, "second", "researcher", status=WorkItemStatus.READY)
+    plan = Plan("plan-concurrent", goal.goal_id, "supervisor", [first.work_item_id, second.work_item_id], strategy="CONCURRENT")
+    engine.state.goals[goal.goal_id] = goal
+    engine.state.plans[plan.plan_id] = plan
+    engine.state.work_items = {first.work_item_id: first, second.work_item_id: second}
+
+    state = engine.start(goal.goal_id)
+
+    assert max(runtime.started) - min(runtime.started) < 0.10
+    assert state.goals[goal.goal_id].status == GoalStatus.COMPLETED
+    assert len(state.artifacts) == 2
 
 
 def test_goal_runs_through_action_tool_observation_artifacts_review_rework(tmp_path):

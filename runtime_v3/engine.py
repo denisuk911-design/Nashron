@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from .agent_runtime import AgentDecision, DeterministicAgentRuntime
@@ -119,6 +120,7 @@ class HybridWorkflowEngine:
         progress = True
         while progress:
             progress = False
+            runnable: list[WorkItem] = []
             for item in list(self.state.work_items.values()):
                 if item.goal_id != goal.goal_id:
                     continue
@@ -135,8 +137,13 @@ class HybridWorkflowEngine:
                 if item.status in {WorkItemStatus.READY, WorkItemStatus.REWORK} and self._dependencies_complete(item):
                     if item.status == WorkItemStatus.REWORK and "artifact.review" in item.required_tools:
                         item.input_artifact_ids = self._dependency_artifacts(item)
-                    self._execute_item(item)
-                    progress = True
+                    runnable.append(item)
+            if len(runnable) > 1:
+                self._execute_items_concurrently(runnable)
+                progress = True
+            elif runnable:
+                self._execute_item(runnable[0])
+                progress = True
             self._update_goal(goal)
 
     def _execute_item(self, item: WorkItem) -> None:
@@ -144,6 +151,26 @@ class HybridWorkflowEngine:
         item.attempt += 1
         self.checkpoint(f"work_item_running:{item.work_item_id}")
         decision = self.agent_runtime.decide(item.assigned_employee_id, item, item.attempt - 1)
+        self._apply_decision(item, decision)
+
+    def _execute_items_concurrently(self, items: list[WorkItem]) -> None:
+        """Run independent agent decisions in parallel, then commit their effects deterministically."""
+        for item in items:
+            item.status = WorkItemStatus.RUNNING
+            item.attempt += 1
+            self.checkpoint(f"work_item_running:{item.work_item_id}")
+        with ThreadPoolExecutor(max_workers=len(items), thread_name_prefix="team2050-work") as executor:
+            futures = {
+                item.work_item_id: executor.submit(
+                    self.agent_runtime.decide, item.assigned_employee_id, item, item.attempt - 1
+                )
+                for item in items
+            }
+            decisions = {item.work_item_id: futures[item.work_item_id].result() for item in items}
+        for item in items:
+            self._apply_decision(item, decisions[item.work_item_id])
+
+    def _apply_decision(self, item: WorkItem, decision: AgentDecision) -> None:
         provider_runs = decision.provider_runs or ([decision.provider_run] if decision.provider_run is not None else [])
         for provider_run in provider_runs:
             self.state.provider_runs[provider_run.run_id] = provider_run

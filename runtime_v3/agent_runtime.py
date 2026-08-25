@@ -131,16 +131,17 @@ class ProviderAgentRuntime:
 
     @staticmethod
     def _prompt_for(work_item: WorkItem) -> str:
+        output_path = f"v3_provider_output/{work_item.work_item_id}.md"
         return "\n".join(
             [
                 "You are an execution adapter inside Team2050 Runtime V3.",
                 "Return exactly one JSON object. No Markdown, no prose, no tool calls.",
                 "The only accepted action is filesystem.write.",
-                "Use a relative .md path under v3_provider_output/.",
+                f"Write only to this relative path: {output_path}",
                 "Write a concise factual work product satisfying the objective.",
                 "For a technical specification, include the word controller.",
                 "For controller research, include a 'Source evidence' section with an authoritative source URL.",
-                '{"action":"filesystem.write","path":"v3_provider_output/result.md","content":"..."}',
+                f'{{"action":"filesystem.write","path":"{output_path}","content":"..."}}',
                 f"Objective: {work_item.objective}",
                 f"Acceptance criteria: {', '.join(work_item.acceptance_criteria) or 'artifact created'}",
             ]

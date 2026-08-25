@@ -18,7 +18,7 @@ class GoalSupervisor:
 
     def create_plan(self, goal: Goal) -> tuple[Plan, list[WorkItem]]:
         if self.is_social(goal.objective):
-            return Plan(new_id("plan"), goal.goal_id, self.supervisor_employee_id, []), []
+            return Plan(new_id("plan"), goal.goal_id, self.supervisor_employee_id, [], strategy="SEQUENTIAL"), []
         if self._is_simple_single_item(goal.objective):
             employee = self._select_employee(["engineering", "specification", "documentation"])
             item = WorkItem(
@@ -33,7 +33,7 @@ class GoalSupervisor:
                 evidence_requirements=["successful filesystem.write observation"],
                 status=WorkItemStatus.READY,
             )
-            plan = Plan(new_id("plan"), goal.goal_id, self.supervisor_employee_id, [item.work_item_id])
+            plan = Plan(new_id("plan"), goal.goal_id, self.supervisor_employee_id, [item.work_item_id], strategy=self.choose_strategy([item]))
             return plan, [item]
         spec_employee = self._select_employee(["requirements", "specification", "engineering"])
         research_employee = self._select_employee(["research", "components"])
@@ -74,8 +74,21 @@ class GoalSupervisor:
             acceptance_criteria=["all findings resolved"],
             evidence_requirements=["review observation"],
         )
-        plan = Plan(new_id("plan"), goal.goal_id, self.supervisor_employee_id, [spec.work_item_id, research.work_item_id, review.work_item_id])
+        plan = Plan(
+            new_id("plan"), goal.goal_id, self.supervisor_employee_id,
+            [spec.work_item_id, research.work_item_id, review.work_item_id],
+            strategy=self.choose_strategy([spec, research, review]),
+        )
         return plan, [spec, research, review]
+
+    @staticmethod
+    def choose_strategy(work_items: list[WorkItem]) -> str:
+        """Choose orchestration from the dependency graph, not employee names or UI state."""
+        if len(work_items) < 2:
+            return "SEQUENTIAL"
+        if any(item.dependencies for item in work_items):
+            return "HANDOFF"
+        return "CONCURRENT"
 
     @staticmethod
     def can_retry_without_human(item: WorkItem) -> bool:

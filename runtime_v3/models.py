@@ -98,6 +98,7 @@ class Plan:
     goal_id: str
     supervisor_employee_id: str
     work_item_ids: list[str]
+    strategy: str = "SEQUENTIAL"
     created_at: str = field(default_factory=utc_now)
 
 
