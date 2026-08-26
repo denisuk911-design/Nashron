@@ -245,13 +245,13 @@ class ProviderAgentRuntime:
         return "\n".join(
             [
                 "You are an execution adapter inside Team2050 Runtime V3.",
-                "Return exactly one JSON object. No Markdown, no prose, no tool calls.",
-                "The only accepted action is filesystem.write.",
+                "Return exactly one JSON object. No Markdown or prose.",
+                "Return either one action or an actions list of up to 32 declared tools.",
                 f"Write only to this relative path: {output_path}",
                 "Write a concise factual work product satisfying the objective.",
                 "For a technical specification, include the word controller.",
                 "For controller research, include a 'Source evidence' section with an authoritative source URL.",
-                f'{{"action":"filesystem.write","path":"{output_path}","content":"..."}}',
+                f'{{"actions":[{{"action":"filesystem.write","path":"{output_path}","content":"..."}}]}}',
                 f"Objective: {work_item.objective}",
                 f"Acceptance criteria: {', '.join(work_item.acceptance_criteria) or 'artifact created'}",
             ]
@@ -261,9 +261,10 @@ class ProviderAgentRuntime:
     def _action_schema() -> dict[str, object]:
         return {
             "type": "object",
-            "required": ["action", "path", "content"],
+            "anyOf": [{"required": ["action"]}, {"required": ["actions"]}],
             "properties": {
-                "action": {"const": ActionType.FILESYSTEM_WRITE.value},
+                "action": {"type": "string", "enum": [item.value for item in ActionType]},
+                "actions": {"type": "array", "maxItems": 32, "items": {"type": "object"}},
                 "path": {"type": "string"},
                 "content": {"type": "string"},
             },
@@ -275,27 +276,30 @@ class ProviderAgentRuntime:
             payload = json.loads(content.strip())
         except json.JSONDecodeError:
             return AgentDecision(message="provider response is not valid JSON", failure_kind="PROVIDER_INVALID_ACTION", provider_run=provider_run)
-        if not isinstance(payload, dict) or payload.get("action") != ActionType.FILESYSTEM_WRITE.value:
+        if not isinstance(payload, dict):
             return AgentDecision(message="provider proposed an unsupported action", failure_kind="PROVIDER_INVALID_ACTION", provider_run=provider_run)
-        path = str(payload.get("path") or "").replace("\\", "/").strip()
-        artifact_content = str(payload.get("content") or "").strip()
-        if not path.startswith("v3_provider_output/") or not path.endswith(".md") or not artifact_content:
-            return AgentDecision(message="provider action failed validation", failure_kind="PROVIDER_INVALID_ACTION", provider_run=provider_run)
-        provider_run.action_count = 1
+        entries = payload.get("actions") if isinstance(payload.get("actions"), list) else [payload]
+        if not entries or len(entries) > 32 or not all(isinstance(entry, dict) for entry in entries):
+            return AgentDecision(message="provider action list failed validation", failure_kind="PROVIDER_INVALID_ACTION", provider_run=provider_run)
+        actions: list[Action] = []
+        for entry in entries:
+            try:
+                action_type = ActionType(str(entry.get("action") or ""))
+            except ValueError:
+                return AgentDecision(message="provider proposed an unsupported action", failure_kind="PROVIDER_INVALID_ACTION", provider_run=provider_run)
+            action_payload = {key: value for key, value in entry.items() if key != "action"}
+            if action_type == ActionType.FILESYSTEM_WRITE:
+                path = str(action_payload.get("path") or "").replace("\\", "/").strip()
+                content = str(action_payload.get("content") or "").strip()
+                if not path.startswith("v3_provider_output/") or not path.endswith(".md") or not content:
+                    return AgentDecision(message="provider write action failed validation", failure_kind="PROVIDER_INVALID_ACTION", provider_run=provider_run)
+                action_payload["path"] = path
+                action_payload["content"] = content
+            action_payload["correlation_id"] = provider_run.correlation_id
+            actions.append(Action(new_id("action"), work_item.work_item_id, employee_id, action_type, action_payload))
+        provider_run.action_count = len(actions)
         return AgentDecision(
             message="provider action accepted",
-            actions=[
-                Action(
-                    new_id("action"),
-                    work_item.work_item_id,
-                    employee_id,
-                    ActionType.FILESYSTEM_WRITE,
-                    {
-                        "path": path,
-                        "content": artifact_content,
-                        "correlation_id": provider_run.correlation_id,
-                    },
-                )
-            ],
+            actions=actions,
             provider_run=provider_run,
         )

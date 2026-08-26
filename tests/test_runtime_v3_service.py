@@ -98,6 +98,23 @@ def test_runtime_v3_goal_uses_provider_action_then_real_tool_observation(tmp_pat
     assert restored.provider_runs[run.run_id].correlation_id == run.correlation_id
 
 
+def test_provider_action_list_executes_multiple_real_tool_observations(tmp_path):
+    provider = FakeProviderAdapter(
+        "CODEX_CLI",
+        '{"actions":[{"action":"filesystem.write","path":"v3_provider_output/one.md","content":"one"},{"action":"filesystem.write","path":"v3_provider_output/two.md","content":"two"}]}',
+    )
+    service = RuntimeV3GoalService(tmp_path, provider_adapters={"CODEX_CLI": provider})
+    agents = [ChatAgent("roman", "agent-roman", "Roman", "CODEX_CLI", ["DESIGN_ENGINEER"], "roman", "", None)]
+
+    result = service.run_goal("org", "Create one file as a simple note", agents)
+
+    assert result.ok
+    assert len(result.state.actions) == 2
+    assert len(result.state.observations) == 2
+    assert len(result.state.artifacts) == 2
+    assert next(iter(result.state.provider_runs.values())).action_count == 2
+
+
 def test_runtime_v3_golden_goal_uses_two_provider_items_then_rework_and_final_review(tmp_path):
     provider = GoldenProviderAdapter("CODEX_CLI")
     service = RuntimeV3GoalService(tmp_path, provider_adapters={"CODEX_CLI": provider})
