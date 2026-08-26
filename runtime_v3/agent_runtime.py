@@ -122,6 +122,7 @@ class ProviderAgentRuntime:
 
         provider_ids = [primary_provider_id, *self.fallback_provider_ids.get(employee_id, [])]
         required_capabilities = {"filesystem.write", "structured_output"}
+        correlation_id = f"corr-{work_item.goal_id}-{work_item.work_item_id}"
         runs: list[ProviderRun] = []
         for provider_id in dict.fromkeys(provider_ids):
             if self._cancelled.is_set():
@@ -141,6 +142,7 @@ class ProviderAgentRuntime:
                     "condensed_characters": context.condensed_characters,
                     "condensed": context.condensed,
                 },
+                correlation_id=correlation_id,
             )
             try:
                 result = provider.execute(request)
@@ -155,7 +157,17 @@ class ProviderAgentRuntime:
                     utc_now(),
                     error=f"{type(exc).__name__}: {exc}",
                 )
-            provider_run = ProviderRun(result.run_id, result.employee_id, result.provider_id, result.work_item_id, result.status, result.started_at, result.finished_at, result.error)
+            provider_run = ProviderRun(
+                result.run_id,
+                result.employee_id,
+                result.provider_id,
+                result.work_item_id,
+                result.status,
+                result.started_at,
+                result.finished_at,
+                error=result.error,
+                correlation_id=correlation_id,
+            )
             runs.append(provider_run)
             if result.status == "SUCCEEDED":
                 self.provider_work_item_ids.add(work_item.work_item_id)
@@ -216,7 +228,11 @@ class ProviderAgentRuntime:
                     work_item.work_item_id,
                     employee_id,
                     ActionType.FILESYSTEM_WRITE,
-                    {"path": path, "content": artifact_content},
+                    {
+                        "path": path,
+                        "content": artifact_content,
+                        "correlation_id": provider_run.correlation_id,
+                    },
                 )
             ],
             provider_run=provider_run,

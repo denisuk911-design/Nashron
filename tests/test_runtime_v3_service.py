@@ -84,8 +84,18 @@ def test_runtime_v3_goal_uses_provider_action_then_real_tool_observation(tmp_pat
     assert observation.summary == "wrote spec.md"
     run = next(iter(result.state.provider_runs.values()))
     assert run.action_count == 1
+    assert run.correlation_id == f"corr-{next(iter(result.state.goals))}-{run.work_item_id}"
+    action = next(iter(result.state.actions.values()))
+    assert action.payload["correlation_id"] == run.correlation_id
+    trace_stages = {
+        event.stage
+        for event in result.state.trace_events.values()
+        if event.detail == run.correlation_id
+    }
+    assert {"provider_run_finished", "tool_observed", "artifact_created"} <= trace_stages
     restored = load_state(result.workspace_root / "checkpoints" / "state.json")
     assert restored.provider_runs[run.run_id].provider_id == "CODEX_CLI"
+    assert restored.provider_runs[run.run_id].correlation_id == run.correlation_id
 
 
 def test_runtime_v3_golden_goal_uses_two_provider_items_then_rework_and_final_review(tmp_path):

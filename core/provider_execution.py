@@ -63,6 +63,7 @@ class ProviderExecutionRequest:
     output_schema: dict[str, Any] | None = None
     on_delta: Callable[[str], None] | None = None
     context_metadata: dict[str, Any] = field(default_factory=dict)
+    correlation_id: str = ""
 
 
 @dataclass(frozen=True)

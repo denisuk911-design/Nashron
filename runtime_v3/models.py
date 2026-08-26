@@ -258,6 +258,7 @@ class ProviderRun:
     finished_at: str
     error: str = ""
     action_count: int = 0
+    correlation_id: str = ""
 
 
 @dataclass

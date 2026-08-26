@@ -168,12 +168,20 @@ class HybridWorkflowEngine:
         self._trace(reason)
         return self.repository.save(self.state, reason)
 
-    def _trace(self, stage: str, item: WorkItem | None = None, action: Action | None = None, observation: Observation | None = None, artifact: Artifact | None = None) -> None:
+    def _trace(
+        self,
+        stage: str,
+        item: WorkItem | None = None,
+        action: Action | None = None,
+        observation: Observation | None = None,
+        artifact: Artifact | None = None,
+        detail: str = "",
+    ) -> None:
         goal_id = item.goal_id if item is not None else (next(iter(self.state.goals.values())).goal_id if len(self.state.goals) == 1 else "")
         event = RuntimeTraceEvent(
             new_id("trace"), goal_id, stage,
             item.work_item_id if item else "", action.action_id if action else "",
-            observation.observation_id if observation else "", artifact.artifact_id if artifact else "",
+            observation.observation_id if observation else "", artifact.artifact_id if artifact else "", detail,
         )
         self.state.trace_events[event.event_id] = event
 
@@ -296,6 +304,7 @@ class HybridWorkflowEngine:
         provider_runs = decision.provider_runs or ([decision.provider_run] if decision.provider_run is not None else [])
         for provider_run in provider_runs:
             self.state.provider_runs[provider_run.run_id] = provider_run
+            self._trace("provider_run_finished", item, detail=provider_run.correlation_id)
         if provider_runs:
             self.checkpoint(f"provider_run_finished:{provider_runs[-1].run_id}")
         if not decision.actions:
@@ -334,7 +343,7 @@ class HybridWorkflowEngine:
         else:
             observation = self.tool_runtime.execute(action)
         self.state.observations[observation.observation_id] = observation
-        self._trace("tool_observed", item, action, observation)
+        self._trace("tool_observed", item, action, observation, detail=str(action.payload.get("correlation_id", "")))
         if observation.status != ObservationStatus.OK:
             item.status = WorkItemStatus.FAILED
             item.result = {"failed_observation_id": observation.observation_id}
@@ -363,7 +372,7 @@ class HybridWorkflowEngine:
             observation.observation_id,
         )
         self.state.artifacts[artifact.artifact_id] = artifact
-        self._trace("artifact_created", item, action, observation, artifact)
+        self._trace("artifact_created", item, action, observation, artifact, str(action.payload.get("correlation_id", "")))
         evidence = Evidence(
             new_id("evidence"),
             item.goal_id,
