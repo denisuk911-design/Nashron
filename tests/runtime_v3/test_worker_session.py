@@ -83,3 +83,10 @@ def test_engine_persists_worker_session_effects_as_artifacts_and_trace(tmp_path)
     assert record.status.value == "COMPLETED"
     assert record.action_count == 1 and record.observation_count == 1
     assert any(event.stage == "artifact_created" for event in engine.state.trace_events.values())
+
+    resumed = HybridWorkflowEngine("org", [employee], tmp_path)
+    resumed.repository = engine.repository
+    restored = resumed.resume()
+    restored_record = next(iter(restored.worker_sessions.values()))
+    assert restored_record.session_id == record.session_id
+    assert restored_record.status.value == "COMPLETED"
