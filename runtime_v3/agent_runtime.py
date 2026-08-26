@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from concurrent.futures import Future, ThreadPoolExecutor
 import json
+import threading
 from typing import Protocol
 
 from core.provider_execution import ContextWindowPolicy, ProviderExecutionAdapter, ProviderExecutionRequest, ProviderExecutionResult
@@ -85,19 +87,35 @@ class ProviderAgentRuntime:
         fallback_provider_ids: dict[str, list[str]] | None = None,
         fallback: DeterministicAgentRuntime | None = None,
         context_policy: ContextWindowPolicy | None = None,
+        max_concurrent_runs: int = 4,
     ) -> None:
         self.providers = dict(providers)
         self.employee_provider_ids = dict(employee_provider_ids)
         self.fallback_provider_ids = {key: list(value) for key, value in (fallback_provider_ids or {}).items()}
         self.fallback = fallback or DeterministicAgentRuntime()
         self.context_policy = context_policy or ContextWindowPolicy()
+        self._executor = ThreadPoolExecutor(max_workers=max(1, max_concurrent_runs), thread_name_prefix="team2050-provider")
+        self._cancelled = threading.Event()
         self.provider_work_item_ids: set[str] = set()
 
     def restore_completed_work_items(self, work_item_ids: set[str]) -> None:
         """Restore idempotency markers from durable runtime state after restart."""
         self.provider_work_item_ids.update(work_item_ids)
 
+    def submit(self, employee_id: str, work_item: WorkItem, attempt: int) -> Future[AgentDecision]:
+        """Bounded async provider execution used by concurrent work graph nodes."""
+        return self._executor.submit(self.decide, employee_id, work_item, attempt)
+
+    def cancel_active_runs(self) -> None:
+        self._cancelled.set()
+        for provider in self.providers.values():
+            cancel = getattr(provider, "cancel", None)
+            if callable(cancel):
+                cancel()
+
     def decide(self, employee_id: str, work_item: WorkItem, attempt: int) -> AgentDecision:
+        if self._cancelled.is_set():
+            return AgentDecision(message="provider run cancelled", failure_kind="PROVIDER_CANCELLED")
         primary_provider_id = self.employee_provider_ids.get(employee_id, "")
         if not primary_provider_id or work_item.work_item_id in self.provider_work_item_ids:
             return self.fallback.decide(employee_id, work_item, attempt)
@@ -106,6 +124,8 @@ class ProviderAgentRuntime:
         required_capabilities = {"filesystem.write", "structured_output"}
         runs: list[ProviderRun] = []
         for provider_id in dict.fromkeys(provider_ids):
+            if self._cancelled.is_set():
+                return AgentDecision(message="provider run cancelled", failure_kind="PROVIDER_CANCELLED", provider_runs=runs)
             provider = self.providers.get(provider_id)
             if provider is None:
                 continue

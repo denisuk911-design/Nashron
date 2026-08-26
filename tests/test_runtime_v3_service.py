@@ -4,7 +4,7 @@ from core.runtime_v3_service import RuntimeV3GoalService
 from core.provider_execution import ContextWindowPolicy
 from runtime_v3.agent_runtime import ProviderAgentRuntime
 from runtime_v3.engine import HybridWorkflowEngine
-from runtime_v3.models import EmployeeBinding
+from runtime_v3.models import EmployeeBinding, WorkItem
 from runtime_v3.models import load_state
 
 
@@ -195,6 +195,18 @@ def test_context_window_policy_preserves_header_and_latest_task():
     assert result.prompt.startswith("SYSTEM RULES")
     assert result.prompt.endswith("LATEST TASK: create artifact")
     assert "CONTEXT CONDENSED" in result.prompt
+
+
+def test_provider_runtime_cancellation_prevents_new_provider_run():
+    provider = FakeProviderAdapter("CODEX_CLI", '{"action":"filesystem.write","path":"v3_provider_output/x.md","content":"x"}')
+    runtime = ProviderAgentRuntime({"CODEX_CLI": provider}, {"engineer": "CODEX_CLI"}, max_concurrent_runs=1)
+    runtime.cancel_active_runs()
+    item = WorkItem("work-cancel", "goal", "Create one file", "engineer")
+
+    decision = runtime.decide("engineer", item, 0)
+
+    assert decision.failure_kind == "PROVIDER_CANCELLED"
+    assert provider.prompts == []
 
 
 def test_runtime_v3_fails_over_to_next_provider_adapter(tmp_path):

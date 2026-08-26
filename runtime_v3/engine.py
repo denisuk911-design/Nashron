@@ -139,6 +139,9 @@ class HybridWorkflowEngine:
     def cancel(self, goal_id: str) -> None:
         goal = self.state.goals[goal_id]
         goal.status = GoalStatus.CANCELLED
+        cancel_runs = getattr(self.agent_runtime, "cancel_active_runs", None)
+        if callable(cancel_runs):
+            cancel_runs()
         self.checkpoint("cancelled")
 
     def complete_work_item(self, work_item_id: str, result: dict) -> None:
@@ -272,9 +275,13 @@ class HybridWorkflowEngine:
             item.attempt += 1
             self.checkpoint(f"work_item_running:{item.work_item_id}")
         with ThreadPoolExecutor(max_workers=len(items), thread_name_prefix="team2050-work") as executor:
+            submit = getattr(self.agent_runtime, "submit", None)
             futures = {
                 item.work_item_id: executor.submit(
-                    self.agent_runtime.decide, item.assigned_employee_id, item, item.attempt - 1
+                    (lambda candidate=item: submit(candidate.assigned_employee_id, candidate, candidate.attempt - 1).result())
+                    if callable(submit)
+                    else self.agent_runtime.decide,
+                    *(() if callable(submit) else (item.assigned_employee_id, item, item.attempt - 1)),
                 )
                 for item in items
             }
