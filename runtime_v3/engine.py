@@ -18,6 +18,7 @@ from .models import (
     InterruptStatus,
     ReplanRecord,
     SupervisorDecisionRecord,
+    RuntimeTraceEvent,
     Observation,
     ObservationStatus,
     RuntimeState,
@@ -34,9 +35,21 @@ from .tools import ToolRuntime
 class HybridWorkflowEngine:
     def __init__(self, organization_id: str, employees: list[EmployeeBinding], workspace_root: Path, agent_runtime=None, max_rework_attempts: int = 2, supervisor_policy=None) -> None:
         self.state = RuntimeState(organization_id)
+        self.state.employee_snapshots = {
+            employee.employee_id: {
+                "role": employee.role,
+                "capabilities": list(employee.competencies),
+                "permissions": sorted(employee.permissions),
+                "provider_binding_id": employee.provider_binding_id,
+            }
+            for employee in employees
+        }
         self.supervisor = GoalSupervisor(employees, policy=supervisor_policy)
         self.agent_runtime = agent_runtime or DeterministicAgentRuntime()
-        self.tool_runtime = ToolRuntime(Path(workspace_root) / "workspace")
+        self.tool_runtime = ToolRuntime(
+            Path(workspace_root) / "workspace",
+            {employee.employee_id: set(employee.permissions) for employee in employees},
+        )
         self.repository = JsonCheckpointRepository(Path(workspace_root) / "checkpoints")
         self.max_rework_attempts = max(1, max_rework_attempts)
 
@@ -70,6 +83,11 @@ class HybridWorkflowEngine:
 
     def resume(self):
         self.state = self.repository.load()
+        # Resume with the immutable authorization context from the checkpoint.
+        self.tool_runtime.employee_permissions = {
+            employee_id: set(snapshot.get("permissions", []))
+            for employee_id, snapshot in self.state.employee_snapshots.items()
+        }
         if hasattr(self.agent_runtime, "restore_completed_work_items"):
             confirmed_provider_items = {
                 run.work_item_id
@@ -138,7 +156,17 @@ class HybridWorkflowEngine:
         self.checkpoint("review_submitted")
 
     def checkpoint(self, reason: str) -> str:
+        self._trace(reason)
         return self.repository.save(self.state, reason)
+
+    def _trace(self, stage: str, item: WorkItem | None = None, action: Action | None = None, observation: Observation | None = None, artifact: Artifact | None = None) -> None:
+        goal_id = item.goal_id if item is not None else (next(iter(self.state.goals.values())).goal_id if len(self.state.goals) == 1 else "")
+        event = RuntimeTraceEvent(
+            new_id("trace"), goal_id, stage,
+            item.work_item_id if item else "", action.action_id if action else "",
+            observation.observation_id if observation else "", artifact.artifact_id if artifact else "",
+        )
+        self.state.trace_events[event.event_id] = event
 
     def get_state(self) -> RuntimeState:
         return self.state
@@ -293,6 +321,7 @@ class HybridWorkflowEngine:
         else:
             observation = self.tool_runtime.execute(action)
         self.state.observations[observation.observation_id] = observation
+        self._trace("tool_observed", item, action, observation)
         if observation.status != ObservationStatus.OK:
             item.status = WorkItemStatus.FAILED
             item.result = {"failed_observation_id": observation.observation_id}
@@ -321,6 +350,7 @@ class HybridWorkflowEngine:
             observation.observation_id,
         )
         self.state.artifacts[artifact.artifact_id] = artifact
+        self._trace("artifact_created", item, action, observation, artifact)
         evidence = Evidence(
             new_id("evidence"),
             item.goal_id,

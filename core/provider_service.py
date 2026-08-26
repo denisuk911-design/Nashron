@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import shutil
+import threading
 import time
 from dataclasses import asdict
 from datetime import datetime, timezone
@@ -23,6 +24,7 @@ class CodexProviderAdapter:
 
     def __init__(self, codex_client) -> None:
         self.codex_client = codex_client
+        self._execution_lock = threading.Lock()
 
     def check_health(self) -> ProviderHealth:
         if not self.codex_client.is_available():
@@ -63,7 +65,9 @@ class CodexProviderAdapter:
         )
 
     def execute(self, request: ProviderExecutionRequest) -> ProviderExecutionResult:
-        result = self.codex_client.generate(request.prompt, allow_full_access=False)
+        # The client owns mutable process/output state; serialize one CLI.
+        with self._execution_lock:
+            result = self.codex_client.generate(request.prompt, allow_full_access=False)
         finished_at = datetime.now(timezone.utc).isoformat()
         return ProviderExecutionResult(
             request.run_id,
@@ -83,6 +87,7 @@ class GeminiProviderAdapter:
 
     def __init__(self, gemini_client) -> None:
         self.gemini_client = gemini_client
+        self._execution_lock = threading.Lock()
 
     def check_health(self) -> ProviderHealth:
         if not self.gemini_client.is_available():
@@ -110,7 +115,9 @@ class GeminiProviderAdapter:
         )
 
     def execute(self, request: ProviderExecutionRequest) -> ProviderExecutionResult:
-        result = self.gemini_client.generate(request.prompt, allow_full_access=False)
+        # The client owns a mutable current-process reference.
+        with self._execution_lock:
+            result = self.gemini_client.generate(request.prompt, allow_full_access=False)
         finished_at = datetime.now(timezone.utc).isoformat()
         return ProviderExecutionResult(
             request.run_id,

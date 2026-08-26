@@ -133,24 +133,49 @@ class GoalSupervisor:
         }
 
     def _select_alternate_employee(self, item: WorkItem) -> EmployeeBinding:
-        capabilities = {value.lower() for value in item.required_capabilities}
-        alternatives = [employee for employee in self.employees if employee.employee_id != item.assigned_employee_id]
+        capabilities = item.required_capabilities
         for employee in self.employees:
             if employee.employee_id == item.assigned_employee_id:
                 continue
-            employee_capabilities = " ".join(employee.competencies + [employee.role]).lower()
-            if not capabilities or any(capability in employee_capabilities for capability in capabilities):
+            if self._matches_capabilities(employee, capabilities):
                 return employee
-        if alternatives:
-            return alternatives[0]
-        return next(employee for employee in self.employees if employee.employee_id == item.assigned_employee_id)
+        current = next(employee for employee in self.employees if employee.employee_id == item.assigned_employee_id)
+        if self._matches_capabilities(current, capabilities):
+            return current
+        raise ValueError(f"no alternate employee has required capabilities: {', '.join(item.required_capabilities)}")
 
     def _select_employee(self, required: list[str]) -> EmployeeBinding:
         for employee in self.employees:
-            competencies = {item.lower() for item in employee.competencies + [employee.role]}
-            if any(token in " ".join(competencies) for token in required):
+            if self._has_direct_capability(employee, required):
                 return employee
-        return self.employees[0]
+        for employee in self.employees:
+            if self._matches_capabilities(employee, required):
+                return employee
+        raise ValueError(f"no employee has required capabilities: {', '.join(required)}")
+
+    @staticmethod
+    def _has_direct_capability(employee: EmployeeBinding, required: list[str]) -> bool:
+        available = " ".join([employee.role, *employee.competencies]).lower().replace("_", " ")
+        return any(capability.lower().replace("-", " ") in available for capability in required)
+
+    @staticmethod
+    def _matches_capabilities(employee: EmployeeBinding, required: list[str]) -> bool:
+        if not required:
+            return True
+        available = " ".join([employee.role, *employee.competencies]).lower().replace("_", " ")
+        aliases = {
+            "single-work-item": ("engineering", "engineer", "documentation"),
+            "specification": ("specification", "engineering", "engineer"),
+            "engineering": ("engineering", "engineer"),
+            "requirements": ("requirements", "engineering", "engineer"),
+            "review": ("review", "qa", "audit"),
+            "evidence": ("evidence", "review", "qa", "audit"),
+            # A design engineer may perform bounded component research when a
+            # small organization has no dedicated researcher.
+            "research": ("research", "engineering", "engineer"),
+            "components": ("components", "research", "engineering", "engineer"),
+        }
+        return any(any(token in available for token in aliases.get(capability.lower(), (capability.lower(),))) for capability in required)
 
     @staticmethod
     def _is_simple_single_item(text: str) -> bool:

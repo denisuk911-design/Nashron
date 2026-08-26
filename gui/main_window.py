@@ -61,6 +61,7 @@ from core.provider_service import (
 from core.response_cleaner import ResponseCleaner
 from core.response_latency import ResponseLatencyPolicy
 from core.runtime_v3_service import RuntimeV3GoalService
+from core.tool_access import effective_permissions_for_agent
 from core.response_splitter import ResponseSplitter
 from core.settings_service import SettingsService
 from core.send_pipeline_trace import SendPipelineTrace
@@ -208,6 +209,7 @@ class MainWindow(QMainWindow):
         self.runtime_v3_goal_service = RuntimeV3GoalService(
             self.workspace_service.root / "runtime_v3_goals",
             provider_adapters=self.provider_adapters,
+            permission_resolver=lambda agent_id: effective_permissions_for_agent(self.database, agent_id),
         )
         self.provider_registry = ProviderRegistry(self.database)
         self.provider_registry.ensure_defaults()

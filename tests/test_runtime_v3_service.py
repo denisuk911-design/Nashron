@@ -131,6 +131,23 @@ def test_runtime_v3_provider_failure_blocks_work_without_artifact(tmp_path):
     assert run.action_count == 0
 
 
+def test_runtime_v3_service_enforces_core_permission_snapshot_before_write(tmp_path):
+    provider = FakeProviderAdapter(
+        "CODEX_CLI",
+        '{"action":"filesystem.write","path":"v3_provider_output/blocked.md","content":"blocked"}',
+    )
+    service = RuntimeV3GoalService(
+        tmp_path, provider_adapters={"CODEX_CLI": provider}, permission_resolver=lambda _agent_id: {"READ_WORKSPACE"}
+    )
+    agents = [ChatAgent("roman", "agent-roman", "Roman", "CODEX_CLI", ["DESIGN_ENGINEER"], "roman_2050", "", None)]
+
+    result = service.run_goal("org", "Create one file as a simple note", agents)
+
+    assert not result.ok
+    assert not result.state.artifacts
+    assert any("permission denied" in item.summary for item in result.state.observations.values())
+
+
 def test_runtime_v3_second_provider_adapter_uses_the_same_contract(tmp_path):
     provider = FakeProviderAdapter(
         "SECOND_PROVIDER",

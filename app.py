@@ -204,6 +204,8 @@ def _run_runtime_v3_gui_smoke(app: QApplication, window: MainWindow, logger: log
                 "rework_artifacts": len(rework_artifacts),
                 "passed_source_evidence": len(passed_source_evidence),
                 "completed_work_items": len(completed_work_items),
+                "trace_events": len(result.state.trace_events) if result is not None else 0,
+                "permission_snapshots": len(result.state.employee_snapshots) if result is not None else 0,
                 "message_rows": window.chat.messages.count(),
                 "screenshot": str(screenshot_path),
             }
@@ -224,6 +226,8 @@ def _run_runtime_v3_gui_smoke(app: QApplication, window: MainWindow, logger: log
                 payload["rework_artifacts"] >= 1,
                 payload["passed_source_evidence"] >= 1,
                 payload["completed_work_items"] == payload["work_items"],
+                payload["trace_events"] >= payload["observations"],
+                payload["permission_snapshots"] >= 3,
                 "Цель выполнена" in summary,
                 "Артефакты" in summary,
                 "Источники" in summary,

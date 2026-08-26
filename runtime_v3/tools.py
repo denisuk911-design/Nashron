@@ -10,12 +10,16 @@ from .models import Action, ActionType, Observation, ObservationStatus, new_id
 class ToolRuntime:
     """Minimal generic tool runtime returning typed observations."""
 
-    def __init__(self, workspace_root: Path) -> None:
+    def __init__(self, workspace_root: Path, employee_permissions: dict[str, set[str]] | None = None) -> None:
         self.workspace_root = Path(workspace_root).resolve()
         self.workspace_root.mkdir(parents=True, exist_ok=True)
+        self.employee_permissions = employee_permissions or {}
 
     def execute(self, action: Action) -> Observation:
         try:
+            denied = self._denied(action)
+            if denied:
+                return Observation(new_id("obs"), action.action_id, ObservationStatus.FAILED, f"permission denied: {denied}")
             if action.action_type == ActionType.FILESYSTEM_WRITE:
                 return self._write(action)
             if action.action_type == ActionType.FILESYSTEM_READ:
@@ -26,7 +30,21 @@ class ToolRuntime:
             return Observation(new_id("obs"), action.action_id, ObservationStatus.FAILED, f"{type(exc).__name__}: {exc}")
         return Observation(new_id("obs"), action.action_id, ObservationStatus.UNSUPPORTED, f"Unsupported tool: {action.action_type}")
 
+    def _denied(self, action: Action) -> str:
+        required = {
+            ActionType.FILESYSTEM_READ: "READ_WORKSPACE",
+            ActionType.FILESYSTEM_LIST: "READ_WORKSPACE",
+            ActionType.FILESYSTEM_WRITE: "WRITE_WORKSPACE",
+        }.get(action.action_type)
+        if not required:
+            return ""
+        permissions = self.employee_permissions.get(action.employee_id)
+        return required if permissions is not None and required not in permissions else ""
+
     def execute_terminal(self, action: Action) -> Observation:
+        permissions = self.employee_permissions.get(action.employee_id)
+        if permissions is not None and "RUN_COMMANDS" not in permissions:
+            return Observation(new_id("obs"), action.action_id, ObservationStatus.FAILED, "permission denied: RUN_COMMANDS")
         command = str(action.payload.get("command", "")).strip()
         if not command:
             return Observation(new_id("obs"), action.action_id, ObservationStatus.FAILED, "empty command")

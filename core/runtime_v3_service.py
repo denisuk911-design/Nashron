@@ -21,9 +21,10 @@ class RuntimeV3GoalResult:
 class RuntimeV3GoalService:
     """Application boundary for experimental V3 Goal mode."""
 
-    def __init__(self, workspace_root: Path, provider_adapters: dict[str, object] | None = None) -> None:
+    def __init__(self, workspace_root: Path, provider_adapters: dict[str, object] | None = None, permission_resolver=None) -> None:
         self.workspace_root = Path(workspace_root)
         self.provider_adapters = dict(provider_adapters or {})
+        self.permission_resolver = permission_resolver
 
     def run_goal(self, organization_id: str, objective: str, agents: Iterable[ChatAgent]) -> RuntimeV3GoalResult:
         employees = self._employee_bindings(list(agents))
@@ -60,10 +61,11 @@ class RuntimeV3GoalService:
             workspace_root=self.workspace_root / organization_id,
         )
 
-    @staticmethod
-    def _employee_bindings(agents: list[ChatAgent]) -> list[EmployeeBinding]:
+    def _employee_bindings(self, agents: list[ChatAgent]) -> list[EmployeeBinding]:
         values: list[EmployeeBinding] = []
         for agent in agents:
+            permissions = self.permission_resolver(agent.agent_id) if self.permission_resolver else None
+            binding_kwargs = {"permissions": sorted(permissions)} if permissions is not None else {}
             values.append(
                 EmployeeBinding(
                     agent.agent_id,
@@ -71,6 +73,7 @@ class RuntimeV3GoalService:
                     agent.primary_role,
                     [agent.primary_role, *agent.roles, agent.engine_name],
                     provider_binding_id=agent.provider_id,
+                    **binding_kwargs,
                 )
             )
         return values

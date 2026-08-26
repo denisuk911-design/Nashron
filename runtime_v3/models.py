@@ -66,6 +66,7 @@ class EmployeeBinding:
     role: str
     competencies: list[str]
     provider_binding_id: str = "provider-neutral"
+    permissions: list[str] = field(default_factory=lambda: ["READ_WORKSPACE", "WRITE_WORKSPACE", "CREATE_DOCUMENTS", "RUN_COMMANDS"])
 
 
 @dataclass
@@ -233,6 +234,19 @@ class SupervisorDecisionRecord:
 
 
 @dataclass
+class RuntimeTraceEvent:
+    event_id: str
+    goal_id: str
+    stage: str
+    work_item_id: str = ""
+    action_id: str = ""
+    observation_id: str = ""
+    artifact_id: str = ""
+    detail: str = ""
+    created_at: str = field(default_factory=utc_now)
+
+
+@dataclass
 class ProviderRun:
     run_id: str
     employee_id: str
@@ -260,6 +274,8 @@ class RuntimeState:
     interrupts: dict[str, HitlInterrupt] = field(default_factory=dict)
     replans: dict[str, ReplanRecord] = field(default_factory=dict)
     supervisor_decisions: dict[str, SupervisorDecisionRecord] = field(default_factory=dict)
+    employee_snapshots: dict[str, dict[str, Any]] = field(default_factory=dict)
+    trace_events: dict[str, RuntimeTraceEvent] = field(default_factory=dict)
     provider_runs: dict[str, ProviderRun] = field(default_factory=dict)
     checkpoints: list[str] = field(default_factory=list)
 
@@ -281,6 +297,8 @@ class RuntimeState:
         state.interrupts = {key: _interrupt(item) for key, item in value.get("interrupts", {}).items()}
         state.replans = {key: ReplanRecord(**item) for key, item in value.get("replans", {}).items()}
         state.supervisor_decisions = {key: SupervisorDecisionRecord(**item) for key, item in value.get("supervisor_decisions", {}).items()}
+        state.employee_snapshots = {key: dict(item) for key, item in value.get("employee_snapshots", {}).items()}
+        state.trace_events = {key: RuntimeTraceEvent(**item) for key, item in value.get("trace_events", {}).items()}
         state.provider_runs = {key: ProviderRun(**item) for key, item in value.get("provider_runs", {}).items()}
         state.checkpoints = list(value.get("checkpoints", []))
         return state
@@ -296,9 +314,9 @@ class RuntimeState:
             "strategy": plan.strategy if plan else "SEQUENTIAL",
             "work_item_ids": [item.work_item_id for item in items],
             "dependencies": {item.work_item_id: list(item.dependencies) for item in items},
-            "interrupt_ids": [item.interrupt_id for item in self.interrupts.values() if item.goal_id == goal_id],
-            "replan_ids": [item.replan_id for item in self.replans.values() if item.goal_id == goal_id],
-            "supervisor_decision_ids": [item.decision_id for item in self.supervisor_decisions.values() if item.goal_id == goal_id],
+            "interrupt_ids": sorted(item.interrupt_id for item in self.interrupts.values() if item.goal_id == goal_id),
+            "replan_ids": sorted(item.replan_id for item in self.replans.values() if item.goal_id == goal_id),
+            "supervisor_decision_ids": sorted(item.decision_id for item in self.supervisor_decisions.values() if item.goal_id == goal_id),
         }
 
 

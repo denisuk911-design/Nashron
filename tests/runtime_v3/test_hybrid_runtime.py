@@ -417,6 +417,45 @@ def test_failed_tool_observation_cannot_close_work_item(tmp_path):
     assert not state.artifacts
 
 
+def test_denied_workspace_permission_blocks_before_side_effect(tmp_path):
+    employee = EmployeeBinding("limited", "Limited", "engineering", ["engineering"], permissions=["READ_WORKSPACE"])
+    engine = HybridWorkflowEngine("org", [employee], tmp_path)
+    goal = engine.create_goal("Create one file as a simple note")
+    engine.create_plan(goal.goal_id)
+    state = engine.start(goal.goal_id)
+
+    assert not state.artifacts
+    assert any("permission denied" in observation.summary for observation in state.observations.values())
+
+
+def test_supervisor_does_not_assign_employee_without_required_capability():
+    supervisor = GoalSupervisor([EmployeeBinding("sales", "Sales", "sales", ["sales"])])
+
+    try:
+        supervisor.create_plan(Goal("goal-no-capability", "Create one file as a simple note"))
+    except ValueError as exc:
+        assert "no employee has required capabilities" in str(exc)
+    else:
+        raise AssertionError("Supervisor assigned a work item without a matching capability")
+
+
+def test_resume_keeps_permission_and_trace_snapshot(tmp_path):
+    employee = EmployeeBinding("limited", "Limited", "engineering", ["engineering"], permissions=["READ_WORKSPACE"])
+    engine = HybridWorkflowEngine("org", [employee], tmp_path)
+    goal = engine.create_goal("Create one file as a simple note")
+    engine.create_plan(goal.goal_id)
+    state = engine.start(goal.goal_id)
+    trace_count = len(state.trace_events)
+
+    resumed = HybridWorkflowEngine("org", [EmployeeBinding("limited", "Changed", "engineering", ["engineering"])], tmp_path)
+    resumed.repository = engine.repository
+    restored = resumed.resume()
+
+    assert restored.employee_snapshots["limited"]["permissions"] == ["READ_WORKSPACE"]
+    assert resumed.tool_runtime.employee_permissions["limited"] == {"READ_WORKSPACE"}
+    assert len(restored.trace_events) >= trace_count
+
+
 def test_repeated_rework_escalates_after_configured_limit(tmp_path):
     class AlwaysBadSpecificationRuntime(DeterministicAgentRuntime):
         def decide(self, employee_id, work_item, attempt):
