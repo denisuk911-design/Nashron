@@ -454,6 +454,19 @@ def test_supervisor_rejects_employee_with_incompatible_provider_capabilities():
         raise AssertionError("Supervisor assigned a work item to an incompatible provider")
 
 
+def test_tool_negotiation_rejects_missing_provider_capability(tmp_path):
+    employee = EmployeeBinding(
+        "limited", "Limited", "engineering", ["engineering"],
+        provider_capabilities=["chat"],
+    )
+    engine = HybridWorkflowEngine("org", [employee], tmp_path)
+
+    granted, denied = engine.tool_runtime.negotiate("limited", [ActionType.FILESYSTEM_WRITE])
+
+    assert granted == []
+    assert denied == ["provider_capability:workspace.write"]
+
+
 def test_resume_keeps_permission_and_trace_snapshot(tmp_path):
     employee = EmployeeBinding("limited", "Limited", "engineering", ["engineering"], permissions=["READ_WORKSPACE"])
     engine = HybridWorkflowEngine("org", [employee], tmp_path)

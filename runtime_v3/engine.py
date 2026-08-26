@@ -50,6 +50,7 @@ class HybridWorkflowEngine:
         self.tool_runtime = ToolRuntime(
             Path(workspace_root) / "workspace",
             {employee.employee_id: set(employee.permissions) for employee in employees},
+            {employee.employee_id: set(employee.provider_capabilities) for employee in employees},
         )
         self.repository = JsonCheckpointRepository(Path(workspace_root) / "checkpoints")
         self.max_rework_attempts = max(1, max_rework_attempts)
@@ -87,6 +88,10 @@ class HybridWorkflowEngine:
         # Resume with the immutable authorization context from the checkpoint.
         self.tool_runtime.employee_permissions = {
             employee_id: set(snapshot.get("permissions", []))
+            for employee_id, snapshot in self.state.employee_snapshots.items()
+        }
+        self.tool_runtime.employee_provider_capabilities = {
+            employee_id: set(snapshot.get("provider_capabilities", []))
             for employee_id, snapshot in self.state.employee_snapshots.items()
         }
         if hasattr(self.agent_runtime, "restore_completed_work_items"):
