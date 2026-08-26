@@ -5,6 +5,7 @@ import json
 import re
 
 from .database import Database
+from .communication_style_service import CommunicationStyle
 from .models import AgentSpec
 from .tool_access import effective_permissions_for_agent
 
@@ -133,20 +134,13 @@ def get_chat_agent(database: Database, agent_key: str) -> ChatAgent | None:
 def agent_spec_from_profile(agent: ChatAgent) -> AgentSpec:
     role_name = ROLE_NAMES.get(agent.primary_role, agent.primary_role.replace("_", " ").lower())
     description = f" Описание профиля: {agent.description.strip()}" if agent.description.strip() else ""
-    communication = agent.communication_profile or {}
-    directness = int(communication.get("directness", 3))
-    warmth = int(communication.get("warmth", 3))
-    humor = int(communication.get("humor", 1))
-    formality = int(communication.get("formality", 3))
-    verbosity = int(communication.get("verbosity", 2))
-    emotionality = int(communication.get("emotionality", 3))
-    explanation_style = str(communication.get("explanation_style", "short"))
+    communication = CommunicationStyle.from_profile(agent.communication_profile)
     address_name = agent.preferred_name.strip() or agent.display_name.split()[0]
     style = (
         f"В общении тебя обычно зовут {address_name}. "
-        f"Профиль общения: прямота {directness}/5, доброжелательность {warmth}/5, "
-        f"формальность {formality}/5, юмор {humor}/5, подробность {verbosity}/5, "
-        f"эмоциональность {emotionality}/5, объяснения {explanation_style}. "
+        f"Профиль общения: прямота {communication.directness}/5, доброжелательность {communication.warmth}/5, "
+        f"формальность {communication.formality}/5, юмор {communication.humor}/5, подробность {communication.verbosity}/5, "
+        f"эмоциональность {communication.emotionality}/5, объяснения {communication.explanation_style}. "
         "Соблюдай эти параметры естественно, без перечисления их собеседнику. "
     )
     voice = (

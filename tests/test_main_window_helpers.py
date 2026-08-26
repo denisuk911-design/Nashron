@@ -256,7 +256,7 @@ def test_runtime_v3_goal_mode_runs_service_and_records_result(tmp_path):
     assert window.chat.statuses[-1] == (False,)
 
 
-def test_runtime_v3_goal_mode_requires_developer_runtime():
+def test_runtime_v3_goal_mode_requires_goal_service():
     class FakeChat:
         def goal_mode_requested(self):
             return True
@@ -265,7 +265,7 @@ def test_runtime_v3_goal_mode_requires_developer_runtime():
     window.settings = {"developer_mode": False, "runtime_engine": "HYBRID_V3_EXPERIMENTAL"}
     window.chat = FakeChat()
     window.active_organization_id = "organization-test"
-    window.runtime_v3_goal_service = object()
+    window.runtime_v3_goal_service = None
 
     assert not MainWindow._try_start_runtime_v3_goal(window, "Цель: создать спецификацию", 7)
 

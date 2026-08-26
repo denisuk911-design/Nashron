@@ -23,4 +23,5 @@ def test_runtime_v2_is_available_only_in_developer_mode():
     assert selected_runtime({"runtime_engine": "V2_EXPERIMENTAL"}) == RuntimeEngine.LEGACY
     assert selected_runtime({"developer_mode": True, "runtime_engine": "V2_EXPERIMENTAL"}) == RuntimeEngine.V2_EXPERIMENTAL
     assert selected_runtime({"developer_mode": True, "runtime_engine": "HYBRID_V3_EXPERIMENTAL"}) == RuntimeEngine.HYBRID_V3_EXPERIMENTAL
+    assert selected_runtime({"developer_mode": False, "runtime_engine": "HYBRID_V3_EXPERIMENTAL"}) == RuntimeEngine.HYBRID_V3_EXPERIMENTAL
     assert selected_runtime({"developer_mode": True, "runtime_engine": "unknown"}) == RuntimeEngine.LEGACY

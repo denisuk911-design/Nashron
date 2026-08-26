@@ -12,14 +12,17 @@ class RuntimeEngine(StrEnum):
 
 
 def selected_runtime(settings: dict[str, Any]) -> RuntimeEngine:
-    if not bool(settings.get("developer_mode", False)):
-        return RuntimeEngine.LEGACY
     try:
         selected = RuntimeEngine(str(settings.get("runtime_engine", RuntimeEngine.LEGACY)))
+        # Existing profiles use this persisted identifier. V3 Goals are now a
+        # packaged product capability, not a hidden developer-only feature.
+        if selected is RuntimeEngine.HYBRID_V3_EXPERIMENTAL:
+            return selected
+        if not bool(settings.get("developer_mode", False)):
+            return RuntimeEngine.LEGACY
         return selected if selected in {
             RuntimeEngine.V2_SHADOW,
             RuntimeEngine.V2_EXPERIMENTAL,
-            RuntimeEngine.HYBRID_V3_EXPERIMENTAL,
         } else RuntimeEngine.LEGACY
     except ValueError:
         return RuntimeEngine.LEGACY
