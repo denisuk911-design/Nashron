@@ -48,6 +48,8 @@ class ActionType(StrEnum):
     FILESYSTEM_DELETE = "workspace.delete"
     FILESYSTEM_SEARCH = "workspace.search"
     TERMINAL_RUN = "terminal.run"
+    MCP_CALL = "mcp.call"
+    BROWSER_CALL = "browser.call"
     ARTIFACT_CREATE = "artifact.create"
     REVIEW_ARTIFACT = "artifact.review"
     MESSAGE = "message"

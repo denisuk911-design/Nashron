@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .models import Action, ActionType, Observation, ObservationStatus, new_id
+from .external_tools import ExternalToolRegistry
 
 
 @dataclass(frozen=True)
@@ -36,6 +37,8 @@ class ToolRegistry:
             ToolDefinition("workspace.delete", ActionType.FILESYSTEM_DELETE, "WRITE_WORKSPACE", "filesystem.write", path_schema),
             ToolDefinition("workspace.search", ActionType.FILESYSTEM_SEARCH, "READ_WORKSPACE", "filesystem.read", {"type": "object", "required": ["query"]}),
             ToolDefinition("terminal.run", ActionType.TERMINAL_RUN, "RUN_COMMANDS", "terminal.run", {"type": "object", "required": ["command"]}),
+            ToolDefinition("mcp.call", ActionType.MCP_CALL, "USE_MCP", "mcp.call", {"type": "object", "required": ["adapter_id", "tool_name", "arguments"]}),
+            ToolDefinition("browser.call", ActionType.BROWSER_CALL, "USE_BROWSER", "browser.call", {"type": "object", "required": ["adapter_id", "tool_name", "arguments"]}),
         ]
 
     def definition_for(self, action_type: ActionType) -> ToolDefinition | None:
@@ -60,12 +63,13 @@ class ToolRegistry:
 class ToolRuntime:
     """Minimal generic tool runtime returning typed observations."""
 
-    def __init__(self, workspace_root: Path, employee_permissions: dict[str, set[str]] | None = None, employee_provider_capabilities: dict[str, set[str]] | None = None, registry: ToolRegistry | None = None) -> None:
+    def __init__(self, workspace_root: Path, employee_permissions: dict[str, set[str]] | None = None, employee_provider_capabilities: dict[str, set[str]] | None = None, registry: ToolRegistry | None = None, external_tools: ExternalToolRegistry | None = None) -> None:
         self.workspace_root = Path(workspace_root).resolve()
         self.workspace_root.mkdir(parents=True, exist_ok=True)
         self.employee_permissions = employee_permissions or {}
         self.employee_provider_capabilities = employee_provider_capabilities or {}
         self.registry = registry or ToolRegistry()
+        self.external_tools = external_tools or ExternalToolRegistry()
 
     def negotiate(self, employee_id: str, requested: list[ActionType]) -> tuple[list[ToolDefinition], list[str]]:
         return self.registry.negotiate(
@@ -94,6 +98,8 @@ class ToolRuntime:
                 return self._search(action)
             if action.action_type == ActionType.TERMINAL_RUN:
                 return self.execute_terminal(action)
+            if action.action_type in {ActionType.MCP_CALL, ActionType.BROWSER_CALL}:
+                return self._external(action)
         except Exception as exc:
             return Observation(new_id("obs"), action.action_id, ObservationStatus.FAILED, f"{type(exc).__name__}: {exc}")
         return Observation(new_id("obs"), action.action_id, ObservationStatus.UNSUPPORTED, f"Unsupported tool: {action.action_type}")
@@ -180,3 +186,16 @@ class ToolRuntime:
                 except OSError:
                     continue
         return Observation(new_id("obs"), action.action_id, ObservationStatus.OK, f"found {len(matches)} matches", {"query": query, "matches": matches})
+
+    def _external(self, action: Action) -> Observation:
+        payload = action.payload
+        result = self.external_tools.invoke(
+            str(payload.get("adapter_id") or ""),
+            str(payload.get("tool_name") or ""),
+            dict(payload.get("arguments") or {}),
+            str(payload.get("correlation_id") or ""),
+        )
+        data = dict(result.data)
+        if result.task_handle:
+            data["task_handle"] = result.task_handle
+        return Observation(new_id("obs"), action.action_id, ObservationStatus.OK if result.ok else ObservationStatus.FAILED, result.summary, data)
