@@ -439,6 +439,21 @@ def test_supervisor_does_not_assign_employee_without_required_capability():
         raise AssertionError("Supervisor assigned a work item without a matching capability")
 
 
+def test_supervisor_rejects_employee_with_incompatible_provider_capabilities():
+    employee = EmployeeBinding(
+        "engineer", "Engineer", "engineering", ["engineering"],
+        provider_capabilities=["chat"],
+    )
+    supervisor = GoalSupervisor([employee])
+
+    try:
+        supervisor.create_plan(Goal("goal-provider-capability", "Create one file as a simple note"))
+    except ValueError as exc:
+        assert "filesystem.write" in str(exc)
+    else:
+        raise AssertionError("Supervisor assigned a work item to an incompatible provider")
+
+
 def test_resume_keeps_permission_and_trace_snapshot(tmp_path):
     employee = EmployeeBinding("limited", "Limited", "engineering", ["engineering"], permissions=["READ_WORKSPACE"])
     engine = HybridWorkflowEngine("org", [employee], tmp_path)

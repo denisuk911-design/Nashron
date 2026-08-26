@@ -66,6 +66,9 @@ class RuntimeV3GoalService:
         for agent in agents:
             permissions = self.permission_resolver(agent.agent_id) if self.permission_resolver else None
             binding_kwargs = {"permissions": sorted(permissions)} if permissions is not None else {}
+            adapter = self.provider_adapters.get(agent.provider_id)
+            profile = getattr(adapter, "capability_profile", None)
+            provider_capabilities = sorted(getattr(profile, "capabilities", [])) if profile is not None else []
             values.append(
                 EmployeeBinding(
                     agent.agent_id,
@@ -73,6 +76,7 @@ class RuntimeV3GoalService:
                     agent.primary_role,
                     [agent.primary_role, *agent.roles, agent.engine_name],
                     provider_binding_id=agent.provider_id,
+                    provider_capabilities=provider_capabilities,
                     **binding_kwargs,
                 )
             )

@@ -40,6 +40,7 @@ class HybridWorkflowEngine:
                 "role": employee.role,
                 "capabilities": list(employee.competencies),
                 "permissions": sorted(employee.permissions),
+                "provider_capabilities": sorted(employee.provider_capabilities),
                 "provider_binding_id": employee.provider_binding_id,
             }
             for employee in employees

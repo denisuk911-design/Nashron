@@ -25,7 +25,7 @@ class GoalSupervisor:
         if self.last_policy_decision.shape == "SOCIAL":
             return Plan(new_id("plan"), goal.goal_id, self.supervisor_employee_id, [], strategy="SEQUENTIAL"), []
         if self.last_policy_decision.shape == "SIMPLE":
-            employee = self._select_employee(["engineering", "specification", "documentation"])
+            employee = self._select_employee(["engineering", "specification", "documentation"], {"filesystem.write", "structured_output"})
             item = WorkItem(
                 new_id("work"),
                 goal.goal_id,
@@ -40,8 +40,8 @@ class GoalSupervisor:
             )
             plan = Plan(new_id("plan"), goal.goal_id, self.supervisor_employee_id, [item.work_item_id], strategy=self.choose_strategy([item]))
             return plan, [item]
-        spec_employee = self._select_employee(["requirements", "specification", "engineering"])
-        research_employee = self._select_employee(["research", "components"])
+        spec_employee = self._select_employee(["requirements", "specification", "engineering"], {"filesystem.write", "structured_output"})
+        research_employee = self._select_employee(["research", "components"], {"filesystem.write", "structured_output"})
         reviewer = self._select_employee(["review", "qa", "evidence"])
         spec = WorkItem(
             new_id("work"),
@@ -144,14 +144,21 @@ class GoalSupervisor:
             return current
         raise ValueError(f"no alternate employee has required capabilities: {', '.join(item.required_capabilities)}")
 
-    def _select_employee(self, required: list[str]) -> EmployeeBinding:
+    def _select_employee(self, required: list[str], required_provider_capabilities: set[str] | None = None) -> EmployeeBinding:
         for employee in self.employees:
-            if self._has_direct_capability(employee, required):
+            if self._has_direct_capability(employee, required) and self._provider_supports(employee, required_provider_capabilities):
                 return employee
         for employee in self.employees:
-            if self._matches_capabilities(employee, required):
+            if self._matches_capabilities(employee, required) and self._provider_supports(employee, required_provider_capabilities):
                 return employee
-        raise ValueError(f"no employee has required capabilities: {', '.join(required)}")
+        required_text = ", ".join([*required, *(sorted(required_provider_capabilities or set()))])
+        raise ValueError(f"no employee has required capabilities: {required_text}")
+
+    @staticmethod
+    def _provider_supports(employee: EmployeeBinding, required: set[str] | None) -> bool:
+        # An empty list is a legacy/neutral binding. It is intentionally not
+        # treated as a false claim; discovered profiles are enforced strictly.
+        return not required or not employee.provider_capabilities or required <= set(employee.provider_capabilities)
 
     @staticmethod
     def _has_direct_capability(employee: EmployeeBinding, required: list[str]) -> bool:
