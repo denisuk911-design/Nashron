@@ -13,7 +13,7 @@ class StartupSplash(QWidget):
         layout.setContentsMargins(26, 24, 26, 24)
         layout.setSpacing(12)
 
-        title = QLabel("Отдел важных дел")
+        title = QLabel("Team2050")
         title.setObjectName("splashTitle")
         subtitle = QLabel("Запускаю рабочий чат и проверяю службы...")
         subtitle.setObjectName("splashSubtitle")

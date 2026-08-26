@@ -235,7 +235,7 @@ class SettingsDialog(QDialog):
             {
                 "ru": "Режим разработчика",
                 "uk": "Режим розробника",
-                "en": "Developer mode",
+                "en": "Advanced settings",
             }.get(language, "Режим разработчика")
         )
         self.developer_mode.setChecked(bool(settings.get("developer_mode", False)))
@@ -249,7 +249,7 @@ class SettingsDialog(QDialog):
             "V2_EXPERIMENTAL",
         )
         self.runtime_engine.addItem(
-            {"ru": "Hybrid Runtime V3 (цели, тестовый)", "uk": "Hybrid Runtime V3 (цілі, тестовий)", "en": "Hybrid Runtime V3 (goals, experimental)"}.get(language, "Hybrid Runtime V3 (цели, тестовый)"),
+            {"ru": "Автономные цели", "uk": "Автономні цілі", "en": "Autonomous goals"}.get(language, "Автономные цели"),
             "HYBRID_V3_EXPERIMENTAL",
         )
         runtime_index = self.runtime_engine.findData(str(settings.get("runtime_engine", "LEGACY")))
@@ -336,7 +336,7 @@ class SettingsDialog(QDialog):
         )
         layout.addRow(self.developer_mode)
         layout.addRow(
-            {"ru": "Экспериментальный runtime", "uk": "Експериментальний runtime", "en": "Experimental runtime"}.get(language, "Экспериментальный runtime"),
+            {"ru": "Режим выполнения", "uk": "Режим виконання", "en": "Execution mode"}.get(language, "Режим выполнения"),
             self.runtime_engine,
         )
         layout.addRow(buttons)

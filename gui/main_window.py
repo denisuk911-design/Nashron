@@ -108,7 +108,7 @@ class MainWindow(QMainWindow):
         self.conversation_mode = ConversationMode.SOCIAL
         self.current_thread_id: str | None = None
         self.current_task_id: str | None = None
-        self.setWindowTitle("Team2050 — Отдел важных дел")
+        self.setWindowTitle("Team2050")
         self.setMinimumSize(760, 560)
         self.resize(1280, 800)
         self.settings_service = settings_service
@@ -308,7 +308,7 @@ class MainWindow(QMainWindow):
         top.setObjectName("topBar")
         top_layout = QHBoxLayout(top)
         top_layout.setContentsMargins(22, 12, 22, 12)
-        brand = QLabel("Отдел важных дел")
+        brand = QLabel("Team2050")
         logo = QLabel("R")
         logo.setObjectName("appLogo")
         logo.setAlignment(Qt.AlignCenter)
@@ -809,7 +809,7 @@ class MainWindow(QMainWindow):
             for agent in agents
         }
         labels["runtime_v3"] = "Supervisor"
-        titles["runtime_v3"] = "Runtime V3"
+        titles["runtime_v3"] = "Автономные цели"
         if hasattr(self, "chat"):
             self.chat.set_agent_labels(labels, avatars, titles)
         roster = getattr(self, "team_roster_layout", None)
