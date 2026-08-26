@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 import json
 from typing import Protocol
 
-from core.provider_execution import ProviderExecutionAdapter, ProviderExecutionRequest, ProviderExecutionResult
+from core.provider_execution import ContextWindowPolicy, ProviderExecutionAdapter, ProviderExecutionRequest, ProviderExecutionResult
 
 from .models import Action, ActionType, ProviderRun, WorkItem, new_id, utc_now
 
@@ -84,11 +84,13 @@ class ProviderAgentRuntime:
         employee_provider_ids: dict[str, str],
         fallback_provider_ids: dict[str, list[str]] | None = None,
         fallback: DeterministicAgentRuntime | None = None,
+        context_policy: ContextWindowPolicy | None = None,
     ) -> None:
         self.providers = dict(providers)
         self.employee_provider_ids = dict(employee_provider_ids)
         self.fallback_provider_ids = {key: list(value) for key, value in (fallback_provider_ids or {}).items()}
         self.fallback = fallback or DeterministicAgentRuntime()
+        self.context_policy = context_policy or ContextWindowPolicy()
         self.provider_work_item_ids: set[str] = set()
 
     def restore_completed_work_items(self, work_item_ids: set[str]) -> None:
@@ -110,9 +112,15 @@ class ProviderAgentRuntime:
             profile = getattr(provider, "capability_profile", None)
             if profile is not None and not profile.supports(required_capabilities):
                 continue
+            context = self.context_policy.apply(self._prompt_for(work_item))
             request = ProviderExecutionRequest(
                 new_id("provider-run"), employee_id, provider_id, work_item.work_item_id,
-                self._prompt_for(work_item), utc_now(), frozenset(required_capabilities), self._action_schema(),
+                context.prompt, utc_now(), frozenset(required_capabilities), self._action_schema(),
+                context_metadata={
+                    "original_characters": context.original_characters,
+                    "condensed_characters": context.condensed_characters,
+                    "condensed": context.condensed,
+                },
             )
             try:
                 result = provider.execute(request)

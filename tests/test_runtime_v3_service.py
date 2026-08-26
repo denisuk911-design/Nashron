@@ -1,6 +1,7 @@
 from core.agent_directory import ChatAgent
 from core.provider_execution import ProviderExecutionResult
 from core.runtime_v3_service import RuntimeV3GoalService
+from core.provider_execution import ContextWindowPolicy
 from runtime_v3.agent_runtime import ProviderAgentRuntime
 from runtime_v3.engine import HybridWorkflowEngine
 from runtime_v3.models import EmployeeBinding
@@ -181,6 +182,19 @@ def test_runtime_v3_skips_provider_without_required_capabilities(tmp_path):
 
     assert result.ok
     assert all(run.provider_id != "CODEX_CLI" for run in result.state.provider_runs.values())
+
+
+def test_context_window_policy_preserves_header_and_latest_task():
+    policy = ContextWindowPolicy(max_characters=120, head_characters=40)
+    prompt = "SYSTEM RULES " + ("old context " * 30) + "LATEST TASK: create artifact"
+
+    result = policy.apply(prompt)
+
+    assert result.condensed
+    assert len(result.prompt) <= 120
+    assert result.prompt.startswith("SYSTEM RULES")
+    assert result.prompt.endswith("LATEST TASK: create artifact")
+    assert "CONTEXT CONDENSED" in result.prompt
 
 
 def test_runtime_v3_fails_over_to_next_provider_adapter(tmp_path):
