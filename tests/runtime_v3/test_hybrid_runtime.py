@@ -59,7 +59,7 @@ def test_supervisor_uses_local_then_strong_planning_with_safe_fallback(tmp_path)
             return self.answer
 
     local = Adapter("SIMPLE")
-    engine = HybridWorkflowEngine("org", employees(), tmp_path, supervisor_policy=HybridSupervisorPolicy(local, Adapter("COMPLEX")))
+    engine = HybridWorkflowEngine("org", employees(), tmp_path, supervisor_policy=HybridSupervisorPolicy(local, Adapter(fail=True)))
     goal = engine.create_goal("Unclassified request")
     plan = engine.create_plan(goal.goal_id)
     assert engine.supervisor.last_policy_decision.level == "LOCAL"
@@ -76,6 +76,30 @@ def test_supervisor_uses_local_then_strong_planning_with_safe_fallback(tmp_path)
     goal = engine.create_goal("Unclassified request")
     engine.create_plan(goal.goal_id)
     assert engine.supervisor.last_policy_decision.level == "DETERMINISTIC"
+
+
+def test_supervisor_decision_router_escalates_by_complexity_risk_and_persists(tmp_path):
+    class Adapter:
+        def __init__(self, answer="COMPLEX", fail=False): self.answer, self.fail, self.calls = answer, fail, 0
+        def decide(self, objective):
+            self.calls += 1
+            if self.fail: raise RuntimeError("offline")
+            return self.answer
+
+    local, strong = Adapter("SIMPLE"), Adapter("COMPLEX")
+    policy = HybridSupervisorPolicy(local, strong)
+    assert policy.route("transition", "x", "LOW", "LOW", "LOW", []).level == "DETERMINISTIC"
+    assert local.calls == strong.calls == 0
+    assert policy.route("routing", "x", "MEDIUM", "LOW", "LOW", []).level == "LOCAL"
+    assert policy.route("replanning", "x", "HIGH", "HIGH", "HIGH", ["engineering"]).level == "STRONG"
+
+    engine = HybridWorkflowEngine("org", employees(), tmp_path, supervisor_policy=policy)
+    goal = engine.create_goal("Create one file as a simple note")
+    engine.create_plan(goal.goal_id)
+    assert engine.state.supervisor_decisions
+    restored = HybridWorkflowEngine("org", employees(), tmp_path, supervisor_policy=policy)
+    restored.repository = engine.repository
+    assert restored.resume().workflow_graph(goal.goal_id)["supervisor_decision_ids"]
 
 
 def test_supervisor_decomposes_goal_and_assigns_by_competency(tmp_path):

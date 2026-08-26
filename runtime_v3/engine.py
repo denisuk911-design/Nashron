@@ -17,6 +17,7 @@ from .models import (
     HitlInterrupt,
     InterruptStatus,
     ReplanRecord,
+    SupervisorDecisionRecord,
     Observation,
     ObservationStatus,
     RuntimeState,
@@ -49,6 +50,7 @@ class HybridWorkflowEngine:
         goal = self.state.goals[goal_id]
         plan, work_items = self.supervisor.create_plan(goal)
         self.state.plans[plan.plan_id] = plan
+        self._record_supervisor_decision(goal, "planning")
         for item in work_items:
             self.state.work_items[item.work_item_id] = item
         goal.plan_id = plan.plan_id
@@ -200,6 +202,7 @@ class HybridWorkflowEngine:
             list(decision["dependencies"]), decision["strategy"],
         )
         self.state.replans[replan.replan_id] = replan
+        self._record_supervisor_decision(goal, "replanning", item)
         evidence = Evidence(
             new_id("evidence"), goal.goal_id, item.work_item_id, "SUPERVISOR_REPLAN", "", "",
             f"replanned after {previous_result.get('failure_kind') or previous_status.value}", True,
@@ -207,6 +210,19 @@ class HybridWorkflowEngine:
         self.state.evidence[evidence.evidence_id] = evidence
         self.checkpoint(f"supervisor_replanned:{item.work_item_id}")
         return True
+
+    def _record_supervisor_decision(self, goal: Goal, step: str, item: WorkItem | None = None) -> None:
+        decision = self.supervisor.last_policy_decision
+        if decision is None:
+            return
+        complexity = decision.shape
+        record = SupervisorDecisionRecord(
+            new_id("supervisor-decision"), goal.goal_id, step, decision.level, complexity,
+            "HIGH" if step == "replanning" else "LOW", "HIGH" if step == "replanning" else "LOW",
+            list(item.required_capabilities if item else []), decision.reason,
+            item.work_item_id if item else "",
+        )
+        self.state.supervisor_decisions[record.decision_id] = record
 
     def _execute_item(self, item: WorkItem) -> None:
         item.status = WorkItemStatus.RUNNING

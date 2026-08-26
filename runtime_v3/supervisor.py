@@ -104,6 +104,9 @@ class GoalSupervisor:
         """Return a bounded, graph-safe recovery plan for an executable work item."""
         if item.attempt >= 2 or "artifact.review" in item.required_tools or item.result.get("hitl_interrupt_id"):
             return None
+        self.last_policy_decision = self.policy.route(
+            "replanning", item.objective, "HIGH", "HIGH", "HIGH", item.required_capabilities,
+        )
         previous_employee_id = item.assigned_employee_id
         replacement = self._select_alternate_employee(item)
         completed_dependencies = {
