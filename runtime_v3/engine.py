@@ -16,6 +16,7 @@ from .models import (
     Handoff,
     HitlInterrupt,
     InterruptStatus,
+    ReplanRecord,
     Observation,
     ObservationStatus,
     RuntimeState,
@@ -169,6 +170,7 @@ class HybridWorkflowEngine:
 
     def _replan_item(self, goal: Goal, item: WorkItem) -> bool:
         previous_status = item.status
+        previous_dependencies = list(item.dependencies)
         decision = self.supervisor.replan(
             item,
             [candidate for candidate in self.state.work_items.values() if candidate.goal_id == goal.goal_id],
@@ -191,6 +193,13 @@ class HybridWorkflowEngine:
         plan = self.state.plans.get(goal.plan_id or "")
         if plan is not None:
             plan.strategy = decision["strategy"]
+        replan = ReplanRecord(
+            new_id("replan"), goal.goal_id, item.work_item_id,
+            previous_result.get("failure_kind") or previous_status.value,
+            decision["previous_employee_id"], decision["employee_id"], previous_dependencies,
+            list(decision["dependencies"]), decision["strategy"],
+        )
+        self.state.replans[replan.replan_id] = replan
         evidence = Evidence(
             new_id("evidence"), goal.goal_id, item.work_item_id, "SUPERVISOR_REPLAN", "", "",
             f"replanned after {previous_result.get('failure_kind') or previous_status.value}", True,

@@ -204,6 +204,20 @@ class HitlInterrupt:
 
 
 @dataclass
+class ReplanRecord:
+    replan_id: str
+    goal_id: str
+    work_item_id: str
+    reason: str
+    previous_employee_id: str
+    employee_id: str
+    previous_dependencies: list[str]
+    dependencies: list[str]
+    strategy: str
+    created_at: str = field(default_factory=utc_now)
+
+
+@dataclass
 class ProviderRun:
     run_id: str
     employee_id: str
@@ -229,6 +243,7 @@ class RuntimeState:
     findings: dict[str, Finding] = field(default_factory=dict)
     handoffs: dict[str, Handoff] = field(default_factory=dict)
     interrupts: dict[str, HitlInterrupt] = field(default_factory=dict)
+    replans: dict[str, ReplanRecord] = field(default_factory=dict)
     provider_runs: dict[str, ProviderRun] = field(default_factory=dict)
     checkpoints: list[str] = field(default_factory=list)
 
@@ -248,9 +263,23 @@ class RuntimeState:
         state.findings = {key: Finding(**item) for key, item in value.get("findings", {}).items()}
         state.handoffs = {key: Handoff(**item) for key, item in value.get("handoffs", {}).items()}
         state.interrupts = {key: _interrupt(item) for key, item in value.get("interrupts", {}).items()}
+        state.replans = {key: ReplanRecord(**item) for key, item in value.get("replans", {}).items()}
         state.provider_runs = {key: ProviderRun(**item) for key, item in value.get("provider_runs", {}).items()}
         state.checkpoints = list(value.get("checkpoints", []))
         return state
+
+    def workflow_graph(self, goal_id: str) -> dict[str, Any]:
+        plan = next((item for item in self.plans.values() if item.goal_id == goal_id), None)
+        items = [item for item in self.work_items.values() if item.goal_id == goal_id]
+        return {
+            "goal_id": goal_id,
+            "plan_id": plan.plan_id if plan else None,
+            "strategy": plan.strategy if plan else "SEQUENTIAL",
+            "work_item_ids": [item.work_item_id for item in items],
+            "dependencies": {item.work_item_id: list(item.dependencies) for item in items},
+            "interrupt_ids": [item.interrupt_id for item in self.interrupts.values() if item.goal_id == goal_id],
+            "replan_ids": [item.replan_id for item in self.replans.values() if item.goal_id == goal_id],
+        }
 
 
 def dumps_state(state: RuntimeState) -> str:

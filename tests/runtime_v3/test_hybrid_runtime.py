@@ -162,6 +162,10 @@ def test_rework_replans_the_work_graph_and_preserves_handoff_inputs(tmp_path):
     assert state.goals[goal.goal_id].status == GoalStatus.COMPLETED
     assert specification.attempt == 2
     assert any(evidence.evidence_type == "SUPERVISOR_REPLAN" for evidence in state.evidence.values())
+    assert state.replans
+    graph = state.workflow_graph(goal.goal_id)
+    assert graph["strategy"] == "HANDOFF"
+    assert graph["replan_ids"]
     assert all(handoff.artifact_ids for handoff in state.handoffs.values())
 
 
@@ -269,6 +273,22 @@ def test_hitl_interrupt_survives_restart_and_resumes_without_duplicate_effects(t
     assert "completed" not in resumed_runtime.calls
     assert len(state.actions) == 2
     assert len(state.artifacts) == 2
+
+
+def test_canonical_workflow_graph_restores_strategy_interrupt_and_replan_history(tmp_path):
+    engine = HybridWorkflowEngine("org", employees(), tmp_path)
+    goal = engine.create_goal("Prepare technical specification for converter")
+    engine.create_plan(goal.goal_id)
+    state = engine.start(goal.goal_id)
+    expected = state.workflow_graph(goal.goal_id)
+
+    resumed = HybridWorkflowEngine("org", employees(), tmp_path)
+    resumed.repository = engine.repository
+    restored = resumed.resume().workflow_graph(goal.goal_id)
+
+    assert restored == expected
+    assert restored["strategy"] == "HANDOFF"
+    assert restored["replan_ids"]
 
 
 def test_goal_runs_through_action_tool_observation_artifacts_review_rework(tmp_path):
