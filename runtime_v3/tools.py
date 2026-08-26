@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -30,6 +31,11 @@ class ToolRegistry:
             ToolDefinition("workspace.read", ActionType.FILESYSTEM_READ, "READ_WORKSPACE", "filesystem.read", path_schema),
             ToolDefinition("workspace.list", ActionType.FILESYSTEM_LIST, "READ_WORKSPACE", "filesystem.read", path_schema),
             ToolDefinition("workspace.write", ActionType.FILESYSTEM_WRITE, "WRITE_WORKSPACE", "filesystem.write", {"type": "object", "required": ["path", "content"]}),
+            ToolDefinition("workspace.mkdir", ActionType.FILESYSTEM_MKDIR, "WRITE_WORKSPACE", "filesystem.write", path_schema),
+            ToolDefinition("workspace.move", ActionType.FILESYSTEM_MOVE, "WRITE_WORKSPACE", "filesystem.write", {"type": "object", "required": ["source", "destination"]}),
+            ToolDefinition("workspace.delete", ActionType.FILESYSTEM_DELETE, "WRITE_WORKSPACE", "filesystem.write", path_schema),
+            ToolDefinition("workspace.search", ActionType.FILESYSTEM_SEARCH, "READ_WORKSPACE", "filesystem.read", {"type": "object", "required": ["query"]}),
+            ToolDefinition("terminal.run", ActionType.TERMINAL_RUN, "RUN_COMMANDS", "terminal.run", {"type": "object", "required": ["command"]}),
         ]
 
     def definition_for(self, action_type: ActionType) -> ToolDefinition | None:
@@ -78,14 +84,21 @@ class ToolRuntime:
                 return self._read(action)
             if action.action_type == ActionType.FILESYSTEM_LIST:
                 return self._list(action)
+            if action.action_type == ActionType.FILESYSTEM_MKDIR:
+                return self._mkdir(action)
+            if action.action_type == ActionType.FILESYSTEM_MOVE:
+                return self._move(action)
+            if action.action_type == ActionType.FILESYSTEM_DELETE:
+                return self._delete(action)
+            if action.action_type == ActionType.FILESYSTEM_SEARCH:
+                return self._search(action)
+            if action.action_type == ActionType.TERMINAL_RUN:
+                return self.execute_terminal(action)
         except Exception as exc:
             return Observation(new_id("obs"), action.action_id, ObservationStatus.FAILED, f"{type(exc).__name__}: {exc}")
         return Observation(new_id("obs"), action.action_id, ObservationStatus.UNSUPPORTED, f"Unsupported tool: {action.action_type}")
 
     def execute_terminal(self, action: Action) -> Observation:
-        permissions = self.employee_permissions.get(action.employee_id)
-        if permissions is not None and "RUN_COMMANDS" not in permissions:
-            return Observation(new_id("obs"), action.action_id, ObservationStatus.FAILED, "permission denied: RUN_COMMANDS")
         command = str(action.payload.get("command", "")).strip()
         if not command:
             return Observation(new_id("obs"), action.action_id, ObservationStatus.FAILED, "empty command")
@@ -133,3 +146,37 @@ class ToolRuntime:
         path = self._resolve(str(action.payload.get("path", ".")))
         entries = sorted(item.name for item in path.iterdir())
         return Observation(new_id("obs"), action.action_id, ObservationStatus.OK, f"listed {path.name}", {"path": str(path), "entries": entries})
+
+    def _mkdir(self, action: Action) -> Observation:
+        path = self._resolve(str(action.payload["path"]))
+        path.mkdir(parents=True, exist_ok=True)
+        return Observation(new_id("obs"), action.action_id, ObservationStatus.OK, f"created directory {path.name}", {"path": str(path)})
+
+    def _move(self, action: Action) -> Observation:
+        source = self._resolve(str(action.payload["source"]))
+        destination = self._resolve(str(action.payload["destination"]))
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        source.replace(destination)
+        return Observation(new_id("obs"), action.action_id, ObservationStatus.OK, f"moved {source.name}", {"source": str(source), "path": str(destination)})
+
+    def _delete(self, action: Action) -> Observation:
+        path = self._resolve(str(action.payload["path"]))
+        if path.is_dir():
+            if any(path.iterdir()):
+                return Observation(new_id("obs"), action.action_id, ObservationStatus.FAILED, "refusing to delete non-empty directory")
+            path.rmdir()
+        else:
+            path.unlink()
+        return Observation(new_id("obs"), action.action_id, ObservationStatus.OK, f"deleted {path.name}", {"path": str(path)})
+
+    def _search(self, action: Action) -> Observation:
+        query = str(action.payload["query"])
+        matches: list[str] = []
+        for path in self.workspace_root.rglob("*"):
+            if path.is_file() and path.stat().st_size <= 1_000_000:
+                try:
+                    if query in path.read_text(encoding="utf-8", errors="ignore"):
+                        matches.append(str(path.relative_to(self.workspace_root)))
+                except OSError:
+                    continue
+        return Observation(new_id("obs"), action.action_id, ObservationStatus.OK, f"found {len(matches)} matches", {"query": query, "matches": matches})
