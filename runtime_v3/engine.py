@@ -30,6 +30,7 @@ from .models import (
 from .repository import JsonCheckpointRepository
 from .supervisor import GoalSupervisor
 from .tools import ToolRuntime
+from .worker_session import WorkPackage, WorkerSession, WorkerSessionResult
 
 
 class HybridWorkflowEngine:
@@ -120,6 +121,36 @@ class HybridWorkflowEngine:
             interrupt for interrupt in self.state.interrupts.values()
             if interrupt.status == InterruptStatus.PENDING and (goal_id is None or interrupt.goal_id == goal_id)
         ]
+
+    def run_worker_session(self, work_item_id: str, planner) -> WorkerSessionResult:
+        """Execute a multi-step WorkPackage through the same durable evidence path."""
+        item = self.state.work_items[work_item_id]
+        item.status = WorkItemStatus.RUNNING
+        item.attempt += 1
+        package = WorkPackage(
+            item.work_item_id,
+            item.assigned_employee_id,
+            item.objective,
+            tuple(item.input_artifact_ids),
+            f"corr-{item.goal_id}-{item.work_item_id}",
+        )
+        session = WorkerSession(package, self.tool_runtime)
+        result = session.run(planner)
+        for action, observation in zip(result.actions, result.observations):
+            self.state.actions[action.action_id] = action
+            self.state.observations[observation.observation_id] = observation
+            self._trace("tool_observed", item, action, observation, detail=package.correlation_id)
+            if observation.status == ObservationStatus.OK and action.action_type == ActionType.FILESYSTEM_WRITE:
+                self._create_artifact_from_write(item, action, observation)
+        if result.completed:
+            item.status = WorkItemStatus.COMPLETED
+            item.result = {"artifact_ids": self._artifacts_for_item(item.work_item_id), "worker_session": True}
+            self.checkpoint(f"worker_session_completed:{item.work_item_id}")
+        else:
+            item.status = WorkItemStatus.BLOCKED
+            item.result = {"failure_kind": "WORKER_SESSION_BLOCKED", "reason": result.blocked_reason}
+            self.checkpoint(f"worker_session_blocked:{item.work_item_id}")
+        return result
 
     def answer_interrupt(self, interrupt_id: str, owner_decision: str) -> RuntimeState:
         interrupt = self.state.interrupts[interrupt_id]
