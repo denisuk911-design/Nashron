@@ -4160,6 +4160,29 @@ class Database:
                 (provider_id,),
             ).fetchone()
 
+    def record_provider_capabilities(self, provider_id: str, capabilities: list[str], status: str, evidence: dict[str, Any]) -> str:
+        profile_id = f"PCAP-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO provider_capabilities (capability_profile_id, provider_id, capabilities, capability_status, evidence)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (profile_id, provider_id, self._json(sorted(set(capabilities))), status, self._json(evidence)),
+            )
+        return profile_id
+
+    def get_latest_provider_capabilities(self, provider_id: str) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute(
+                """
+                SELECT * FROM provider_capabilities
+                WHERE provider_id = ?
+                ORDER BY created_at DESC, capability_profile_id DESC LIMIT 1
+                """,
+                (provider_id,),
+            ).fetchone()
+
     def upsert_agent_provider_assignment(self, agent_id: str, provider_id: str, status: str) -> str:
         assignment_id = f"APA-{uuid.uuid4().hex[:12].upper()}"
         with self.connect() as conn:

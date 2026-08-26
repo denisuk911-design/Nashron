@@ -3,11 +3,16 @@ from core.database import Database
 from core.management_models import AgentProfile, OWNER_ROLE
 from core.management_service import ManagementService
 from core.provider_models import ProviderHealth
+from core.provider_execution import ProviderCapabilityProfile
 from core.provider_service import ProviderHealthService, ProviderProvisioningService, ProviderRegistry
 
 
 class ReadyAdapter:
     provider_id = "CODEX_CLI"
+    capability_profile = ProviderCapabilityProfile(
+        provider_id, capabilities=frozenset({"chat", "structured_output", "filesystem.write"}),
+        supports_native_tools=True, supports_native_structured_output=False, supports_streaming=True,
+    )
 
     def check_health(self):
         return ProviderHealth(
@@ -109,6 +114,17 @@ def test_ready_provider_makes_active_employee_ready(tmp_path):
     health.check_provider("CODEX_CLI")
 
     assert provisioning.readiness_for_employee("agent-codex-fixture") == "READY"
+
+
+def test_capability_discovery_persists_adapter_contract(tmp_path):
+    db, _registry, health, _provisioning = make_services(tmp_path, {"CODEX_CLI": ReadyAdapter()})
+
+    discovered = health.discover_capabilities("CODEX_CLI")
+    stored = db.get_latest_provider_capabilities("CODEX_CLI")
+
+    assert discovered is not None
+    assert "structured_output" in discovered["capabilities"]
+    assert db.loads(stored["evidence"], {})["source"] == "adapter_capability_profile"
 
 
 def test_auth_required_provider_blocks_readiness(tmp_path):

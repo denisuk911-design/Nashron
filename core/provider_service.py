@@ -269,6 +269,24 @@ class ProviderHealthService:
             diagnostic=row["diagnostic"] or "",
         )
 
+    def discover_capabilities(self, provider_id: str) -> dict[str, object] | None:
+        """Persist the adapter-declared execution contract as auditable evidence."""
+        adapter = self.adapters.get(provider_id)
+        profile = getattr(adapter, "capability_profile", None) if adapter is not None else None
+        if profile is None:
+            return None
+        capabilities = sorted(profile.capabilities)
+        evidence = {
+            "source": "adapter_capability_profile",
+            "model_id": profile.model_id,
+            "native_tools": profile.supports_native_tools,
+            "native_structured_output": profile.supports_native_structured_output,
+            "streaming": profile.supports_streaming,
+            "cancellation": profile.supports_cancellation,
+        }
+        profile_id = self.database.record_provider_capabilities(provider_id, capabilities, "SUPPORTED", evidence)
+        return {"capability_profile_id": profile_id, "capabilities": capabilities, "evidence": evidence}
+
 
 class ProviderProvisioningService:
     """Phase 2A.1 coordinator: detection/readiness only, no installation execution."""
