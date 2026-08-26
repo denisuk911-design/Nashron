@@ -27,6 +27,8 @@ def test_communication_style_normalizes_untrusted_employee_profile():
     assert style.humor == 0
     assert style.explanation_style == "short"
     assert "directness 5/5" in style.prompt_directive("Alex")
+    assert "Social mode" in style.directive_for_mode("SOCIAL")
+    assert "Work mode" in style.directive_for_mode("WORK")
 
 
 def test_provider_hub_exposes_sanitized_product_status(tmp_path):

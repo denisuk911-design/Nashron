@@ -52,3 +52,15 @@ class CommunicationStyle:
             f"verbosity {self.verbosity}/5, explanation style {self.explanation_style}, "
             f"disagreement style {self.disagreement_style}. Apply it naturally; do not list these values to the user."
         )
+
+    def directive_for_mode(self, mode: str) -> str:
+        """Keep employee tone human without letting a social ping become work chatter."""
+        if str(mode).upper() == "SOCIAL":
+            return (
+                "Social mode: answer the current message naturally and briefly. "
+                "Do not volunteer work plans, status reports, or unrelated professional advice."
+            )
+        return (
+            "Work mode: keep the same personal manner, but lead with evidence, the action taken, "
+            "and the next decision. Do not add social filler."
+        )

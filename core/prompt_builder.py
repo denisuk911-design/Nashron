@@ -7,6 +7,7 @@ from typing import Any
 
 from .agent_directory import agent_id_from_key, agent_spec_from_profile, get_chat_agent, list_chat_agents
 from .context_snapshot_service import ContextSnapshotService
+from .communication_style_service import CommunicationStyle
 from .conversation_mode import ConversationMode
 from .database import Database
 from .identity_service import IdentityService
@@ -149,6 +150,9 @@ class PromptBuilder:
             ]
 
         mode = str(conversation_mode or ConversationMode.SOCIAL).upper()
+        adaptive_tone = CommunicationStyle.from_profile(
+            agent_profile.communication_profile if agent_profile is not None else None
+        ).directive_for_mode(mode)
         context_task_id = task_id if mode == ConversationMode.WORK.value else None
         context_lines = list(active_work_context_lines or [])
         if mode != ConversationMode.WORK.value:
@@ -170,6 +174,7 @@ class PromptBuilder:
             "КОМАНДНАЯ РАБОТА:",
             f"Сейчас отвечает {agent.display_name} через {agent.engine_name}.",
             agent.voice,
+            adaptive_tone,
             f"Твои права в приложении: {', '.join(effective_permissions) if effective_permissions else 'только общение'}.",
             "Активные сотрудники отдела:",
             *self._team_lines(team_agents),

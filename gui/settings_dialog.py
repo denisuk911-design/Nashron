@@ -12,6 +12,8 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QSpinBox,
+    QTabWidget,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -235,7 +237,22 @@ class SettingsDialog(QDialog):
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
 
-        layout = QFormLayout(self)
+        root_layout = QVBoxLayout(self)
+        tabs = QTabWidget()
+        root_layout.addWidget(tabs, 1)
+        labels_by_language = {
+            "ru": ("Основные", "Внешний вид", "Звук", "ИИ и подключения", "Уведомления", "Данные", "Дополнительно"),
+            "uk": ("Основні", "Вигляд", "Звук", "ШІ та підключення", "Сповіщення", "Дані", "Додатково"),
+            "en": ("General", "Appearance", "Sound", "AI & connections", "Notifications", "Data", "Advanced"),
+        }
+        forms: list[QFormLayout] = []
+        for title in labels_by_language.get(language, labels_by_language["en"]):
+            page = QWidget()
+            form = QFormLayout(page)
+            form.setFieldGrowthPolicy(QFormLayout.AllNonFixedFieldsGrow)
+            tabs.addTab(page, title)
+            forms.append(form)
+        layout = forms[0]
         labels = {
             "ru": {
                 "history": "Лимит краткой истории",
@@ -308,7 +325,7 @@ class SettingsDialog(QDialog):
             {"ru": "Громкость сообщений", "uk": "Гучність повідомлень", "en": "Message volume"}.get(language, "Громкость сообщений"),
             self.sound_volume,
         )
-        layout.addRow(buttons)
+        root_layout.addWidget(buttons)
         self._update_theme_preview()
 
     def _browse_workspace(self) -> None:
