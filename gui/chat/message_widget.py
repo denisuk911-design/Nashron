@@ -6,6 +6,7 @@ from pathlib import Path
 from PySide6.QtCore import QRect, QSize, Qt
 from PySide6.QtGui import QMouseEvent, QPixmap
 from PySide6.QtWidgets import QDialog, QFrame, QHBoxLayout, QLabel, QSizePolicy, QScrollArea, QVBoxLayout
+from gui.dialog_chrome import apply_team_dialog_chrome
 
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".bmp", ".gif"}
@@ -33,6 +34,7 @@ class ImageThumbnail(QLabel):
 
     def _open_preview(self) -> None:
         dialog = QDialog(self)
+        apply_team_dialog_chrome(dialog, minimum_width=700)
         dialog.setWindowTitle(self.image_path.name)
         dialog.resize(900, 700)
         layout = QVBoxLayout(dialog)

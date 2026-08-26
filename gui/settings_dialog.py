@@ -18,11 +18,13 @@ from PySide6.QtWidgets import (
 )
 
 from gui.localization import SUPPORTED_LANGUAGES, tr
+from gui.dialog_chrome import apply_team_dialog_chrome
 
 
 class SettingsDialog(QDialog):
     def __init__(self, settings: dict[str, object], parent=None) -> None:
         super().__init__(parent)
+        apply_team_dialog_chrome(self, minimum_width=620)
         language = str(settings.get("interface_language", "ru"))
         self.setWindowTitle(
             {

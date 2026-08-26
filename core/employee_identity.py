@@ -144,9 +144,19 @@ def _pick_avatar(avatar_dir: Path | None, gender: str) -> str | None:
         return None
     gender_token = "woman" if gender == "female" else "man"
     matching = [path for path in available if gender_token in path.stem.lower()]
+    neutral_tokens = ("cat", "dog", "meme", "neutral", "abstract", "robot", "realistic", "illustrated", "playful")
+    neutral = [
+        path for path in available
+        if not any(token in path.stem.lower() for token in ("woman", "man", "female", "male"))
+        and any(token in path.stem.lower() for token in neutral_tokens)
+    ]
     # Every valid catalog item remains eligible; matching portraits only receive
     # a preference so a generated identity usually has a plausible photo.
     # Prefer a matching portrait while still sampling the full catalog of
     # portraits, illustrations, animals and meme-style avatars broadly.
-    pool = matching if matching and random.random() < 0.55 else available
+    # A human profile must never silently receive an opposite-gender portrait.
+    compatible = [*matching, *neutral]
+    pool = matching if matching and random.random() < 0.70 else compatible
+    if not pool:
+        pool = available
     return str(random.choice(pool))

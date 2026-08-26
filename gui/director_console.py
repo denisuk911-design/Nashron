@@ -63,6 +63,7 @@ from core.skill_package_service import SkillPackageService
 from core.standards_service import MANDATORY_LEVELS, STANDARD_AUTHORITIES, StandardsService
 from core.universal_platform_service import UniversalPlatformService
 from gui.localization import catalog_label, catalog_purpose, permission_label, readiness_label, role_label, status_label, team_size_label, tr, workflow_label
+from gui.dialog_chrome import apply_team_dialog_chrome
 
 
 STATUS_LABELS = {
@@ -115,6 +116,7 @@ class DirectorConsoleDialog(QDialog):
         parent=None,
     ) -> None:
         super().__init__(parent)
+        apply_team_dialog_chrome(self, minimum_width=920)
         self.management_service = management_service
         self.provider_registry = provider_registry
         self.provider_health_service = provider_health_service
@@ -1390,6 +1392,7 @@ class SkillProgressTab(QWidget):
 class SkillPackageDialog(QDialog):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
+        apply_team_dialog_chrome(self)
         self.setWindowTitle("Создать пакет навыка")
         self.name = QLineEdit()
         self.purpose = QTextEdit()
@@ -1437,6 +1440,7 @@ class SkillPackageDialog(QDialog):
 class SkillAssignmentDialog(QDialog):
     def __init__(self, employees: list[EmployeeSummary], parent=None) -> None:
         super().__init__(parent)
+        apply_team_dialog_chrome(self)
         self.setWindowTitle("Назначить навык")
         self.employee = QComboBox()
         for item in employees:
@@ -1610,6 +1614,7 @@ class KnowledgeTab(QWidget):
 class KnowledgeCardDialog(QDialog):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
+        apply_team_dialog_chrome(self)
         self.setWindowTitle("Добавить карточку знаний")
         self.title = QLineEdit()
         self.summary = QTextEdit()
@@ -1801,6 +1806,7 @@ class StandardsTab(QWidget):
 class StandardCardDialog(QDialog):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
+        apply_team_dialog_chrome(self)
         self.setWindowTitle("Добавить стандарт")
         self.code = QLineEdit()
         self.title = QLineEdit()
@@ -2132,6 +2138,7 @@ class FindingsTab(QWidget):
 class FindingDialog(QDialog):
     def __init__(self, tasks, parent=None) -> None:
         super().__init__(parent)
+        apply_team_dialog_chrome(self)
         self.setWindowTitle("Добавить finding")
         self.task = QComboBox()
         for row in tasks:
@@ -2286,6 +2293,7 @@ class PermissionsTab(QWidget):
 class ProviderCatalogDialog(QDialog):
     def __init__(self, profiles, language: str, parent=None) -> None:
         super().__init__(parent)
+        apply_team_dialog_chrome(self, minimum_width=620)
         self.profiles = list(profiles)
         self.language = language
         self.setWindowTitle({"ru": "Добавить ИИ", "uk": "Додати ШІ", "en": "Add AI"}.get(language, "Добавить ИИ"))
@@ -3298,6 +3306,7 @@ class EditEmployeeDialog(QDialog):
         parent=None,
     ) -> None:
         super().__init__(parent)
+        apply_team_dialog_chrome(self, minimum_width=640)
         self.service = service
         self.agent_id = agent_id
         self.language = language

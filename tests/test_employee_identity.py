@@ -60,7 +60,7 @@ def test_identity_generator_has_human_scale_variety_and_balanced_origin():
     assert not any(token in identity.name.lower().split() for identity in generated for token in forbidden_defaults)
 
 
-def test_every_valid_avatar_can_participate_in_generation(tmp_path, monkeypatch):
+def test_gendered_avatar_selection_excludes_opposite_gender_portrait(tmp_path, monkeypatch):
     avatars = []
     for name in ("avatar-01-woman-realistic.png", "avatar-02-man-realistic.png", "avatar-03-cat-meme.png"):
         path = tmp_path / name
@@ -72,7 +72,20 @@ def test_every_valid_avatar_can_participate_in_generation(tmp_path, monkeypatch)
     for _ in avatars:
         selected.append(_pick_avatar(tmp_path, "female"))
 
-    assert set(selected) == {str(path) for path in avatars}
+    assert str(avatars[1]) not in selected
+    assert set(selected) <= {str(avatars[0]), str(avatars[2])}
+
+
+def test_generated_human_profile_never_uses_opposite_gender_portrait(tmp_path, monkeypatch):
+    woman = tmp_path / "avatar-01-woman-realistic.png"
+    man = tmp_path / "avatar-02-man-realistic.png"
+    cat = tmp_path / "avatar-03-cat-meme.png"
+    for path in (woman, man, cat):
+        path.write_bytes(b"avatar")
+    monkeypatch.setattr("core.employee_identity.random.random", lambda: 0.1)
+
+    assert _pick_avatar(tmp_path, "female") == str(woman)
+    assert _pick_avatar(tmp_path, "male") == str(man)
 
 
 def test_500_generated_employees_use_the_broad_avatar_and_personality_catalog():
@@ -91,5 +104,6 @@ def test_500_generated_employees_use_the_broad_avatar_and_personality_catalog():
         tuple(sorted(identity.communication_profile.items()))
         for identity in generated
     }
-    assert len(unique_avatars) >= 80
+    # Gendered portrait mismatches are excluded; the neutral catalog remains broad.
+    assert len(unique_avatars) >= 75
     assert len(unique_profiles) >= 400
