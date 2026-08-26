@@ -42,6 +42,7 @@ class HybridWorkflowEngine:
                 "permissions": sorted(employee.permissions),
                 "provider_capabilities": sorted(employee.provider_capabilities),
                 "provider_binding_id": employee.provider_binding_id,
+                "provider_contract_version": employee.provider_contract_version,
             }
             for employee in employees
         }
@@ -85,6 +86,9 @@ class HybridWorkflowEngine:
 
     def resume(self):
         self.state = self.repository.load()
+        migrate_contracts = getattr(self.agent_runtime, "migrate_contract_snapshots", None)
+        if callable(migrate_contracts):
+            migrate_contracts(self.state.employee_snapshots)
         # Resume with the immutable authorization context from the checkpoint.
         self.tool_runtime.employee_permissions = {
             employee_id: set(snapshot.get("permissions", []))

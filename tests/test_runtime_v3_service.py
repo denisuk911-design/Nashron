@@ -1,5 +1,5 @@
 from core.agent_directory import ChatAgent
-from core.provider_execution import ProviderCircuitBreaker, ProviderExecutionResult, isolated_provider_environment
+from core.provider_execution import ProviderCapabilityProfile, ProviderCircuitBreaker, ProviderExecutionResult, isolated_provider_environment
 from core.runtime_v3_service import RuntimeV3GoalService
 from core.provider_execution import ContextWindowPolicy
 from runtime_v3.agent_runtime import ProviderAgentRuntime
@@ -243,6 +243,51 @@ def test_isolated_provider_environment_keeps_only_its_credential():
     )
 
     assert environment == {"PATH": "system", "LANG": "ru", "GEMINI_API_KEY": "gemini-secret"}
+
+
+def test_incompatible_provider_contract_is_blocked_before_execution():
+    class IncompatibleAdapter(FakeProviderAdapter):
+        capability_profile = ProviderCapabilityProfile(
+            "CODEX_CLI", contract_version="2.0", capabilities=frozenset({"filesystem.write", "structured_output"})
+        )
+
+    provider = IncompatibleAdapter("CODEX_CLI", '{"action":"filesystem.write","path":"v3_provider_output/x.md","content":"x"}')
+    runtime = ProviderAgentRuntime(
+        {"CODEX_CLI": provider}, {"engineer": "CODEX_CLI"}, provider_contract_versions={"CODEX_CLI": "1.0"}
+    )
+
+    decision = runtime.decide("engineer", WorkItem("work-contract", "goal", "Create one file", "engineer"), 0)
+
+    assert decision.failure_kind == "PROVIDER_FAILURE"
+    assert decision.provider_run is not None and decision.provider_run.status == "BLOCKED"
+    assert provider.prompts == []
+
+
+def test_compatible_contract_upgrade_migrates_snapshot_without_losing_state(tmp_path):
+    class UpgradedAdapter(FakeProviderAdapter):
+        capability_profile = ProviderCapabilityProfile(
+            "CODEX_CLI", contract_version="1.1", capabilities=frozenset({"filesystem.write", "structured_output"})
+        )
+
+    provider = UpgradedAdapter(
+        "CODEX_CLI", '{"action":"filesystem.write","path":"v3_provider_output/migrated.md","content":"# Result\\ncontroller"}'
+    )
+    employee = EmployeeBinding("engineer", "Engineer", "engineering", ["engineering"], "CODEX_CLI", provider_contract_version="1.0")
+    runtime = ProviderAgentRuntime({"CODEX_CLI": provider}, {"engineer": "CODEX_CLI"})
+    engine = HybridWorkflowEngine("org", [employee], tmp_path, agent_runtime=runtime)
+    goal = engine.create_goal("Create one file as a simple note")
+    engine.create_plan(goal.goal_id)
+    state = engine.start(goal.goal_id)
+    artifact_count = len(state.artifacts)
+
+    resumed = HybridWorkflowEngine("org", [employee], tmp_path, agent_runtime=ProviderAgentRuntime({"CODEX_CLI": provider}, {"engineer": "CODEX_CLI"}))
+    resumed.repository = engine.repository
+    restored = resumed.resume()
+
+    snapshot = restored.employee_snapshots["engineer"]
+    assert snapshot["provider_contract_version"] == "1.1"
+    assert snapshot["provider_contract_migrated_from"] == "1.0"
+    assert len(restored.artifacts) == artifact_count
 
 
 def test_runtime_v3_fails_over_to_next_provider_adapter(tmp_path):

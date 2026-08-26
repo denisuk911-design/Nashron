@@ -12,6 +12,32 @@ _SECRET_ENVIRONMENT_NAME = re.compile(r"(?:api[_-]?key|token|secret|authorizatio
 _INLINE_SECRET = re.compile(
     r"(?i)\b(api[_-]?key|token|secret|authorization|password|gemini_api_key)\b\s*[:=]\s*[^\s,;]+"
 )
+PROVIDER_ADAPTER_CONTRACT_VERSION = "1.0"
+
+
+@dataclass(frozen=True)
+class ProviderCompatibilityHandshake:
+    expected_version: str
+    adapter_version: str
+    compatible: bool
+    migration_required: bool
+    reason: str = ""
+
+
+def provider_adapter_handshake(expected_version: str, adapter_version: str) -> ProviderCompatibilityHandshake:
+    """Accept compatible minor upgrades while blocking incompatible major contracts."""
+    expected = (expected_version or PROVIDER_ADAPTER_CONTRACT_VERSION).strip()
+    offered = (adapter_version or PROVIDER_ADAPTER_CONTRACT_VERSION).strip()
+    expected_major = expected.split(".", 1)[0]
+    offered_major = offered.split(".", 1)[0]
+    compatible = expected_major == offered_major
+    return ProviderCompatibilityHandshake(
+        expected,
+        offered,
+        compatible,
+        compatible and expected != offered,
+        "" if compatible else f"adapter contract {offered} is incompatible with runtime contract {expected}",
+    )
 
 
 def isolated_provider_environment(
@@ -93,6 +119,7 @@ class ProviderCapabilityProfile:
 
     provider_id: str
     model_id: str = ""
+    contract_version: str = PROVIDER_ADAPTER_CONTRACT_VERSION
     capabilities: frozenset[str] = frozenset({"chat"})
     supports_native_tools: bool = False
     supports_native_structured_output: bool = False

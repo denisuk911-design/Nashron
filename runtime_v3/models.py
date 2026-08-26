@@ -68,6 +68,7 @@ class EmployeeBinding:
     provider_binding_id: str = "provider-neutral"
     permissions: list[str] = field(default_factory=lambda: ["READ_WORKSPACE", "WRITE_WORKSPACE", "CREATE_DOCUMENTS", "RUN_COMMANDS"])
     provider_capabilities: list[str] = field(default_factory=list)
+    provider_contract_version: str = "1.0"
 
 
 @dataclass

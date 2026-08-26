@@ -12,6 +12,8 @@ from core.provider_execution import (
     ProviderExecutionAdapter,
     ProviderExecutionRequest,
     ProviderExecutionResult,
+    PROVIDER_ADAPTER_CONTRACT_VERSION,
+    provider_adapter_handshake,
     redact_provider_text,
 )
 
@@ -96,6 +98,7 @@ class ProviderAgentRuntime:
         context_policy: ContextWindowPolicy | None = None,
         max_concurrent_runs: int = 4,
         circuit_breaker: ProviderCircuitBreaker | None = None,
+        provider_contract_versions: dict[str, str] | None = None,
     ) -> None:
         self.providers = dict(providers)
         self.employee_provider_ids = dict(employee_provider_ids)
@@ -105,6 +108,7 @@ class ProviderAgentRuntime:
         self._executor = ThreadPoolExecutor(max_workers=max(1, max_concurrent_runs), thread_name_prefix="team2050-provider")
         self._cancelled = threading.Event()
         self.circuit_breaker = circuit_breaker or ProviderCircuitBreaker()
+        self.provider_contract_versions = dict(provider_contract_versions or {})
         self.provider_work_item_ids: set[str] = set()
 
     def restore_completed_work_items(self, work_item_ids: set[str]) -> None:
@@ -121,6 +125,26 @@ class ProviderAgentRuntime:
             cancel = getattr(provider, "cancel", None)
             if callable(cancel):
                 cancel()
+
+    def migrate_contract_snapshots(self, snapshots: dict[str, dict[str, object]]) -> None:
+        """Upgrade compatible persisted contract metadata without touching work state."""
+        for snapshot in snapshots.values():
+            provider_id = str(snapshot.get("provider_binding_id") or "")
+            provider = self.providers.get(provider_id)
+            if provider is None:
+                continue
+            profile = getattr(provider, "capability_profile", None)
+            handshake = provider_adapter_handshake(
+                str(snapshot.get("provider_contract_version") or PROVIDER_ADAPTER_CONTRACT_VERSION),
+                str(getattr(profile, "contract_version", PROVIDER_ADAPTER_CONTRACT_VERSION)),
+            )
+            snapshot["provider_contract_status"] = "COMPATIBLE" if handshake.compatible else "BLOCKED"
+            if handshake.compatible:
+                snapshot["provider_contract_version"] = handshake.adapter_version
+                if handshake.migration_required:
+                    snapshot["provider_contract_migrated_from"] = handshake.expected_version
+            else:
+                snapshot["provider_contract_reason"] = handshake.reason
 
     def decide(self, employee_id: str, work_item: WorkItem, attempt: int) -> AgentDecision:
         if self._cancelled.is_set():
@@ -147,6 +171,17 @@ class ProviderAgentRuntime:
                 ))
                 continue
             profile = getattr(provider, "capability_profile", None)
+            handshake = provider_adapter_handshake(
+                self.provider_contract_versions.get(provider_id, PROVIDER_ADAPTER_CONTRACT_VERSION),
+                str(getattr(profile, "contract_version", PROVIDER_ADAPTER_CONTRACT_VERSION)),
+            )
+            if not handshake.compatible:
+                runs.append(ProviderRun(
+                    new_id("provider-run"), employee_id, provider_id, work_item.work_item_id,
+                    "BLOCKED", utc_now(), utc_now(),
+                    error=handshake.reason, correlation_id=correlation_id,
+                ))
+                continue
             if profile is not None and not profile.supports(required_capabilities):
                 continue
             context = self.context_policy.apply(self._prompt_for(work_item))

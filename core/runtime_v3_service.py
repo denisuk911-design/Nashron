@@ -69,6 +69,7 @@ class RuntimeV3GoalService:
             adapter = self.provider_adapters.get(agent.provider_id)
             profile = getattr(adapter, "capability_profile", None)
             provider_capabilities = sorted(getattr(profile, "capabilities", [])) if profile is not None else []
+            provider_contract_version = str(getattr(profile, "contract_version", "1.0")) if profile is not None else "1.0"
             values.append(
                 EmployeeBinding(
                     agent.agent_id,
@@ -77,6 +78,7 @@ class RuntimeV3GoalService:
                     [agent.primary_role, *agent.roles, agent.engine_name],
                     provider_binding_id=agent.provider_id,
                     provider_capabilities=provider_capabilities,
+                    provider_contract_version=provider_contract_version,
                     **binding_kwargs,
                 )
             )
