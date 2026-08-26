@@ -24,6 +24,8 @@ from .models import (
     RuntimeState,
     WorkItem,
     WorkItemStatus,
+    WorkerSessionRecord,
+    WorkerSessionStatus,
     new_id,
     utc_now,
 )
@@ -134,6 +136,12 @@ class HybridWorkflowEngine:
             tuple(item.input_artifact_ids),
             f"corr-{item.goal_id}-{item.work_item_id}",
         )
+        record = WorkerSessionRecord(
+            new_id("worker-session"), item.work_item_id, item.assigned_employee_id,
+            item.objective, package.correlation_id,
+        )
+        self.state.worker_sessions[record.session_id] = record
+        self._trace("worker_session_started", item, detail=record.session_id)
         session = WorkerSession(package, self.tool_runtime)
         result = session.run(planner)
         for action, observation in zip(result.actions, result.observations):
@@ -142,11 +150,17 @@ class HybridWorkflowEngine:
             self._trace("tool_observed", item, action, observation, detail=package.correlation_id)
             if observation.status == ObservationStatus.OK and action.action_type == ActionType.FILESYSTEM_WRITE:
                 self._create_artifact_from_write(item, action, observation)
+        record.action_count = len(result.actions)
+        record.observation_count = len(result.observations)
+        record.updated_at = utc_now()
         if result.completed:
+            record.status = WorkerSessionStatus.COMPLETED
             item.status = WorkItemStatus.COMPLETED
             item.result = {"artifact_ids": self._artifacts_for_item(item.work_item_id), "worker_session": True}
             self.checkpoint(f"worker_session_completed:{item.work_item_id}")
         else:
+            record.status = WorkerSessionStatus.BLOCKED
+            record.blocked_reason = result.blocked_reason
             item.status = WorkItemStatus.BLOCKED
             item.result = {"failure_kind": "WORKER_SESSION_BLOCKED", "reason": result.blocked_reason}
             self.checkpoint(f"worker_session_blocked:{item.work_item_id}")

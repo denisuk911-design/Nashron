@@ -39,6 +39,13 @@ class WorkItemStatus(StrEnum):
     BLOCKED = "BLOCKED"
 
 
+class WorkerSessionStatus(StrEnum):
+    RUNNING = "RUNNING"
+    COMPLETED = "COMPLETED"
+    BLOCKED = "BLOCKED"
+    CANCELLED = "CANCELLED"
+
+
 class ActionType(StrEnum):
     FILESYSTEM_READ = "filesystem.read"
     FILESYSTEM_LIST = "filesystem.list"
@@ -105,6 +112,21 @@ class WorkItem:
     attempt: int = 0
     checkpoint_id: str | None = None
     result: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class WorkerSessionRecord:
+    session_id: str
+    work_item_id: str
+    employee_id: str
+    objective: str
+    correlation_id: str
+    status: WorkerSessionStatus = WorkerSessionStatus.RUNNING
+    action_count: int = 0
+    observation_count: int = 0
+    blocked_reason: str = ""
+    created_at: str = field(default_factory=utc_now)
+    updated_at: str = field(default_factory=utc_now)
 
 
 @dataclass
@@ -275,6 +297,7 @@ class RuntimeState:
     goals: dict[str, Goal] = field(default_factory=dict)
     plans: dict[str, Plan] = field(default_factory=dict)
     work_items: dict[str, WorkItem] = field(default_factory=dict)
+    worker_sessions: dict[str, WorkerSessionRecord] = field(default_factory=dict)
     actions: dict[str, Action] = field(default_factory=dict)
     observations: dict[str, Observation] = field(default_factory=dict)
     artifacts: dict[str, Artifact] = field(default_factory=dict)
@@ -298,6 +321,9 @@ class RuntimeState:
         state.goals = {key: _goal(item) for key, item in value.get("goals", {}).items()}
         state.plans = {key: Plan(**item) for key, item in value.get("plans", {}).items()}
         state.work_items = {key: _work_item(item) for key, item in value.get("work_items", {}).items()}
+        state.worker_sessions = {
+            key: _worker_session(item) for key, item in value.get("worker_sessions", {}).items()
+        }
         state.actions = {key: _action(item) for key, item in value.get("actions", {}).items()}
         state.observations = {key: _observation(item) for key, item in value.get("observations", {}).items()}
         state.artifacts = {key: Artifact(**item) for key, item in value.get("artifacts", {}).items()}
@@ -342,6 +368,12 @@ def _goal(item: dict[str, Any]) -> Goal:
     item = dict(item)
     item["status"] = GoalStatus(item["status"])
     return Goal(**item)
+
+
+def _worker_session(item: dict[str, Any]) -> WorkerSessionRecord:
+    item = dict(item)
+    item["status"] = WorkerSessionStatus(item["status"])
+    return WorkerSessionRecord(**item)
 
 
 def _work_item(item: dict[str, Any]) -> WorkItem:

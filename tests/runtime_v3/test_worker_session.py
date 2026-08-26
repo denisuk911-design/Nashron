@@ -79,4 +79,7 @@ def test_engine_persists_worker_session_effects_as_artifacts_and_trace(tmp_path)
 
     assert result.completed
     assert engine.state.artifacts
+    record = next(iter(engine.state.worker_sessions.values()))
+    assert record.status.value == "COMPLETED"
+    assert record.action_count == 1 and record.observation_count == 1
     assert any(event.stage == "artifact_created" for event in engine.state.trace_events.values())
