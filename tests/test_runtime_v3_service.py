@@ -164,6 +164,25 @@ def test_runtime_v3_second_provider_adapter_uses_the_same_contract(tmp_path):
     assert run.action_count == 1
 
 
+def test_runtime_v3_skips_provider_without_required_capabilities(tmp_path):
+    class Profile:
+        def supports(self, required):
+            return False
+
+    class UnsupportedProvider(FakeProviderAdapter):
+        capability_profile = Profile()
+
+    blocked = UnsupportedProvider("CODEX_CLI", '{"action":"filesystem.write","path":"v3_provider_output/no.md","content":"no"}')
+    recovered = FakeProviderAdapter("GEMINI_CLI", '{"action":"filesystem.write","path":"v3_provider_output/yes.md","content":"# Result\\ncontroller: verified"}')
+    service = RuntimeV3GoalService(tmp_path, provider_adapters={"CODEX_CLI": blocked, "GEMINI_CLI": recovered})
+    agents = [ChatAgent("roman", "agent-roman", "Roman", "CODEX_CLI", ["DESIGN_ENGINEER"], "roman_2050", "", None)]
+
+    result = service.run_goal("org", "Create one file as a simple note", agents)
+
+    assert result.ok
+    assert all(run.provider_id != "CODEX_CLI" for run in result.state.provider_runs.values())
+
+
 def test_runtime_v3_fails_over_to_next_provider_adapter(tmp_path):
     failed = FakeProviderAdapter("CODEX_CLI", error="primary unavailable")
     recovered = FakeProviderAdapter(

@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import Protocol
 
 from .database import Database
-from .provider_execution import ProviderExecutionRequest, ProviderExecutionResult
+from .provider_execution import ProviderCapabilityProfile, ProviderExecutionRequest, ProviderExecutionResult
 from .provider_models import DEFAULT_PROVIDER_PROFILES, ProviderHealth, ProviderProfile
 
 
@@ -21,6 +21,10 @@ class ProviderAdapter(Protocol):
 
 class CodexProviderAdapter:
     provider_id = "CODEX_CLI"
+    capability_profile = ProviderCapabilityProfile(
+        provider_id, capabilities=frozenset({"chat", "filesystem.write", "structured_output", "streaming", "cancellation"}),
+        supports_native_tools=True, supports_native_structured_output=False, supports_streaming=True,
+    )
 
     def __init__(self, codex_client) -> None:
         self.codex_client = codex_client
@@ -67,7 +71,7 @@ class CodexProviderAdapter:
     def execute(self, request: ProviderExecutionRequest) -> ProviderExecutionResult:
         # The client owns mutable process/output state; serialize one CLI.
         with self._execution_lock:
-            result = self.codex_client.generate(request.prompt, allow_full_access=False)
+            result = self.codex_client.generate(request.prompt, allow_full_access=False, on_delta=request.on_delta)
         finished_at = datetime.now(timezone.utc).isoformat()
         return ProviderExecutionResult(
             request.run_id,
@@ -81,9 +85,17 @@ class CodexProviderAdapter:
             error=str(result.error or "") if not result.ok else "",
         )
 
+    def cancel(self) -> None:
+        self.codex_client.cancel()
+
 
 class GeminiProviderAdapter:
     provider_id = "GEMINI_CLI"
+    capability_profile = ProviderCapabilityProfile(
+        provider_id, model_id="gemini-3.1-flash-lite",
+        capabilities=frozenset({"chat", "filesystem.write", "structured_output", "cancellation"}),
+        supports_native_tools=True, supports_native_structured_output=True,
+    )
 
     def __init__(self, gemini_client) -> None:
         self.gemini_client = gemini_client
@@ -117,7 +129,7 @@ class GeminiProviderAdapter:
     def execute(self, request: ProviderExecutionRequest) -> ProviderExecutionResult:
         # The client owns a mutable current-process reference.
         with self._execution_lock:
-            result = self.gemini_client.generate(request.prompt, allow_full_access=False)
+            result = self.gemini_client.generate(request.prompt, allow_full_access=False, on_delta=request.on_delta)
         finished_at = datetime.now(timezone.utc).isoformat()
         return ProviderExecutionResult(
             request.run_id,
@@ -130,6 +142,9 @@ class GeminiProviderAdapter:
             content=result.content if result.ok else "",
             error=str(result.error or "") if not result.ok else "",
         )
+
+    def cancel(self) -> None:
+        self.gemini_client.cancel()
 
 
 class MissingProviderAdapter:

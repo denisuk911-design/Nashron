@@ -101,12 +101,19 @@ class ProviderAgentRuntime:
             return self.fallback.decide(employee_id, work_item, attempt)
 
         provider_ids = [primary_provider_id, *self.fallback_provider_ids.get(employee_id, [])]
+        required_capabilities = {"filesystem.write", "structured_output"}
         runs: list[ProviderRun] = []
         for provider_id in dict.fromkeys(provider_ids):
             provider = self.providers.get(provider_id)
             if provider is None:
                 continue
-            request = ProviderExecutionRequest(new_id("provider-run"), employee_id, provider_id, work_item.work_item_id, self._prompt_for(work_item), utc_now())
+            profile = getattr(provider, "capability_profile", None)
+            if profile is not None and not profile.supports(required_capabilities):
+                continue
+            request = ProviderExecutionRequest(
+                new_id("provider-run"), employee_id, provider_id, work_item.work_item_id,
+                self._prompt_for(work_item), utc_now(), frozenset(required_capabilities), self._action_schema(),
+            )
             try:
                 result = provider.execute(request)
             except Exception as exc:
@@ -147,6 +154,18 @@ class ProviderAgentRuntime:
                 f"Acceptance criteria: {', '.join(work_item.acceptance_criteria) or 'artifact created'}",
             ]
         )
+
+    @staticmethod
+    def _action_schema() -> dict[str, object]:
+        return {
+            "type": "object",
+            "required": ["action", "path", "content"],
+            "properties": {
+                "action": {"const": ActionType.FILESYSTEM_WRITE.value},
+                "path": {"type": "string"},
+                "content": {"type": "string"},
+            },
+        }
 
     @staticmethod
     def _parse_action(work_item: WorkItem, employee_id: str, content: str, provider_run: ProviderRun) -> AgentDecision:
