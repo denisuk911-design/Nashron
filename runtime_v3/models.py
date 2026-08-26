@@ -54,6 +54,11 @@ class ObservationStatus(StrEnum):
     UNSUPPORTED = "UNSUPPORTED"
 
 
+class InterruptStatus(StrEnum):
+    PENDING = "PENDING"
+    RESOLVED = "RESOLVED"
+
+
 @dataclass
 class EmployeeBinding:
     employee_id: str
@@ -185,6 +190,20 @@ class Handoff:
 
 
 @dataclass
+class HitlInterrupt:
+    interrupt_id: str
+    goal_id: str
+    work_item_id: str
+    question: str
+    options: list[str]
+    context: str
+    status: InterruptStatus = InterruptStatus.PENDING
+    owner_decision: str = ""
+    created_at: str = field(default_factory=utc_now)
+    resolved_at: str = ""
+
+
+@dataclass
 class ProviderRun:
     run_id: str
     employee_id: str
@@ -209,6 +228,7 @@ class RuntimeState:
     evidence: dict[str, Evidence] = field(default_factory=dict)
     findings: dict[str, Finding] = field(default_factory=dict)
     handoffs: dict[str, Handoff] = field(default_factory=dict)
+    interrupts: dict[str, HitlInterrupt] = field(default_factory=dict)
     provider_runs: dict[str, ProviderRun] = field(default_factory=dict)
     checkpoints: list[str] = field(default_factory=list)
 
@@ -227,6 +247,7 @@ class RuntimeState:
         state.evidence = {key: Evidence(**item) for key, item in value.get("evidence", {}).items()}
         state.findings = {key: Finding(**item) for key, item in value.get("findings", {}).items()}
         state.handoffs = {key: Handoff(**item) for key, item in value.get("handoffs", {}).items()}
+        state.interrupts = {key: _interrupt(item) for key, item in value.get("interrupts", {}).items()}
         state.provider_runs = {key: ProviderRun(**item) for key, item in value.get("provider_runs", {}).items()}
         state.checkpoints = list(value.get("checkpoints", []))
         return state
@@ -262,3 +283,9 @@ def _observation(item: dict[str, Any]) -> Observation:
     item = dict(item)
     item["status"] = ObservationStatus(item["status"])
     return Observation(**item)
+
+
+def _interrupt(item: dict[str, Any]) -> HitlInterrupt:
+    item = dict(item)
+    item["status"] = InterruptStatus(item["status"])
+    return HitlInterrupt(**item)

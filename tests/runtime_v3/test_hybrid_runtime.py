@@ -24,6 +24,17 @@ def test_social_chat_does_not_create_goal_work_items(tmp_path):
     assert engine.get_state().work_items == {}
 
 
+def test_ordinary_goal_remains_autonomous_without_hitl(tmp_path):
+    engine = HybridWorkflowEngine("org", employees(), tmp_path)
+    goal = engine.create_goal("Create one file as a simple note")
+    engine.create_plan(goal.goal_id)
+
+    state = engine.start(goal.goal_id)
+
+    assert state.goals[goal.goal_id].status == GoalStatus.COMPLETED
+    assert engine.pending_interrupts(goal.goal_id) == []
+
+
 def test_supervisor_decomposes_goal_and_assigns_by_competency(tmp_path):
     engine = HybridWorkflowEngine("org", employees(), tmp_path)
     goal = engine.create_goal("Prepare technical specification and controller research")
@@ -211,6 +222,53 @@ def test_persistent_blocked_work_stops_after_the_autonomous_replan_limit(tmp_pat
     assert runtime.calls == 2
     assert state.goals[goal.goal_id].status == GoalStatus.RUNNING
     assert next(iter(state.work_items.values())).status == WorkItemStatus.BLOCKED
+
+
+def test_hitl_interrupt_survives_restart_and_resumes_without_duplicate_effects(tmp_path):
+    class DecisionRuntime:
+        def __init__(self):
+            self.calls: list[str] = []
+
+        def decide(self, employee_id, work_item, attempt):
+            self.calls.append(work_item.work_item_id)
+            if work_item.work_item_id == "decision" and not work_item.result.get("owner_decision"):
+                return AgentDecision(hitl_request={
+                    "question": "Choose output voltage.",
+                    "options": ["12 V", "15 V"],
+                    "context": "The available requirements conflict.",
+                })
+            return AgentDecision(actions=[Action(
+                new_id("action"), work_item.work_item_id, employee_id, ActionType.FILESYSTEM_WRITE,
+                {"path": f"artifacts/{work_item.work_item_id}.md", "content": work_item.result.get("owner_decision", "done")},
+            )])
+
+    first_runtime = DecisionRuntime()
+    engine = HybridWorkflowEngine("org", employees(), tmp_path, agent_runtime=first_runtime)
+    goal = Goal("goal-hitl", "owner decision required")
+    completed_work = WorkItem("completed", goal.goal_id, "prepare evidence", "engineer", status=WorkItemStatus.READY)
+    blocked_work = WorkItem("decision", goal.goal_id, "select voltage", "researcher", status=WorkItemStatus.READY)
+    plan = Plan("plan-hitl", goal.goal_id, "supervisor", [completed_work.work_item_id, blocked_work.work_item_id], strategy="CONCURRENT")
+    goal.plan_id = plan.plan_id
+    engine.state.goals[goal.goal_id] = goal
+    engine.state.plans[plan.plan_id] = plan
+    engine.state.work_items = {completed_work.work_item_id: completed_work, blocked_work.work_item_id: blocked_work}
+    engine.start(goal.goal_id)
+    interrupt = engine.pending_interrupts(goal.goal_id)[0]
+
+    resumed_runtime = DecisionRuntime()
+    resumed = HybridWorkflowEngine("org", employees(), tmp_path, agent_runtime=resumed_runtime)
+    resumed.repository = engine.repository
+    state = resumed.resume()
+    assert resumed.pending_interrupts(goal.goal_id)[0].interrupt_id == interrupt.interrupt_id
+
+    state = resumed.answer_interrupt(interrupt.interrupt_id, "12 V")
+
+    assert state.goals[goal.goal_id].status == GoalStatus.COMPLETED
+    assert state.interrupts[interrupt.interrupt_id].owner_decision == "12 V"
+    assert state.interrupts[interrupt.interrupt_id].status.value == "RESOLVED"
+    assert "completed" not in resumed_runtime.calls
+    assert len(state.actions) == 2
+    assert len(state.artifacts) == 2
 
 
 def test_goal_runs_through_action_tool_observation_artifacts_review_rework(tmp_path):

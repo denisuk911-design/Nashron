@@ -97,7 +97,7 @@ class GoalSupervisor:
 
     def replan(self, item: WorkItem, all_items: list[WorkItem]) -> dict | None:
         """Return a bounded, graph-safe recovery plan for an executable work item."""
-        if item.attempt >= 2 or "artifact.review" in item.required_tools:
+        if item.attempt >= 2 or "artifact.review" in item.required_tools or item.result.get("hitl_interrupt_id"):
             return None
         previous_employee_id = item.assigned_employee_id
         replacement = self._select_alternate_employee(item)

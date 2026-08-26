@@ -14,6 +14,8 @@ from .models import (
     Goal,
     GoalStatus,
     Handoff,
+    HitlInterrupt,
+    InterruptStatus,
     Observation,
     ObservationStatus,
     RuntimeState,
@@ -80,6 +82,28 @@ class HybridWorkflowEngine:
         for goal in list(self.state.goals.values()):
             if goal.status not in {GoalStatus.COMPLETED, GoalStatus.CANCELLED, GoalStatus.FAILED}:
                 self._run_until_blocked(goal)
+        return self.state
+
+    def pending_interrupts(self, goal_id: str | None = None) -> list[HitlInterrupt]:
+        return [
+            interrupt for interrupt in self.state.interrupts.values()
+            if interrupt.status == InterruptStatus.PENDING and (goal_id is None or interrupt.goal_id == goal_id)
+        ]
+
+    def answer_interrupt(self, interrupt_id: str, owner_decision: str) -> RuntimeState:
+        interrupt = self.state.interrupts[interrupt_id]
+        if interrupt.status != InterruptStatus.PENDING:
+            return self.state
+        if owner_decision not in interrupt.options:
+            raise ValueError("owner decision is not one of the offered options")
+        interrupt.status = InterruptStatus.RESOLVED
+        interrupt.owner_decision = owner_decision
+        interrupt.resolved_at = utc_now()
+        item = self.state.work_items[interrupt.work_item_id]
+        item.status = WorkItemStatus.READY
+        item.result = {"owner_decision": owner_decision, "hitl_interrupt_id": interrupt_id}
+        self.checkpoint(f"hitl_resolved:{interrupt_id}")
+        self._run_until_blocked(self.state.goals[interrupt.goal_id])
         return self.state
 
     def pause(self) -> None:
@@ -200,6 +224,9 @@ class HybridWorkflowEngine:
             self._apply_decision(item, decisions[item.work_item_id])
 
     def _apply_decision(self, item: WorkItem, decision: AgentDecision) -> None:
+        if decision.hitl_request:
+            self._create_interrupt(item, decision.hitl_request)
+            return
         provider_runs = decision.provider_runs or ([decision.provider_run] if decision.provider_run is not None else [])
         for provider_run in provider_runs:
             self.state.provider_runs[provider_run.run_id] = provider_run
@@ -219,6 +246,20 @@ class HybridWorkflowEngine:
             item.status = WorkItemStatus.COMPLETED
             item.result = {"artifact_ids": self._artifacts_for_item(item.work_item_id)}
         self.checkpoint(f"work_item_finished:{item.work_item_id}")
+
+    def _create_interrupt(self, item: WorkItem, request: dict[str, object]) -> None:
+        question = str(request.get("question") or "Нужно решение владельца для продолжения работы.")
+        options = [str(option) for option in request.get("options", []) if str(option)]
+        if not options:
+            raise ValueError("HITL interrupt requires at least one option")
+        interrupt = HitlInterrupt(
+            new_id("hitl"), item.goal_id, item.work_item_id, question, options,
+            str(request.get("context") or "Требуется подтверждение решения."),
+        )
+        self.state.interrupts[interrupt.interrupt_id] = interrupt
+        item.status = WorkItemStatus.BLOCKED
+        item.result = {"hitl_interrupt_id": interrupt.interrupt_id, "requires_owner": True}
+        self.checkpoint(f"hitl_created:{interrupt.interrupt_id}")
 
     def _execute_action(self, item: WorkItem, action: Action) -> bool:
         self.state.actions[action.action_id] = action

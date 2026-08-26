@@ -17,6 +17,7 @@ class AgentDecision:
     failure_kind: str = ""
     provider_run: ProviderRun | None = None
     provider_runs: list[ProviderRun] = field(default_factory=list)
+    hitl_request: dict[str, object] | None = None
 
 
 class DeterministicAgentRuntime:

@@ -17,6 +17,9 @@ from core.settings_service import SettingsService
 from core.unicode_pipeline import validate_unicode_catalog
 from gui.main_window import MainWindow
 from gui.startup_splash import StartupSplash
+from runtime_v3.agent_runtime import AgentDecision
+from runtime_v3.engine import HybridWorkflowEngine
+from runtime_v3.models import Action, ActionType, EmployeeBinding, Goal, Plan, WorkItem, WorkItemStatus, new_id
 
 
 def setup_logging(settings_service: SettingsService) -> logging.Logger:
@@ -45,12 +48,16 @@ def _runtime_v3_smoke_enabled() -> bool:
     return os.environ.get("TEAM2050_RUNTIME_V3_GUI_SMOKE") == "1"
 
 
+def _runtime_v3_hitl_smoke_enabled() -> bool:
+    return os.environ.get("TEAM2050_RUNTIME_V3_HITL_SMOKE") == "1"
+
+
 def _admin_smoke_enabled() -> bool:
     return os.environ.get("TEAM2050_ADMIN_SMOKE") == "1"
 
 
 def _prepare_runtime_v3_smoke_settings(settings_service: SettingsService) -> None:
-    if not _runtime_v3_smoke_enabled():
+    if not (_runtime_v3_smoke_enabled() or _runtime_v3_hitl_smoke_enabled()):
         return
     settings = settings_service.load()
     smoke_workspace = os.environ.get("TEAM2050_RUNTIME_V3_GUI_SMOKE_WORKSPACE")
@@ -255,6 +262,78 @@ def _run_admin_smoke(app: QApplication, window: MainWindow) -> None:
     QTimer.singleShot(0, run)
 
 
+def _run_runtime_v3_hitl_smoke(app: QApplication, window: MainWindow, logger: logging.Logger) -> None:
+    report_path = Path(os.environ.get("TEAM2050_RUNTIME_V3_HITL_SMOKE_REPORT") or window.paths.user_dir / "runtime_v3_hitl_smoke.json")
+    workspace = Path(os.environ.get("TEAM2050_RUNTIME_V3_GUI_SMOKE_WORKSPACE") or window.paths.user_dir / "workspace") / "hitl"
+
+    class HitlRuntime:
+        def decide(self, employee_id, work_item, attempt):
+            if work_item.work_item_id == "owner-choice" and not work_item.result.get("owner_decision"):
+                return AgentDecision(hitl_request={
+                    "question": "Select the validated output option.",
+                    "options": ["12 V", "15 V"],
+                    "context": "Requirements contain two compatible output variants.",
+                })
+            return AgentDecision(actions=[Action(
+                new_id("action"), work_item.work_item_id, employee_id, ActionType.FILESYSTEM_WRITE,
+                {"path": f"artifacts/{work_item.work_item_id}.md", "content": work_item.result.get("owner_decision", "validated")},
+            )])
+
+    def finish(code: int, payload: dict) -> None:
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        app.exit(code)
+
+    def run() -> None:
+        try:
+            team = [
+                EmployeeBinding("hitl-engineer", "Engineer", "engineering", ["engineering"]),
+                EmployeeBinding("hitl-researcher", "Researcher", "research", ["research"]),
+            ]
+            engine = HybridWorkflowEngine("packaged-hitl", team, workspace, agent_runtime=HitlRuntime())
+            goal = Goal("goal-hitl", "Resolve an ambiguous validated output choice")
+            first = WorkItem("completed-effect", goal.goal_id, "prepare evidence", "hitl-engineer", status=WorkItemStatus.READY)
+            choice = WorkItem("owner-choice", goal.goal_id, "choose output", "hitl-researcher", status=WorkItemStatus.READY)
+            plan = Plan("plan-hitl", goal.goal_id, "supervisor", [first.work_item_id, choice.work_item_id], strategy="CONCURRENT")
+            goal.plan_id = plan.plan_id
+            engine.state.goals[goal.goal_id] = goal
+            engine.state.plans[plan.plan_id] = plan
+            engine.state.work_items = {first.work_item_id: first, choice.work_item_id: choice}
+            engine.start(goal.goal_id)
+            interrupt = engine.pending_interrupts(goal.goal_id)[0]
+            resumed = HybridWorkflowEngine("packaged-hitl", team, workspace, agent_runtime=HitlRuntime())
+            resumed.repository = engine.repository
+            resumed.resume()
+            state = resumed.answer_interrupt(interrupt.interrupt_id, "12 V")
+            screenshot_path = report_path.with_suffix(".png")
+            window.grab().save(str(screenshot_path))
+            payload = {
+                "goal_id": goal.goal_id,
+                "interrupt_id": interrupt.interrupt_id,
+                "question": interrupt.question,
+                "options": interrupt.options,
+                "owner_decision": state.interrupts[interrupt.interrupt_id].owner_decision,
+                "completed_work_items": sum(item.status == WorkItemStatus.COMPLETED for item in state.work_items.values()),
+                "actions": len(state.actions),
+                "artifacts": len(state.artifacts),
+                "pending_interrupts": len(resumed.pending_interrupts(goal.goal_id)),
+                "screenshot": str(screenshot_path),
+            }
+            payload["checks_passed"] = (
+                payload["owner_decision"] == "12 V"
+                and payload["completed_work_items"] == 2
+                and payload["actions"] == 2
+                and payload["artifacts"] == 2
+                and payload["pending_interrupts"] == 0
+            )
+            finish(0 if payload["checks_passed"] else 1, payload)
+        except Exception as exc:
+            logger.exception("runtime_v3_hitl_smoke_failed")
+            finish(1, {"checks_passed": False, "error": f"{type(exc).__name__}: {exc}", "traceback": traceback.format_exc()})
+
+    QTimer.singleShot(0, run)
+
+
 def main() -> int:
     settings_service = SettingsService()
     _prepare_runtime_v3_smoke_settings(settings_service)
@@ -284,6 +363,8 @@ def main() -> int:
     splash.close()
     if _runtime_v3_smoke_enabled():
         _run_runtime_v3_gui_smoke(app, window, logger)
+    elif _runtime_v3_hitl_smoke_enabled():
+        _run_runtime_v3_hitl_smoke(app, window, logger)
     elif _admin_smoke_enabled():
         _run_admin_smoke(app, window)
     return app.exec()
