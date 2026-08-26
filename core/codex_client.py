@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Callable
 
 from .models import AuthStatus, CodexResult
+from .provider_execution import isolated_provider_environment
 
 
 class CodexClient:
@@ -173,6 +174,7 @@ class CodexClient:
                     text=True,
                     encoding="utf-8",
                     errors="replace",
+                    env=isolated_provider_environment(),
                     **self._windows_hidden_process_kwargs(),
                 )
                 stdout, stderr = self._process.communicate(prompt, timeout=self.timeout_seconds)
@@ -226,6 +228,7 @@ class CodexClient:
             encoding="utf-8",
             errors="replace",
             bufsize=1,
+            env=isolated_provider_environment(),
             **self._windows_hidden_process_kwargs(),
         )
         assert self._process.stdin is not None
@@ -426,6 +429,7 @@ class CodexClient:
                 errors="replace",
                 timeout=timeout,
                 check=False,
+                env=isolated_provider_environment(),
                 **self._windows_hidden_process_kwargs(),
             )
         except FileNotFoundError:

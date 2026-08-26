@@ -1,5 +1,5 @@
 from core.agent_directory import ChatAgent
-from core.provider_execution import ProviderExecutionResult
+from core.provider_execution import ProviderCircuitBreaker, ProviderExecutionResult, isolated_provider_environment
 from core.runtime_v3_service import RuntimeV3GoalService
 from core.provider_execution import ContextWindowPolicy
 from runtime_v3.agent_runtime import ProviderAgentRuntime
@@ -217,6 +217,32 @@ def test_provider_runtime_cancellation_prevents_new_provider_run():
 
     assert decision.failure_kind == "PROVIDER_CANCELLED"
     assert provider.prompts == []
+
+
+def test_provider_circuit_opens_after_failure_and_prevents_repeat_call():
+    provider = FakeProviderAdapter("CODEX_CLI", error="token=private-value unavailable")
+    circuit = ProviderCircuitBreaker(failure_threshold=1, cooldown_seconds=60, clock=lambda: 10.0)
+    runtime = ProviderAgentRuntime({"CODEX_CLI": provider}, {"engineer": "CODEX_CLI"}, circuit_breaker=circuit)
+
+    first = runtime.decide("engineer", WorkItem("work-first", "goal", "Create one file", "engineer"), 0)
+    second = runtime.decide("engineer", WorkItem("work-second", "goal", "Create another file", "engineer"), 0)
+
+    assert first.failure_kind == "PROVIDER_FAILURE"
+    assert "private-value" not in first.message
+    assert "[REDACTED]" in first.message
+    assert second.failure_kind == "PROVIDER_FAILURE"
+    assert second.provider_run is not None and second.provider_run.status == "SKIPPED"
+    assert len(provider.prompts) == 1
+    assert runtime.provider_health("CODEX_CLI")["circuit"] == "OPEN"
+
+
+def test_isolated_provider_environment_keeps_only_its_credential():
+    environment = isolated_provider_environment(
+        {"GEMINI_API_KEY": "gemini-secret"},
+        {"PATH": "system", "OPENAI_API_KEY": "openai-secret", "GEMINI_API_KEY": "old", "LANG": "ru"},
+    )
+
+    assert environment == {"PATH": "system", "LANG": "ru", "GEMINI_API_KEY": "gemini-secret"}
 
 
 def test_runtime_v3_fails_over_to_next_provider_adapter(tmp_path):

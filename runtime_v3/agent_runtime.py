@@ -6,7 +6,14 @@ import json
 import threading
 from typing import Protocol
 
-from core.provider_execution import ContextWindowPolicy, ProviderExecutionAdapter, ProviderExecutionRequest, ProviderExecutionResult
+from core.provider_execution import (
+    ContextWindowPolicy,
+    ProviderCircuitBreaker,
+    ProviderExecutionAdapter,
+    ProviderExecutionRequest,
+    ProviderExecutionResult,
+    redact_provider_text,
+)
 
 from .models import Action, ActionType, ProviderRun, WorkItem, new_id, utc_now
 
@@ -88,6 +95,7 @@ class ProviderAgentRuntime:
         fallback: DeterministicAgentRuntime | None = None,
         context_policy: ContextWindowPolicy | None = None,
         max_concurrent_runs: int = 4,
+        circuit_breaker: ProviderCircuitBreaker | None = None,
     ) -> None:
         self.providers = dict(providers)
         self.employee_provider_ids = dict(employee_provider_ids)
@@ -96,6 +104,7 @@ class ProviderAgentRuntime:
         self.context_policy = context_policy or ContextWindowPolicy()
         self._executor = ThreadPoolExecutor(max_workers=max(1, max_concurrent_runs), thread_name_prefix="team2050-provider")
         self._cancelled = threading.Event()
+        self.circuit_breaker = circuit_breaker or ProviderCircuitBreaker()
         self.provider_work_item_ids: set[str] = set()
 
     def restore_completed_work_items(self, work_item_ids: set[str]) -> None:
@@ -130,6 +139,13 @@ class ProviderAgentRuntime:
             provider = self.providers.get(provider_id)
             if provider is None:
                 continue
+            if not self.circuit_breaker.allow(provider_id):
+                runs.append(ProviderRun(
+                    new_id("provider-run"), employee_id, provider_id, work_item.work_item_id,
+                    "SKIPPED", utc_now(), utc_now(),
+                    error="provider circuit is open", correlation_id=correlation_id,
+                ))
+                continue
             profile = getattr(provider, "capability_profile", None)
             if profile is not None and not profile.supports(required_capabilities):
                 continue
@@ -155,7 +171,7 @@ class ProviderAgentRuntime:
                     "FAILED",
                     request.started_at,
                     utc_now(),
-                    error=f"{type(exc).__name__}: {exc}",
+                    error=redact_provider_text(f"{type(exc).__name__}: {exc}"),
                 )
             provider_run = ProviderRun(
                 result.run_id,
@@ -165,17 +181,28 @@ class ProviderAgentRuntime:
                 result.status,
                 result.started_at,
                 result.finished_at,
-                error=result.error,
+                error=redact_provider_text(result.error),
                 correlation_id=correlation_id,
             )
             runs.append(provider_run)
             if result.status == "SUCCEEDED":
+                self.circuit_breaker.record_success(provider_id)
                 self.provider_work_item_ids.add(work_item.work_item_id)
                 decision = self._parse_action(work_item, employee_id, result.content, provider_run)
                 decision.provider_runs = runs
                 return decision
+            self.circuit_breaker.record_failure(provider_id)
         detail = runs[-1].error if runs else "no provider adapter is available"
         return AgentDecision(message=detail or "provider failure", failure_kind="PROVIDER_FAILURE", provider_run=runs[-1] if runs else None, provider_runs=runs)
+
+    def provider_health(self, provider_id: str) -> dict[str, object]:
+        snapshot = self.circuit_breaker.snapshot(provider_id)
+        return {
+            "provider_id": snapshot.provider_id,
+            "circuit": snapshot.state,
+            "consecutive_failures": snapshot.consecutive_failures,
+            "retry_after_seconds": snapshot.retry_after_seconds,
+        }
 
     @staticmethod
     def _prompt_for(work_item: WorkItem) -> str:

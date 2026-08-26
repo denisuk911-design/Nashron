@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 
 from .models import CodexResult
+from .provider_execution import isolated_provider_environment
 
 
 class GeminiClient:
@@ -88,10 +89,8 @@ class GeminiClient:
         command = [executable, "--skip-trust", "-m", self.model, "-p", "", "--output-format", "json"]
         if allow_full_access:
             command.extend(["--approval-mode", "yolo"])
-        env = os.environ.copy()
         api_key = self._resolved_api_key()
-        if api_key:
-            env["GEMINI_API_KEY"] = api_key
+        env = isolated_provider_environment({"GEMINI_API_KEY": api_key} if api_key else {})
 
         self.logger.info("gemini_request_started tools=%s", bool(allow_full_access))
         try:
@@ -151,10 +150,8 @@ class GeminiClient:
             self.logger.info("gemini_request_cancel_requested")
 
     def _run(self, command: list[str], timeout: int) -> subprocess.CompletedProcess[str]:
-        env = os.environ.copy()
         api_key = self._resolved_api_key()
-        if api_key:
-            env["GEMINI_API_KEY"] = api_key
+        env = isolated_provider_environment({"GEMINI_API_KEY": api_key} if api_key else {})
         try:
             return subprocess.run(
                 command,
