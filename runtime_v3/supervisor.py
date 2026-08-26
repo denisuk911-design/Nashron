@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 from .models import EmployeeBinding, Goal, Plan, WorkItem, WorkItemStatus, new_id
+from .supervisor_policy import HybridSupervisorPolicy, SupervisorPolicyDecision
 
 
 class GoalSupervisor:
     """Owns goal execution, planning, assignment and review flow."""
 
-    def __init__(self, employees: list[EmployeeBinding], supervisor_employee_id: str = "supervisor") -> None:
+    def __init__(self, employees: list[EmployeeBinding], supervisor_employee_id: str = "supervisor", policy: HybridSupervisorPolicy | None = None) -> None:
         self.employees = employees
         self.supervisor_employee_id = supervisor_employee_id
+        self.policy = policy or HybridSupervisorPolicy()
+        self.last_policy_decision: SupervisorPolicyDecision | None = None
 
     def is_social(self, text: str) -> bool:
         normalized = " ".join(str(text or "").lower().split())
@@ -17,9 +20,11 @@ class GoalSupervisor:
         return any(token in normalized for token in social_tokens) and not any(token in normalized for token in work_tokens)
 
     def create_plan(self, goal: Goal) -> tuple[Plan, list[WorkItem]]:
-        if self.is_social(goal.objective):
+        deterministic_shape = "SOCIAL" if self.is_social(goal.objective) else "SIMPLE" if self._is_simple_single_item(goal.objective) else "COMPLEX"
+        self.last_policy_decision = self.policy.decide(goal.objective, deterministic_shape)
+        if self.last_policy_decision.shape == "SOCIAL":
             return Plan(new_id("plan"), goal.goal_id, self.supervisor_employee_id, [], strategy="SEQUENTIAL"), []
-        if self._is_simple_single_item(goal.objective):
+        if self.last_policy_decision.shape == "SIMPLE":
             employee = self._select_employee(["engineering", "specification", "documentation"])
             item = WorkItem(
                 new_id("work"),

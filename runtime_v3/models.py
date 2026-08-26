@@ -270,7 +270,9 @@ class RuntimeState:
 
     def workflow_graph(self, goal_id: str) -> dict[str, Any]:
         plan = next((item for item in self.plans.values() if item.goal_id == goal_id), None)
-        items = [item for item in self.work_items.values() if item.goal_id == goal_id]
+        items_by_id = {item.work_item_id: item for item in self.work_items.values() if item.goal_id == goal_id}
+        ordered_ids = list(plan.work_item_ids) if plan else sorted(items_by_id)
+        items = [items_by_id[item_id] for item_id in ordered_ids if item_id in items_by_id]
         return {
             "goal_id": goal_id,
             "plan_id": plan.plan_id if plan else None,

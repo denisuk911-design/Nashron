@@ -31,9 +31,9 @@ from .tools import ToolRuntime
 
 
 class HybridWorkflowEngine:
-    def __init__(self, organization_id: str, employees: list[EmployeeBinding], workspace_root: Path, agent_runtime=None, max_rework_attempts: int = 2) -> None:
+    def __init__(self, organization_id: str, employees: list[EmployeeBinding], workspace_root: Path, agent_runtime=None, max_rework_attempts: int = 2, supervisor_policy=None) -> None:
         self.state = RuntimeState(organization_id)
-        self.supervisor = GoalSupervisor(employees)
+        self.supervisor = GoalSupervisor(employees, policy=supervisor_policy)
         self.agent_runtime = agent_runtime or DeterministicAgentRuntime()
         self.tool_runtime = ToolRuntime(Path(workspace_root) / "workspace")
         self.repository = JsonCheckpointRepository(Path(workspace_root) / "checkpoints")

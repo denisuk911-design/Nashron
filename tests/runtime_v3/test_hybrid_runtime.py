@@ -4,6 +4,7 @@ import time
 
 from runtime_v3.models import Action, ActionType, EmployeeBinding, Goal, Plan, WorkItem, new_id
 from runtime_v3.supervisor import GoalSupervisor
+from runtime_v3.supervisor_policy import HybridSupervisorPolicy
 
 
 def employees():
@@ -33,6 +34,48 @@ def test_ordinary_goal_remains_autonomous_without_hitl(tmp_path):
 
     assert state.goals[goal.goal_id].status == GoalStatus.COMPLETED
     assert engine.pending_interrupts(goal.goal_id) == []
+
+
+def test_supervisor_rules_route_obvious_work_without_any_model_call(tmp_path):
+    class Adapter:
+        def __init__(self): self.calls = 0
+        def decide(self, objective): self.calls += 1; return "COMPLEX"
+
+    local, strong = Adapter(), Adapter()
+    engine = HybridWorkflowEngine("org", employees(), tmp_path, supervisor_policy=HybridSupervisorPolicy(local, strong))
+    goal = engine.create_goal("Create one file as a simple note")
+    engine.create_plan(goal.goal_id)
+
+    assert engine.supervisor.last_policy_decision.level == "DETERMINISTIC"
+    assert local.calls == strong.calls == 0
+
+
+def test_supervisor_uses_local_then_strong_planning_with_safe_fallback(tmp_path):
+    class Adapter:
+        def __init__(self, answer=None, fail=False): self.answer, self.fail, self.calls = answer, fail, 0
+        def decide(self, objective):
+            self.calls += 1
+            if self.fail: raise RuntimeError("offline")
+            return self.answer
+
+    local = Adapter("SIMPLE")
+    engine = HybridWorkflowEngine("org", employees(), tmp_path, supervisor_policy=HybridSupervisorPolicy(local, Adapter("COMPLEX")))
+    goal = engine.create_goal("Unclassified request")
+    plan = engine.create_plan(goal.goal_id)
+    assert engine.supervisor.last_policy_decision.level == "LOCAL"
+    assert len(plan.work_item_ids) == 1
+
+    strong = Adapter("COMPLEX")
+    engine = HybridWorkflowEngine("org", employees(), tmp_path, supervisor_policy=HybridSupervisorPolicy(Adapter(fail=True), strong))
+    goal = engine.create_goal("Unclassified request")
+    plan = engine.create_plan(goal.goal_id)
+    assert engine.supervisor.last_policy_decision.level == "STRONG"
+    assert len(plan.work_item_ids) == 3
+
+    engine = HybridWorkflowEngine("org", employees(), tmp_path, supervisor_policy=HybridSupervisorPolicy(Adapter(fail=True), Adapter(fail=True)))
+    goal = engine.create_goal("Unclassified request")
+    engine.create_plan(goal.goal_id)
+    assert engine.supervisor.last_policy_decision.level == "DETERMINISTIC"
 
 
 def test_supervisor_decomposes_goal_and_assigns_by_competency(tmp_path):
