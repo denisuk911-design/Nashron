@@ -19,6 +19,16 @@ def test_requires_api_key(monkeypatch, tmp_path):
     assert result.error == "GEMINI_API_KEY не задан"
 
 
+def test_secure_provider_credential_is_used_when_environment_is_empty(monkeypatch, tmp_path):
+    monkeypatch.setattr(GeminiClient, "_windows_user_api_key", staticmethod(lambda: ""))
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+
+    client = GeminiClient(workspace=tmp_path, credential_lookup=lambda: "credential-from-store")
+
+    assert client.has_api_key()
+    assert client._resolved_api_key() == "credential-from-store"
+
+
 class FakeProcess:
     def __init__(self, returncode=0, stdout='{"response":"Ответ Петра"}', stderr=""):
         self.returncode = returncode

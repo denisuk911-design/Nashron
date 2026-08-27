@@ -10,10 +10,12 @@ from typing import Protocol
 from .database import Database
 from .provider_execution import ProviderCapabilityProfile, ProviderExecutionRequest, ProviderExecutionResult
 from .provider_models import DEFAULT_PROVIDER_PROFILES, ProviderHealth, ProviderProfile
+from .provider_credentials import ProviderCredentialService
 
 
 class ProviderAdapter(Protocol):
     provider_id: str
+    adapter_schema_version: str
 
     def check_health(self) -> ProviderHealth:
         ...
@@ -21,6 +23,7 @@ class ProviderAdapter(Protocol):
 
 class CodexProviderAdapter:
     provider_id = "CODEX_CLI"
+    adapter_schema_version = "1.0"
     capability_profile = ProviderCapabilityProfile(
         provider_id, capabilities=frozenset({"chat", "filesystem.write", "structured_output", "streaming", "cancellation"}),
         supports_native_tools=True, supports_native_structured_output=False, supports_streaming=True,
@@ -91,6 +94,7 @@ class CodexProviderAdapter:
 
 class GeminiProviderAdapter:
     provider_id = "GEMINI_CLI"
+    adapter_schema_version = "1.0"
     capability_profile = ProviderCapabilityProfile(
         provider_id, model_id="gemini-3.1-flash-lite",
         capabilities=frozenset({"chat", "filesystem.write", "structured_output", "cancellation"}),
@@ -120,10 +124,10 @@ class GeminiProviderAdapter:
             version,
             "INSTALLED",
             "AUTHENTICATED" if authenticated else "AUTHENTICATION_REQUIRED",
-            "NOT_CHECKED",
-            "DEGRADED" if authenticated else "NOT_READY",
-            "NOT_CHECKED",
-            diagnostic="API key detected." if authenticated else "GEMINI_API_KEY is not configured.",
+            "ACCESS_AVAILABLE" if authenticated else "NOT_CHECKED",
+            "READY" if authenticated else "NOT_READY",
+            "SUPPORTED" if authenticated else "NOT_CHECKED",
+            diagnostic="Credential configured." if authenticated else "Credential is not configured.",
         )
 
     def execute(self, request: ProviderExecutionRequest) -> ProviderExecutionResult:
@@ -278,6 +282,7 @@ class ProviderHealthService:
         capabilities = sorted(profile.capabilities)
         evidence = {
             "source": "adapter_capability_profile",
+            "adapter_schema_version": str(getattr(adapter, "adapter_schema_version", "1.0")),
             "model_id": profile.model_id,
             "native_tools": profile.supports_native_tools,
             "native_structured_output": profile.supports_native_structured_output,
@@ -291,10 +296,17 @@ class ProviderHealthService:
 class ProviderProvisioningService:
     """Phase 2A.1 coordinator: detection/readiness only, no installation execution."""
 
-    def __init__(self, database: Database, registry: ProviderRegistry, health_service: ProviderHealthService) -> None:
+    def __init__(
+        self,
+        database: Database,
+        registry: ProviderRegistry,
+        health_service: ProviderHealthService,
+        credential_service: ProviderCredentialService | None = None,
+    ) -> None:
         self.database = database
         self.registry = registry
         self.health_service = health_service
+        self.credentials = credential_service or ProviderCredentialService(database)
 
     def ensure_assignments_for_existing_agents(self) -> None:
         supported_provider_ids = {profile.provider_id for profile in self.registry.profiles()}

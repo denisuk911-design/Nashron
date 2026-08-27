@@ -56,7 +56,7 @@ from core.learning_evidence_service import LearningEvidenceService
 from core.learning_manager_service import LearningManagerService
 from core.provider_service import ProviderHealthService, ProviderProvisioningService, ProviderRegistry
 from core.provider_lifecycle_service import ProviderLifecycleService
-from core.secure_storage import SecureStorageUnavailable, WindowsCredentialStore
+from core.secure_storage import SecureStorageUnavailable
 from core.product_metrics_service import ProductMetricsService
 from core.skill_progress_service import SkillProgressService
 from core.skill_package_service import SkillPackageService
@@ -2542,11 +2542,10 @@ class ProvidersTab(QWidget):
         if not ok or not secret.strip():
             return
         try:
-            reference = WindowsCredentialStore().write(profile.provider_id, secret.strip())
-        except (SecureStorageUnavailable, OSError) as exc:
+            reference = self.provisioning_service.credentials.save(profile.provider_id, secret)
+        except (SecureStorageUnavailable, OSError, ValueError) as exc:
             QMessageBox.warning(self, self._text("api_key"), str(exc))
             return
-        self.health_service.database.log_event("provider_credential_saved", f"{profile.provider_id}:{reference}")
         QMessageBox.information(self, self._text("api_key"), self._text("api_key_saved"))
         self.health_service.check_provider(profile.provider_id)
         self.refresh()
@@ -2558,11 +2557,10 @@ class ProvidersTab(QWidget):
         if QMessageBox.question(self, self._text("connections"), self._text("disconnect_confirm")) != QMessageBox.Yes:
             return
         try:
-            removed = WindowsCredentialStore().delete(profile.provider_id)
+            removed = self.provisioning_service.credentials.remove(profile.provider_id)
         except (SecureStorageUnavailable, OSError) as exc:
             QMessageBox.warning(self, self._text("connections"), str(exc))
             return
-        self.health_service.database.log_event("provider_connection_removed", profile.provider_id)
         if removed:
             self.health_service.check_provider(profile.provider_id)
         self.refresh()
@@ -2596,7 +2594,7 @@ class ProvidersTab(QWidget):
         if profile.credential_kind not in {"API_KEY", "OPTIONAL_API_KEY"}:
             return tr(self.language, "no")
         try:
-            secret = WindowsCredentialStore().read(profile.provider_id)
+            secret = self.provisioning_service.credentials.read(profile.provider_id)
         except (SecureStorageUnavailable, OSError):
             secret = None
         if not secret:

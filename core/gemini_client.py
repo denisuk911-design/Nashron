@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import time
 from pathlib import Path
+from typing import Callable
 
 from .models import CodexResult
 from .provider_execution import isolated_provider_environment
@@ -20,6 +21,7 @@ class GeminiClient:
         workspace: Path | None = None,
         timeout_seconds: int = 180,
         api_key: str | None = None,
+        credential_lookup: Callable[[], str | None] | None = None,
         model: str = "gemini-3.1-flash-lite",
         logger: logging.Logger | None = None,
     ) -> None:
@@ -27,6 +29,7 @@ class GeminiClient:
         self.workspace = workspace or Path(tempfile.gettempdir()) / "roman2050_gemini_workspace"
         self.timeout_seconds = timeout_seconds
         self.api_key = api_key
+        self.credential_lookup = credential_lookup
         self.model = model
         self.logger = logger or logging.getLogger(__name__)
         self._process: subprocess.Popen[str] | None = None
@@ -188,7 +191,8 @@ class GeminiClient:
         return value.decode("utf-8", errors="replace")
 
     def _resolved_api_key(self) -> str:
-        return (self.api_key or os.environ.get("GEMINI_API_KEY") or self._windows_user_api_key()).strip()
+        secure_value = self.credential_lookup() if self.credential_lookup is not None else None
+        return (self.api_key or secure_value or os.environ.get("GEMINI_API_KEY") or self._windows_user_api_key()).strip()
 
     @staticmethod
     def _windows_user_api_key() -> str:

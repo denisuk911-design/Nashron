@@ -90,6 +90,7 @@ from core.work_context_service import (
     UserIntent,
     WorkContextService,
 )
+from core.provider_credentials import ProviderCredentialService
 from core.provider_scheduler import ProviderScheduler
 from gui.chat_widget import ChatWidget
 from gui.director_console import DirectorConsoleDialog, OrganizationActivationWizard
@@ -196,6 +197,7 @@ class MainWindow(QMainWindow):
         self.settings["workspace_root"] = str(self.workspace_service.root)
         self.settings_service.save(self.settings)
         self.artifact_service = ArtifactService(self.database, self.workspace_service.root)
+        self.provider_credentials = ProviderCredentialService(self.database)
         self.codex_client = CodexClient(
             workspace=self.workspace_service.chat_runtime,
             timeout_seconds=int(self.settings.get("codex_timeout_seconds", 180)),
@@ -204,6 +206,7 @@ class MainWindow(QMainWindow):
         self.gemini_client = GeminiClient(
             workspace=self.workspace_service.gemini_runtime,
             timeout_seconds=int(self.settings.get("codex_timeout_seconds", 180)),
+            credential_lookup=lambda: self.provider_credentials.read("GEMINI_CLI"),
             logger=logger,
         )
         self.provider_adapters = {
@@ -226,6 +229,7 @@ class MainWindow(QMainWindow):
             self.database,
             self.provider_registry,
             self.provider_health_service,
+            credential_service=self.provider_credentials,
         )
         self.provider_provisioning_service.ensure_assignments_for_existing_agents()
         self.auth_service = AuthService(self.codex_client)
