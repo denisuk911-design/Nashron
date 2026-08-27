@@ -410,7 +410,8 @@ class ThemeManager:
         QFrame#profileCard {{ background: {c['surface_alt']}; border: 1px solid {c['line']}; border-left: 2px solid {c['cyan']}; border-radius: 8px; }}
         QLabel#brand {{ color: {c['text']}; font-size: 16pt; font-weight: 700; }}
         QLabel#brandSubtitle {{ color: {c['muted']}; font-size: 10pt; }}
-        QLabel#appLogo {{ color: {c['text']}; font-size: 18pt; font-weight: 800; border: 1px solid {c['violet']}; border-radius: 22px; min-width: 44px; min-height: 44px; max-width: 44px; max-height: 44px; }}
+        QLabel#appLogo {{ background: transparent; min-width: 44px; min-height: 44px; max-width: 44px; max-height: 44px; }}
+        QLabel#brandImage {{ background: transparent; min-width: 34px; min-height: 34px; max-width: 34px; max-height: 34px; }}
         QLabel#brandMark {{ color: {c['cyan']}; font-size: 14pt; font-weight: 700; border: 1px solid {c['cyan_dark']}; border-radius: 8px; padding: 2px 6px; }}
         QLabel#pageTitle {{ color: {c['text']}; font-size: 11pt; font-weight: 700; }}
         QLabel#sectionTitle {{ color: {c['cyan']}; font-size: 10pt; font-weight: 700; }}

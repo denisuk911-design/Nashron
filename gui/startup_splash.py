@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QLabel, QProgressBar, QVBoxLayout, QWidget
+from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QProgressBar, QVBoxLayout, QWidget
+
+from core.branding import BRAND_NAME, BRAND_TAGLINE
 
 
 class StartupSplash(QWidget):
-    def __init__(self) -> None:
+    def __init__(self, mark_path: Path | None = None) -> None:
         super().__init__(None, Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         self.setObjectName("startupSplash")
         self.setFixedSize(420, 190)
@@ -13,9 +18,18 @@ class StartupSplash(QWidget):
         layout.setContentsMargins(26, 24, 26, 24)
         layout.setSpacing(12)
 
-        title = QLabel("Team2050")
+        header = QHBoxLayout()
+        header.setSpacing(12)
+        mark = QLabel()
+        mark.setObjectName("splashMark")
+        mark.setFixedSize(42, 42)
+        if mark_path is not None and mark_path.is_file():
+            mark.setPixmap(QPixmap(str(mark_path)).scaled(42, 42, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            self.setWindowIcon(QIcon(str(mark_path)))
+        header.addWidget(mark)
+        title = QLabel(BRAND_NAME)
         title.setObjectName("splashTitle")
-        subtitle = QLabel("Запускаю рабочий чат и проверяю службы...")
+        subtitle = QLabel(f"{BRAND_TAGLINE} · запускаю рабочее пространство")
         subtitle.setObjectName("splashSubtitle")
         self.status = QLabel("Подготовка интерфейса")
         self.status.setObjectName("splashStatus")
@@ -23,7 +37,9 @@ class StartupSplash(QWidget):
         progress.setRange(0, 0)
         progress.setTextVisible(False)
 
-        layout.addWidget(title)
+        header.addWidget(title)
+        header.addStretch(1)
+        layout.addLayout(header)
         layout.addWidget(subtitle)
         layout.addStretch(1)
         layout.addWidget(self.status)
@@ -48,6 +64,7 @@ class StartupSplash(QWidget):
                 color: #58c4dd;
                 font: 9pt "Segoe UI";
             }
+            QLabel#splashMark { background: transparent; }
             QProgressBar {
                 background: #0f141b;
                 border: 1px solid #2a3442;

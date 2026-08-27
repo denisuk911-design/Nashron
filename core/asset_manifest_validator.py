@@ -19,6 +19,7 @@ def validate_product_assets(root: Path) -> AssetValidationResult:
     result = AssetValidationResult()
     _validate_theme_manifest(root, result)
     _validate_avatars(root, result)
+    _validate_branding(root, result)
     _validate_audio(root, result)
     _validate_localization(result)
     _validate_package_spec(root, result)
@@ -59,6 +60,12 @@ def _validate_avatars(root: Path, result: AssetValidationResult) -> None:
             result.errors.append(f"avatar:{path.name}:invalid")
 
 
+def _validate_branding(root: Path, result: AssetValidationResult) -> None:
+    mark = root / "data" / "branding" / "team2050-mark.png"
+    if not mark.is_file() or mark.stat().st_size < 10_000:
+        result.errors.append("branding:team2050_mark_missing_or_invalid")
+
+
 def _validate_audio(root: Path, result: AssetValidationResult) -> None:
     sound_dir = root / "data" / "sounds"
     sounds = list(sound_dir.glob("*.wav")) if sound_dir.exists() else []
@@ -88,6 +95,6 @@ def _validate_package_spec(root: Path, result: AssetValidationResult) -> None:
     except OSError as exc:
         result.errors.append(f"package_spec:{exc}")
         return
-    for asset in ("data/avatars", "data/theme_backgrounds"):
+    for asset in ("data/avatars", "data/branding", "data/theme_backgrounds"):
         if asset not in spec:
             result.errors.append(f"package_spec:missing:{asset}")

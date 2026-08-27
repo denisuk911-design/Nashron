@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 
 from PySide6.QtCore import QPropertyAnimation, QSettings, QTimer, Qt
+from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (
     QFileDialog,
     QComboBox,
@@ -31,6 +32,7 @@ from core.auth_service import AuthService
 from core.autonomy import AutonomyRequest, has_handoff_intent, is_stop_command, parse_autonomy_request
 from core.codex_client import CodexClient
 from core.build_info import build_label
+from core.branding import BRAND_NAME, BRAND_TAGLINE, brand_mark_path
 from core.claim_evidence import ClaimEvidenceValidator
 from core.chat_sound_service import ChatSoundService
 from core.config_repository import ConfigurationRepository
@@ -109,10 +111,12 @@ class MainWindow(QMainWindow):
         self.conversation_mode = ConversationMode.SOCIAL
         self.current_thread_id: str | None = None
         self.current_task_id: str | None = None
-        self.setWindowTitle("Team2050")
+        self.setWindowTitle(BRAND_NAME)
         self.setMinimumSize(760, 560)
         self.resize(1280, 800)
         self.settings_service = settings_service
+        self.brand_mark_path = brand_mark_path(settings_service.resource_path("."))
+        self.setWindowIcon(QIcon(str(self.brand_mark_path)))
         self.paths = settings_service.paths
         self.logger = logger
         self.settings = settings_service.load()
@@ -299,6 +303,16 @@ class MainWindow(QMainWindow):
         if hasattr(self, "logger"):
             self.logger.info("startup_state=%s conversation_id=%s", state, self.conversation_id)
 
+    def _brand_mark_label(self, size: int, object_name: str) -> QLabel:
+        label = QLabel()
+        label.setObjectName(object_name)
+        label.setAlignment(Qt.AlignCenter)
+        label.setFixedSize(size, size)
+        pixmap = QPixmap(str(self.brand_mark_path))
+        if not pixmap.isNull():
+            label.setPixmap(pixmap.scaled(size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        return label
+
     def _build_ui(self) -> None:
         root = QWidget()
         root.setObjectName("appRoot")
@@ -310,15 +324,13 @@ class MainWindow(QMainWindow):
         top.setObjectName("topBar")
         top_layout = QHBoxLayout(top)
         top_layout.setContentsMargins(22, 12, 22, 12)
-        brand = QLabel("Team2050")
-        logo = QLabel("R")
-        logo.setObjectName("appLogo")
-        logo.setAlignment(Qt.AlignCenter)
+        brand = QLabel(BRAND_NAME)
+        logo = self._brand_mark_label(44, "appLogo")
         top_layout.addWidget(logo)
         brand.setObjectName("brand")
         brand_column = QVBoxLayout()
         brand_column.setSpacing(1)
-        subtitle = QLabel("Рабочий чат команды")
+        subtitle = QLabel(BRAND_TAGLINE)
         subtitle.setObjectName("brandSubtitle")
         brand_column.addWidget(brand)
         brand_column.addWidget(subtitle)
@@ -392,8 +404,7 @@ class MainWindow(QMainWindow):
         layout.setSpacing(10)
 
         header = QHBoxLayout()
-        logo = QLabel("◈")
-        logo.setObjectName("brandMark")
+        logo = self._brand_mark_label(34, "brandImage")
         title = QLabel("TEAM\n2050")
         title.setObjectName("brand")
         collapse = QToolButton()
@@ -622,7 +633,7 @@ class MainWindow(QMainWindow):
         profile_layout = QVBoxLayout(profile)
         profile_layout.setContentsMargins(12, 12, 12, 12)
         profile_layout.addWidget(QLabel("Команда", objectName="pageTitle"))
-        profile_layout.addWidget(QLabel("R+P", objectName="brandMark"))
+        profile_layout.addWidget(self._brand_mark_label(34, "brandImage"))
         profile_layout.addWidget(QLabel("Сотрудники · назначенные AI-провайдеры\nКороткие ответы, общий план, разделение задач", objectName="muted"))
         profile_layout.addWidget(QLabel("●  оба доступны при авторизации", objectName="online"))
         about = QPushButton("Подробнее о команде  →")

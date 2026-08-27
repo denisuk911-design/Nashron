@@ -9,10 +9,12 @@ from pathlib import Path
 import traceback
 
 from PySide6.QtCore import QLockFile, QTimer
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 from PySide6.QtWidgets import QMessageBox
 
 from core.management_models import AgentProfile
+from core.branding import BRAND_NAME, brand_mark_path
 from core.settings_service import SettingsService
 from core.unicode_pipeline import validate_unicode_catalog
 from gui.main_window import MainWindow
@@ -346,16 +348,17 @@ def main() -> int:
     if unicode_errors:
         logger.error("unicode_catalog_invalid errors=%s", ";".join(unicode_errors))
     app = QApplication(sys.argv)
-    app.setApplicationName("Team2050")
+    app.setApplicationName(BRAND_NAME)
     app.setOrganizationName("Roman2050")
+    app.setWindowIcon(QIcon(str(brand_mark_path(settings_service.resource_path(".")))))
 
     lock = QLockFile(str(settings_service.paths.user_dir / "roman2050.lock"))
     lock.setStaleLockTime(30000)
     if not lock.tryLock(100):
-        QMessageBox.information(None, "Team2050", "Программа уже запущена")
+        QMessageBox.information(None, BRAND_NAME, "Программа уже запущена")
         return 0
 
-    splash = StartupSplash()
+    splash = StartupSplash(brand_mark_path(settings_service.resource_path(".")))
     splash.show()
     app.processEvents()
     splash.set_status("Загружаю настройки и базу данных")

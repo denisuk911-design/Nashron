@@ -16,6 +16,7 @@ datas = [
     ("data/agent_skills.json", "data"),
     ("data/app_settings.json", "data"),
     ("data/avatars", "data/avatars"),
+    ("data/branding", "data/branding"),
     ("data/theme_backgrounds", "data/theme_backgrounds"),
     ("build/build_info.json", "data"),
 ]
