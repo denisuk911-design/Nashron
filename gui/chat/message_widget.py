@@ -60,6 +60,7 @@ class MessageWidget(QFrame):
         author_name: str | None = None,
         avatar_path: str | None = None,
         author_title: str | None = None,
+        attachment_paths: list[Path] | None = None,
     ) -> None:
         super().__init__()
         self.role = role
@@ -119,7 +120,7 @@ class MessageWidget(QFrame):
         self.image_row = QHBoxLayout()
         self.image_row.setSpacing(8)
         card_layout.addLayout(self.image_row)
-        self.set_content(content)
+        self.set_content(content, attachment_paths)
 
         outer.addWidget(card)
         if role == "user" and avatar_path:
@@ -129,10 +130,10 @@ class MessageWidget(QFrame):
         if role != "user":
             outer.addStretch(1)
 
-    def set_content(self, content: str) -> None:
+    def set_content(self, content: str, attachment_paths: list[Path] | None = None) -> None:
         self.content = content
         self.body.setText(content)
-        self._set_images(self._extract_image_paths(content))
+        self._set_images(attachment_paths if attachment_paths is not None else self._extract_image_paths(content))
         self._sync_body_width()
         self.updateGeometry()
         self.adjustSize()

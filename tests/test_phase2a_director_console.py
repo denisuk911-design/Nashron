@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pytest
 
 from core.config_repository import ConfigurationRepository
@@ -196,3 +198,34 @@ def test_active_employee_without_history_can_be_deleted_permanently(tmp_path):
     service.delete_agent(profile.agent_id, OWNER_ROLE, confirmed=True)
 
     assert db.get_agent_profile(profile.agent_id) is None
+
+
+def test_deleting_employee_keeps_active_work_and_run_history(tmp_path):
+    db, service = make_service(tmp_path)
+    profile = AgentProfile(
+        agent_id=service.generate_agent_id("Temporary executor"),
+        display_name="Temporary executor",
+        description="Assigned work fixture",
+        lifecycle_state="ACTIVE",
+        provider_id="CODEX_CLI",
+    )
+    service.create_agent(profile, ["DOCUMENT_CONTROL_OFFICER"], ["CHAT"], reason="delete safety test")
+    db.ensure_project("project-default", "Default Project")
+    task_id = db.create_task("project-default", "Active work", None, "1.0")
+    run_id = db.create_agent_run(
+        task_id=task_id,
+        agent_id=profile.agent_id,
+        agent_key=profile.agent_id,
+        logical_role="DOCUMENT_CONTROL_OFFICER",
+        provider="CODEX_CLI",
+        prompt_hash=None,
+        started_at=datetime.now().isoformat(timespec="seconds"),
+    )
+
+    service.delete_agent(profile.agent_id, OWNER_ROLE, confirmed=True)
+
+    assert db.get_agent_profile(profile.agent_id) is None
+    assert db.get_task(task_id)["state"] == "OPEN"
+    assert db.get_agent_run(run_id)["agent_id"] == profile.agent_id
+    with db.connect() as conn:
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []

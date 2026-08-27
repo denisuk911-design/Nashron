@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
 from core.agent_directory import ChatAgent, ROLE_NAMES, agent_id_from_key, get_chat_agent, list_chat_agents, mention_tokens
 from core.agent_router import AgentRouter
 from core.artifact_service import ArtifactService
+from core.chat_attachment_service import ChatAttachment, ChatAttachmentService
 from core.auth_service import AuthService
 from core.autonomy import AutonomyRequest, has_handoff_intent, is_stop_command, parse_autonomy_request
 from core.codex_client import CodexClient
@@ -50,7 +51,6 @@ from core.learning_evidence_service import LearningEvidenceService
 from core.learning_manager_service import LearningManagerService
 from core.management_service import ManagementService
 from core.memory_service import MemoryService
-from core.path_guard import PathGuardError
 from core.prompt_builder import PromptBuilder
 from core.product_metrics_service import ProductMetricsService
 from core.provider_service import (
@@ -197,6 +197,8 @@ class MainWindow(QMainWindow):
         self.settings["workspace_root"] = str(self.workspace_service.root)
         self.settings_service.save(self.settings)
         self.artifact_service = ArtifactService(self.database, self.workspace_service.root)
+        self.chat_attachment_service = ChatAttachmentService(self.database, self.workspace_service.root)
+        self.pending_chat_attachments: list[ChatAttachment] = []
         self.provider_credentials = ProviderCredentialService(self.database)
         self.codex_client = CodexClient(
             workspace=self.workspace_service.chat_runtime,
@@ -469,6 +471,9 @@ class MainWindow(QMainWindow):
         self.chat.send_requested.connect(self.send_message)
         self.chat.stop_requested.connect(self.stop_generation)
         self.chat.attach_requested.connect(self.attach_file)
+        self.chat.files_attached.connect(self.attach_files)
+        self.chat.image_attached.connect(self.attach_clipboard_image)
+        self.chat.attachment_removed.connect(self.remove_pending_attachment)
         self.chat.copy_requested.connect(self.copy_chat_to_clipboard)
         self.empty_team_panel = self._build_empty_team_panel()
         layout.addWidget(self.empty_team_panel, 1)
@@ -746,7 +751,9 @@ class MainWindow(QMainWindow):
         history_limit = max(1, int(self.settings.get("history_message_limit", 20)))
         for message in self.database.list_messages(self.conversation_id, limit=history_limit):
             if message.role != "system":
-                self.chat.add_message(message.role, self._display_text_from_raw_response(message.content), message.id, message.created_at[11:16])
+                attachments = self.chat_attachment_service.attachments_for_message(self.conversation_id, message.id)
+                paths = [self.chat_attachment_service.physical_path(item) for item in attachments]
+                self.chat.add_message(message.role, self._display_text_from_raw_response(message.content), message.id, message.created_at[11:16], paths)
         self._update_empty_team_state()
 
     def _chat_agents(self) -> list[ChatAgent]:
@@ -872,13 +879,72 @@ class MainWindow(QMainWindow):
         source, _ = QFileDialog.getOpenFileName(self, "Прикрепить файл")
         if not source:
             return
+        self.attach_files([source])
+
+    def attach_files(self, sources: list[str]) -> None:
+        for source in sources:
+            try:
+                attachment = self.chat_attachment_service.import_file(self.conversation_id, Path(source))
+            except (OSError, ValueError) as exc:
+                QMessageBox.warning(self, "Файл не добавлен", str(exc))
+                continue
+            self.pending_chat_attachments.append(attachment)
+            self.database.log_event("chat_attachment_imported", attachment.attachment_id)
+        self._refresh_pending_attachments()
+
+    def attach_clipboard_image(self, content: bytes, filename: str) -> None:
         try:
-            copied = self.workspace_service.copy_input_to_workspace(Path(source))
-        except (OSError, ValueError, PathGuardError) as exc:
+            attachment = self.chat_attachment_service.import_bytes(self.conversation_id, content, filename)
+        except (OSError, ValueError) as exc:
             QMessageBox.warning(self, "Файл не добавлен", str(exc))
             return
-        self.database.log_event("file_imported", str(copied.relative_to(self.workspace_service.root)))
-        self.chat.input.insertPlainText(f"[Файл скопирован в рабочую папку: {copied.name}] ")
+        self.pending_chat_attachments.append(attachment)
+        self.database.log_event("chat_attachment_clipboard_imported", attachment.attachment_id)
+        self._refresh_pending_attachments()
+
+    def remove_pending_attachment(self, index: int) -> None:
+        if 0 <= index < len(self.pending_chat_attachments):
+            self.pending_chat_attachments.pop(index)
+        self._refresh_pending_attachments()
+
+    def _refresh_pending_attachments(self) -> None:
+        self.chat.set_pending_attachments([
+            {"display_name": item.display_name, "media_type": item.media_type, "size": item.size}
+            for item in self.pending_chat_attachments
+        ])
+
+    def _consume_pending_attachments(self, message_id: int) -> list[ChatAttachment]:
+        attachments = list(self.pending_chat_attachments)
+        self.chat_attachment_service.bind_to_message(attachments, message_id)
+        self.pending_chat_attachments.clear()
+        self._refresh_pending_attachments()
+        return attachments
+
+    @staticmethod
+    def _attachment_execution_text(text: str, attachments: list[ChatAttachment]) -> str:
+        if not attachments:
+            return text
+        manifest = "\n".join(
+            f"- artifact://chat/{item.attachment_id} | {item.display_name} | {item.media_type} | {item.relative_path}"
+            for item in attachments
+        )
+        return f"{text}\n\nВЛОЖЕНИЯ ПОЛЬЗОВАТЕЛЯ (читай файлы через workspace/tool, binary в prompt не добавляй):\n{manifest}"
+
+    def _route_agents_for_attachments(self, agent_keys: list[str], attachments: list[ChatAttachment]) -> list[str]:
+        if not any(item.is_image for item in attachments):
+            return agent_keys
+        vision_agents: list[str] = []
+        for agent_key in agent_keys:
+            route = self.agent_router.route(agent_key)
+            adapter = self.provider_adapters.get(route.provider)
+            profile = getattr(adapter, "capability_profile", None)
+            if profile is not None and profile.supports({"vision.input"}):
+                vision_agents.append(agent_key)
+        if vision_agents:
+            self.database.log_event("chat_attachment_vision_route", ",".join(vision_agents))
+            return vision_agents
+        self.database.log_event("chat_attachment_tool_fallback", ",".join(agent_keys))
+        return agent_keys
 
     def _update_conversation_mode(self, text: str) -> None:
         options = self.chat.routing_options()
@@ -893,6 +959,8 @@ class MainWindow(QMainWindow):
         self._refresh_work_context_strip()
 
     def send_message(self, text: str) -> None:
+        if not text and getattr(self, "pending_chat_attachments", []):
+            text = "Материалы приложены. Проверьте вложения и используйте их только по задаче."
         self._clear_dead_worker()
         if self.worker is not None:
             if is_stop_command(text):
@@ -916,7 +984,12 @@ class MainWindow(QMainWindow):
         trace = SendPipelineTrace()
         trace.mark("send_clicked")
         self.chat.reset_stream()
-        item = self.chat.add_message("user", text)
+        pending = list(getattr(self, "pending_chat_attachments", []))
+        pending_paths = [self.chat_attachment_service.physical_path(item) for item in pending] if pending else []
+        if pending_paths:
+            item = self.chat.add_message("user", text, attachment_paths=pending_paths)
+        else:
+            item = self.chat.add_message("user", text)
         trace.mark("user_bubble_created")
         self._clear_composer_input()
         self.chat_sound_service.play_send()
@@ -926,11 +999,13 @@ class MainWindow(QMainWindow):
     def _continue_send_message(self, text: str, item, trace: SendPipelineTrace) -> None:
         trace.mark("event_loop_returned")
         message_id = self.database.add_message(self.conversation_id, "user", text)
+        attachments = self._consume_pending_attachments(message_id)
         bind_message_id = getattr(self.chat, "bind_message_id", None)
         if callable(bind_message_id):
             bind_message_id(item, message_id)
         trace.mark("message_persisted")
-        self._update_conversation_mode(text)
+        execution_text = self._attachment_execution_text(text, attachments)
+        self._update_conversation_mode(execution_text)
         if "почему сотрудник не работает" in text.lower():
             agent = get_chat_agent(self.current_agent_key)
             provider_id = agent.provider_id if agent else "CODEX_CLI"
@@ -939,28 +1014,29 @@ class MainWindow(QMainWindow):
             self.database.add_message(self.conversation_id, "assistant", answer)
             self._flush_send_trace(final=True)
             return
-        autonomy = self._autonomy_from_text(text)
+        autonomy = self._autonomy_from_text(execution_text)
         if autonomy.enabled:
             self.conversation_mode = ConversationMode.WORK
             self._refresh_work_context_strip()
-        if self._try_start_runtime_v3_goal(text, message_id):
+        if self._try_start_runtime_v3_goal(execution_text, message_id):
             trace.mark("runtime_v3_goal_completed")
             self._flush_send_trace(final=True)
             return
         if autonomy.enabled and autonomy.complete_on_goal and self.active_organization_id:
-            if self._start_director_goal(text, message_id):
+            if self._start_director_goal(execution_text, message_id):
                 trace.mark("runs_queued")
                 self._flush_send_trace()
                 return
         trace.mark("routing_started")
-        agent_keys = self._route_agents(text, self._manual_routing())
+        agent_keys = self._route_agents(execution_text, self._manual_routing())
+        agent_keys = self._route_agents_for_attachments(agent_keys, attachments)
         trace.mark("routing_completed")
         trace.set_agents(agent_keys)
         self.database.log_event("chat_route_selected", ",".join(agent_keys))
         if not agent_keys:
             self._record_last_routing_decision(message_id)
-            self._persist_thread_from_last_decision(message_id, None, text)
-            self._record_thread_question_from_last_decision(message_id, text)
+            self._persist_thread_from_last_decision(message_id, None, execution_text)
+            self._record_thread_question_from_last_decision(message_id, execution_text)
             self._flush_send_trace(final=True)
             return
         agent_keys = self._autonomous_initial_agents(agent_keys, autonomy)
@@ -969,13 +1045,13 @@ class MainWindow(QMainWindow):
             return
         if self._any_agent_allows_local_tools(agent_keys):
             self.database.log_event("local_tools_enabled_for_request", ",".join(agent_keys))
-        if not self._prepare_work_context(text, message_id, agent_keys):
+        if not self._prepare_work_context(execution_text, message_id, agent_keys):
             self._flush_send_trace(final=True)
             return
-        if self._prepare_generation_state(text, message_id, agent_keys, autonomy):
+        if self._prepare_generation_state(execution_text, message_id, agent_keys, autonomy):
             self._record_last_routing_decision(message_id)
-            self._persist_thread_from_last_decision(message_id, self.task_orchestrator.current_task_id, text)
-            self._record_thread_question_from_last_decision(message_id, text)
+            self._persist_thread_from_last_decision(message_id, self.task_orchestrator.current_task_id, execution_text)
+            self._record_thread_question_from_last_decision(message_id, execution_text)
             trace.mark("runs_queued")
             for index, agent_key in enumerate(agent_keys, start=1):
                 trace.mark(f"run_{index}_queued:{agent_key}")
@@ -1585,8 +1661,14 @@ class MainWindow(QMainWindow):
         return bool(ready)
 
     def _add_user_message(self, text: str) -> int:
+        pending = list(getattr(self, "pending_chat_attachments", []))
+        paths = [self.chat_attachment_service.physical_path(item) for item in pending] if pending else []
         message_id = self.database.add_message(self.conversation_id, "user", text)
-        self.chat.add_message("user", text, message_id)
+        if pending:
+            self._consume_pending_attachments(message_id)
+            self.chat.add_message("user", text, message_id, attachment_paths=paths)
+        else:
+            self.chat.add_message("user", text, message_id)
         self.chat_sound_service.play_send()
         return message_id
 

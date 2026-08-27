@@ -81,6 +81,7 @@ class Database:
             self._ensure_learning_evidence_schema(conn)
             self._ensure_director_schema(conn)
             self._ensure_runtime_v2_schema(conn)
+            self._ensure_chat_attachment_schema(conn)
             self._repair_renamed_message_foreign_keys(conn)
             self._repair_orphaned_routing_decisions(conn)
         # A legacy writable-schema migration could leave freed pages outside
@@ -93,6 +94,29 @@ class Database:
         from runtime_v2.sqlite_repository import ensure_runtime_v2_schema
 
         ensure_runtime_v2_schema(conn)
+
+    @staticmethod
+    def _ensure_chat_attachment_schema(conn: sqlite3.Connection) -> None:
+        """Persist chat uploads separately from prose and binary prompt content."""
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS chat_attachments (
+                id TEXT PRIMARY KEY,
+                conversation_id INTEGER NOT NULL,
+                message_id INTEGER,
+                relative_path TEXT NOT NULL,
+                display_name TEXT NOT NULL,
+                media_type TEXT NOT NULL,
+                size INTEGER NOT NULL,
+                sha256 TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+                FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE SET NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_chat_attachments_conversation_message
+                ON chat_attachments(conversation_id, message_id, created_at);
+            """
+        )
 
     def _prepare_existing_storage(self) -> None:
         if not self.path.exists() or self.path.stat().st_size == 0:
@@ -1623,6 +1647,46 @@ class Database:
                 (conversation_id,),
             )
             return int(cur.lastrowid)
+
+    def add_chat_attachment(
+        self,
+        *,
+        attachment_id: str,
+        conversation_id: int,
+        relative_path: str,
+        display_name: str,
+        media_type: str,
+        size: int,
+        sha256: str,
+    ) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO chat_attachments
+                    (id, conversation_id, relative_path, display_name, media_type, size, sha256, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (attachment_id, conversation_id, relative_path, display_name, media_type, size, sha256, datetime.now().isoformat(timespec="seconds")),
+            )
+
+    def bind_chat_attachments(self, attachment_ids: list[str], message_id: int) -> None:
+        if not attachment_ids:
+            return
+        with self.connect() as conn:
+            conn.executemany(
+                "UPDATE chat_attachments SET message_id = ? WHERE id = ? AND message_id IS NULL",
+                [(message_id, attachment_id) for attachment_id in attachment_ids],
+            )
+
+    def list_chat_attachments(self, conversation_id: int, message_id: int | None = None) -> list[sqlite3.Row]:
+        sql = "SELECT * FROM chat_attachments WHERE conversation_id = ?"
+        params: list[object] = [conversation_id]
+        if message_id is not None:
+            sql += " AND message_id = ?"
+            params.append(message_id)
+        sql += " ORDER BY created_at ASC, id ASC"
+        with self.connect() as conn:
+            return conn.execute(sql, tuple(params)).fetchall()
 
     def list_messages(self, conversation_id: int, limit: int | None = None) -> list[Message]:
         sql = (

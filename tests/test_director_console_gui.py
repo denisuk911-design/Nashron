@@ -38,6 +38,7 @@ def test_director_console_renders_clean_employee_list(tmp_path):
 
     assert dialog.tabs.count() == 15
     assert dialog.tabs.tabText(1) == "Организация"
+    assert "Supervisor" in [dialog.tabs.tabText(index) for index in range(dialog.tabs.count())]
     assert dialog.employee_tab.table.rowCount() == 0
     assert dialog.learning_tab.experience_table.rowCount() == 0
     assert dialog.learning_tab.queue_table.rowCount() == 0

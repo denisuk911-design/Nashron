@@ -4,7 +4,9 @@ import re
 from collections import deque
 from datetime import datetime
 
-from PySide6.QtCore import QEvent, QEasingCurve, QItemSelection, QItemSelectionModel, QObject, QPropertyAnimation, QSize, Qt, QTimer, Signal
+from pathlib import Path
+
+from PySide6.QtCore import QBuffer, QEvent, QEasingCurve, QIODevice, QItemSelection, QItemSelectionModel, QObject, QPropertyAnimation, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QKeyEvent, QMouseEvent, QWheelEvent
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -162,6 +164,12 @@ class MessageList(QListWidget):
 
 class MessageInput(QTextEdit):
     send_requested = Signal()
+    files_dropped = Signal(list)
+    image_pasted = Signal(bytes, str)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setAcceptDrops(True)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.key() in (Qt.Key_Return, Qt.Key_Enter) and not event.modifiers() & Qt.ShiftModifier:
@@ -170,11 +178,38 @@ class MessageInput(QTextEdit):
             return
         super().keyPressEvent(event)
 
+    def insertFromMimeData(self, source) -> None:
+        if source.hasImage():
+            image = source.imageData()
+            buffer = QBuffer()
+            buffer.open(QIODevice.WriteOnly)
+            if image.save(buffer, "PNG"):
+                self.image_pasted.emit(bytes(buffer.data()), "clipboard-image.png")
+                return
+        urls = [url.toLocalFile() for url in source.urls() if url.isLocalFile()]
+        if urls:
+            self.files_dropped.emit(urls)
+            return
+        super().insertFromMimeData(source)
+
+    def dragEnterEvent(self, event) -> None:
+        if event.mimeData().hasUrls() or event.mimeData().hasImage():
+            event.acceptProposedAction()
+            return
+        super().dragEnterEvent(event)
+
+    def dropEvent(self, event) -> None:
+        self.insertFromMimeData(event.mimeData())
+        event.acceptProposedAction()
+
 
 class ChatWidget(QWidget):
     send_requested = Signal(str)
     stop_requested = Signal()
     attach_requested = Signal()
+    files_attached = Signal(list)
+    image_attached = Signal(bytes, str)
+    attachment_removed = Signal(int)
     copy_requested = Signal()
 
     def __init__(self, language: str = "ru") -> None:
@@ -203,6 +238,7 @@ class ChatWidget(QWidget):
         self._agent_titles: dict[str, str] = {"user": "Владелец"}
         self._recipient_keys: list[str] = []
         self._ui_labels: dict[str, str] = {}
+        self._pending_attachment_count = 0
 
         self.typing_timer = QTimer(self)
         self.typing_timer.setInterval(260)
@@ -234,6 +270,8 @@ class ChatWidget(QWidget):
         self.input.setMaximumHeight(220)
         self.input.send_requested.connect(self._emit_send)
         self.input.textChanged.connect(self._resize_input)
+        self.input.files_dropped.connect(self.files_attached.emit)
+        self.input.image_pasted.connect(self.image_attached.emit)
 
         self.send_button = QPushButton("➤")
         self.send_button.setObjectName("sendButton")
@@ -261,6 +299,9 @@ class ChatWidget(QWidget):
         composer_layout = QVBoxLayout(composer)
         composer_layout.setContentsMargins(10, 8, 10, 8)
         composer_layout.setSpacing(4)
+        self.attachment_chips = QHBoxLayout()
+        self.attachment_chips.setSpacing(6)
+        composer_layout.addLayout(self.attachment_chips)
         input_row = QHBoxLayout()
         input_row.setSpacing(8)
         self.attach_button = QPushButton("＋")
@@ -374,7 +415,14 @@ class ChatWidget(QWidget):
         self.mode_selector.blockSignals(False)
         self.mode_selector.setToolTip(labels["mode_tip"])
 
-    def add_message(self, role: str, content: str, message_id: int | None = None, created_at: str = "") -> QListWidgetItem:
+    def add_message(
+        self,
+        role: str,
+        content: str,
+        message_id: int | None = None,
+        created_at: str = "",
+        attachment_paths: list[Path] | None = None,
+    ) -> QListWidgetItem:
         should_follow = self._should_follow_output()
         item = QListWidgetItem()
         timestamp = created_at or datetime.now().strftime("%H:%M")
@@ -385,8 +433,9 @@ class ChatWidget(QWidget):
             self._label_for_role(role),
             self._agent_avatars.get(role),
             self._agent_titles.get(role),
+            attachment_paths,
         )
-        item.setData(Qt.UserRole, {"id": message_id, "role": role, "content": content, "created_at": timestamp})
+        item.setData(Qt.UserRole, {"id": message_id, "role": role, "content": content, "created_at": timestamp, "attachments": [str(path) for path in attachment_paths or []]})
         item.setData(Qt.UserRole + 1, role)
         self.messages.addItem(item)
         self.messages.setItemWidget(item, widget)
@@ -395,6 +444,23 @@ class ChatWidget(QWidget):
         self._resize_message_widgets()
         self._follow_output_if_needed(should_follow)
         return item
+
+    def set_pending_attachments(self, attachments: list[dict[str, object]]) -> None:
+        self._pending_attachment_count = len(attachments)
+        while self.attachment_chips.count():
+            child = self.attachment_chips.takeAt(0)
+            widget = child.widget()
+            if widget is not None:
+                widget.deleteLater()
+        for index, attachment in enumerate(attachments):
+            name = str(attachment.get("display_name") or "file")
+            size = int(attachment.get("size") or 0)
+            chip = QPushButton(f"{name} · {max(1, size // 1024)} KB  ×")
+            chip.setObjectName("attachmentChip")
+            chip.setToolTip(str(attachment.get("media_type") or ""))
+            chip.clicked.connect(lambda _checked=False, item_index=index: self.attachment_removed.emit(item_index))
+            self.attachment_chips.addWidget(chip)
+        self.attachment_chips.addStretch(1)
 
     @staticmethod
     def bind_message_id(item: QListWidgetItem, message_id: int) -> None:
@@ -980,7 +1046,7 @@ class ChatWidget(QWidget):
 
     def _emit_send(self) -> None:
         text = self.input.toPlainText().strip()
-        if not text:
+        if not text and not self._pending_attachment_count:
             return
         self.send_requested.emit(text)
         self.focus_input_later()

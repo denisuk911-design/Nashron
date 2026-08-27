@@ -97,7 +97,7 @@ class GeminiProviderAdapter:
     adapter_schema_version = "1.0"
     capability_profile = ProviderCapabilityProfile(
         provider_id, model_id="gemini-3.1-flash-lite",
-        capabilities=frozenset({"chat", "filesystem.write", "structured_output", "cancellation"}),
+        capabilities=frozenset({"chat", "filesystem.write", "structured_output", "cancellation", "vision.input"}),
         supports_native_tools=True, supports_native_structured_output=True,
     )
 

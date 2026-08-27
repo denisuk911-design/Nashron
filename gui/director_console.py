@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QMenu,
     QMessageBox,
     QProgressBar,
     QPushButton,
@@ -161,7 +162,7 @@ class DirectorConsoleDialog(QDialog):
         self.tabs.addTab(self.universal_tab, tr(language, "organization"))
         self.tabs.addTab(
             self.director_plans_tab,
-            {"ru": "Планы", "uk": "Плани", "en": "Plans"}.get(language, "Plans"),
+            {"ru": "Supervisor", "uk": "Supervisor", "en": "Supervisor"}.get(language, "Supervisor"),
         )
         self.tabs.addTab(self.employee_tab, tr(language, "employees"))
         self.tabs.addTab(self.roles_tab, tr(language, "roles"))
@@ -234,6 +235,8 @@ class DirectorPlansTab(QWidget):
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self._show_context_menu)
         self.table.itemSelectionChanged.connect(self._show_detail)
         self.detail = QTextEdit()
         self.detail.setReadOnly(True)
@@ -313,6 +316,14 @@ class DirectorPlansTab(QWidget):
         if items:
             self.detail.setPlainText(str(items[0].data(Qt.UserRole) or ""))
 
+    def _show_context_menu(self, point) -> None:
+        if self.table.itemAt(point) is None:
+            return
+        menu = QMenu(self)
+        refresh = menu.addAction({"ru": "Обновить план", "uk": "Оновити план", "en": "Refresh plan"}.get(self.language, "Refresh plan"))
+        refresh.triggered.connect(self.refresh)
+        menu.exec(self.table.viewport().mapToGlobal(point))
+
 
 class UniversalPlatformTab(QWidget):
     """No-code catalog and operational organization activation surface."""
@@ -353,6 +364,8 @@ class UniversalPlatformTab(QWidget):
         cleanup_legacy.clicked.connect(self.cleanup_legacy_agents)
         self.template_search.textChanged.connect(self.refresh)
         self.organizations.currentItemChanged.connect(self._show_organization_dashboard)
+        self.organizations.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.organizations.customContextMenuRequested.connect(self._show_organization_menu)
         actions = QHBoxLayout()
         for button in (create_profession, create_organization, create_template, instantiate, seed, archive_organization, restore_organization, delete_organization, cleanup_legacy):
             actions.addWidget(button)
@@ -459,6 +472,18 @@ class UniversalPlatformTab(QWidget):
             self.refresh()
         except Exception as exc:
             QMessageBox.warning(self, "Организация не удалена", friendly_error(str(exc), self.language))
+
+    def _show_organization_menu(self, point) -> None:
+        if self.organizations.itemAt(point) is None:
+            return
+        menu = QMenu(self)
+        archive = menu.addAction("Архивировать безопасно")
+        restore = menu.addAction("Восстановить")
+        delete = menu.addAction("Удалить пустую организацию")
+        archive.triggered.connect(lambda: self.change_organization_status("ARCHIVED"))
+        restore.triggered.connect(lambda: self.change_organization_status("ACTIVE"))
+        delete.triggered.connect(self.delete_selected_organization)
+        menu.exec(self.organizations.viewport().mapToGlobal(point))
 
     def cleanup_legacy_agents(self) -> None:
         management = getattr(self.service, "management_service", None)
@@ -989,6 +1014,8 @@ class EmployeesTab(QWidget):
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self._show_context_menu)
         self.table.itemSelectionChanged.connect(self._show_selected_detail)
         self.detail = QTextEdit()
         self.detail.setReadOnly(True)
@@ -1140,6 +1167,20 @@ class EmployeesTab(QWidget):
             QMessageBox.warning(self, tr(self.language, "rejected"), friendly_error(str(exc), self.language))
             return
         self.console.refresh_all()
+
+    def _show_context_menu(self, point) -> None:
+        if self.table.itemAt(point) is None:
+            return
+        menu = QMenu(self)
+        edit = menu.addAction(tr(self.language, "edit"))
+        archive = menu.addAction(tr(self.language, "archive"))
+        reassign = menu.addAction({"ru": "Переназначить роль и доступы", "uk": "Перепризначити роль і доступи", "en": "Reassign role and permissions"}.get(self.language, "Reassign role and permissions"))
+        delete = menu.addAction(tr(self.language, "delete_permanently"))
+        edit.triggered.connect(self.edit_employee)
+        reassign.triggered.connect(self.edit_employee)
+        archive.triggered.connect(lambda: self.lifecycle_action("ARCHIVED"))
+        delete.triggered.connect(self.delete_selected_employee)
+        menu.exec(self.table.viewport().mapToGlobal(point))
 
 
 class SkillProgressTab(QWidget):
@@ -1868,6 +1909,8 @@ class ArtifactsTab(QWidget):
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self._show_context_menu)
         self.table.itemSelectionChanged.connect(self._show_selected_detail)
         self.detail = QTextEdit()
         self.detail.setReadOnly(True)
@@ -1977,6 +2020,16 @@ class ArtifactsTab(QWidget):
             QMessageBox.information(self, "Р С’РЎР‚РЎвЂљР ВµРЎвЂћР В°Р С”РЎвЂљРЎвЂ№", "Р В¤Р В°Р в„–Р В» Р Р…Р Вµ Р Р…Р В°Р в„–Р Т‘Р ВµР Р… Р Р† РЎР‚Р В°Р В±Р С•РЎвЂЎР ВµР в„– Р С—Р В°Р С—Р С”Р Вµ.")
             return
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(target)))
+
+    def _show_context_menu(self, point) -> None:
+        if self.table.itemAt(point) is None:
+            return
+        menu = QMenu(self)
+        open_file = menu.addAction("Открыть файл")
+        refresh = menu.addAction("Проверить актуальность")
+        open_file.triggered.connect(self._open_selected_file)
+        refresh.triggered.connect(self.refresh)
+        menu.exec(self.table.viewport().mapToGlobal(point))
 
 
 class FindingsTab(QWidget):

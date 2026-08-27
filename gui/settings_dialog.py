@@ -254,7 +254,7 @@ class SettingsDialog(QDialog):
             form.setFieldGrowthPolicy(QFormLayout.AllNonFixedFieldsGrow)
             tabs.addTab(page, title)
             forms.append(form)
-        layout = forms[0]
+        general_form, appearance_form, sound_form, ai_form, notifications_form, data_form, advanced_form = forms
         labels = {
             "ru": {
                 "history": "Лимит краткой истории",
@@ -298,35 +298,35 @@ class SettingsDialog(QDialog):
                 "workspace": "Рабочая папка",
                 "language": "Язык интерфейса",
             }
-        layout.addRow(labels["history"], self.history_limit)
-        layout.addRow(labels["timeout"], self.timeout)
-        layout.addRow(labels["soft_warning"], self.response_soft_warning)
-        layout.addRow(labels["extended_warning"], self.response_extended_warning)
-        layout.addRow(labels["response_timeout"], self.response_timeout)
-        layout.addRow(labels["theme"], self.theme)
-        layout.addRow({"ru": "Предпросмотр", "uk": "Попередній перегляд", "en": "Preview"}.get(language, "Предпросмотр"), self.theme_preview)
-        layout.addRow({"ru": "Фон чата", "uk": "Фон чату", "en": "Chat background"}.get(language, "Фон чата"), background_row)
-        layout.addRow({"ru": "Прозрачность фона", "uk": "Прозорість фону", "en": "Background opacity"}.get(language, "Прозрачность фона"), self.background_opacity)
-        layout.addRow({"ru": "Размещение фона", "uk": "Розміщення фону", "en": "Background placement"}.get(language, "Размещение фона"), self.background_mode)
-        layout.addRow({"ru": "Затемнение", "uk": "Затемнення", "en": "Darkening"}.get(language, "Затемнение"), self.background_darkening)
-        layout.addRow({"ru": "Размытие", "uk": "Розмиття", "en": "Blur"}.get(language, "Размытие"), self.background_blur)
-        layout.addRow({"ru": "Смена встроенного фона", "uk": "Зміна вбудованого фону", "en": "Built-in background rotation"}.get(language, "Смена встроенного фона"), self.background_rotation)
-        layout.addRow(labels["workspace"], workspace_row)
-        layout.addRow({"ru": "Мой аватар", "uk": "Мій аватар", "en": "My avatar"}.get(language, "Мой аватар"), avatar_row)
-        layout.addRow(labels["language"], self.language)
-        layout.addRow(
+        general_form.addRow(labels["language"], self.language)
+        general_form.addRow(labels["history"], self.history_limit)
+        general_form.addRow(
             {"ru": "Ответ на общие сообщения", "uk": "Відповідь на загальні повідомлення", "en": "Response to general messages"}.get(language, "Ответ на общие сообщения"),
             self.general_response,
         )
-        layout.addRow(self.allow_local_tools)
-        layout.addRow(self.reduce_motion)
-        layout.addRow(self.message_sounds)
-        layout.addRow(self.send_sound)
-        layout.addRow(self.receive_sound)
-        layout.addRow(
+        appearance_form.addRow(labels["theme"], self.theme)
+        appearance_form.addRow({"ru": "Предпросмотр", "uk": "Попередній перегляд", "en": "Preview"}.get(language, "Предпросмотр"), self.theme_preview)
+        appearance_form.addRow({"ru": "Фон чата", "uk": "Фон чату", "en": "Chat background"}.get(language, "Фон чата"), background_row)
+        appearance_form.addRow({"ru": "Прозрачность фона", "uk": "Прозорість фону", "en": "Background opacity"}.get(language, "Прозрачность фона"), self.background_opacity)
+        appearance_form.addRow({"ru": "Размещение фона", "uk": "Розміщення фону", "en": "Background placement"}.get(language, "Размещение фона"), self.background_mode)
+        appearance_form.addRow({"ru": "Затемнение", "uk": "Затемнення", "en": "Darkening"}.get(language, "Затемнение"), self.background_darkening)
+        appearance_form.addRow({"ru": "Размытие", "uk": "Розмиття", "en": "Blur"}.get(language, "Размытие"), self.background_blur)
+        appearance_form.addRow({"ru": "Смена встроенного фона", "uk": "Зміна вбудованого фону", "en": "Built-in background rotation"}.get(language, "Смена встроенного фона"), self.background_rotation)
+        appearance_form.addRow({"ru": "Мой аватар", "uk": "Мій аватар", "en": "My avatar"}.get(language, "Мой аватар"), avatar_row)
+        sound_form.addRow(self.message_sounds)
+        sound_form.addRow(self.send_sound)
+        sound_form.addRow(self.receive_sound)
+        sound_form.addRow(
             {"ru": "Громкость сообщений", "uk": "Гучність повідомлень", "en": "Message volume"}.get(language, "Громкость сообщений"),
             self.sound_volume,
         )
+        ai_form.addRow(labels["timeout"], self.timeout)
+        ai_form.addRow(self.allow_local_tools)
+        notifications_form.addRow(labels["soft_warning"], self.response_soft_warning)
+        notifications_form.addRow(labels["extended_warning"], self.response_extended_warning)
+        notifications_form.addRow(labels["response_timeout"], self.response_timeout)
+        data_form.addRow(labels["workspace"], workspace_row)
+        advanced_form.addRow(self.reduce_motion)
         root_layout.addWidget(buttons)
         self._update_theme_preview()
 
