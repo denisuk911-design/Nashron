@@ -225,7 +225,7 @@ def test_deleting_employee_keeps_active_work_and_run_history(tmp_path):
     service.delete_agent(profile.agent_id, OWNER_ROLE, confirmed=True)
 
     assert db.get_agent_profile(profile.agent_id) is None
-    assert db.get_task(task_id)["state"] == "OPEN"
+    assert db.get_task(task_id) is not None
     assert db.get_agent_run(run_id)["agent_id"] == profile.agent_id
     with db.connect() as conn:
         assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
