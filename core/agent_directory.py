@@ -67,6 +67,50 @@ class ChatAgent:
     def engine_name(self) -> str:
         return ENGINE_BY_PROVIDER.get(self.provider_id, self.provider_id)
 
+    @property
+    def chat_display_name(self) -> str:
+        """Return the short human-facing name used in the chat chrome."""
+        return chat_display_name(
+            display_name=self.display_name,
+            full_name=self.full_name,
+            preferred_name=self.preferred_name,
+            primary_role=self.primary_role,
+        )
+
+
+_ROLEISH_NAME_PARTS = {
+    "admin", "administrator", "analyst", "assistant", "developer", "designer",
+    "employee", "engineer", "manager", "owner", "qa", "reviewer", "specialist",
+    "сотрудник", "инженер", "менеджер", "разработчик", "руководитель", "специалист",
+}
+
+
+def _is_roleish_name(value: str, primary_role: str) -> bool:
+    compact = "_".join(value.lower().split())
+    if not compact:
+        return True
+    if compact == primary_role.lower() or compact in ROLE_NAMES:
+        return True
+    if "_" in compact and compact.upper() == compact:
+        return True
+    words = set(re.findall(r"[a-zа-яё]+", compact, flags=re.IGNORECASE))
+    return bool(words) and words.issubset(_ROLEISH_NAME_PARTS)
+
+
+def chat_display_name(
+    *,
+    display_name: str,
+    full_name: str = "",
+    preferred_name: str = "",
+    primary_role: str = "CUSTOM_ROLE",
+) -> str:
+    """Choose a natural chat name and never expose a role placeholder as a name."""
+    candidates = (preferred_name.strip(), display_name.strip(), full_name.strip())
+    for candidate in candidates:
+        if not _is_roleish_name(candidate, primary_role):
+            return candidate.split()[0]
+    return "Сотрудник"
+
 
 def agent_key_from_id(agent_id: str) -> str:
     return agent_id[6:] if agent_id.startswith("agent-") else agent_id
@@ -135,16 +179,23 @@ def agent_spec_from_profile(agent: ChatAgent) -> AgentSpec:
     role_name = ROLE_NAMES.get(agent.primary_role, agent.primary_role.replace("_", " ").lower())
     description = f" Описание профиля: {agent.description.strip()}" if agent.description.strip() else ""
     communication = CommunicationStyle.from_profile(agent.communication_profile)
-    address_name = agent.preferred_name.strip() or agent.display_name.split()[0]
+    chat_name = agent.chat_display_name
+    address_name = agent.preferred_name.strip() or chat_name
+    nickname_note = (
+        f"Близкие коллеги иногда используют короткое имя {agent.informal_name.strip()}. "
+        if agent.informal_name.strip() and agent.informal_name.strip() != address_name
+        else ""
+    )
     style = (
         f"В общении тебя обычно зовут {address_name}. "
+        f"{nickname_note}"
         f"Профиль общения: прямота {communication.directness}/5, доброжелательность {communication.warmth}/5, "
         f"формальность {communication.formality}/5, юмор {communication.humor}/5, подробность {communication.verbosity}/5, "
         f"эмоциональность {communication.emotionality}/5, объяснения {communication.explanation_style}. "
         "Соблюдай эти параметры естественно, без перечисления их собеседнику. "
     )
     voice = (
-        f"Твоё полное имя: {agent.full_name or agent.display_name}. В чате ты отображаешься как {agent.display_name}. "
+        f"Твоё полное имя: {agent.full_name or chat_name}. В чате ты отображаешься как {chat_name}. "
         f"Ты работаешь как {role_name} через {agent.engine_name}. "
         f"{style}"
         "Отвечай от первого лица, коротко, предметно и профессионально. "
@@ -156,7 +207,7 @@ def agent_spec_from_profile(agent: ChatAgent) -> AgentSpec:
     )
     return AgentSpec(
         key=agent.key,
-        display_name=agent.display_name,
+        display_name=chat_name,
         engine_name=agent.engine_name,
         voice=voice,
     )
@@ -164,17 +215,18 @@ def agent_spec_from_profile(agent: ChatAgent) -> AgentSpec:
 
 def mention_tokens(agent: ChatAgent) -> set[str]:
     tokens = {agent.key.lower(), agent.agent_id.lower()}
-    for part in agent.display_name.lower().replace("ё", "е").split():
-        if len(part) >= 2:
-            tokens.add(part)
-        if len(part) >= 4 and re.search(r"[а-я]", part):
-            stem = part.rstrip("аеёиоуыэюяйь")
-            if len(stem) >= 4:
-                tokens.add(stem)
-                if len(stem) >= 5 and stem[-1] == stem[-2]:
-                    tokens.add(stem[:-1])
-                for suffix in ("а", "у", "е", "ы", "ой", "ою", "ом"):
-                    tokens.add(f"{stem}{suffix}")
+    for part in {agent.display_name, agent.chat_display_name, agent.full_name, agent.preferred_name, agent.informal_name}:
+        for part in part.lower().replace("ё", "е").split():
+            if len(part) >= 2:
+                tokens.add(part)
+            if len(part) >= 4 and re.search(r"[а-я]", part):
+                stem = part.rstrip("аеёиоуыэюяйь")
+                if len(stem) >= 4:
+                    tokens.add(stem)
+                    if len(stem) >= 5 and stem[-1] == stem[-2]:
+                        tokens.add(stem[:-1])
+                    for suffix in ("а", "у", "е", "ы", "ой", "ою", "ом"):
+                        tokens.add(f"{stem}{suffix}")
     if agent.persona_id:
         tokens.add(agent.persona_id.lower())
     for alias in agent.aliases:
@@ -183,7 +235,7 @@ def mention_tokens(agent: ChatAgent) -> set[str]:
             tokens.add(normalized)
     # Safe normalized-name form: the short prefix still uses token boundaries
     # and must resolve to an unambiguous employee in the current roster.
-    first_name = agent.display_name.lower().replace("ё", "е").split()[0] if agent.display_name.split() else ""
+    first_name = agent.chat_display_name.lower().replace("ё", "е").split()[0] if agent.chat_display_name.split() else ""
     if len(first_name) >= 5 and re.fullmatch(r"[а-я]+", first_name):
         tokens.add(first_name[:4])
     if len(first_name) >= 6 and re.fullmatch(r"[а-я]+", first_name):

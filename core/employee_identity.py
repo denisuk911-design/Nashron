@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 import random
+import re
 
 from core.avatar_catalog import list_avatar_files
 
@@ -143,11 +144,14 @@ def _pick_avatar(avatar_dir: Path | None, gender: str) -> str | None:
     if not available:
         return None
     gender_token = "woman" if gender == "female" else "man"
-    matching = [path for path in available if gender_token in path.stem.lower()]
+    def has_marker(path: Path, marker: str) -> bool:
+        return bool(re.search(rf"(?:^|[-_]){re.escape(marker)}(?:[-_]|$)", path.stem.lower()))
+
+    matching = [path for path in available if has_marker(path, gender_token)]
     neutral_tokens = ("cat", "dog", "meme", "neutral", "abstract", "robot", "realistic", "illustrated", "playful")
     neutral = [
         path for path in available
-        if not any(token in path.stem.lower() for token in ("woman", "man", "female", "male"))
+        if not any(has_marker(path, token) for token in ("woman", "man", "female", "male"))
         and any(token in path.stem.lower() for token in neutral_tokens)
     ]
     # Every valid catalog item remains eligible; matching portraits only receive

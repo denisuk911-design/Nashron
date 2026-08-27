@@ -64,3 +64,19 @@ class CommunicationStyle:
             "Work mode: keep the same personal manner, but lead with evidence, the action taken, "
             "and the next decision. Do not add social filler."
         )
+
+    def directive_for_user_message(self, message: str, mode: str) -> str:
+        """Adapt register to the current user message without normalizing hostility."""
+        text = str(message or "").strip().lower()
+        formal_markers = ("пожалуйста", "прошу", "будьте добры", "доброго дня", "дякую")
+        coarse_markers = ("бля", "хуй", "заеб", "пизд", "fuck", "shit")
+        if any(marker in text for marker in coarse_markers):
+            return (
+                "The user is writing informally. You may be concise and natural, but do not mirror profanity, "
+                "insults, harassment, or aggression. Keep the response respectful."
+            )
+        if any(marker in text for marker in formal_markers):
+            return "The user is using a formal register. Reply politely and professionally, without stiffness."
+        if str(mode).upper() == "SOCIAL":
+            return "Match a neutral everyday register: concise, human, and relevant to the current message."
+        return "Match a focused professional register: concise, factual, and respectful."

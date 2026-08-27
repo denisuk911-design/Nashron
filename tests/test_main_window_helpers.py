@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from gui.main_window import MainWindow
-from core.agent_directory import ChatAgent, mention_tokens
+from core.agent_directory import ChatAgent, chat_display_name, mention_tokens
 from core.autonomy import parse_autonomy_request
 from core.codex_client import CodexClient
 from core.gemini_client import GeminiClient
@@ -52,6 +52,21 @@ def test_dynamic_employee_mentions_include_name_cases():
     assert "шушанна" in tokens
     assert "шушанне" in tokens
     assert "шушанну" in tokens
+
+
+def test_chat_display_name_replaces_role_placeholder_with_short_human_name():
+    assert chat_display_name(
+        display_name="Инженер",
+        full_name="Олена Коваль",
+        preferred_name="",
+        primary_role="DESIGN_ENGINEER",
+    ) == "Олена"
+    assert chat_display_name(
+        display_name="Engineer",
+        full_name="Alex Brown",
+        preferred_name="Sasha",
+        primary_role="DESIGN_ENGINEER",
+    ) == "Sasha"
 
 
 def test_followup_routes_to_last_addressed_employee():

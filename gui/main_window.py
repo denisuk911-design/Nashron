@@ -801,7 +801,7 @@ class MainWindow(QMainWindow):
 
     def _refresh_chat_agents(self) -> None:
         agents = self._chat_agents()
-        labels = {agent.key: agent.display_name for agent in agents}
+        labels = {agent.key: agent.chat_display_name for agent in agents}
         avatars = {agent.key: agent.avatar_path for agent in agents if agent.avatar_path}
         user_avatar = str(self.settings.get("user_avatar_path") or "").strip()
         if user_avatar:
@@ -828,7 +828,7 @@ class MainWindow(QMainWindow):
             empty.setWordWrap(True)
             roster.addWidget(empty)
         for agent in agents:
-            label = QLabel(f"●  {agent.display_name} · {agent.engine_name}")
+            label = QLabel(f"●  {agent.chat_display_name} · {agent.engine_name}")
             label.setObjectName("online")
             roster.addWidget(label)
 
@@ -1248,7 +1248,7 @@ class MainWindow(QMainWindow):
             return True
         names: dict[str, list[str]] = {}
         for agent in self._chat_agents():
-            names[agent.key] = [agent.display_name, *agent.aliases]
+            names[agent.key] = [agent.chat_display_name, agent.display_name, *agent.aliases]
         intent = self.intent_resolver.resolve(text, names)
         previous = self.work_context_service.get()
         reference = self.artifact_referent_resolver.resolve(text, previous)
@@ -1452,7 +1452,7 @@ class MainWindow(QMainWindow):
         decision = self.last_routing_decision
         if decision is None:
             return "Решение маршрутизатора ещё не создано."
-        names = {agent.key: agent.display_name for agent in self._chat_agents()}
+        names = {agent.key: agent.chat_display_name for agent in self._chat_agents()}
         selected = ", ".join(names.get(key, key) for key in decision.selected) or "никто"
         explicit = ", ".join(names.get(key, key) for key in decision.explicit_recipients) or "не найден"
         return (
@@ -2049,7 +2049,7 @@ class MainWindow(QMainWindow):
             return
         agent_key = self.worker.agent_key
         chat_agent = get_chat_agent(self.database, agent_key)
-        name = chat_agent.display_name if chat_agent is not None else "Сотрудник"
+        name = chat_agent.chat_display_name if chat_agent is not None else "Сотрудник"
         if stage == "soft":
             status = f"{name} отвечает дольше обычного"
             event = "response_latency_soft_warning"
@@ -2155,7 +2155,7 @@ class MainWindow(QMainWindow):
         conversation_id = worker.conversation_id if worker is not None else self.conversation_id
         agent_key = worker.agent_key if worker is not None else self.current_agent_key
         chat_agent = get_chat_agent(self.database, agent_key)
-        agent_name = chat_agent.display_name if chat_agent is not None else "Сотрудник"
+        agent_name = chat_agent.chat_display_name if chat_agent is not None else "Сотрудник"
         self._mark_send_stage("response_ready", agent_key)
         if worker is not None and worker.run_id is not None:
             raw_response = result.content if result.ok else (result.error or "")
@@ -2398,6 +2398,7 @@ class MainWindow(QMainWindow):
         aliases: dict[str, str] = {}
         for agent in self._chat_agents():
             aliases[agent.key] = agent.key
+            aliases[agent.chat_display_name] = agent.key
             aliases[agent.display_name] = agent.key
             for alias in agent.aliases:
                 aliases[alias] = agent.key

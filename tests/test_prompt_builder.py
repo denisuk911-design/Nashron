@@ -261,6 +261,7 @@ def test_social_prompt_uses_human_communication_profile_without_role_pressure(tm
     assert "прямота 4/5" in prompt
     assert "профессия не должна становиться темой без рабочего запроса" in prompt
     assert "Не предлагай работу" in prompt
+    assert "neutral everyday register" in prompt
 
 
 def test_runtime_selects_only_relevant_verified_skill_packages():

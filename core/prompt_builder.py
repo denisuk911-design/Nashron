@@ -153,6 +153,9 @@ class PromptBuilder:
         adaptive_tone = CommunicationStyle.from_profile(
             agent_profile.communication_profile if agent_profile is not None else None
         ).directive_for_mode(mode)
+        user_register = CommunicationStyle.from_profile(
+            agent_profile.communication_profile if agent_profile is not None else None
+        ).directive_for_user_message(user_message, mode)
         context_task_id = task_id if mode == ConversationMode.WORK.value else None
         context_lines = list(active_work_context_lines or [])
         if mode != ConversationMode.WORK.value:
@@ -164,6 +167,7 @@ class PromptBuilder:
 
         parts = [
             system_prompt.strip(),
+            user_register,
             "",
             "ACTIVE WORK CONTEXT (authoritative application state; it outranks role habits and stale chat history):",
             *context_lines,
@@ -384,7 +388,7 @@ class PromptBuilder:
         lines = []
         for agent in agents:
             roles = ", ".join(agent.roles) if agent.roles else "роль не задана"
-            lines.append(f"- {agent.display_name} ({agent.key}): {roles}; {agent.engine_name}; {agent.description or 'без описания'}")
+            lines.append(f"- {agent.chat_display_name} ({agent.key}): {roles}; {agent.engine_name}; {agent.description or 'без описания'}")
         return lines
 
     def _append_messages(self, parts: list[str], messages) -> None:
@@ -408,4 +412,4 @@ class PromptBuilder:
         if role in labels:
             return labels[role]
         agent = get_chat_agent(self.database, role)
-        return agent.display_name if agent is not None else "Удалённый сотрудник"
+        return agent.chat_display_name if agent is not None else "Удалённый сотрудник"

@@ -31,6 +31,14 @@ def test_communication_style_normalizes_untrusted_employee_profile():
     assert "Work mode" in style.directive_for_mode("WORK")
 
 
+def test_communication_style_matches_register_without_mirroring_profanity():
+    style = CommunicationStyle()
+
+    assert "formal register" in style.directive_for_user_message("Пожалуйста, проверьте файл", "SOCIAL")
+    assert "do not mirror profanity" in style.directive_for_user_message("Что за хуйня?", "SOCIAL")
+    assert "neutral everyday register" in style.directive_for_user_message("Привет", "SOCIAL")
+
+
 def test_provider_hub_exposes_sanitized_product_status(tmp_path):
     database = Database(tmp_path / "team.sqlite3")
     database.initialize()
