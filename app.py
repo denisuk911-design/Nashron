@@ -299,6 +299,10 @@ def _run_preview_smoke(app: QApplication, window: MainWindow) -> None:
     report_path = Path(os.environ["TEAM2050_PREVIEW_SMOKE_REPORT"])
 
     def run() -> None:
+        demo_requested = os.environ.get("TEAM2050_PREVIEW_SMOKE_DEMO") == "1"
+        if demo_requested:
+            window._run_demo_sandbox()
+        demo_state = window.paths.user_dir / "demo_sandbox" / "checkpoints" / "state.json"
         screenshot_path = report_path.with_suffix(".png")
         window.grab().save(str(screenshot_path))
         avatar_path = str(window.settings.get("user_avatar_path") or "")
@@ -310,6 +314,7 @@ def _run_preview_smoke(app: QApplication, window: MainWindow) -> None:
             "database_name": window.paths.database_path.name,
             "user_avatar_path": avatar_path,
             "background_path": background_path,
+            "demo_state": str(demo_state),
             "screenshot": str(screenshot_path),
         }
         payload["checks_passed"] = (
@@ -318,6 +323,7 @@ def _run_preview_smoke(app: QApplication, window: MainWindow) -> None:
             and payload["database_name"] == "team2050.sqlite3"
             and bool(avatar_path and Path(avatar_path).is_file())
             and bool(background_path and Path(background_path).is_file())
+            and (not demo_requested or demo_state.is_file())
         )
         report_path.parent.mkdir(parents=True, exist_ok=True)
         report_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

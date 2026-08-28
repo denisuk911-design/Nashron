@@ -35,6 +35,7 @@ def main() -> int:
                 "TEAM2050_PREVIEW": "1",
                 "TEAM2050_PREVIEW_HOME": str(profile_dir),
                 "TEAM2050_PREVIEW_SMOKE": "1",
+                "TEAM2050_PREVIEW_SMOKE_DEMO": "1",
                 "TEAM2050_PREVIEW_SMOKE_REPORT": str(report_path),
             }
         )
@@ -50,6 +51,7 @@ def main() -> int:
         all(item.get("checks_passed") is True and item.get("returncode") == 0 for item in reports)
         and first["user_avatar_path"] == second["user_avatar_path"]
         and first["background_path"] == second["background_path"]
+        and Path(str(second["demo_state"])).is_file()
     )
     evidence_dir = Path(args.evidence_dir).resolve()
     evidence_dir.mkdir(parents=True, exist_ok=True)

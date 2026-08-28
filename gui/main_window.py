@@ -33,6 +33,7 @@ from core.chat_attachment_service import ChatAttachment, ChatAttachmentService
 from core.auth_service import AuthService
 from core.autonomy import AutonomyRequest, has_handoff_intent, is_stop_command, parse_autonomy_request
 from core.codex_client import CodexClient
+from core.demo_sandbox_service import DemoSandboxService
 from core.build_info import build_label
 from core.branding import BRAND_NAME, BRAND_TAGLINE, brand_mark_path
 from core.claim_evidence import ClaimEvidenceValidator
@@ -519,6 +520,10 @@ class MainWindow(QMainWindow):
         self.empty_team_text.setObjectName("muted")
         self.empty_team_text.setAlignment(Qt.AlignCenter)
         self.empty_team_text.setWordWrap(True)
+        self.onboarding_result = QLabel()
+        self.onboarding_result.setObjectName("muted")
+        self.onboarding_result.setAlignment(Qt.AlignCenter)
+        self.onboarding_result.setWordWrap(True)
         self.empty_team_language = QComboBox()
         for label, value in (("Русский", "ru"), ("Українська", "uk"), ("English", "en")):
             self.empty_team_language.addItem(label, value)
@@ -538,9 +543,13 @@ class MainWindow(QMainWindow):
         self.create_team_button = QPushButton()
         self.create_team_button.setObjectName("primaryButton")
         self.create_team_button.clicked.connect(self._start_first_team_creation)
+        self.demo_sandbox_button = QPushButton()
+        self.demo_sandbox_button.setObjectName("smallAction")
+        self.demo_sandbox_button.clicked.connect(self._run_demo_sandbox)
         actions.addStretch(1)
         actions.addWidget(self.connect_ai_button)
         actions.addWidget(self.create_team_button)
+        actions.addWidget(self.demo_sandbox_button)
         actions.addStretch(1)
         self.skip_onboarding_button = QPushButton()
         self.skip_onboarding_button.setObjectName("smallAction")
@@ -551,6 +560,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.empty_team_language, 0, Qt.AlignHCenter)
         layout.addWidget(self.empty_team_avatar, 0, Qt.AlignHCenter)
         layout.addLayout(actions)
+        layout.addWidget(self.onboarding_result)
         layout.addWidget(self.skip_onboarding_button, 0, Qt.AlignHCenter)
         outer.addWidget(content, 0, Qt.AlignHCenter)
         outer.addStretch(2)
@@ -561,31 +571,35 @@ class MainWindow(QMainWindow):
         labels = {
             "ru": (
                 "Добро пожаловать в Team2050",
-                "У вас пока нет команды.",
-                "Подключить ИИ",
+                "Supervisor поможет выбрать команду, а демонстрация покажет полный рабочий цикл без изменения вашей организации.",
+                "Настроить вместе",
                 "Создать команду",
-                "Пропустить",
+                "Демо",
+                "Осмотреться",
             ),
             "uk": (
                 "Ласкаво просимо до Team2050",
-                "У вас поки немає команди.",
-                "Підключити ШІ",
+                "Supervisor допоможе обрати команду, а демонстрація покаже повний робочий цикл без зміни вашої організації.",
+                "Налаштувати разом",
                 "Створити команду",
-                "Пропустити",
+                "Демо",
+                "Оглянутися",
             ),
             "en": (
                 "Welcome to Team2050",
-                "You do not have a team yet.",
-                "Connect AI",
+                "Supervisor can help choose a team. The demo shows a complete workflow without changing your organization.",
+                "Set up together",
                 "Create team",
-                "Skip",
+                "Demo",
+                "Look around",
             ),
         }
-        title, text, connect, create, skip = labels.get(language, labels["ru"])
+        title, text, connect, create, demo, skip = labels.get(language, labels["ru"])
         self.empty_team_title.setText(title)
         self.empty_team_text.setText(text)
         self.connect_ai_button.setText(connect)
         self.create_team_button.setText(create)
+        self.demo_sandbox_button.setText(demo)
         self.skip_onboarding_button.setText(skip)
 
     def _load_onboarding_avatars(self) -> None:
@@ -619,6 +633,16 @@ class MainWindow(QMainWindow):
         self.settings["onboarding_skipped"] = True
         self.settings_service.save(self.settings)
         self._update_empty_team_state()
+
+    def _run_demo_sandbox(self) -> None:
+        result = DemoSandboxService(self.paths.user_dir).run()
+        if result.completed:
+            self.onboarding_result.setText(
+                f"Демо завершено: {result.work_items} этапа, {result.artifacts} артефакта, "
+                f"{result.reviews} проверка. Результаты сохранены отдельно от команды."
+            )
+        else:
+            self.onboarding_result.setText("Демо остановлено до завершения проверки.")
 
     def _update_empty_team_state(self) -> None:
         if not hasattr(self, "empty_team_panel") or not hasattr(self, "chat"):
