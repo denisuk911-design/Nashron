@@ -6,6 +6,7 @@ import pytest
 
 from core.database import Database
 from core.settings_service import SettingsService
+from core.avatar_catalog import list_avatar_files
 from gui.main_window import MainWindow
 
 
@@ -64,6 +65,24 @@ def test_first_run_can_be_skipped_without_creating_seed_employees(tmp_path, monk
     assert window.database.list_agent_profiles() == []
     assert settings_service.load()["onboarding_skipped"] is True
     window.close()
+
+
+def test_onboarding_user_avatar_is_saved_and_restored(tmp_path, monkeypatch):
+    settings_service = _make_settings_service(tmp_path)
+    avatar = settings_service.paths.avatar_dir / "avatar-01-man-realistic.png"
+    avatar.parent.mkdir(parents=True, exist_ok=True)
+    avatar.write_bytes(b"test-avatar")
+    window = _build_window(settings_service, monkeypatch)
+    avatars = list_avatar_files(settings_service.paths.avatar_dir)
+    assert avatars
+
+    index = window.empty_team_avatar.findData(str(avatars[0]))
+    assert index > 0
+    window.empty_team_avatar.setCurrentIndex(index)
+    window.close()
+
+    restored = settings_service.load()
+    assert restored["user_avatar_path"] == str(avatars[0])
 
 
 def test_first_team_activation_refreshes_chat_without_restart(tmp_path, monkeypatch):

@@ -18,7 +18,7 @@ def main() -> int:
     report = WORK_DIR / "hitl.json"
     environment = os.environ.copy()
     environment.update({
-        "ROMAN2050_HOME": str(WORK_DIR / "profile"),
+        "TEAM2050_HOME": str(WORK_DIR / "profile"),
         "TEAM2050_RUNTIME_V3_HITL_SMOKE": "1",
         "TEAM2050_RUNTIME_V3_HITL_SMOKE_REPORT": str(report),
         "TEAM2050_RUNTIME_V3_GUI_SMOKE_WORKSPACE": str(WORK_DIR / "workspace"),

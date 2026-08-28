@@ -41,7 +41,7 @@ def main(argv: list[str] | None = None) -> int:
     env = os.environ.copy()
     env.update(
         {
-            "ROMAN2050_HOME": str(profile_dir),
+            "TEAM2050_HOME": str(profile_dir),
             "TEAM2050_RUNTIME_V3_GUI_SMOKE": "1",
             "TEAM2050_RUNTIME_V3_GUI_SMOKE_REPORT": str(report_path),
             "TEAM2050_RUNTIME_V3_GUI_SMOKE_WORKSPACE": str(workspace_dir),

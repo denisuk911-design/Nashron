@@ -95,17 +95,19 @@ class SettingsService:
         team_override = os.environ.get("TEAM2050_HOME")
         if team_override:
             return Path(team_override)
-        override = os.environ.get("ROMAN2050_HOME")
-        if override:
-            return Path(override)
+        # Keep an explicit legacy override working for existing automation, but
+        # never use the old product name for a new installation.
+        legacy_override = os.environ.get("ROMAN2050_HOME")
+        if legacy_override:
+            return Path(legacy_override)
         local_app_data = os.environ.get("LOCALAPPDATA")
         if local_app_data:
             if os.environ.get("TEAM2050_PREVIEW") == "1":
                 return Path(local_app_data) / "Team2050-Preview"
-            return Path(local_app_data) / "Roman2050"
+            return Path(local_app_data) / "Team2050"
         if os.environ.get("TEAM2050_PREVIEW") == "1":
             return Path.home() / ".team2050-preview"
-        return Path.home() / ".roman2050"
+        return Path.home() / ".team2050"
 
     def _build_paths(self) -> AppPaths:
         data_dir = self.user_dir / "data"
@@ -117,7 +119,7 @@ class SettingsService:
             prompts_dir=prompts_dir,
             logs_dir=self.user_dir / "logs",
             codex_workspace=self.user_dir / "codex_workspace",
-            database_path=self.user_dir / "roman2050.sqlite3",
+            database_path=self.user_dir / "team2050.sqlite3",
             identity_path=data_dir / "roman_identity.json",
             identity_backup_path=data_dir / "roman_identity.initial.bak.json",
             timeline_path=data_dir / "roman_timeline.json",

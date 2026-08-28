@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
 from core.agent_directory import ChatAgent, ROLE_NAMES, agent_id_from_key, get_chat_agent, list_chat_agents, mention_tokens
 from core.agent_router import AgentRouter
 from core.artifact_service import ArtifactService
+from core.avatar_catalog import list_avatar_files
 from core.chat_attachment_service import ChatAttachment, ChatAttachmentService
 from core.auth_service import AuthService
 from core.autonomy import AutonomyRequest, has_handoff_intent, is_stop_command, parse_autonomy_request
@@ -525,6 +526,11 @@ class MainWindow(QMainWindow):
         self.empty_team_language.setCurrentIndex(max(0, self.empty_team_language.findData(language)))
         self.empty_team_language.currentIndexChanged.connect(self._change_first_run_language)
 
+        self.empty_team_avatar = QComboBox()
+        self.empty_team_avatar.setMinimumWidth(250)
+        self._load_onboarding_avatars()
+        self.empty_team_avatar.currentIndexChanged.connect(self._change_onboarding_avatar)
+
         actions = QHBoxLayout()
         self.connect_ai_button = QPushButton()
         self.connect_ai_button.setObjectName("smallAction")
@@ -543,6 +549,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.empty_team_title)
         layout.addWidget(self.empty_team_text)
         layout.addWidget(self.empty_team_language, 0, Qt.AlignHCenter)
+        layout.addWidget(self.empty_team_avatar, 0, Qt.AlignHCenter)
         layout.addLayout(actions)
         layout.addWidget(self.skip_onboarding_button, 0, Qt.AlignHCenter)
         outer.addWidget(content, 0, Qt.AlignHCenter)
@@ -581,12 +588,31 @@ class MainWindow(QMainWindow):
         self.create_team_button.setText(create)
         self.skip_onboarding_button.setText(skip)
 
+    def _load_onboarding_avatars(self) -> None:
+        """Offer the bundled avatar catalog before the first team is created."""
+        current = str(self.settings.get("user_avatar_path") or "")
+        self.empty_team_avatar.blockSignals(True)
+        self.empty_team_avatar.clear()
+        labels = {"ru": "Мой аватар", "uk": "Мій аватар", "en": "My avatar"}
+        self.empty_team_avatar.addItem(labels.get(str(self.settings.get("interface_language", "ru")), "Мой аватар"), "")
+        for path in list_avatar_files(self.paths.avatar_dir):
+            self.empty_team_avatar.addItem(QIcon(str(path)), path.stem.replace("avatar-", ""), str(path))
+        index = self.empty_team_avatar.findData(current)
+        self.empty_team_avatar.setCurrentIndex(index if index >= 0 else 0)
+        self.empty_team_avatar.blockSignals(False)
+
+    def _change_onboarding_avatar(self) -> None:
+        self.settings["user_avatar_path"] = str(self.empty_team_avatar.currentData() or "")
+        self.settings_service.save(self.settings)
+        self._refresh_chat_agents()
+
     def _change_first_run_language(self) -> None:
         language = str(self.empty_team_language.currentData() or "ru")
         self.settings["interface_language"] = language
         self.universal_platform_service.identity_language = language
         self.settings_service.save(self.settings)
         self.chat.set_language(language)
+        self._load_onboarding_avatars()
         self._translate_empty_team_panel(language)
 
     def _skip_onboarding(self) -> None:
@@ -2867,13 +2893,13 @@ class MainWindow(QMainWindow):
         super().resizeEvent(event)
 
     def _restore_window_state(self) -> None:
-        state = QSettings("Roman2050", "Roman2050")
+        state = QSettings("Team2050", "Team2050")
         geometry = state.value("geometry")
         if geometry:
             self.restoreGeometry(geometry)
 
     def closeEvent(self, event) -> None:
-        state = QSettings("Roman2050", "Roman2050")
+        state = QSettings("Team2050", "Team2050")
         state.setValue("geometry", self.saveGeometry())
         if self.worker is not None:
             self._stop_response_latency_timers()

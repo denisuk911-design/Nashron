@@ -58,6 +58,10 @@ def _admin_smoke_enabled() -> bool:
     return os.environ.get("TEAM2050_ADMIN_SMOKE") == "1"
 
 
+def _preview_smoke_enabled() -> bool:
+    return os.environ.get("TEAM2050_PREVIEW_SMOKE") == "1"
+
+
 def _prepare_runtime_v3_smoke_settings(settings_service: SettingsService) -> None:
     if not (_runtime_v3_smoke_enabled() or _runtime_v3_hitl_smoke_enabled()):
         return
@@ -77,6 +81,26 @@ def _prepare_runtime_v3_smoke_settings(settings_service: SettingsService) -> Non
             "codex_timeout_seconds": 12,
         }
     )
+    settings_service.save(settings)
+
+
+def _prepare_preview_smoke_settings(settings_service: SettingsService) -> None:
+    if not _preview_smoke_enabled():
+        return
+    settings_service.ensure_user_files()
+    settings = settings_service.load()
+    avatar_files = sorted(settings_service.paths.avatar_dir.glob("*.png"))
+    if not settings.get("user_avatar_path") and avatar_files:
+        settings["user_avatar_path"] = str(avatar_files[0])
+    if not settings.get("chat_background_remembered"):
+        settings.update(
+            {
+                "theme": "night_city",
+                "chat_background_rotation": "remember",
+                "chat_background_path": "",
+                "chat_background_opacity": 18,
+            }
+        )
     settings_service.save(settings)
 
 
@@ -271,6 +295,37 @@ def _run_admin_smoke(app: QApplication, window: MainWindow) -> None:
     QTimer.singleShot(0, run)
 
 
+def _run_preview_smoke(app: QApplication, window: MainWindow) -> None:
+    report_path = Path(os.environ["TEAM2050_PREVIEW_SMOKE_REPORT"])
+
+    def run() -> None:
+        screenshot_path = report_path.with_suffix(".png")
+        window.grab().save(str(screenshot_path))
+        avatar_path = str(window.settings.get("user_avatar_path") or "")
+        background_path = str(window.settings.get("chat_background_remembered") or "")
+        payload = {
+            "window_title": window.windowTitle(),
+            "profile_dir": str(window.paths.user_dir),
+            "profile_name": window.paths.user_dir.name,
+            "database_name": window.paths.database_path.name,
+            "user_avatar_path": avatar_path,
+            "background_path": background_path,
+            "screenshot": str(screenshot_path),
+        }
+        payload["checks_passed"] = (
+            payload["window_title"] == BRAND_NAME
+            and "Roman2050" not in payload["profile_name"]
+            and payload["database_name"] == "team2050.sqlite3"
+            and bool(avatar_path and Path(avatar_path).is_file())
+            and bool(background_path and Path(background_path).is_file())
+        )
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        app.exit(0 if payload["checks_passed"] else 1)
+
+    QTimer.singleShot(0, run)
+
+
 def _run_runtime_v3_hitl_smoke(app: QApplication, window: MainWindow, logger: logging.Logger) -> None:
     report_path = Path(os.environ.get("TEAM2050_RUNTIME_V3_HITL_SMOKE_REPORT") or window.paths.user_dir / "runtime_v3_hitl_smoke.json")
     workspace = Path(os.environ.get("TEAM2050_RUNTIME_V3_GUI_SMOKE_WORKSPACE") or window.paths.user_dir / "workspace") / "hitl"
@@ -346,6 +401,7 @@ def _run_runtime_v3_hitl_smoke(app: QApplication, window: MainWindow, logger: lo
 def main() -> int:
     settings_service = SettingsService()
     _prepare_runtime_v3_smoke_settings(settings_service)
+    _prepare_preview_smoke_settings(settings_service)
     logger = setup_logging(settings_service)
     unicode_errors = validate_unicode_catalog()
     if unicode_errors:
@@ -378,6 +434,8 @@ def main() -> int:
         _run_runtime_v3_hitl_smoke(app, window, logger)
     elif _admin_smoke_enabled():
         _run_admin_smoke(app, window)
+    elif _preview_smoke_enabled():
+        _run_preview_smoke(app, window)
     return app.exec()
 
 
