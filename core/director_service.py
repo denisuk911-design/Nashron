@@ -182,6 +182,20 @@ class DirectorService:
             self._event(plan_id, "PLAN_CANCELLED", detail={"reason": reason})
         return self.get_plan(plan_id)
 
+    def replan_plan(self, plan_id: str) -> ProjectPlan:
+        plan = self.get_plan(plan_id)
+        if plan.status == "COMPLETED":
+            raise ValueError("completed_plan_cannot_be_replanned")
+        rows = self.database.list_work_assignments(plan_id)
+        if not rows:
+            raise ValueError("plan_has_no_assignments")
+        for row in rows:
+            if str(row["status"]) in {"FAILED", "BLOCKED", "REWORK_REQUIRED", "EVIDENCE_REQUIRED"}:
+                self.database.update_work_assignment(str(row["id"]), {"status": "ASSIGNED", "failure_reason": ""})
+        self.database.update_project_plan(plan_id, {"status": "READY", "summary": "Replanned by Supervisor"})
+        self._event(plan_id, "PLAN_REPLANNED")
+        return self.get_plan(plan_id)
+
     def next_action(self, plan_id: str) -> DirectorAction | None:
         plan = self.get_plan(plan_id)
         if plan.status in FINAL_PLAN_STATUSES or plan.status in {"NEEDS_STAFFING", "AWAITING_OWNER_APPROVAL"}:

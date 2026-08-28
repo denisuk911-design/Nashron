@@ -104,6 +104,7 @@ from gui.director_console import DirectorConsoleDialog, OrganizationActivationWi
 from gui.login_dialog import show_install_instructions
 from gui.localization import catalog_label, role_label
 from gui.settings_dialog import SettingsDialog
+from gui.supervisor_chat_dialog import SupervisorChatDialog
 from gui.theme import ThemeBackdrop, ThemeManager
 from gui.worker import GenerateWorker
 from runtime_v2.feature_flag import RuntimeEngine, selected_runtime
@@ -392,6 +393,11 @@ class MainWindow(QMainWindow):
         self.director_button.setToolTip("Центр управления командой")
         self.director_button.clicked.connect(self.show_director_console_preview)
         top_layout.addWidget(self.director_button)
+        self.supervisor_chat_button = QPushButton("Supervisor")
+        self.supervisor_chat_button.setObjectName("smallAction")
+        self.supervisor_chat_button.setToolTip("Открыть отдельный чат Supervisor-хозяина")
+        self.supervisor_chat_button.clicked.connect(self.show_supervisor_chat)
+        top_layout.addWidget(self.supervisor_chat_button)
         self.feedback_button = QPushButton("Сообщить о проблеме")
         self.feedback_button.setObjectName("smallAction")
         self.feedback_button.setToolTip("Создать отчет о проблеме")
@@ -2773,6 +2779,24 @@ class MainWindow(QMainWindow):
             self._refresh_organization_selector()
             self._refresh_chat_agents()
         self._update_empty_team_state()
+
+    def show_supervisor_chat(self) -> None:
+        service = SupervisorChatApplicationService(
+            supervisor_service=self.director_service,
+            universal_service=self.universal_platform_service,
+            management_service=self.management_service,
+            settings=self.settings,
+            save_settings=self.settings_service.save,
+            local_runtime=getattr(self.runtime_v3_goal_service, "local_supervisor", None),
+        )
+        dialog = SupervisorChatDialog(service, self.active_organization_id, self)
+        dialog.exec()
+        # Supervisor settings changes are persisted by the application service;
+        # apply them immediately to the already-open client as well.
+        self.chat.set_language(str(self.settings.get("interface_language", "ru")))
+        self.apply_theme()
+        self._refresh_organization_selector()
+        self._refresh_chat_agents()
 
     def logout(self) -> None:
         status = self.auth_service.logout()

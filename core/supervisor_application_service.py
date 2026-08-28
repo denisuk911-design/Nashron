@@ -48,6 +48,10 @@ class SupervisorApplicationService:
     def cancel(self, plan_id: str, reason: str = "stopped_by_owner") -> ProjectPlan:
         return self._director.cancel_plan(plan_id, reason)
 
+    def replan(self, plan_id: str) -> ProjectPlan:
+        """Resume a blocked/rework plan through the Director application boundary."""
+        return self._director.replan_plan(plan_id)
+
     def start_assignment(self, assignment_id: str, run_id: str):
         return self._director.start_assignment(assignment_id, run_id)
 
