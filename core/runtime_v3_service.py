@@ -7,6 +7,8 @@ from typing import Iterable
 from core.agent_directory import ChatAgent
 from runtime_v3 import GoalStatus, HybridWorkflowEngine
 from runtime_v3.agent_runtime import ProviderAgentRuntime
+from runtime_v3.local_supervisor import LocalSupervisorRuntime
+from runtime_v3.supervisor_policy import HybridSupervisorPolicy
 from runtime_v3.models import EmployeeBinding, RuntimeState, WorkItemStatus
 
 
@@ -21,10 +23,11 @@ class RuntimeV3GoalResult:
 class RuntimeV3GoalService:
     """Application boundary for experimental V3 Goal mode."""
 
-    def __init__(self, workspace_root: Path, provider_adapters: dict[str, object] | None = None, permission_resolver=None) -> None:
+    def __init__(self, workspace_root: Path, provider_adapters: dict[str, object] | None = None, permission_resolver=None, local_supervisor=None) -> None:
         self.workspace_root = Path(workspace_root)
         self.provider_adapters = dict(provider_adapters or {})
         self.permission_resolver = permission_resolver
+        self.local_supervisor = local_supervisor or LocalSupervisorRuntime()
 
     def run_goal(self, organization_id: str, objective: str, agents: Iterable[ChatAgent]) -> RuntimeV3GoalResult:
         employees = self._employee_bindings(list(agents))
@@ -50,6 +53,7 @@ class RuntimeV3GoalService:
             employees,
             self.workspace_root / organization_id,
             agent_runtime=ProviderAgentRuntime(self.provider_adapters, provider_bindings, fallback_bindings) if provider_bindings else None,
+            supervisor_policy=HybridSupervisorPolicy(local_adapter=self.local_supervisor),
         )
         goal = engine.create_goal(objective)
         engine.create_plan(goal.goal_id)
