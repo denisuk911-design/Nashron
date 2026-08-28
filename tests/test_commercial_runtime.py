@@ -51,4 +51,22 @@ def test_provider_hub_exposes_sanitized_product_status(tmp_path):
     codex = next(entry for entry in entries if entry.provider_id == "CODEX_CLI")
 
     assert codex.ready
-    assert codex.status == "READY"
+    assert codex.status == "Ready"
+    assert codex.detail == ""
+
+
+def test_provider_hub_maps_operational_states_and_hides_diagnostics(tmp_path):
+    class Adapter:
+        provider_id = "CODEX_CLI"
+        def check_health(self):
+            return ProviderHealth("CODEX_CLI", "1", "INSTALLED", "AUTHENTICATION_REQUIRED", "NOT_CHECKED", "NOT_READY", "UNKNOWN", diagnostic="secret-like trace")
+
+    database = Database(tmp_path / "team.sqlite3"); database.initialize()
+    ManagementService(database, ConfigurationRepository(tmp_path / "management")).ensure_foundations()
+    registry = ProviderRegistry(database); registry.ensure_defaults()
+    health = ProviderHealthService(database, registry, {"CODEX_CLI": Adapter()})
+    product = next(item for item in ProviderHubService(registry, health).entries(refresh=True) if item.provider_id == "CODEX_CLI")
+    developer = next(item for item in ProviderHubService(registry, health, developer_mode=True).entries() if item.provider_id == "CODEX_CLI")
+
+    assert product.status == "Login needed" and product.detail == ""
+    assert developer.detail == "[REDACTED]-like trace"
