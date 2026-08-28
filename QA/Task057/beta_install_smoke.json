@@ -1,0 +1,56 @@
+{
+  "install": {
+    "window_title": "Team2050",
+    "profile_dir": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task057_beta\\profile",
+    "profile_name": "profile",
+    "database_name": "team2050.sqlite3",
+    "user_avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task057_beta\\profile\\data\\avatars\\avatar-01-woman-realistic.png",
+    "background_path": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task057_beta\\install\\Team2050\\_internal\\data\\theme_backgrounds\\night_city\\night-city-02.png",
+    "demo_state": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task057_beta\\profile\\demo_sandbox\\checkpoints\\state.json",
+    "rc_checklist": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task057_beta\\profile\\rc_checklist\\latest.json",
+    "rc_automated_pass": true,
+    "rc_manual_acceptance": "PENDING",
+    "screenshot": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task057_beta\\first.png",
+    "checks_passed": true,
+    "returncode": 0
+  },
+  "update": {
+    "window_title": "Team2050",
+    "profile_dir": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task057_beta\\profile",
+    "profile_name": "profile",
+    "database_name": "team2050.sqlite3",
+    "user_avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task057_beta\\profile\\data\\avatars\\avatar-01-woman-realistic.png",
+    "background_path": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task057_beta\\install\\Team2050\\_internal\\data\\theme_backgrounds\\night_city\\night-city-02.png",
+    "demo_state": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task057_beta\\profile\\demo_sandbox\\checkpoints\\state.json",
+    "rc_checklist": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task057_beta\\profile\\rc_checklist\\latest.json",
+    "rc_automated_pass": true,
+    "rc_manual_acceptance": "PENDING",
+    "screenshot": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task057_beta\\second.png",
+    "checks_passed": true,
+    "returncode": 0
+  },
+  "restart": {
+    "window_title": "Team2050",
+    "profile_dir": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task057_beta\\profile",
+    "profile_name": "profile",
+    "database_name": "team2050.sqlite3",
+    "user_avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task057_beta\\profile\\data\\avatars\\avatar-01-woman-realistic.png",
+    "background_path": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task057_beta\\install\\Team2050\\_internal\\data\\theme_backgrounds\\night_city\\night-city-02.png",
+    "demo_state": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task057_beta\\profile\\demo_sandbox\\checkpoints\\state.json",
+    "rc_checklist": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task057_beta\\profile\\rc_checklist\\latest.json",
+    "rc_automated_pass": true,
+    "rc_manual_acceptance": "PENDING",
+    "screenshot": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task057_beta\\restart.png",
+    "checks_passed": true,
+    "returncode": 0
+  },
+  "versions": [
+    "2.6.0-beta.1",
+    "2.6.0-beta.2"
+  ],
+  "install_removed": true,
+  "profile_preserved": true,
+  "legacy_not_imported": true,
+  "legacy_path": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task057_beta\\legacy-Roman2050",
+  "checks_passed": true
+}
