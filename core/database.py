@@ -80,6 +80,7 @@ class Database:
             self._ensure_organization_expansion_schema(conn)
             self._ensure_learning_evidence_schema(conn)
             self._ensure_director_schema(conn)
+            self._ensure_organization_scope_schema(conn)
             self._ensure_runtime_v2_schema(conn)
             self._ensure_chat_attachment_schema(conn)
             self._repair_renamed_message_foreign_keys(conn)
@@ -559,6 +560,28 @@ class Database:
             );
             """
         )
+
+    @staticmethod
+    def _ensure_organization_scope_schema(conn: sqlite3.Connection) -> None:
+        """Add explicit organization scope to operational records."""
+        for table in ("conversations", "projects", "tasks", "learning_queue"):
+            columns = {str(row["name"]) for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+            if "organization_id" not in columns:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN organization_id TEXT")
+        conn.execute("""UPDATE conversations SET organization_id = (
+            SELECT organization_id FROM organization_workspaces
+            WHERE organization_workspaces.conversation_id = conversations.id LIMIT 1
+        ) WHERE organization_id IS NULL""")
+        conn.execute("""UPDATE projects SET organization_id = (
+            SELECT organization_id FROM project_plans
+            WHERE project_plans.project_id = projects.id ORDER BY created_at DESC LIMIT 1
+        ) WHERE organization_id IS NULL""")
+        conn.execute("""UPDATE tasks SET organization_id = (
+            SELECT organization_id FROM projects WHERE projects.id = tasks.project_id
+        ) WHERE organization_id IS NULL""")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_projects_organization ON projects(organization_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_tasks_organization ON tasks(organization_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_learning_queue_organization ON learning_queue(organization_id)")
         extensions = {
             "project_plans": {
                 "owner_message_id": "INTEGER",
@@ -1853,16 +1876,19 @@ class Database:
                 )
         return artifact_id
 
-    def list_artifacts(self, task_id: str | None = None, status: str | None = None, limit: int = 200) -> list[sqlite3.Row]:
+    def list_artifacts(self, task_id: str | None = None, status: str | None = None, limit: int = 200, organization_id: str | None = None) -> list[sqlite3.Row]:
         clauses: list[str] = []
         params: list[object] = []
         if task_id:
-            clauses.append("task_id = ?")
+            clauses.append("artifacts.task_id = ?")
             params.append(task_id)
         if status:
-            clauses.append("status = ?")
+            clauses.append("artifacts.status = ?")
             params.append(status)
-        sql = "SELECT * FROM artifacts"
+        if organization_id:
+            clauses.append("(tasks.organization_id = ? OR projects.organization_id = ?)")
+            params.extend([organization_id, organization_id])
+        sql = "SELECT artifacts.* FROM artifacts LEFT JOIN tasks ON tasks.id = artifacts.task_id LEFT JOIN projects ON projects.id = artifacts.project_id"
         if clauses:
             sql += " WHERE " + " AND ".join(clauses)
         sql += " ORDER BY relative_path ASC, id ASC LIMIT ?"
@@ -2181,7 +2207,7 @@ class Database:
             self._insert_finding_event(conn, finding_id, "CREATED", actor, f"{severity}; {status}")
         return finding_id
 
-    def list_findings(self, status: str | None = None, task_id: str | None = None, limit: int = 200) -> list[sqlite3.Row]:
+    def list_findings(self, status: str | None = None, task_id: str | None = None, limit: int = 200, organization_id: str | None = None) -> list[sqlite3.Row]:
         clauses: list[str] = []
         params: list[object] = []
         if status:
@@ -2190,7 +2216,10 @@ class Database:
         if task_id:
             clauses.append("task_id = ?")
             params.append(task_id)
-        sql = "SELECT * FROM findings"
+        if organization_id:
+            clauses.append("tasks.organization_id = ?")
+            params.append(organization_id)
+        sql = "SELECT findings.* FROM findings LEFT JOIN tasks ON tasks.id = findings.task_id"
         if clauses:
             sql += " WHERE " + " AND ".join(clauses)
         sql += " ORDER BY updated_at DESC, created_at DESC, id DESC LIMIT ?"
@@ -2715,14 +2744,16 @@ class Database:
         )
         return event_id
 
-    def ensure_project(self, project_id: str, title: str) -> None:
+    def ensure_project(self, project_id: str, title: str, organization_id: str | None = None) -> None:
         with self.connect() as conn:
             conn.execute(
                 """
-                INSERT INTO projects (id, title) VALUES (?, ?)
-                ON CONFLICT(id) DO UPDATE SET title = excluded.title, updated_at = CURRENT_TIMESTAMP
+                INSERT INTO projects (id, title, organization_id) VALUES (?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET title = excluded.title,
+                    organization_id = COALESCE(excluded.organization_id, projects.organization_id),
+                    updated_at = CURRENT_TIMESTAMP
                 """,
-                (project_id, title),
+                (project_id, title, organization_id),
             )
 
     def create_task(
@@ -2731,15 +2762,16 @@ class Database:
         title: str,
         owner_message_id: int | None,
         state_machine_version: str,
+        organization_id: str | None = None,
     ) -> str:
         task_id = f"TASK-{uuid.uuid4().hex[:12].upper()}"
         with self.connect() as conn:
             conn.execute(
                 """
-                INSERT INTO tasks (id, project_id, title, state, state_machine_version, owner_message_id)
-                VALUES (?, ?, ?, 'NEW', ?, ?)
+                INSERT INTO tasks (id, project_id, title, state, state_machine_version, owner_message_id, organization_id)
+                VALUES (?, ?, ?, 'NEW', ?, ?, ?)
                 """,
-                (task_id, project_id, title, state_machine_version, owner_message_id),
+                (task_id, project_id, title, state_machine_version, owner_message_id, organization_id),
             )
         return task_id
 
@@ -2747,8 +2779,14 @@ class Database:
         with self.connect() as conn:
             return conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
 
-    def list_tasks(self, limit: int = 200) -> list[sqlite3.Row]:
+    def list_tasks(self, limit: int = 200, organization_id: str | None = None) -> list[sqlite3.Row]:
         with self.connect() as conn:
+            if organization_id:
+                return conn.execute(
+                    """SELECT id, project_id, title, state, created_at, updated_at FROM tasks
+                    WHERE organization_id = ? ORDER BY updated_at DESC, created_at DESC LIMIT ?""",
+                    (organization_id, limit),
+                ).fetchall()
             return conn.execute(
                 """
                 SELECT id, project_id, title, state, created_at, updated_at
@@ -3876,15 +3914,16 @@ class Database:
             conn.execute(
                 """
                 INSERT INTO learning_queue (
-                    id, agent_id, employee_name, competence, reason, source_id,
+                    id, agent_id, employee_name, organization_id, competence, reason, source_id,
                     status, practice_task, evidence, created_by, skill_id,
                     coordinator_agent_id, qualification_criteria
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     item_id,
                     values.get("agent_id"),
                     values.get("employee_name", ""),
+                    values.get("organization_id"),
                     values["competence"],
                     values["reason"],
                     values.get("source_id"),
@@ -3899,8 +3938,12 @@ class Database:
             )
         return str(item_id)
 
-    def list_learning_queue(self, agent_id: str | None = None) -> list[sqlite3.Row]:
+    def list_learning_queue(self, agent_id: str | None = None, organization_id: str | None = None) -> list[sqlite3.Row]:
         with self.connect() as conn:
+            if organization_id:
+                if agent_id:
+                    return conn.execute("SELECT * FROM learning_queue WHERE organization_id = ? AND agent_id = ? ORDER BY created_at DESC, id DESC", (organization_id, agent_id)).fetchall()
+                return conn.execute("SELECT * FROM learning_queue WHERE organization_id = ? ORDER BY created_at DESC, id DESC", (organization_id,)).fetchall()
             if agent_id:
                 return conn.execute(
                     "SELECT * FROM learning_queue WHERE agent_id = ? ORDER BY created_at DESC, id DESC",

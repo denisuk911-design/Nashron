@@ -38,26 +38,28 @@ class TaskOrchestrator:
         task_state_service: TaskStateService,
         agent_router: AgentRouter,
         project_id: str = "project-default",
+        organization_id: str | None = None,
     ) -> None:
         self.database = database
         self.task_state_service = task_state_service
         self.agent_router = agent_router
-        self.project_id = project_id
+        self.organization_id = organization_id
+        self.project_id = project_id if organization_id is None else f"project-{organization_id}"
         self.current_task_id: str | None = None
 
     def ensure_project(self) -> None:
-        self.database.ensure_project(self.project_id, "Default Project")
+        self.database.ensure_project(self.project_id, "Default Project", self.organization_id)
 
     def start_user_task(self, title: str, owner_message_id: int | None) -> str:
         self.ensure_project()
-        self.current_task_id = self.task_state_service.create_task(self.project_id, title[:160] or "Untitled task", owner_message_id)
+        self.current_task_id = self.database.create_task(self.project_id, title[:160] or "Untitled task", owner_message_id, "1.0", self.organization_id)
         self.database.audit_event("task_created", self.current_task_id, {"owner_message_id": owner_message_id})
         return self.current_task_id
 
     def start_run(self, agent_key: str, prompt_hash: str | None = None) -> RunHandle:
         self.ensure_project()
         if self.current_task_id is None:
-            self.current_task_id = self.task_state_service.create_task(self.project_id, "Chat task", None)
+            self.current_task_id = self.database.create_task(self.project_id, "Chat task", None, "1.0", self.organization_id)
         route = self.agent_router.route(agent_key)
         run_id = self.database.create_agent_run(
             task_id=self.current_task_id,
@@ -71,7 +73,7 @@ class TaskOrchestrator:
         self._update_runtime_state(
             route.agent_id,
             {
-                "organization_id": None,
+                "organization_id": self.organization_id,
                 "current_task_id": self.current_task_id,
                 "current_operation": "RUNNING",
                 "current_plan": ["execute assigned task", "record result", "validate output"],

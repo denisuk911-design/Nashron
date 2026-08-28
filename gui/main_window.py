@@ -162,7 +162,10 @@ class MainWindow(QMainWindow):
         self.agent_router = AgentRouter(self.database)
         self.team_router = TeamRouter(str(self.settings.get("general_chat_response", "SINGLE")))
         self.task_state_service = TaskStateService(self.database)
-        self.task_orchestrator = TaskOrchestrator(self.database, self.task_state_service, self.agent_router)
+        self.task_orchestrator = TaskOrchestrator(
+            self.database, self.task_state_service, self.agent_router,
+            organization_id=self.active_organization_id,
+        )
         self.task_orchestrator.ensure_project()
         self.director_service = DirectorService(self.database)
         self.universal_platform_service = UniversalPlatformService(
@@ -805,6 +808,8 @@ class MainWindow(QMainWindow):
             return
         self.database.set_active_organization(organization_id)
         self.active_organization_id = organization_id
+        self.task_orchestrator.organization_id = organization_id
+        self.task_orchestrator.project_id = f"project-{organization_id}"
         self.conversation_id = self.database.ensure_organization_conversation(organization_id, str(organization["name"]))
         self.universal_platform_service.conversation_id = self.conversation_id
         self.thread_service = ConversationThreadService(self.database, self.conversation_id)

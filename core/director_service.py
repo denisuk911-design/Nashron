@@ -98,14 +98,15 @@ class DirectorService:
         if reviewer is None:
             missing_roles.append("REVIEWER")
         owner_approval_required = any(token in goal.casefold() for token in OWNER_APPROVAL_KEYWORDS)
-        self.database.ensure_project("project-default", "Team2050 Project")
+        project_id = f"project-{organization_id}"
+        self.database.ensure_project(project_id, "Team2050 Project", organization_id)
         status = "AWAITING_OWNER_APPROVAL" if owner_approval_required else "READY"
         if missing_roles:
             status = "NEEDS_STAFFING"
         plan_id = self.database.create_project_plan(
             {
                 "organization_id": organization_id,
-                "project_id": "project-default",
+                "project_id": project_id,
                 "director_agent_id": str(director["agent_id"]),
                 "goal": goal,
                 "status": status,
@@ -346,7 +347,13 @@ class DirectorService:
         responsibility: str,
         review_required: bool,
     ) -> str:
-        task_id = self.database.create_task("project-default", title[:160], None, "1.0")
+        plan_row = self.database.get_project_plan(plan_id)
+        if plan_row is None:
+            raise ValueError("unknown_plan")
+        project_id = str(plan_row["project_id"])
+        organization_id = str(plan_row["organization_id"])
+        self.database.ensure_project(project_id, "Organization project", organization_id)
+        task_id = self.database.create_task(project_id, title[:160], None, "1.0", organization_id)
         return self.database.create_work_assignment(
             {
                 "plan_id": plan_id,
