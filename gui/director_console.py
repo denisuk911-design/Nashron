@@ -115,6 +115,7 @@ class DirectorConsoleDialog(QDialog):
         language: str = "ru",
         avatar_dir: str | Path | None = None,
         parent=None,
+        developer_mode: bool = False,
     ) -> None:
         super().__init__(parent)
         apply_team_dialog_chrome(self, minimum_width=920)
@@ -132,6 +133,7 @@ class DirectorConsoleDialog(QDialog):
         self.universal_platform_service = universal_platform_service
         self.language = language
         self.avatar_dir = Path(avatar_dir) if avatar_dir else None
+        self.developer_mode = bool(developer_mode)
         self.setWindowTitle("Команда")
         self.resize(1120, 760)
         self.tabs = QTabWidget()
@@ -179,6 +181,10 @@ class DirectorConsoleDialog(QDialog):
         self.tabs.addTab(self.findings_tab, tr(language, "findings"))
         self.tabs.addTab(self.diagnostics_tab, tr(language, "diagnostics"))
         self.tabs.addTab(self.audit_tab, tr(language, "audit"))
+        if not self.developer_mode:
+            # Keep the operational console useful while hiding raw contracts.
+            for index in (2, 5, 6, 12, 13):
+                self.tabs.setTabVisible(index, False)
 
         close = QDialogButtonBox(QDialogButtonBox.Close)
         close.rejected.connect(self.reject)

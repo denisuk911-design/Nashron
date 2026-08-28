@@ -358,6 +358,21 @@ class MainWindow(QMainWindow):
         top_layout.addWidget(self.codex_status_label)
         top_layout.addWidget(self.gemini_status_label)
         top_layout.addStretch(1)
+        self.chat_view_button = QPushButton("Чат")
+        self.chat_view_button.setObjectName("smallAction")
+        self.chat_view_button.setToolTip("Открыть обычный чат")
+        self.chat_view_button.clicked.connect(self.show_chat_view)
+        top_layout.addWidget(self.chat_view_button)
+        self.work_view_button = QPushButton("Работа")
+        self.work_view_button.setObjectName("smallAction")
+        self.work_view_button.setToolTip("Открыть рабочий режим")
+        self.work_view_button.clicked.connect(self.show_work_view)
+        top_layout.addWidget(self.work_view_button)
+        self.files_view_button = QPushButton("Файлы")
+        self.files_view_button.setObjectName("smallAction")
+        self.files_view_button.setToolTip("Открыть рабочую папку")
+        self.files_view_button.clicked.connect(self.open_workspace)
+        top_layout.addWidget(self.files_view_button)
         self.auth_button = QPushButton("Войти")
         self.auth_button.setObjectName("smallAction")
         self.auth_button.clicked.connect(self._auth_action)
@@ -1412,6 +1427,14 @@ class MainWindow(QMainWindow):
             ["ТЕКУЩАЯ ЗАДАЧА", *context.to_lines(), "", "ПОСЛЕДНИЕ ПЕРЕДАЧИ", handoff_text, "", "КОНТРАК", *(contract.to_lines() if contract else ["- активного контракта нет"])]
         )
         QMessageBox.information(self, "Рабочий контекст", text)
+
+    def show_chat_view(self) -> None:
+        self.conversation_mode = ConversationMode.SOCIAL
+        self._refresh_work_context_strip()
+
+    def show_work_view(self) -> None:
+        self.conversation_mode = ConversationMode.WORK
+        self._refresh_work_context_strip()
 
     def _goal_turn_limit(self) -> int:
         try:
@@ -2656,6 +2679,7 @@ class MainWindow(QMainWindow):
             str(self.settings.get("interface_language", "ru")),
             self.paths.avatar_dir,
             self,
+            developer_mode=bool(self.settings.get("developer_mode", False)),
         )
         dialog.exec()
         self.provider_provisioning_service.ensure_assignments_for_existing_agents()
