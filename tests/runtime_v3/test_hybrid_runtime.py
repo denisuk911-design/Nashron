@@ -87,12 +87,25 @@ def test_supervisor_uses_local_then_strong_planning_with_safe_fallback(tmp_path)
     goal = engine.create_goal("Unclassified request")
     plan = engine.create_plan(goal.goal_id)
     assert engine.supervisor.last_policy_decision.level == "STRONG"
+
+
     assert len(plan.work_item_ids) == 3
 
     engine = HybridWorkflowEngine("org", employees(), tmp_path, supervisor_policy=HybridSupervisorPolicy(Adapter(fail=True), Adapter(fail=True)))
     goal = engine.create_goal("Unclassified request")
     engine.create_plan(goal.goal_id)
     assert engine.supervisor.last_policy_decision.level == "DETERMINISTIC"
+
+
+def test_complex_plan_is_not_downgraded_by_local_social_classification():
+    class MisclassifyingLocal:
+        def decide(self, _objective):
+            return "SIMPLE"
+
+    policy = HybridSupervisorPolicy(MisclassifyingLocal())
+    decision = policy.decide("prepare a specification and research sources", "COMPLEX")
+    assert decision.shape == "COMPLEX"
+    assert decision.level == "DETERMINISTIC"
 
 
 def test_supervisor_decision_router_escalates_by_complexity_risk_and_persists(tmp_path):

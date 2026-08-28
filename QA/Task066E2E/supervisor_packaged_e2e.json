@@ -1,0 +1,71 @@
+{
+  "records": [
+    {
+      "request": "создай организацию: E2E Supervisor",
+      "ok": true,
+      "action": "create_organization",
+      "message": "Организация «E2E Supervisor» создана."
+    },
+    {
+      "request": "создай команду: ENGINEERING_PRODUCT_TEAM",
+      "ok": true,
+      "action": "create_team",
+      "message": "Команда «ENGINEERING_PRODUCT_TEAM» создана по шаблону «ENGINEERING_PRODUCT_TEAM»."
+    },
+    {
+      "request": "переназнач сотрудника agent-employee-866e94 роль QA_ENGINEER",
+      "ok": true,
+      "action": "reassign_employee",
+      "message": "Сотруднику agent-employee-866e94 назначена роль QA_ENGINEER."
+    },
+    {
+      "request": "удали сотрудника agent-employee-866e94",
+      "ok": true,
+      "action": "delete_employee",
+      "message": "Сотрудник agent-employee-866e94 удалён."
+    },
+    {
+      "request": "смени тему на dark",
+      "ok": true,
+      "action": "set_theme",
+      "message": "Настройка «theme» изменена на «dark»."
+    },
+    {
+      "request": "смени язык на русский",
+      "ok": true,
+      "action": "set_language",
+      "message": "Язык интерфейса изменён: ru."
+    },
+    {
+      "request": "создай цель: install provider validation",
+      "ok": true,
+      "action": "goal_create",
+      "message": "Цель «install provider validation»: AWAITING_OWNER_APPROVAL."
+    },
+    {
+      "request": "одобри цель",
+      "ok": true,
+      "action": "goal_approve",
+      "message": "Цель «install provider validation»: READY."
+    },
+    {
+      "request": "перепланируй цель",
+      "ok": true,
+      "action": "goal_replan",
+      "message": "Цель «install provider validation»: READY."
+    },
+    {
+      "request": "strong probe",
+      "ok": true,
+      "route": "STRONG",
+      "action": "strong",
+      "message": "The organization’s provider inventory and configuration were not available, so a factual “as-is” assessment is not possible. Recommended target architecture for ORG-58536C19FC87:\n\n- Central provider gateway separating application logic from vendor SDKs.\n- Versioned adapter contract for authentication, requests, streaming, errors, usage, and cancellation.\n- Policy-driven routing by capability, data residency, health, latency, cost, and quota.\n- Explicit fallback chains; retries only for transient errors and within a shared deadline.\n- Circuit breakers, rate limits, concurrency controls, and per-provider bulkheads.\n- Tenant-isolated secrets, payload redaction, audit logging, and provider allowlists.\n- Unified telemetry: success rate, p95 latency, timeout rate, fallback frequency, token usage, and cost.\n- Provider-independent tests plus contract tests for every adapter.\n- Configuration changes through validated, versioned rollout with canaries and rapid rollback.\n\nHighest architectural risks to verify first:\n\n1. Vendor SDKs leaking into domain code.\n2. Unbounded retry/fallback loops that multiply cost and latency.\n3. Inconsistent provider error classification.\n4. Silent capability degradation during fallback.\n5. Missing organization-level budgets and residency enforcement.\n6. Shared quotas or failures causing system-wide outages.\n\nPriority recommendation: establish the gateway and canonical adapter contract first, then introduce deterministic routing and observability before expanding the provider set. No files or database state were modified."
+    }
+  ],
+  "dialog_messages": 20,
+  "strong_route": "STRONG",
+  "strong_action": "strong",
+  "checks_passed": true,
+  "returncode": 0,
+  "exe": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\Team2050.exe"
+}

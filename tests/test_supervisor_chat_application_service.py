@@ -68,6 +68,15 @@ def test_dangerous_request_requires_confirmation_then_executes():
     assert management.deleted == [("agent-old", "ORGANIZATION_OWNER", True)]
 
 
+def test_russian_delete_request_requires_confirmation():
+    service, management, _settings = make_service()
+    pending = service.handle("удали сотрудника agent-old")
+    assert pending.confirmation_required
+    result = service.confirm(pending.confirmation_token)
+    assert result.ok
+    assert management.deleted == [("agent-old", "ORGANIZATION_OWNER", True)]
+
+
 def test_supervisor_changes_language_through_settings_callback():
     saved = []
     service, _management, settings = make_service()
@@ -84,3 +93,27 @@ def test_team_creation_uses_application_service():
     assert result.ok
     assert result.action == "create_team"
     assert result.data["employee_ids"] == ["agent-one"]
+
+
+def test_explicit_complex_command_is_not_diverted_to_strong():
+    service, _management, _settings = make_service()
+    calls = []
+    service.strong_handler = lambda text, organization_id: calls.append(text) or "strong"
+    result = service.handle("создай команду: PCB", "org-owner")
+    assert result.ok
+    assert result.route == "STRONG"
+    assert result.action == "create_team"
+    assert calls == []
+
+
+def test_unmapped_complex_request_uses_real_strong_callback():
+    service, _management, _settings = make_service()
+    service.local_runtime = SimpleNamespace(decide=lambda _text: "COMPLEX")
+    calls = []
+    service.strong_handler = lambda text, organization_id: calls.append((text, organization_id)) or "краткий совет"
+    result = service.handle("проанализируй риски проекта и предложи решение", "org-owner")
+    assert result.ok
+    assert result.route == "STRONG"
+    assert result.action == "strong"
+    assert result.message == "краткий совет"
+    assert calls == [("проанализируй риски проекта и предложи решение", "org-owner")]

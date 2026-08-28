@@ -63,6 +63,10 @@ def _preview_smoke_enabled() -> bool:
     return os.environ.get("TEAM2050_PREVIEW_SMOKE") == "1"
 
 
+def _supervisor_e2e_smoke_enabled() -> bool:
+    return os.environ.get("TEAM2050_SUPERVISOR_E2E_SMOKE") == "1"
+
+
 def _prepare_runtime_v3_smoke_settings(settings_service: SettingsService) -> None:
     if not (_runtime_v3_smoke_enabled() or _runtime_v3_hitl_smoke_enabled()):
         return
@@ -340,6 +344,108 @@ def _run_preview_smoke(app: QApplication, window: MainWindow) -> None:
     QTimer.singleShot(0, run)
 
 
+def _run_supervisor_e2e_smoke(app: QApplication, window: MainWindow, logger: logging.Logger) -> None:
+    """Exercise the packaged Supervisor dialog and its application boundary."""
+    from core.supervisor_chat_service import SupervisorChatApplicationService
+    from gui.supervisor_chat_dialog import SupervisorChatDialog
+
+    report_path = Path(os.environ["TEAM2050_SUPERVISOR_E2E_SMOKE_REPORT"])
+
+    def run() -> None:
+        dialog = None
+        records: list[dict[str, object]] = []
+        try:
+            service = SupervisorChatApplicationService(
+                supervisor_service=window.director_service,
+                universal_service=window.universal_platform_service,
+                management_service=window.management_service,
+                settings=window.settings,
+                save_settings=window.settings_service.save,
+                local_runtime=getattr(window.runtime_v3_goal_service, "local_supervisor", None),
+                strong_handler=window._run_supervisor_strong_request,
+            )
+            dialog = SupervisorChatDialog(service, window.active_organization_id, window)
+            dialog.show()
+            QApplication.processEvents()
+            # Observe the result at the dialog boundary.  Service-level
+            # wrapping is ambiguous because confirm() internally calls
+            # handle(), which otherwise shifts records between commands.
+            shown_results: list[object] = []
+            original_show_result = dialog._show_result
+
+            def tracked_show_result(result):
+                shown_results.append(result)
+                original_show_result(result)
+
+            dialog._show_result = tracked_show_result
+
+            def send(text: str) -> object:
+                shown_results.clear()
+                dialog.editor.setPlainText(text)
+                dialog._send()
+                QApplication.processEvents()
+                if not shown_results:
+                    raise RuntimeError(f"Supervisor dialog produced no result for: {text}")
+                result = shown_results[-1]
+                if result.confirmation_required:
+                    shown_results.clear()
+                    dialog._confirm()
+                    QApplication.processEvents()
+                    if not shown_results:
+                        raise RuntimeError(f"Supervisor confirmation produced no result for: {text}")
+                    result = shown_results[-1]
+                records.append({"request": text, "ok": result.ok, "action": result.action, "message": result.message})
+                return result
+
+            created_org = send("создай организацию: E2E Supervisor")
+            created_team = send("создай команду: ENGINEERING_PRODUCT_TEAM")
+            team_org = str(getattr(created_team, "data", {}).get("organization_id") or "")
+            employees = window.management_service.list_employees()
+            employee_id = next(
+                (
+                    item.agent_id
+                    for item in employees
+                    if item.agent_id not in {"agent-roman", "agent-petr"}
+                    and "PROJECT_MANAGER" not in item.roles
+                    and "QA_ENGINEER" not in item.roles
+                ),
+                "",
+            )
+            if employee_id:
+                send(f"переназнач сотрудника {employee_id} роль QA_ENGINEER")
+                send(f"удали сотрудника {employee_id}")
+            send("смени тему на dark")
+            send("смени язык на русский")
+            if team_org:
+                dialog.organization_id = team_org
+                goal_result = send("создай цель: install provider validation")
+                if goal_result.ok and goal_result.data.get("plan_id"):
+                    send("одобри цель")
+                    send("перепланируй цель")
+            strong = service.handle("perform a complex provider architecture analysis", team_org or window.active_organization_id)
+            records.append({"request": "strong probe", "ok": strong.ok, "route": strong.route, "action": strong.action, "message": strong.message})
+            payload = {
+                "records": records,
+                "dialog_messages": dialog.messages.count(),
+                "strong_route": strong.route,
+                "strong_action": strong.action,
+                "checks_passed": bool(records) and strong.ok and strong.route == "STRONG" and strong.action == "strong" and all(item.get("ok") for item in records if item.get("request") != "strong probe"),
+            }
+            report_path.parent.mkdir(parents=True, exist_ok=True)
+            report_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+            dialog.close()
+            app.exit(0 if payload["checks_passed"] else 1)
+        except Exception as exc:
+            logger.exception("supervisor_e2e_smoke_failed")
+            report_path.parent.mkdir(parents=True, exist_ok=True)
+            report_path.write_text(json.dumps({"checks_passed": False, "error": f"{type(exc).__name__}: {exc}"}, ensure_ascii=False, indent=2), encoding="utf-8")
+            if dialog is not None:
+                dialog.close()
+            app.exit(1)
+
+    QTimer.singleShot(0, run)
+
+
 def _run_runtime_v3_hitl_smoke(app: QApplication, window: MainWindow, logger: logging.Logger) -> None:
     report_path = Path(os.environ.get("TEAM2050_RUNTIME_V3_HITL_SMOKE_REPORT") or window.paths.user_dir / "runtime_v3_hitl_smoke.json")
     workspace = Path(os.environ.get("TEAM2050_RUNTIME_V3_GUI_SMOKE_WORKSPACE") or window.paths.user_dir / "workspace") / "hitl"
@@ -442,7 +548,9 @@ def main() -> int:
     app.processEvents()
     window.show()
     splash.close()
-    if _runtime_v3_smoke_enabled():
+    if _supervisor_e2e_smoke_enabled():
+        _run_supervisor_e2e_smoke(app, window, logger)
+    elif _runtime_v3_smoke_enabled():
         _run_runtime_v3_gui_smoke(app, window, logger)
     elif _runtime_v3_hitl_smoke_enabled():
         _run_runtime_v3_hitl_smoke(app, window, logger)

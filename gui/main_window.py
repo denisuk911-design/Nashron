@@ -2788,6 +2788,7 @@ class MainWindow(QMainWindow):
             settings=self.settings,
             save_settings=self.settings_service.save,
             local_runtime=getattr(self.runtime_v3_goal_service, "local_supervisor", None),
+            strong_handler=self._run_supervisor_strong_request,
         )
         dialog = SupervisorChatDialog(service, self.active_organization_id, self)
         dialog.exec()
@@ -2797,6 +2798,20 @@ class MainWindow(QMainWindow):
         self.apply_theme()
         self._refresh_organization_selector()
         self._refresh_chat_agents()
+
+    def _run_supervisor_strong_request(self, text: str, organization_id: str | None) -> str:
+        """Execute an unrecognized complex Supervisor request through Strong."""
+        organization = organization_id or "general"
+        prompt = (
+            "You are the Team2050 Supervisor. Answer the owner concisely and "
+            "factually in the interface language. Do not claim that files or "
+            "database state changed; this request is advisory only.\n"
+            f"Organization: {organization}\nOwner request: {text}"
+        )
+        result = self.codex_client.generate(prompt, allow_full_access=False)
+        if result.ok:
+            return result.content.strip()
+        return f"Strong provider не смог обработать запрос: {result.error or 'неизвестная ошибка'}"
 
     def logout(self) -> None:
         status = self.auth_service.logout()

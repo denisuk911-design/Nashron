@@ -37,7 +37,15 @@ class HybridSupervisorPolicy:
         if strong in {"SIMPLE", "COMPLEX"}:
             return SupervisorPolicyDecision("STRONG", strong, "strong_provider_decision")
         local = self._try_adapter(self.local_adapter, objective)
-        if local in {"SIMPLE", "COMPLEX"}:
+        # A local classifier may conservatively label a complex request as
+        # SIMPLE.  Never let that downgrade the deterministic plan shape and
+        # silently remove research/review work items.
+        if local == "COMPLEX":
+            return SupervisorPolicyDecision("LOCAL", local, "strong_unavailable_local_fallback")
+        if local == "SIMPLE" and not any(
+            token in objective.casefold()
+            for token in ("research", "specification", "analysis", "review", "plan", "source", "converter", "\u0441\u043f\u0435\u0446\u0438\u0444\u0438\u043a")
+        ):
             return SupervisorPolicyDecision("LOCAL", local, "strong_unavailable_local_fallback")
         return SupervisorPolicyDecision("DETERMINISTIC", complexity, "adapter_unavailable_fallback")
 

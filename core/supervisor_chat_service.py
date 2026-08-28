@@ -30,6 +30,14 @@ class SupervisorChatApplicationService:
         r"\b(создай организац|создай команд|найми|увол|переназнач|роль|skill|скилл|provider|провайдер|goal|цель|replan|переплан|запусти|отмени|approve|одобр)\w*",
         re.I,
     )
+    _DANGEROUS_RU = re.compile(
+        r"\b(?:\u0443\u0434\u0430\u043b\w*|\u0443\u0432\u043e\u043b\w*|\u0437\u0430\u043c\u0435\u043d\w*|\u043f\u0435\u0440\u0435\u043d\u0430\u0437\u043d\u0430\u0447\w*)",
+        re.I,
+    )
+    _COMPLEX_RU = re.compile(
+        r"\b(?:\u0441\u043e\u0437\u0434\u0430\u0439|\u043d\u0430\u0439\u043c\u0438|\u0443\u0432\u043e\u043b\u044c|\u043f\u0435\u0440\u0435\u043d\u0430\u0437\u043d\u0430\u0447|\u0440\u043e\u043b\u044c|\u0441\u043a\u0438\u043b\u043b|\u043f\u0440\u043e\u0432\u0430\u0439\u0434\u0435\u0440|\u0446\u0435\u043b\u044c|\u043f\u0435\u0440\u0435\u043f\u043b\u0430\u043d|\u0437\u0430\u043f\u0443\u0441\u0442\u0438|\u043e\u0442\u043c\u0435\u043d\u0438|\u043e\u0434\u043e\u0431\u0440\u0438)",
+        re.I,
+    )
 
     def __init__(
         self,
@@ -58,7 +66,7 @@ class SupervisorChatApplicationService:
         route = self._route(text)
         lowered = text.casefold()
 
-        if self._DANGEROUS.search(text) and not confirmed:
+        if (self._DANGEROUS.search(text) or self._DANGEROUS_RU.search(text)) and not confirmed:
             token = f"confirm-{len(self._pending) + 1}"
             self._pending[token] = (text, organization_id)
             return SupervisorChatResult(
@@ -72,10 +80,40 @@ class SupervisorChatApplicationService:
         if confirmed and text in {item[0] for item in self._pending.values()}:
             self._pending = {key: value for key, value in self._pending.items() if value[0] != text}
 
-        if route == "STRONG" and self.strong_handler is not None:
-            return SupervisorChatResult(True, self.strong_handler(text, organization_id), route="STRONG", action="strong")
-
         try:
+            # Known owner commands always stay inside Application Services.
+            # Model routing is only for requests without a deterministic
+            # command mapping.
+            if any(token in lowered for token in ("\u0441\u043e\u0437\u0434\u0430\u0439 \u043e\u0440\u0433\u0430\u043d\u0438\u0437\u0430\u0446\u0438\u044e", "create organization")):
+                return self._create_organization(text)
+            if any(token in lowered for token in ("\u0441\u043e\u0437\u0434\u0430\u0439 \u043a\u043e\u043c\u0430\u043d\u0434\u0443", "create team")):
+                return self._create_team(text, organization_id)
+            if any(token in lowered for token in ("\u0443\u0434\u0430\u043b\u0438 \u0441\u043e\u0442\u0440\u0443\u0434\u043d\u0438\u043a\u0430", "\u0443\u0432\u043e\u043b\u044c", "delete employee", "fire")):
+                return self._delete_employee(text)
+            if any(token in lowered for token in ("\u043f\u0435\u0440\u0435\u043d\u0430\u0437\u043d\u0430\u0447", "replace employee", "\u0437\u0430\u043c\u0435\u043d\u0438 \u0441\u043e\u0442\u0440\u0443\u0434\u043d\u0438\u043a\u0430")):
+                return self._reassign_employee(text)
+            if any(token in lowered for token in ("\u0441\u043c\u0435\u043d\u0438 \u0442\u0435\u043c\u0443", "\u0441\u043c\u0435\u043d\u0438\u0442\u044c \u0442\u0435\u043c\u0443", "change theme")):
+                return self._set_setting(text, "theme", ("theme", "\u0442\u0435\u043c\u0443"))
+            if any(token in lowered for token in ("\u0441\u043c\u0435\u043d\u0438 \u044f\u0437\u044b\u043a", "\u0441\u043c\u0435\u043d\u0438\u0442\u044c \u044f\u0437\u044b\u043a", "change language")):
+                return self._set_language(text)
+            if any(token in lowered for token in ("\u0437\u0432\u0443\u043a", "sound")):
+                return self._set_sound(text)
+            if any(token in lowered for token in ("\u0437\u0430\u043f\u0443\u0441\u0442\u0438 \u0446\u0435\u043b\u044c", "\u0441\u043e\u0437\u0434\u0430\u0439 \u0446\u0435\u043b\u044c", "\u043d\u043e\u0432\u0430\u044f \u0446\u0435\u043b\u044c", "start goal")):
+                return self._goal(text, organization_id, "create")
+            if any(token in lowered for token in ("\u043e\u0442\u043c\u0435\u043d\u0438 \u0446\u0435\u043b\u044c", "\u043e\u0441\u0442\u0430\u043d\u043e\u0432\u0438 \u0446\u0435\u043b\u044c", "cancel goal")):
+                return self._goal(text, organization_id, "cancel")
+            if any(token in lowered for token in ("\u043f\u0435\u0440\u0435\u043f\u043b\u0430\u043d\u0438\u0440\u0443\u0439", "replan")):
+                return self._goal(text, organization_id, "replan")
+            if any(token in lowered for token in ("\u043e\u0434\u043e\u0431\u0440\u0438", "approve")):
+                return self._goal(text, organization_id, "approve")
+            if any(token in lowered for token in ("\u043f\u043e\u043a\u0430\u0436\u0438 \u0446\u0435\u043b\u0438", "\u043f\u043e\u043a\u0430\u0436\u0438 \u0441\u0442\u0430\u0442\u0443\u0441", "\u0441\u0442\u0430\u0442\u0443\u0441 \u0446\u0435\u043b\u0438", "list goals", "status")):
+                plans = self.supervisor_service.list_plans(organization_id)
+                return SupervisorChatResult(True, self._plans_text(plans), action="list_goals", data={"count": len(plans)})
+
+            if route == "STRONG" and self.strong_handler is not None:
+                answer = self.strong_handler(text, organization_id)
+                failed = not answer or str(answer).startswith("Strong provider не смог")
+                return SupervisorChatResult(not failed, answer or "Strong provider не вернул ответ.", route="STRONG", action="strong")
             if any(token in lowered for token in ("создай организацию", "create organization")):
                 return self._create_organization(text)
             if any(token in lowered for token in ("создай команду", "create team", "наним")):
@@ -114,7 +152,7 @@ class SupervisorChatApplicationService:
         return self.handle(pending[0], pending[1], confirmed=True)
 
     def _route(self, text: str) -> str:
-        if self._COMPLEX.search(text):
+        if self._COMPLEX.search(text) or self._COMPLEX_RU.search(text):
             return "STRONG"
         if self.local_runtime is not None:
             try:
