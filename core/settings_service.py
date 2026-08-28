@@ -20,7 +20,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "allow_local_tools": False,
     "goal_turn_limit": 80,
     "general_chat_response": "SINGLE",
-    "workspace_root": str(Path.home() / "Documents" / "Roman2050 Workspace"),
+    "workspace_root": "",
     "reduce_motion": False,
     "interface_language": "ru",
     "user_avatar_path": "",
@@ -89,12 +89,22 @@ class SettingsService:
 
     @staticmethod
     def default_user_dir() -> Path:
+        preview_override = os.environ.get("TEAM2050_PREVIEW_HOME")
+        if preview_override:
+            return Path(preview_override)
+        team_override = os.environ.get("TEAM2050_HOME")
+        if team_override:
+            return Path(team_override)
         override = os.environ.get("ROMAN2050_HOME")
         if override:
             return Path(override)
         local_app_data = os.environ.get("LOCALAPPDATA")
         if local_app_data:
+            if os.environ.get("TEAM2050_PREVIEW") == "1":
+                return Path(local_app_data) / "Team2050-Preview"
             return Path(local_app_data) / "Roman2050"
+        if os.environ.get("TEAM2050_PREVIEW") == "1":
+            return Path.home() / ".team2050-preview"
         return Path.home() / ".roman2050"
 
     def _build_paths(self) -> AppPaths:
@@ -114,7 +124,7 @@ class SettingsService:
             skills_path=data_dir / "agent_skills.json",
             settings_path=data_dir / "app_settings.json",
             system_prompt_path=prompts_dir / "roman_system.md",
-            workspace_root=Path(DEFAULT_SETTINGS["workspace_root"]),
+            workspace_root=self.user_dir / "workspace",
             management_config_dir=self.user_dir / "management",
             avatar_dir=data_dir / "avatars",
         )
@@ -172,7 +182,7 @@ class SettingsService:
         settings = DEFAULT_SETTINGS.copy()
         settings.update({k: v for k, v in data.items() if k in DEFAULT_SETTINGS})
         if not settings.get("workspace_root"):
-            settings["workspace_root"] = DEFAULT_SETTINGS["workspace_root"]
+            settings["workspace_root"] = str(self.paths.workspace_root)
         return settings
 
     def save(self, settings: dict[str, Any]) -> None:

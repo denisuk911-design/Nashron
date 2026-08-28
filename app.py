@@ -26,11 +26,11 @@ from runtime_v3.models import Action, ActionType, EmployeeBinding, Goal, Plan, W
 
 def setup_logging(settings_service: SettingsService) -> logging.Logger:
     paths = settings_service.ensure_user_files()
-    logger = logging.getLogger("roman2050")
+    logger = logging.getLogger("team2050")
     logger.setLevel(logging.INFO)
     if not logger.handlers:
         handler = RotatingFileHandler(
-            paths.logs_dir / "roman2050.log",
+            paths.logs_dir / "team2050.log",
             maxBytes=1_000_000,
             backupCount=3,
             encoding="utf-8",
@@ -349,10 +349,11 @@ def main() -> int:
         logger.error("unicode_catalog_invalid errors=%s", ";".join(unicode_errors))
     app = QApplication(sys.argv)
     app.setApplicationName(BRAND_NAME)
-    app.setOrganizationName("Roman2050")
+    app.setOrganizationName("Team2050-Preview" if os.environ.get("TEAM2050_PREVIEW") == "1" else "Team2050")
     app.setWindowIcon(QIcon(str(brand_mark_path(settings_service.resource_path(".")))))
 
-    lock = QLockFile(str(settings_service.paths.user_dir / "roman2050.lock"))
+    lock_name = "team2050-preview.lock" if os.environ.get("TEAM2050_PREVIEW") == "1" else "team2050.lock"
+    lock = QLockFile(str(settings_service.paths.user_dir / lock_name))
     lock.setStaleLockTime(30000)
     if not lock.tryLock(100):
         QMessageBox.information(None, BRAND_NAME, "Программа уже запущена")
