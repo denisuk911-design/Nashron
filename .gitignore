@@ -4,6 +4,7 @@ build_fixed/
 dist/
 dist_fixed/
 dist_pending/
+release/
 tmp/
 snapshots/
 .pytest_cache/
