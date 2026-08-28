@@ -347,13 +347,16 @@ def _run_preview_smoke(app: QApplication, window: MainWindow) -> None:
 def _run_supervisor_e2e_smoke(app: QApplication, window: MainWindow, logger: logging.Logger) -> None:
     """Exercise the packaged Supervisor dialog and its application boundary."""
     from core.supervisor_chat_service import SupervisorChatApplicationService
+    from core.supervisor_guide_service import SupervisorGuideService
     from gui.supervisor_chat_dialog import SupervisorChatDialog
+    from gui.supervisor_guide_dialog import SupervisorGuideDialog
 
     report_path = Path(os.environ["TEAM2050_SUPERVISOR_E2E_SMOKE_REPORT"])
 
     def run() -> None:
         dialog = None
         records: list[dict[str, object]] = []
+        guide_records: list[dict[str, object]] = []
         try:
             service = SupervisorChatApplicationService(
                 supervisor_service=window.director_service,
@@ -422,14 +425,33 @@ def _run_supervisor_e2e_smoke(app: QApplication, window: MainWindow, logger: log
                 if goal_result.ok and goal_result.data.get("plan_id"):
                     send("одобри цель")
                     send("перепланируй цель")
+            for screen in ("main", "director", "settings"):
+                guide_dialog = SupervisorGuideDialog(window.supervisor_guide_service, screen, window)
+                guide_dialog.show()
+                QApplication.processEvents()
+                state = window.supervisor_guide_service.explain(screen)
+                guide_dialog._show()
+                QApplication.processEvents()
+                guide_records.append({"scenario": f"{screen}_show", "ok": bool(state["target"]), "target": state["target"]})
+                guide_dialog.close()
+            action_dialog = SupervisorGuideDialog(window.supervisor_guide_service, "main", window)
+            action_dialog.show()
+            QApplication.processEvents()
+            action_dialog._do()
+            action_result = window.supervisor_guide_service.do("main")
+            guide_records.append({"scenario": "main_do", "ok": bool(action_result.get("ok")), "target": "chat_input"})
+            action_dialog.close()
+            persisted_guide = SupervisorGuideService(window.paths.user_dir / "data" / "supervisor_guide.json")
+            guide_records.append({"scenario": "restart_familiarity", "ok": persisted_guide.explain("main")["familiarity"] >= 1})
             strong = service.handle("perform a complex provider architecture analysis", team_org or window.active_organization_id)
             records.append({"request": "strong probe", "ok": strong.ok, "route": strong.route, "action": strong.action, "message": strong.message})
             payload = {
                 "records": records,
+                "guide_records": guide_records,
                 "dialog_messages": dialog.messages.count(),
                 "strong_route": strong.route,
                 "strong_action": strong.action,
-                "checks_passed": bool(records) and strong.ok and strong.route == "STRONG" and strong.action == "strong" and all(item.get("ok") for item in records if item.get("request") != "strong probe"),
+                "checks_passed": bool(records) and len(guide_records) == 5 and all(item.get("ok") for item in guide_records) and strong.ok and strong.route == "STRONG" and strong.action == "strong" and all(item.get("ok") for item in records if item.get("request") != "strong probe"),
             }
             report_path.parent.mkdir(parents=True, exist_ok=True)
             report_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

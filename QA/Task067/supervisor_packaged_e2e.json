@@ -1,0 +1,97 @@
+{
+  "records": [
+    {
+      "request": "создай организацию: E2E Supervisor",
+      "ok": true,
+      "action": "create_organization",
+      "message": "Организация «E2E Supervisor» создана."
+    },
+    {
+      "request": "создай команду: ENGINEERING_PRODUCT_TEAM",
+      "ok": true,
+      "action": "create_team",
+      "message": "Команда «ENGINEERING_PRODUCT_TEAM» создана по шаблону «ENGINEERING_PRODUCT_TEAM»."
+    },
+    {
+      "request": "переназнач сотрудника agent-employee-f93465 роль QA_ENGINEER",
+      "ok": true,
+      "action": "reassign_employee",
+      "message": "Сотруднику agent-employee-f93465 назначена роль QA_ENGINEER."
+    },
+    {
+      "request": "удали сотрудника agent-employee-f93465",
+      "ok": true,
+      "action": "delete_employee",
+      "message": "Сотрудник agent-employee-f93465 удалён."
+    },
+    {
+      "request": "смени тему на dark",
+      "ok": true,
+      "action": "set_theme",
+      "message": "Настройка «theme» изменена на «dark»."
+    },
+    {
+      "request": "смени язык на русский",
+      "ok": true,
+      "action": "set_language",
+      "message": "Язык интерфейса изменён: ru."
+    },
+    {
+      "request": "создай цель: install provider validation",
+      "ok": true,
+      "action": "goal_create",
+      "message": "Цель «install provider validation»: AWAITING_OWNER_APPROVAL."
+    },
+    {
+      "request": "одобри цель",
+      "ok": true,
+      "action": "goal_approve",
+      "message": "Цель «install provider validation»: READY."
+    },
+    {
+      "request": "перепланируй цель",
+      "ok": true,
+      "action": "goal_replan",
+      "message": "Цель «install provider validation»: READY."
+    },
+    {
+      "request": "strong probe",
+      "ok": true,
+      "route": "STRONG",
+      "action": "strong",
+      "message": "Provider architecture assessment for ORG-F92B4B1E5D21:\n\n- Introduce a provider-neutral interface; keep vendor SDKs inside isolated adapters.\n- Separate capability discovery, routing policy, execution, and response normalization.\n- Route by capability, region, cost, latency, and health—not provider name.\n- Apply independent timeouts, rate limits, circuit breakers, retry budgets, and bulkheads per provider.\n- Permit failover only for idempotent operations; prevent duplicate side effects with idempotency keys.\n- Centralize secret rotation, tenant isolation, webhook verification, audit logging, and data-residency controls.\n- Standardize telemetry: provider, operation, latency, error class, retry count, cost, and fallback reason.\n- Test adapters through contract suites plus outage, throttling, malformed-response, and partial-failure scenarios.\n\nRecommended flow:\n\n`Domain service → Policy router → Capability registry → Provider adapter → Vendor API`\n\nPrimary risks are vendor-specific logic leaking into domain code, retry amplification, silent behavioral differences during failover, and incomplete cost/compliance attribution.\n\nThis is a reference assessment only: no project architecture artifacts were accessible for evidence-based, component-level findings, and no files or database state were changed."
+    }
+  ],
+  "guide_records": [
+    {
+      "scenario": "main_show",
+      "ok": true,
+      "target": "chat_input"
+    },
+    {
+      "scenario": "director_show",
+      "ok": true,
+      "target": "director_button"
+    },
+    {
+      "scenario": "settings_show",
+      "ok": true,
+      "target": "top_settings_button"
+    },
+    {
+      "scenario": "main_do",
+      "ok": true,
+      "target": "chat_input"
+    },
+    {
+      "scenario": "restart_familiarity",
+      "ok": true
+    }
+  ],
+  "dialog_messages": 20,
+  "strong_route": "STRONG",
+  "strong_action": "strong",
+  "checks_passed": true,
+  "returncode": 0,
+  "exe": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\Team2050.exe"
+}

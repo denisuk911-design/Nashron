@@ -6,11 +6,12 @@ from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import QPropertyAnimation, QSettings, QTimer, Qt
-from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtGui import QColor, QIcon, QPixmap
 from PySide6.QtWidgets import (
     QFileDialog,
     QComboBox,
     QFrame,
+    QGraphicsDropShadowEffect,
     QHBoxLayout,
     QInputDialog,
     QLabel,
@@ -78,6 +79,7 @@ from core.skill_package_service import SkillPackageService
 from core.skill_service import SkillService
 from core.standards_service import StandardsService
 from core.supervisor_application_service import SupervisorApplicationService
+from core.supervisor_guide_service import SupervisorGuideService
 from core.structured_response import ParsedAgentResponse, parse_agent_response
 from core.team_routing import ManualRouting, TeamRouter, TeamRoutingDecision
 from core.thread_question_service import ThreadQuestionService
@@ -105,6 +107,7 @@ from gui.login_dialog import show_install_instructions
 from gui.localization import catalog_label, role_label
 from gui.settings_dialog import SettingsDialog
 from gui.supervisor_chat_dialog import SupervisorChatDialog
+from gui.supervisor_guide_dialog import SupervisorGuideDialog
 from gui.theme import ThemeBackdrop, ThemeManager
 from gui.worker import GenerateWorker
 from runtime_v2.feature_flag import RuntimeEngine, selected_runtime
@@ -178,6 +181,10 @@ class MainWindow(QMainWindow):
         )
         self.task_orchestrator.ensure_project()
         self.director_service = SupervisorApplicationService(self.database)
+        self.supervisor_guide_service = SupervisorGuideService(
+            self.paths.user_dir / "data" / "supervisor_guide.json",
+            action_handler=self._run_guide_action,
+        )
         self.universal_platform_service = UniversalPlatformService(
             self.database,
             management_service=self.management_service,
@@ -398,6 +405,11 @@ class MainWindow(QMainWindow):
         self.supervisor_chat_button.setToolTip("Открыть отдельный чат Supervisor-хозяина")
         self.supervisor_chat_button.clicked.connect(self.show_supervisor_chat)
         top_layout.addWidget(self.supervisor_chat_button)
+        self.supervisor_guide_button = QPushButton("Guide")
+        self.supervisor_guide_button.setObjectName("smallAction")
+        self.supervisor_guide_button.setToolTip("\u041f\u043e\0434\0441\043a\0430\0437\043a\0430 \u043f\043e \u0442\0435\043a\0443\0449\0435\043c\0443 \u044d\043a\0440\0430\043d\0443")
+        self.supervisor_guide_button.clicked.connect(self.show_supervisor_guide)
+        top_layout.addWidget(self.supervisor_guide_button)
         self.feedback_button = QPushButton("Сообщить о проблеме")
         self.feedback_button.setObjectName("smallAction")
         self.feedback_button.setToolTip("Создать отчет о проблеме")
@@ -2798,6 +2810,37 @@ class MainWindow(QMainWindow):
         self.apply_theme()
         self._refresh_organization_selector()
         self._refresh_chat_agents()
+
+    def show_supervisor_guide(self) -> None:
+        dialog = SupervisorGuideDialog(self.supervisor_guide_service, "main", self)
+        dialog.show()
+        self._supervisor_guide_dialog = dialog
+
+    def _run_guide_action(self, target: str) -> str:
+        actions = {
+            "chat_input": lambda: self.chat.input.setFocus(),
+            "director_button": self.show_director_console_preview,
+            "top_settings_button": self.open_settings,
+        }
+        action = actions.get(target)
+        if action is None:
+            raise ValueError(f"unknown guide target: {target}")
+        action()
+        return target
+
+    def highlight_guide_target(self, target: str) -> None:
+        """Temporarily emphasize a control without disabling or grabbing input."""
+        widget = getattr(self, target, None)
+        if widget is None and target == "chat_input":
+            widget = getattr(self.chat, "input", None)
+        if widget is None:
+            return
+        effect = QGraphicsDropShadowEffect(widget)
+        effect.setColor(QColor("#5b7cff"))
+        effect.setBlurRadius(24)
+        effect.setOffset(0, 0)
+        widget.setGraphicsEffect(effect)
+        QTimer.singleShot(1800, lambda: widget.setGraphicsEffect(None) if widget is not None else None)
 
     def _run_supervisor_strong_request(self, text: str, organization_id: str | None) -> str:
         """Execute an unrecognized complex Supervisor request through Strong."""
