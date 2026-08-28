@@ -16,6 +16,7 @@ from PySide6.QtWidgets import QMessageBox
 from core.management_models import AgentProfile
 from core.branding import BRAND_NAME, brand_mark_path
 from core.settings_service import SettingsService
+from core.rc_checklist_service import RcChecklistService
 from core.unicode_pipeline import validate_unicode_catalog
 from gui.main_window import MainWindow
 from gui.startup_splash import StartupSplash
@@ -302,6 +303,8 @@ def _run_preview_smoke(app: QApplication, window: MainWindow) -> None:
         demo_requested = os.environ.get("TEAM2050_PREVIEW_SMOKE_DEMO") == "1"
         if demo_requested:
             window._run_demo_sandbox()
+        rc_checks = RcChecklistService(window.paths.user_dir).run()
+        rc_report = RcChecklistService(window.paths.user_dir).report_path
         demo_state = window.paths.user_dir / "demo_sandbox" / "checkpoints" / "state.json"
         screenshot_path = report_path.with_suffix(".png")
         window.grab().save(str(screenshot_path))
@@ -315,6 +318,9 @@ def _run_preview_smoke(app: QApplication, window: MainWindow) -> None:
             "user_avatar_path": avatar_path,
             "background_path": background_path,
             "demo_state": str(demo_state),
+            "rc_checklist": str(rc_report),
+            "rc_automated_pass": all(item.automated == "PASS" for item in rc_checks),
+            "rc_manual_acceptance": "PENDING",
             "screenshot": str(screenshot_path),
         }
         payload["checks_passed"] = (
@@ -324,6 +330,8 @@ def _run_preview_smoke(app: QApplication, window: MainWindow) -> None:
             and bool(avatar_path and Path(avatar_path).is_file())
             and bool(background_path and Path(background_path).is_file())
             and (not demo_requested or demo_state.is_file())
+            and payload["rc_automated_pass"]
+            and Path(payload["rc_checklist"]).is_file()
         )
         report_path.parent.mkdir(parents=True, exist_ok=True)
         report_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

@@ -59,6 +59,7 @@ from core.provider_service import ProviderHealthService, ProviderProvisioningSer
 from core.provider_lifecycle_service import ProviderLifecycleService
 from core.secure_storage import SecureStorageUnavailable
 from core.product_metrics_service import ProductMetricsService
+from core.rc_checklist_service import RcChecklistService
 from core.skill_progress_service import SkillProgressService
 from core.skill_package_service import SkillPackageService
 from core.standards_service import MANDATORY_LEVELS, STANDARD_AUTHORITIES, StandardsService
@@ -139,6 +140,7 @@ class DirectorConsoleDialog(QDialog):
         self.tabs = QTabWidget()
 
         self.overview_tab = OverviewTab(management_service, provider_health_service, self)
+        self.rc_checklist_tab = RcChecklistTab(management_service.database.path.parent, self)
         self.employee_tab = EmployeesTab(management_service, provider_health_service, provider_provisioning_service, language, self.avatar_dir, self)
         self.roles_tab = RolesTab(management_service, language, self)
         self.permissions_tab = PermissionsTab(management_service, language, self)
@@ -161,6 +163,7 @@ class DirectorConsoleDialog(QDialog):
         self.director_plans_tab = DirectorPlansTab(DirectorService(management_service.database), language, self)
 
         self.tabs.addTab(self.overview_tab, tr(language, "overview"))
+        self.tabs.addTab(self.rc_checklist_tab, {"ru": "Проверка RC", "uk": "Перевірка RC", "en": "RC check"}.get(language, "RC check"))
         self.tabs.addTab(self.universal_tab, tr(language, "organization"))
         self.tabs.addTab(
             self.director_plans_tab,
@@ -200,6 +203,7 @@ class DirectorConsoleDialog(QDialog):
 
     def refresh_all(self) -> None:
         self.overview_tab.refresh()
+        self.rc_checklist_tab.refresh()
         self.universal_tab.refresh()
         self.director_plans_tab.refresh()
         self.employee_tab.refresh()
@@ -766,6 +770,55 @@ class OrganizationActivationWizard(QWizard):
             QMessageBox.critical(self, self._copy["activation_failed"], str(exc))
             return
         super().accept()
+
+
+class RcChecklistTab(QWidget):
+    def __init__(self, profile_dir: Path, parent=None) -> None:
+        super().__init__(parent)
+        self.service = RcChecklistService(profile_dir)
+        self.table = QTableWidget(0, 4)
+        self.table.setHorizontalHeaderLabels(["Проверка", "Автоматически", "Ручная приёмка", "Детали"])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.summary = QLabel("Автоматическая проверка ещё не запускалась. Ручная приёмка обязательна.")
+        run = QPushButton("Запустить автоматическую проверку")
+        run.clicked.connect(self.run_checks)
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel("Проверка Preview RC: автоматические результаты не заменяют ручной запуск и проверку интерфейса."))
+        layout.addWidget(run)
+        layout.addWidget(self.summary)
+        layout.addWidget(self.table, 1)
+
+    def refresh(self) -> None:
+        if not self.service.report_path.is_file():
+            return
+        try:
+            payload = json.loads(self.service.report_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return
+        self._render(payload.get("checks", []), bool(payload.get("automated_pass")))
+
+    def run_checks(self) -> None:
+        checks = self.service.run()
+        self._render(
+            [{"title": item.title, "automated": item.automated, "detail": item.detail, "manual_status": "PENDING"} for item in checks],
+            all(item.automated == "PASS" for item in checks),
+        )
+
+    def _render(self, checks: list[dict], automated_pass: bool) -> None:
+        self.table.setRowCount(len(checks))
+        for row, check in enumerate(checks):
+            values = [
+                str(check.get("title", "")),
+                str(check.get("automated", "FAIL")),
+                "ОЖИДАЕТ РУЧНОЙ ПРОВЕРКИ",
+                str(check.get("detail", "")),
+            ]
+            for column, value in enumerate(values):
+                self.table.setItem(row, column, QTableWidgetItem(value))
+        status = "PASS" if automated_pass else "FAIL"
+        self.summary.setText(f"Автоматическая проверка: {status}. Ручная приёмка: НЕ ПОДТВЕРЖДЕНА.")
 
 
 class OverviewTab(QWidget):
