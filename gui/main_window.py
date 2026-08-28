@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import re
+from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import QPropertyAnimation, QSettings, QTimer, Qt
@@ -47,6 +48,7 @@ from core.gemini_client import GeminiClient
 from core.identity_service import IdentityError, IdentityService
 from core.internal_assistant_service import Team2050InternalAssistant
 from core.finding_service import FindingService
+from core.feedback_service import FeedbackService
 from core.knowledge_service import KnowledgeService
 from core.knowledge_application_service import KnowledgeApplicationService
 from core.learning_evidence_service import LearningEvidenceService
@@ -385,6 +387,11 @@ class MainWindow(QMainWindow):
         self.director_button.setToolTip("Центр управления командой")
         self.director_button.clicked.connect(self.show_director_console_preview)
         top_layout.addWidget(self.director_button)
+        self.feedback_button = QPushButton("Сообщить о проблеме")
+        self.feedback_button.setObjectName("smallAction")
+        self.feedback_button.setToolTip("Создать отчет о проблеме")
+        self.feedback_button.clicked.connect(self.show_feedback_dialog)
+        top_layout.addWidget(self.feedback_button)
         self.routing_debug_button = QPushButton("Маршрут")
         self.routing_debug_button.setObjectName("smallAction")
         self.routing_debug_button.setToolTip("Почему выбран этот сотрудник")
@@ -2757,6 +2764,30 @@ class MainWindow(QMainWindow):
         status = self.auth_service.logout()
         QMessageBox.information(self, "Codex", status.message)
         self.refresh_codex_status()
+
+    def show_feedback_dialog(self) -> None:
+        description, accepted = QInputDialog.getMultiLineText(
+            self, "Сообщить о проблеме", "Кратко опишите проблему:"
+        )
+        if not accepted or not description.strip():
+            return
+        attach = QMessageBox.question(
+            self,
+            "Прикрепить диагностику?",
+            "Добавить версию, сборку и обезличенную диагностику?\n"
+            "История чата, содержимое базы и секреты не прикрепляются.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes,
+        ) == QMessageBox.Yes
+        output = self.paths.user_dir / "feedback" / f"feedback-{datetime.now():%Y%m%d-%H%M%S}.zip"
+        try:
+            FeedbackService(self.paths.user_dir).create_report(
+                self.paths.user_dir, output, description, attach_diagnostics=attach
+            )
+        except (OSError, ValueError) as exc:
+            QMessageBox.warning(self, "Не удалось создать отчет", str(exc))
+            return
+        QMessageBox.information(self, "Отчет создан", f"Отчет сохранен:\n{output}")
 
     def open_settings(self) -> None:
         dialog = SettingsDialog(self.settings, self)

@@ -1,0 +1,65 @@
+{
+  "package_integrity": true,
+  "archive_exists": true,
+  "lifecycle": {
+    "install": {
+      "window_title": "Team2050",
+      "profile_dir": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task060_release\\lifecycle\\profile",
+      "profile_name": "profile",
+      "database_name": "team2050.sqlite3",
+      "user_avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task060_release\\lifecycle\\profile\\data\\avatars\\avatar-01-woman-realistic.png",
+      "background_path": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task060_release\\lifecycle\\install\\Team2050\\_internal\\data\\theme_backgrounds\\night_city\\night-city-03.png",
+      "demo_state": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task060_release\\lifecycle\\profile\\demo_sandbox\\checkpoints\\state.json",
+      "rc_checklist": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task060_release\\lifecycle\\profile\\rc_checklist\\latest.json",
+      "rc_automated_pass": true,
+      "rc_manual_acceptance": "PENDING",
+      "screenshot": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task060_release\\lifecycle\\first.png",
+      "checks_passed": true,
+      "returncode": 0
+    },
+    "update": {
+      "window_title": "Team2050",
+      "profile_dir": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task060_release\\lifecycle\\profile",
+      "profile_name": "profile",
+      "database_name": "team2050.sqlite3",
+      "user_avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task060_release\\lifecycle\\profile\\data\\avatars\\avatar-01-woman-realistic.png",
+      "background_path": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task060_release\\lifecycle\\install\\Team2050\\_internal\\data\\theme_backgrounds\\night_city\\night-city-03.png",
+      "demo_state": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task060_release\\lifecycle\\profile\\demo_sandbox\\checkpoints\\state.json",
+      "rc_checklist": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task060_release\\lifecycle\\profile\\rc_checklist\\latest.json",
+      "rc_automated_pass": true,
+      "rc_manual_acceptance": "PENDING",
+      "screenshot": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task060_release\\lifecycle\\second.png",
+      "checks_passed": true,
+      "returncode": 0
+    },
+    "restart": {
+      "window_title": "Team2050",
+      "profile_dir": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task060_release\\lifecycle\\profile",
+      "profile_name": "profile",
+      "database_name": "team2050.sqlite3",
+      "user_avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task060_release\\lifecycle\\profile\\data\\avatars\\avatar-01-woman-realistic.png",
+      "background_path": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task060_release\\lifecycle\\install\\Team2050\\_internal\\data\\theme_backgrounds\\night_city\\night-city-03.png",
+      "demo_state": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task060_release\\lifecycle\\profile\\demo_sandbox\\checkpoints\\state.json",
+      "rc_checklist": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task060_release\\lifecycle\\profile\\rc_checklist\\latest.json",
+      "rc_automated_pass": true,
+      "rc_manual_acceptance": "PENDING",
+      "screenshot": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task060_release\\lifecycle\\restart.png",
+      "checks_passed": true,
+      "returncode": 0
+    },
+    "versions": [
+      "2.6.0-beta.1",
+      "2.6.0-beta.2"
+    ],
+    "install_removed": true,
+    "profile_preserved": true,
+    "legacy_not_imported": true,
+    "rollback_after_failed_update": true,
+    "support_bundle": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task060_release\\lifecycle\\support-bundle.zip",
+    "support_bundle_secret_free": true,
+    "legacy_path": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_task060_release\\lifecycle\\legacy-Roman2050",
+    "checks_passed": true
+  },
+  "lifecycle_exit_code": 0,
+  "checks_passed": true
+}
