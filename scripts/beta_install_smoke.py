@@ -5,10 +5,15 @@ import json
 import os
 import shutil
 import subprocess
+import sys
+import zipfile
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from core.beta_recovery_service import BetaRecoveryService, SimulatedUpdateCrash
 
 
 def _run(exe: Path, profile: Path, report: Path) -> dict:
@@ -53,17 +58,28 @@ def main() -> int:
     (install / "team2050-release.json").write_text(json.dumps(manifest_v1, indent=2), encoding="utf-8")
     first = _run(install / "Team2050.exe", profile, work / "first.json")
 
-    # Update replaces installation files while retaining the external profile directory.
+    # A crash after copying files must be recoverable from the rollback snapshot.
     update_stage = work / "update-stage"
     shutil.copytree(source, update_stage)
-    shutil.copytree(update_stage, install, dirs_exist_ok=True)
     manifest_v2 = {"product": "Team2050", "channel": "beta", "version": "2.6.0-beta.2"}
-    (install / "team2050-release.json").write_text(json.dumps(manifest_v2, indent=2), encoding="utf-8")
+    recovery = BetaRecoveryService(install)
+    try:
+        recovery.update(update_stage, manifest_v2["version"], simulate_crash=True)
+    except SimulatedUpdateCrash:
+        pass
+    recovered = recovery.recover()
+    manifest_after_recovery = json.loads((install / "team2050-release.json").read_text(encoding="utf-8"))
+    rollback_ok = recovered and manifest_after_recovery.get("version") == manifest_v1["version"]
+    recovery.update(update_stage, manifest_v2["version"])
     second = _run(install / "Team2050.exe", profile, work / "second.json")
     restarted = _run(install / "Team2050.exe", profile, work / "restart.json")
     profile_database = profile / "team2050.sqlite3"
     profile_settings = profile / "data" / "app_settings.json"
     profile_before_uninstall = profile_database.is_file() and profile_settings.is_file()
+    support_bundle = recovery.create_support_bundle(profile, work / "support-bundle.zip")
+    with zipfile.ZipFile(support_bundle) as bundle:
+        support_report = json.loads(bundle.read("support-report.json").decode("utf-8"))
+    support_text = json.dumps(support_report, ensure_ascii=False)
 
     # Uninstall removes the application bundle only. User data is deliberately retained.
     shutil.rmtree(install)
@@ -75,6 +91,11 @@ def main() -> int:
         "install_removed": not install.exists(),
         "profile_preserved": profile_before_uninstall and profile_database.is_file() and profile_settings.is_file(),
         "legacy_not_imported": not (profile / "Roman2050.sqlite3").exists() and legacy.is_dir(),
+        "rollback_after_failed_update": rollback_ok,
+        "support_bundle": str(support_bundle),
+        "support_bundle_secret_free": support_report.get("secrets_included") is False and not any(
+            marker in support_text for marker in ("AQ.", "ghp_", "sk-", "BEGIN PRIVATE KEY")
+        ),
         "legacy_path": str(legacy),
     }
     payload["checks_passed"] = (
@@ -86,6 +107,8 @@ def main() -> int:
         and payload["install_removed"]
         and payload["profile_preserved"]
         and payload["legacy_not_imported"]
+        and payload["rollback_after_failed_update"]
+        and payload["support_bundle_secret_free"]
     )
     evidence = Path(args.evidence).resolve()
     evidence.parent.mkdir(parents=True, exist_ok=True)
