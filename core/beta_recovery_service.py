@@ -7,6 +7,8 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .beta_release_integrity import verify_release_dir
+
 
 class SimulatedUpdateCrash(RuntimeError):
     """Testable equivalent of a process crash during an update."""
@@ -24,16 +26,16 @@ class BetaRecoveryService:
         source = Path(source_dir)
         if not (source / "Team2050.exe").is_file():
             raise FileNotFoundError(source / "Team2050.exe")
+        if not verify_release_dir(source):
+            raise ValueError("release_integrity_check_failed")
         backup = self.rollback_root / f"{version}-{uuid.uuid4().hex[:8]}"
         self.rollback_root.mkdir(parents=True, exist_ok=True)
         shutil.copytree(self.install_dir, backup)
         self._write_state("APPLYING", version, backup)
         try:
             shutil.copytree(source, self.install_dir, dirs_exist_ok=True)
-            (self.install_dir / "team2050-release.json").write_text(
-                json.dumps({"product": "Team2050", "channel": "beta", "version": version}, indent=2),
-                encoding="utf-8",
-            )
+            if not verify_release_dir(self.install_dir):
+                raise ValueError("release_integrity_check_failed_after_copy")
             if simulate_crash:
                 raise SimulatedUpdateCrash("simulated crash after update copy")
             self._write_state("COMPLETED", version, backup)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -14,6 +15,29 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from core.beta_recovery_service import BetaRecoveryService, SimulatedUpdateCrash
+from core.beta_release_integrity import sign_manifest
+
+
+def _version_manifest(bundle: Path, version: str) -> dict:
+    manifest_path = bundle / "team2050-release.json"
+    if manifest_path.is_file():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    else:
+        manifest = {
+            "product": "Team2050",
+            "channel": "beta",
+            "executable": "Team2050.exe",
+            "profile_policy": "external_localappdata",
+            "files": {
+                str(path.relative_to(bundle)).replace("\\", "/"): hashlib.sha256(path.read_bytes()).hexdigest()
+                for path in sorted(bundle.rglob("*"))
+                if path.is_file()
+            },
+        }
+    manifest["version"] = version
+    manifest["signature"] = sign_manifest(manifest)
+    (bundle / "team2050-release.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    return manifest
 
 
 def _run(exe: Path, profile: Path, report: Path) -> dict:
@@ -54,14 +78,13 @@ def main() -> int:
     # Clean install: only the versioned application directory is copied; the profile starts empty.
     install.parent.mkdir(parents=True)
     shutil.copytree(source, install)
-    manifest_v1 = {"product": "Team2050", "channel": "beta", "version": "2.6.0-beta.1"}
-    (install / "team2050-release.json").write_text(json.dumps(manifest_v1, indent=2), encoding="utf-8")
+    manifest_v1 = _version_manifest(install, "2.6.0-beta.1")
     first = _run(install / "Team2050.exe", profile, work / "first.json")
 
     # A crash after copying files must be recoverable from the rollback snapshot.
     update_stage = work / "update-stage"
     shutil.copytree(source, update_stage)
-    manifest_v2 = {"product": "Team2050", "channel": "beta", "version": "2.6.0-beta.2"}
+    manifest_v2 = _version_manifest(update_stage, "2.6.0-beta.2")
     recovery = BetaRecoveryService(install)
     try:
         recovery.update(update_stage, manifest_v2["version"], simulate_crash=True)
