@@ -89,6 +89,7 @@ class LearningManagerService:
             str(row["competence"]),
             str(row["reason"]),
             str(row["created_by"] or "SYSTEM_LEARNING_MANAGER"),
+            str(row["organization_id"] or "") or None,
         )
         self.skill_packages.assign_to_employee(
             agent_id,
@@ -122,7 +123,7 @@ class LearningManagerService:
         skill_id = str(row["skill_id"] or "")
         if not skill_id:
             raise ValueError("learning_skill_not_prepared")
-        self.skill_packages.update_status(skill_id, "PRACTICED", actor="SYSTEM_LEARNING_MANAGER", reason=f"practice_run:{run_id}")
+        self.skill_packages.update_status(skill_id, "PRACTICED", actor="SYSTEM_LEARNING_MANAGER", reason=f"evidence:practice_run:{run_id}")
         self.skill_packages.assign_to_employee(
             str(row["agent_id"]), skill_id, state="DEMONSTRATED", actor="SYSTEM_LEARNING_MANAGER", reason=f"practice_run:{run_id}"
         )
@@ -160,7 +161,7 @@ class LearningManagerService:
             {"review_run_id": review_run_id, "review_checks": checks, "review_findings": findings, "approved": approved and not blocking},
         )
         if approved and not blocking:
-            self.skill_packages.update_status(skill_id, "VERIFIED", actor=str(run["agent_id"]), reason=f"review_run:{review_run_id}")
+            self.skill_packages.update_status(skill_id, "VERIFIED", actor=str(run["agent_id"]), reason=f"evidence:review_run:{review_run_id}")
             self.skill_packages.assign_to_employee(
                 str(row["agent_id"]), skill_id, state="QUALIFIED", actor=str(run["agent_id"]), reason=f"review_run:{review_run_id}"
             )
@@ -174,7 +175,9 @@ class LearningManagerService:
         return self._queue_item(item_id)
 
     def _ensure_skill_candidate(self, experience: ExperienceRecord, competence: str) -> bool:
-        existing = next((item for item in self.skill_packages.list_packages() if item.name.casefold() == competence.casefold()), None)
+        if not self._has_promotable_evidence(experience):
+            return False
+        existing = next((item for item in self.skill_packages.list_packages(experience.organization_id) if item.name.casefold() == competence.casefold()), None)
         created = existing is None
         if existing is None:
             skill_id = self.skill_packages.create_package(
@@ -187,11 +190,12 @@ class LearningManagerService:
                 qualification_tasks=["Повторить операцию на отдельной проверочной задаче"],
                 status="PRACTICED",
                 actor="SYSTEM_LEARNING_MANAGER",
+                organization_id=experience.organization_id,
             )
         else:
             skill_id = existing.skill_id
             if existing.status == "DRAFT":
-                self.skill_packages.update_status(skill_id, "PRACTICED", actor="SYSTEM_LEARNING_MANAGER", reason=experience.record_id)
+                self.skill_packages.update_status(skill_id, "PRACTICED", actor="SYSTEM_LEARNING_MANAGER", reason=f"evidence:{experience.record_id}", organization_id=experience.organization_id)
         if experience.agent_id:
             self.skill_packages.assign_to_employee(
                 experience.agent_id,
@@ -202,8 +206,8 @@ class LearningManagerService:
             )
         return created
 
-    def _skill_id_for_competence(self, competence: str, reason: str, actor: str) -> str:
-        existing = next((item for item in self.skill_packages.list_packages() if item.name.casefold() == competence.casefold()), None)
+    def _skill_id_for_competence(self, competence: str, reason: str, actor: str, organization_id: str | None = None) -> str:
+        existing = next((item for item in self.skill_packages.list_packages(organization_id) if item.name.casefold() == competence.casefold()), None)
         if existing is not None:
             return existing.skill_id
         return self.skill_packages.create_package(
@@ -213,7 +217,13 @@ class LearningManagerService:
             qualification_tasks=["Выполнить исправленную операцию повторно"],
             status="DRAFT",
             actor=actor,
+            organization_id=organization_id,
         )
+
+    @staticmethod
+    def _has_promotable_evidence(experience: ExperienceRecord) -> bool:
+        evidence = experience.evidence if isinstance(experience.evidence, dict) else {}
+        return any(bool(evidence.get(key)) for key in ("artifact_ids", "tool_evidence_ids", "finding_ids"))
 
     def _coordinator(self, organization_id: str) -> str | None:
         for row in self.database.list_organization_members(organization_id):

@@ -2085,9 +2085,6 @@ class MainWindow(QMainWindow):
                 self._import_structured_findings(worker, parsed_response, agent_key)
                 self._import_structured_usage(worker, parsed_response, agent_key)
                 self._record_learning_evidence(worker, content)
-                if not claim_validation.blocks_skill_update:
-                    self.skill_service.learn_from_exchange(agent_key, self.pending_user_message, content)
-                    self.skill_service.improve_from_context(agent_key, self.autonomous_goal or self.pending_user_message, content)
         elif result.cancelled:
             # A deliberate stop is not a provider failure and should not add noise to the chat.
             pass
@@ -2340,9 +2337,6 @@ class MainWindow(QMainWindow):
                         self._import_structured_findings(worker, parsed_response, agent_key)
                         self._import_structured_usage(worker, parsed_response, agent_key)
                         self._record_learning_evidence(worker, final_content)
-                        if not claim_validation.blocks_skill_update:
-                            self.skill_service.learn_from_exchange(agent_key, self.pending_user_message, final_content)
-                            self.skill_service.improve_from_context(agent_key, self.autonomous_goal or self.pending_user_message, final_content)
                         self.last_peer_context = final_content
                         self._schedule_contextual_next_turn(agent_key, final_content)
                 else:
@@ -2372,9 +2366,6 @@ class MainWindow(QMainWindow):
                         self._import_structured_findings(worker, parsed_response, agent_key)
                         self._import_structured_usage(worker, parsed_response, agent_key)
                         self._record_learning_evidence(worker, clean_part)
-                        if not claim_validation.blocks_skill_update:
-                            self.skill_service.learn_from_exchange(agent_key, self.pending_user_message, clean_part)
-                            self.skill_service.improve_from_context(agent_key, self.autonomous_goal or self.pending_user_message, clean_part)
                         self.exchange_responded_agent_keys.add(agent_key)
                         self._schedule_contextual_next_turn(agent_key, clean_part)
                         self.last_peer_context = clean_part

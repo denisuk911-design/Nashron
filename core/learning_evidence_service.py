@@ -149,6 +149,7 @@ class LearningEvidenceService:
                 "practice_task": practice_task.strip(),
                 "evidence": evidence,
                 "created_by": created_by,
+                "organization_id": self._organization_for_agent(agent_id),
                 "qualification_criteria": [
                     "Практическая задача выполнена с проверяемыми evidence",
                     "Результат проверен другим сотрудником",
@@ -169,6 +170,14 @@ class LearningEvidenceService:
 
     def list_learning_queue(self, agent_id: str | None = None) -> list[LearningQueueItem]:
         return [self._queue_item(row) for row in self.database.list_learning_queue(agent_id)]
+
+    def _organization_for_agent(self, agent_id: str) -> str | None:
+        with self.database.connect() as conn:
+            row = conn.execute(
+                "SELECT organization_id FROM organization_members WHERE agent_id = ? AND status = 'ACTIVE' ORDER BY created_at DESC LIMIT 1",
+                (agent_id,),
+            ).fetchone()
+        return str(row["organization_id"]) if row is not None else None
 
     def _run_evidence(self, run_id: str):
         with self.database.connect() as conn:

@@ -10,6 +10,7 @@ SKILL_PACKAGE_STATUSES = (
     "DRAFT", "PRACTICED", "READY_FOR_REVIEW", "REVIEWED", "VERIFIED", "MATURE",
     "ACTIVE", "SUSPENDED", "DEPRECATED", "REJECTED",
 )
+SKILL_LIFECYCLE_STATES = ("CANDIDATE", "QUALIFIED", "ACTIVE")
 EMPLOYEE_SKILL_STATES = (
     "NOT_ASSIGNED",
     "ASSIGNED",
@@ -42,6 +43,7 @@ class SkillPackage:
     qualification_tasks: list[str]
     version: str
     status: str
+    lifecycle_state: str
     created_by: str
     updated_at: str
 
@@ -93,6 +95,7 @@ class SkillPackageService:
         version: str = "0.1.0",
         status: str = "DRAFT",
         actor: str = "owner",
+        organization_id: str | None = None,
     ) -> str:
         name = " ".join(name.strip().split())
         if not name:
@@ -116,14 +119,17 @@ class SkillPackageService:
             version=version.strip() or "0.1.0",
             status=status,
             actor=actor,
+            organization_id=organization_id,
         )
 
-    def list_packages(self) -> list[SkillPackage]:
-        return [self._package_from_row(row) for row in self.database.list_skill_packages()]
+    def list_packages(self, organization_id: str | None = None) -> list[SkillPackage]:
+        return [self._package_from_row(row) for row in self.database.list_skill_packages(organization_id)]
 
-    def update_status(self, skill_id: str, status: str, *, actor: str = "owner", reason: str = "") -> None:
+    def update_status(self, skill_id: str, status: str, *, actor: str = "owner", reason: str = "", organization_id: str | None = None) -> None:
         self._require_status(status)
-        self.database.update_skill_package_status(skill_id, status, actor, reason.strip())
+        if status in {"VERIFIED", "MATURE", "ACTIVE"} and "evidence:" not in reason.lower() and actor != "owner":
+            raise ValueError("Переход навыка требует evidence.")
+        self.database.update_skill_package_status(skill_id, status, actor, reason.strip(), organization_id)
 
     def assign_to_employee(self, agent_id: str, skill_id: str, *, state: str = "ASSIGNED", actor: str = "owner", reason: str = "") -> str:
         self._require_employee_state(state)
@@ -172,6 +178,7 @@ class SkillPackageService:
             qualification_tasks=self._json_list(row["qualification_tasks"]),
             version=str(row["version"] or ""),
             status=str(row["status"] or ""),
+            lifecycle_state=str(row["lifecycle_state"] or "CANDIDATE"),
             created_by=str(row["created_by"] or ""),
             updated_at=str(row["updated_at"] or ""),
         )

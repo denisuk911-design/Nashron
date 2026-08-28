@@ -582,6 +582,12 @@ class Database:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_projects_organization ON projects(organization_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_tasks_organization ON tasks(organization_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_learning_queue_organization ON learning_queue(organization_id)")
+        skill_columns = {str(row["name"]) for row in conn.execute("PRAGMA table_info(skill_packages)").fetchall()}
+        if "organization_id" not in skill_columns:
+            conn.execute("ALTER TABLE skill_packages ADD COLUMN organization_id TEXT")
+        if "lifecycle_state" not in skill_columns:
+            conn.execute("ALTER TABLE skill_packages ADD COLUMN lifecycle_state TEXT NOT NULL DEFAULT 'CANDIDATE'")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_skill_packages_organization ON skill_packages(organization_id)")
         extensions = {
             "project_plans": {
                 "owner_message_id": "INTEGER",
@@ -730,6 +736,7 @@ class Database:
             """
             CREATE TABLE IF NOT EXISTS skill_packages (
                 id TEXT PRIMARY KEY,
+                organization_id TEXT,
                 name TEXT NOT NULL,
                 purpose TEXT NOT NULL DEFAULT '',
                 supported_roles TEXT NOT NULL DEFAULT '[]',
@@ -746,6 +753,7 @@ class Database:
                 qualification_tasks TEXT NOT NULL DEFAULT '[]',
                 version TEXT NOT NULL DEFAULT '0.1.0',
                 status TEXT NOT NULL DEFAULT 'DRAFT',
+                lifecycle_state TEXT NOT NULL DEFAULT 'CANDIDATE',
                 created_by TEXT NOT NULL DEFAULT 'owner',
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -2310,21 +2318,24 @@ class Database:
         version: str = "0.1.0",
         status: str = "DRAFT",
         actor: str = "owner",
+        organization_id: str | None = None,
+        lifecycle_state: str | None = None,
     ) -> str:
         skill_id = f"SKILL-{uuid.uuid4().hex[:12].upper()}"
         with self.connect() as conn:
             conn.execute(
                 """
                 INSERT INTO skill_packages (
-                    id, name, purpose, supported_roles, prerequisites, source_material,
+                    id, organization_id, name, purpose, supported_roles, prerequisites, source_material,
                     instructions, tools, expected_inputs, expected_outputs, prohibited_actions,
                     validation_checklist, examples, negative_examples, qualification_tasks,
-                    version, status, created_by
+                    version, status, lifecycle_state, created_by
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     skill_id,
+                    organization_id,
                     name,
                     purpose,
                     self._json(supported_roles or []),
@@ -2341,14 +2352,20 @@ class Database:
                     self._json(qualification_tasks or []),
                     version,
                     status,
+                    lifecycle_state or self._skill_lifecycle_for_status(status),
                     actor,
                 ),
             )
             self._insert_skill_package_event(conn, skill_id, "CREATED", actor, f"status={status}")
         return skill_id
 
-    def list_skill_packages(self) -> list[sqlite3.Row]:
+    def list_skill_packages(self, organization_id: str | None = None) -> list[sqlite3.Row]:
         with self.connect() as conn:
+            if organization_id:
+                return conn.execute(
+                    """SELECT * FROM skill_packages WHERE organization_id = ? OR organization_id IS NULL
+                    ORDER BY updated_at DESC, created_at DESC, name ASC""", (organization_id,)
+                ).fetchall()
             return conn.execute(
                 """
                 SELECT * FROM skill_packages
@@ -2360,14 +2377,16 @@ class Database:
         with self.connect() as conn:
             return conn.execute("SELECT * FROM skill_packages WHERE id = ?", (skill_id,)).fetchone()
 
-    def update_skill_package_status(self, skill_id: str, status: str, actor: str = "owner", reason: str = "") -> None:
+    def update_skill_package_status(self, skill_id: str, status: str, actor: str = "owner", reason: str = "", organization_id: str | None = None) -> None:
         with self.connect() as conn:
             current = conn.execute("SELECT status FROM skill_packages WHERE id = ?", (skill_id,)).fetchone()
             if current is None:
                 raise ValueError(f"Skill package not found: {skill_id}")
+            lifecycle = self._skill_lifecycle_for_status(status)
             conn.execute(
-                "UPDATE skill_packages SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                (status, skill_id),
+                "UPDATE skill_packages SET status = ?, lifecycle_state = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+                + (" AND (organization_id = ? OR organization_id IS NULL)" if organization_id else ""),
+                (status, lifecycle, skill_id, organization_id) if organization_id else (status, lifecycle, skill_id),
             )
             self._insert_skill_package_event(
                 conn,
@@ -2416,6 +2435,14 @@ class Database:
                 event_detail = f"{agent_id}: {existing['state']} -> {state}; {reason}".strip("; ")
             self._insert_skill_package_event(conn, skill_id, "ASSIGNED_TO_EMPLOYEE", actor, event_detail)
         return assignment_id
+
+    @staticmethod
+    def _skill_lifecycle_for_status(status: str) -> str:
+        if status in {"VERIFIED", "QUALIFIED", "MATURE"}:
+            return "QUALIFIED"
+        if status in {"ACTIVE"}:
+            return "ACTIVE"
+        return "CANDIDATE"
 
     def list_employee_skill_assignments(self, agent_id: str | None = None) -> list[sqlite3.Row]:
         sql = (
