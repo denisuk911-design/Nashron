@@ -468,6 +468,27 @@ def _run_supervisor_e2e_smoke(app: QApplication, window: MainWindow, logger: log
     QTimer.singleShot(0, run)
 
 
+def _run_test_build_restart_smoke(app: QApplication, window: MainWindow) -> None:
+    """Verify that a clean Test Build can reopen its own persisted profile."""
+    report_path = Path(os.environ["TEAM2050_TEST_BUILD_RESTART_REPORT"])
+
+    def run() -> None:
+        organizations = window.database.list_organizations()
+        plans = window.director_service.list_plans(window.active_organization_id)
+        payload = {
+            "checks_passed": bool(organizations) and bool(plans),
+            "active_organization_id": window.active_organization_id,
+            "organizations": len(organizations),
+            "plans": len(plans),
+            "profile": str(window.paths.user_dir),
+        }
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        app.exit(0 if payload["checks_passed"] else 1)
+
+    QTimer.singleShot(0, run)
+
+
 def _run_runtime_v3_hitl_smoke(app: QApplication, window: MainWindow, logger: logging.Logger) -> None:
     report_path = Path(os.environ.get("TEAM2050_RUNTIME_V3_HITL_SMOKE_REPORT") or window.paths.user_dir / "runtime_v3_hitl_smoke.json")
     workspace = Path(os.environ.get("TEAM2050_RUNTIME_V3_GUI_SMOKE_WORKSPACE") or window.paths.user_dir / "workspace") / "hitl"
@@ -572,6 +593,8 @@ def main() -> int:
     splash.close()
     if _supervisor_e2e_smoke_enabled():
         _run_supervisor_e2e_smoke(app, window, logger)
+    elif os.environ.get("TEAM2050_TEST_BUILD_RESTART_SMOKE") == "1":
+        _run_test_build_restart_smoke(app, window)
     elif _runtime_v3_smoke_enabled():
         _run_runtime_v3_gui_smoke(app, window, logger)
     elif _runtime_v3_hitl_smoke_enabled():

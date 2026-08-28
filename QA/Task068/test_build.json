@@ -1,0 +1,133 @@
+{
+  "checks_passed": true,
+  "build": {
+    "exe": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050-TestBuild\\Team2050.exe",
+    "version": {
+      "version": "2.6.0",
+      "commit": "32a00a6",
+      "timestamp": "2026-08-28T19:15:52.1942616Z"
+    },
+    "profile": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_team2050_testbuild\\profile"
+  },
+  "clean_first_run": {
+    "profile_absent_before_launch": true,
+    "organizations_before_launch": 0,
+    "employees_before_launch": 0
+  },
+  "launches": [
+    {
+      "records": [
+        {
+          "request": "создай организацию: E2E Supervisor",
+          "ok": true,
+          "action": "create_organization",
+          "message": "Организация «E2E Supervisor» создана."
+        },
+        {
+          "request": "создай команду: ENGINEERING_PRODUCT_TEAM",
+          "ok": true,
+          "action": "create_team",
+          "message": "Команда «ENGINEERING_PRODUCT_TEAM» создана по шаблону «ENGINEERING_PRODUCT_TEAM»."
+        },
+        {
+          "request": "переназнач сотрудника agent-employee-8682b4 роль QA_ENGINEER",
+          "ok": true,
+          "action": "reassign_employee",
+          "message": "Сотруднику agent-employee-8682b4 назначена роль QA_ENGINEER."
+        },
+        {
+          "request": "удали сотрудника agent-employee-8682b4",
+          "ok": true,
+          "action": "delete_employee",
+          "message": "Сотрудник agent-employee-8682b4 удалён."
+        },
+        {
+          "request": "смени тему на dark",
+          "ok": true,
+          "action": "set_theme",
+          "message": "Настройка «theme» изменена на «dark»."
+        },
+        {
+          "request": "смени язык на русский",
+          "ok": true,
+          "action": "set_language",
+          "message": "Язык интерфейса изменён: ru."
+        },
+        {
+          "request": "создай цель: install provider validation",
+          "ok": true,
+          "action": "goal_create",
+          "message": "Цель «install provider validation»: AWAITING_OWNER_APPROVAL."
+        },
+        {
+          "request": "одобри цель",
+          "ok": true,
+          "action": "goal_approve",
+          "message": "Цель «install provider validation»: READY."
+        },
+        {
+          "request": "перепланируй цель",
+          "ok": true,
+          "action": "goal_replan",
+          "message": "Цель «install provider validation»: READY."
+        },
+        {
+          "request": "strong probe",
+          "ok": true,
+          "route": "STRONG",
+          "action": "strong",
+          "message": "Для предметного анализа архитектуры провайдеров не хватает исходных данных. Нужны:\n\n- схема компонентов и потоков запросов;\n- перечень провайдеров и их API/SLA;\n- логика выбора, fallback, retry, timeout и circuit breaker;\n- конфигурация секретов, лимитов и маршрутизации;\n- метрики ошибок, задержек и стоимости;\n- требования к доступности, безопасности и масштабированию.\n\nРезультат анализа: карта зависимостей, единые точки отказа, риски vendor lock-in, оценка отказоустойчивости, стоимости и наблюдаемости, а также приоритетный план улучшений. Изменения в файлах или БД не выполнялись."
+        }
+      ],
+      "guide_records": [
+        {
+          "scenario": "main_show",
+          "ok": true,
+          "target": "chat_input"
+        },
+        {
+          "scenario": "director_show",
+          "ok": true,
+          "target": "director_button"
+        },
+        {
+          "scenario": "settings_show",
+          "ok": true,
+          "target": "top_settings_button"
+        },
+        {
+          "scenario": "main_do",
+          "ok": true,
+          "target": "chat_input"
+        },
+        {
+          "scenario": "restart_familiarity",
+          "ok": true
+        }
+      ],
+      "dialog_messages": 20,
+      "strong_route": "STRONG",
+      "strong_action": "strong",
+      "checks_passed": true,
+      "returncode": 0
+    },
+    {
+      "checks_passed": true,
+      "active_organization_id": "ORG-11FE1AEF530D",
+      "organizations": 2,
+      "plans": 1,
+      "profile": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_team2050_testbuild\\profile",
+      "returncode": 0
+    }
+  ],
+  "persistence": {
+    "database": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_team2050_testbuild\\profile\\team2050.sqlite3",
+    "organizations": 2,
+    "project_plans": 1
+  },
+  "bundled_local_level1": {
+    "worker": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050-TestBuild\\Team2050LocalWorker.exe",
+    "model_manifest": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050-TestBuild\\_internal\\vendor\\local_supervisor\\MODEL_MANIFEST.json",
+    "present": true
+  }
+}
