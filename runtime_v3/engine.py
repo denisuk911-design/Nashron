@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from .agent_runtime import AgentDecision, DeterministicAgentRuntime
+from .autonomy_policy import AutonomyPolicy
 from .models import (
     Action,
     ActionType,
@@ -65,6 +66,7 @@ class HybridWorkflowEngine:
         goal = Goal(new_id("goal"), objective)
         goal.definition_of_done = self.outcome_engine.derive_definition_of_done(goal)
         self.state.goals[goal.goal_id] = goal
+        self._bind_goal_budget(goal)
         self.checkpoint("goal_created")
         return goal
 
@@ -85,6 +87,7 @@ class HybridWorkflowEngine:
 
     def start(self, goal_id: str):
         goal = self.state.goals[goal_id]
+        self._bind_goal_budget(goal)
         if goal.status == GoalStatus.COMPLETED and not self.state.work_items:
             return self.state
         goal.status = GoalStatus.RUNNING
@@ -119,6 +122,7 @@ class HybridWorkflowEngine:
             if item.status == WorkItemStatus.BLOCKED and item.result.get("failure_kind") == "PROVIDER_FAILURE":
                 item.status = WorkItemStatus.READY
         for goal in list(self.state.goals.values()):
+            self._bind_goal_budget(goal)
             if goal.status not in {GoalStatus.COMPLETED, GoalStatus.CANCELLED, GoalStatus.FAILED}:
                 self._run_until_blocked(goal)
         return self.state
@@ -181,8 +185,25 @@ class HybridWorkflowEngine:
         interrupt.owner_decision = owner_decision
         interrupt.resolved_at = utc_now()
         item = self.state.work_items[interrupt.work_item_id]
+        previous_result = dict(item.result)
+        action_type = ""
+        if "approval_action_type=" in interrupt.context:
+            action_type = interrupt.context.split("approval_action_type=", 1)[1].split()[0]
+        if owner_decision == "reject" and action_type:
+            item.status = WorkItemStatus.BLOCKED
+            item.result = {**previous_result, "owner_decision": owner_decision, "owner_rejected": True}
+            self.checkpoint(f"hitl_rejected:{interrupt_id}")
+            return self.state
+        approved_action_types = list(previous_result.get("approved_action_types", []))
+        if owner_decision == "approve" and action_type and action_type not in approved_action_types:
+            approved_action_types.append(action_type)
         item.status = WorkItemStatus.READY
-        item.result = {"owner_decision": owner_decision, "hitl_interrupt_id": interrupt_id}
+        item.result = {
+            **previous_result,
+            "owner_decision": owner_decision,
+            "hitl_interrupt_id": interrupt_id,
+            "approved_action_types": approved_action_types,
+        }
         self.checkpoint(f"hitl_resolved:{interrupt_id}")
         self._run_until_blocked(self.state.goals[interrupt.goal_id])
         return self.state
@@ -391,6 +412,14 @@ class HybridWorkflowEngine:
         self.checkpoint(f"hitl_created:{interrupt.interrupt_id}")
 
     def _execute_action(self, item: WorkItem, action: Action) -> bool:
+        approved = set(item.result.get("approved_action_types", []))
+        if AutonomyPolicy.requires_owner_approval(action) and action.action_type.value not in approved:
+            self._create_interrupt(item, {
+                "question": "Нужно подтверждение владельца для внешнего или рискованного действия.",
+                "options": ["approve", "reject"],
+                "context": f"approval_action_type={action.action_type.value}",
+            })
+            return False
         self.state.actions[action.action_id] = action
         if action.action_type == ActionType.REVIEW_ARTIFACT:
             observation = self._review(item, action)
@@ -413,6 +442,11 @@ class HybridWorkflowEngine:
             )
             self.state.evidence[review_evidence.evidence_id] = review_evidence
         return True
+
+    def _bind_goal_budget(self, goal: Goal) -> None:
+        set_budget = getattr(self.agent_runtime, "set_goal_budget", None)
+        if callable(set_budget):
+            set_budget(goal.goal_id, goal.intelligence_budget)
 
     def _create_artifact_from_write(self, item: WorkItem, action: Action, observation: Observation) -> None:
         path = observation.data["path"]

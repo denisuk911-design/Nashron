@@ -17,7 +17,7 @@ from core.provider_execution import (
     redact_provider_text,
 )
 
-from .models import Action, ActionType, ProviderRun, WorkItem, new_id, utc_now
+from .models import Action, ActionType, IntelligenceBudget, ProviderRun, WorkItem, new_id, utc_now
 
 
 @dataclass
@@ -93,6 +93,7 @@ class ProviderAgentRuntime:
         provider_timeout_seconds: float = 45.0,
         circuit_breaker: ProviderCircuitBreaker | None = None,
         provider_contract_versions: dict[str, str] | None = None,
+        provider_cost_units: dict[str, int] | None = None,
     ) -> None:
         self.providers = dict(providers)
         self.employee_provider_ids = dict(employee_provider_ids)
@@ -108,6 +109,14 @@ class ProviderAgentRuntime:
         self.circuit_breaker = circuit_breaker or ProviderCircuitBreaker()
         self.provider_contract_versions = dict(provider_contract_versions or {})
         self.provider_work_item_ids: set[str] = set()
+        # An unset price map preserves the established primary/fallback order.
+        # Organizations that configure prices get cheapest-sufficient routing.
+        self.provider_cost_units = dict(provider_cost_units or {})
+        self._budgets: dict[str, IntelligenceBudget] = {}
+        self._budget_lock = threading.Lock()
+
+    def set_goal_budget(self, goal_id: str, budget: IntelligenceBudget) -> None:
+        self._budgets[goal_id] = budget
 
     def restore_completed_work_items(self, work_item_ids: set[str]) -> None:
         """Restore idempotency markers from durable runtime state after restart."""
@@ -152,6 +161,10 @@ class ProviderAgentRuntime:
             return self.fallback.decide(employee_id, work_item, attempt)
 
         provider_ids = [primary_provider_id, *self.fallback_provider_ids.get(employee_id, [])]
+        provider_ids = list(dict.fromkeys(provider_ids))
+        configured_costs = self._budget_for(work_item.goal_id).provider_cost_units if self._budget_for(work_item.goal_id) else self.provider_cost_units
+        if configured_costs:
+            provider_ids.sort(key=lambda provider_id: (self._cost_for(provider_id, work_item.goal_id), provider_id))
         required_capabilities = {"filesystem.write", "structured_output"}
         correlation_id = f"corr-{work_item.goal_id}-{work_item.work_item_id}"
         runs: list[ProviderRun] = []
@@ -161,6 +174,7 @@ class ProviderAgentRuntime:
             provider = self.providers.get(provider_id)
             if provider is None:
                 continue
+            cost_units = self._cost_for(provider_id, work_item.goal_id)
             if not self.circuit_breaker.allow(provider_id):
                 runs.append(ProviderRun(
                     new_id("provider-run"), employee_id, provider_id, work_item.work_item_id,
@@ -181,6 +195,13 @@ class ProviderAgentRuntime:
                 ))
                 continue
             if profile is not None and not profile.supports(required_capabilities):
+                continue
+            if not self._reserve_budget(work_item.goal_id, provider_id, cost_units):
+                runs.append(ProviderRun(
+                    new_id("provider-run"), employee_id, provider_id, work_item.work_item_id,
+                    "BUDGET_BLOCKED", utc_now(), utc_now(), error="intelligence budget exhausted",
+                    correlation_id=correlation_id, cost_units=0,
+                ))
                 continue
             context = self.context_policy.apply(self._prompt_for(work_item))
             request = ProviderExecutionRequest(
@@ -216,6 +237,7 @@ class ProviderAgentRuntime:
                 result.finished_at,
                 error=redact_provider_text(result.error),
                 correlation_id=correlation_id,
+                cost_units=cost_units,
             )
             runs.append(provider_run)
             if result.status == "SUCCEEDED":
@@ -227,6 +249,25 @@ class ProviderAgentRuntime:
             self.circuit_breaker.record_failure(provider_id)
         detail = runs[-1].error if runs else "no provider adapter is available"
         return AgentDecision(message=detail or "provider failure", failure_kind="PROVIDER_FAILURE", provider_run=runs[-1] if runs else None, provider_runs=runs)
+
+    def _budget_for(self, goal_id: str) -> IntelligenceBudget | None:
+        return self._budgets.get(goal_id)
+
+    def _cost_for(self, provider_id: str, goal_id: str = "") -> int:
+        budget = self._budget_for(goal_id)
+        prices = budget.provider_cost_units if budget and budget.provider_cost_units else self.provider_cost_units
+        return max(1, int(prices.get(provider_id, 1)))
+
+    def _reserve_budget(self, goal_id: str, provider_id: str, cost_units: int) -> bool:
+        budget = self._budget_for(goal_id)
+        if budget is None:
+            return True
+        with self._budget_lock:
+            if budget.remaining_cost_units < cost_units:
+                return False
+            budget.spent_cost_units += cost_units
+            budget.provider_spend_units[provider_id] = budget.provider_spend_units.get(provider_id, 0) + cost_units
+            return True
 
     def _execute_provider(self, provider, request: ProviderExecutionRequest) -> ProviderExecutionResult:
         """Bound a provider call even when an external CLI ignores its own timeout."""

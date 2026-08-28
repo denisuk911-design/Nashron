@@ -104,6 +104,18 @@ class WorkReceipt:
 
 
 @dataclass
+class IntelligenceBudget:
+    max_cost_units: int = 6
+    spent_cost_units: int = 0
+    provider_cost_units: dict[str, int] = field(default_factory=dict)
+    provider_spend_units: dict[str, int] = field(default_factory=dict)
+
+    @property
+    def remaining_cost_units(self) -> int:
+        return max(0, self.max_cost_units - self.spent_cost_units)
+
+
+@dataclass
 class Goal:
     goal_id: str
     objective: str
@@ -111,6 +123,7 @@ class Goal:
     plan_id: str | None = None
     definition_of_done: list[OutcomeCriterion] = field(default_factory=list)
     work_receipt_id: str | None = None
+    intelligence_budget: IntelligenceBudget = field(default_factory=IntelligenceBudget)
     created_at: str = field(default_factory=utc_now)
     updated_at: str = field(default_factory=utc_now)
 
@@ -309,6 +322,7 @@ class ProviderRun:
     error: str = ""
     action_count: int = 0
     correlation_id: str = ""
+    cost_units: int = 0
 
 
 @dataclass
@@ -390,6 +404,7 @@ def _goal(item: dict[str, Any]) -> Goal:
     item = dict(item)
     item["status"] = GoalStatus(item["status"])
     item["definition_of_done"] = [OutcomeCriterion(**criterion) for criterion in item.get("definition_of_done", [])]
+    item["intelligence_budget"] = IntelligenceBudget(**item.get("intelligence_budget", {}))
     return Goal(**item)
 
 
