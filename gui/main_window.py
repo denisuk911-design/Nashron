@@ -49,6 +49,7 @@ from core.identity_service import IdentityError, IdentityService
 from core.internal_assistant_service import Team2050InternalAssistant
 from core.finding_service import FindingService
 from core.feedback_service import FeedbackService
+from core.profile_backup_service import ProfileBackupError, ProfileBackupService
 from core.beta_health_service import BetaHealthService
 from core.knowledge_service import KnowledgeService
 from core.knowledge_application_service import KnowledgeApplicationService
@@ -396,6 +397,11 @@ class MainWindow(QMainWindow):
         self.feedback_button.setToolTip("Создать отчет о проблеме")
         self.feedback_button.clicked.connect(self.show_feedback_dialog)
         top_layout.addWidget(self.feedback_button)
+        self.backup_button = QPushButton("Профиль")
+        self.backup_button.setObjectName("smallAction")
+        self.backup_button.setToolTip("Сохранить или восстановить профиль")
+        self.backup_button.clicked.connect(self.show_profile_backup_menu)
+        top_layout.addWidget(self.backup_button)
         self.routing_debug_button = QPushButton("Маршрут")
         self.routing_debug_button.setObjectName("smallAction")
         self.routing_debug_button.setToolTip("Почему выбран этот сотрудник")
@@ -2796,6 +2802,38 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Не удалось создать отчет", str(exc))
             return
         QMessageBox.information(self, "Отчет создан", f"Отчет сохранен:\n{output}")
+
+    def show_profile_backup_menu(self) -> None:
+        action, accepted = QInputDialog.getItem(
+            self, "Профиль", "Выберите действие:", ["Сохранить профиль", "Восстановить профиль"], 0, False
+        )
+        if not accepted:
+            return
+        service = ProfileBackupService()
+        if action == "Сохранить профиль":
+            output, _ = QFileDialog.getSaveFileName(self, "Сохранить профиль", "team2050-profile.zip", "ZIP (*.zip)")
+            if not output:
+                return
+            try:
+                service.backup(self.paths.user_dir, Path(output))
+            except OSError as exc:
+                QMessageBox.warning(self, "Не удалось сохранить профиль", str(exc))
+                return
+            QMessageBox.information(self, "Профиль сохранен", f"Архив создан:\n{output}")
+            return
+        backup, _ = QFileDialog.getOpenFileName(self, "Восстановить профиль", "", "ZIP (*.zip)")
+        if not backup:
+            return
+        if QMessageBox.question(
+            self, "Восстановить профиль", "Текущие настройки и команда будут заменены. Продолжить?"
+        ) != QMessageBox.Yes:
+            return
+        try:
+            service.restore(Path(backup), self.paths.user_dir)
+        except (OSError, ProfileBackupError) as exc:
+            QMessageBox.warning(self, "Профиль не восстановлен", str(exc))
+            return
+        QMessageBox.information(self, "Профиль восстановлен", "Перезапустите Team2050 для применения данных.")
 
     def open_settings(self) -> None:
         dialog = SettingsDialog(self.settings, self)
