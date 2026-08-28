@@ -79,6 +79,7 @@ class Database:
             self._ensure_universal_schema(conn)
             self._ensure_organization_expansion_schema(conn)
             self._ensure_learning_evidence_schema(conn)
+            self._ensure_organization_memory_schema(conn)
             self._ensure_director_schema(conn)
             self._ensure_organization_scope_schema(conn)
             self._ensure_runtime_v2_schema(conn)
@@ -508,6 +509,53 @@ class Database:
         }.items():
             if name not in existing:
                 conn.execute(f"ALTER TABLE learning_queue ADD COLUMN {name} {definition}")
+
+    @staticmethod
+    def _ensure_organization_memory_schema(conn: sqlite3.Connection) -> None:
+        """Durable organizational knowledge must outlive employee profiles."""
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS organization_memory_entries (
+                id TEXT PRIMARY KEY,
+                organization_id TEXT NOT NULL,
+                kind TEXT NOT NULL DEFAULT 'KNOWLEDGE',
+                title TEXT NOT NULL,
+                content TEXT NOT NULL DEFAULT '',
+                lifecycle_state TEXT NOT NULL DEFAULT 'CANDIDATE',
+                source_agent_id TEXT,
+                source_employee_name TEXT NOT NULL DEFAULT '',
+                source_run_id TEXT,
+                review_run_id TEXT,
+                evidence TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+                FOREIGN KEY (source_agent_id) REFERENCES agent_profiles(agent_id) ON DELETE SET NULL,
+                FOREIGN KEY (source_run_id) REFERENCES agent_runs(id) ON DELETE SET NULL,
+                FOREIGN KEY (review_run_id) REFERENCES agent_runs(id) ON DELETE SET NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS organization_competence_nodes (
+                id TEXT PRIMARY KEY,
+                organization_id TEXT NOT NULL,
+                agent_id TEXT,
+                employee_name TEXT NOT NULL DEFAULT '',
+                competence TEXT NOT NULL,
+                growth_points INTEGER NOT NULL DEFAULT 0,
+                lifecycle_state TEXT NOT NULL DEFAULT 'EVIDENCE_BACKED',
+                source_memory_id TEXT,
+                evidence TEXT NOT NULL DEFAULT '{}',
+                last_verified_at TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+                FOREIGN KEY (agent_id) REFERENCES agent_profiles(agent_id) ON DELETE SET NULL,
+                FOREIGN KEY (source_memory_id) REFERENCES organization_memory_entries(id) ON DELETE SET NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_org_memory_scope ON organization_memory_entries(organization_id, lifecycle_state);
+            CREATE INDEX IF NOT EXISTS idx_org_competence_scope ON organization_competence_nodes(organization_id, agent_id, competence);
+            """
+        )
 
     def _ensure_director_schema(self, conn: sqlite3.Connection) -> None:
         conn.executescript(
@@ -2612,6 +2660,100 @@ class Database:
                 """,
                 (limit,),
             ).fetchall()
+
+    def create_organization_memory_entry(self, values: dict[str, Any]) -> str:
+        entry_id = f"OMEM-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO organization_memory_entries (
+                    id, organization_id, kind, title, content, lifecycle_state,
+                    source_agent_id, source_employee_name, source_run_id, evidence
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    entry_id, values["organization_id"], values.get("kind", "KNOWLEDGE"), values["title"],
+                    values.get("content", ""), values.get("lifecycle_state", "CANDIDATE"),
+                    values.get("source_agent_id"), values.get("source_employee_name", ""),
+                    values.get("source_run_id"), self._json(values.get("evidence", {})),
+                ),
+            )
+        return entry_id
+
+    def get_organization_memory_entry(self, entry_id: str) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM organization_memory_entries WHERE id = ?", (entry_id,)).fetchone()
+
+    def list_organization_memory_entries(self, organization_id: str, lifecycle_state: str | None = None) -> list[sqlite3.Row]:
+        sql = "SELECT * FROM organization_memory_entries WHERE organization_id = ?"
+        params: tuple[object, ...] = (organization_id,)
+        if lifecycle_state:
+            sql += " AND lifecycle_state = ?"
+            params = (*params, lifecycle_state)
+        sql += " ORDER BY updated_at DESC, created_at DESC, id DESC"
+        with self.connect() as conn:
+            return conn.execute(sql, params).fetchall()
+
+    def verify_organization_memory_entry(self, entry_id: str, review_run_id: str, evidence: dict[str, Any]) -> None:
+        with self.connect() as conn:
+            current = conn.execute("SELECT id FROM organization_memory_entries WHERE id = ?", (entry_id,)).fetchone()
+            if current is None:
+                raise ValueError("unknown_organization_memory")
+            conn.execute(
+                """
+                UPDATE organization_memory_entries
+                SET lifecycle_state = 'VERIFIED', review_run_id = ?, evidence = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (review_run_id, self._json(evidence), entry_id),
+            )
+
+    def upsert_organization_competence_node(self, values: dict[str, Any]) -> str:
+        organization_id = str(values["organization_id"])
+        agent_id = str(values.get("agent_id") or "")
+        competence = str(values["competence"])
+        with self.connect() as conn:
+            existing = conn.execute(
+                """
+                SELECT id, growth_points FROM organization_competence_nodes
+                WHERE organization_id = ? AND COALESCE(agent_id, '') = ? AND competence = ?
+                """,
+                (organization_id, agent_id, competence),
+            ).fetchone()
+            if existing is None:
+                node_id = f"COMP-{uuid.uuid4().hex[:12].upper()}"
+                conn.execute(
+                    """
+                    INSERT INTO organization_competence_nodes (
+                        id, organization_id, agent_id, employee_name, competence, growth_points,
+                        lifecycle_state, source_memory_id, evidence, last_verified_at
+                    ) VALUES (?, ?, ?, ?, ?, 1, 'VERIFIED', ?, ?, CURRENT_TIMESTAMP)
+                    """,
+                    (node_id, organization_id, values.get("agent_id"), values.get("employee_name", ""), competence,
+                     values.get("source_memory_id"), self._json(values.get("evidence", {}))),
+                )
+                return node_id
+            node_id = str(existing["id"])
+            conn.execute(
+                """
+                UPDATE organization_competence_nodes
+                SET growth_points = ?, lifecycle_state = 'VERIFIED', source_memory_id = ?, evidence = ?,
+                    last_verified_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (int(existing["growth_points"] or 0) + 1, values.get("source_memory_id"), self._json(values.get("evidence", {})), node_id),
+            )
+            return node_id
+
+    def list_organization_competence_nodes(self, organization_id: str, agent_id: str | None = None) -> list[sqlite3.Row]:
+        sql = "SELECT * FROM organization_competence_nodes WHERE organization_id = ?"
+        params: tuple[object, ...] = (organization_id,)
+        if agent_id is not None:
+            sql += " AND agent_id = ?"
+            params = (*params, agent_id)
+        sql += " ORDER BY competence ASC, id ASC"
+        with self.connect() as conn:
+            return conn.execute(sql, params).fetchall()
 
     def _insert_knowledge_card_event(
         self,
