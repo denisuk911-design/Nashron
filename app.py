@@ -74,7 +74,7 @@ def _prepare_runtime_v3_smoke_settings(settings_service: SettingsService) -> Non
             "onboarding_skipped": True,
             # The packaged smoke must finish deterministically even when a
             # locally installed provider CLI stops responding.
-            "codex_timeout_seconds": 20,
+            "codex_timeout_seconds": 12,
         }
     )
     settings_service.save(settings)

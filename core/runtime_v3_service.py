@@ -61,6 +61,13 @@ class RuntimeV3GoalService:
             workspace_root=self.workspace_root / organization_id,
         )
 
+    @staticmethod
+    def is_explicit_work_intent(text: str) -> bool:
+        normalized = " ".join(str(text or "").lower().split())
+        social = ("привет", "куку", "как дела", "hello", "hi ", "how are you")
+        work = ("сделай", "создай", "проверь", "подготов", "исследуй", "разработ", "create", "build", "review", "prepare", "research")
+        return bool(normalized) and not any(token in normalized for token in social) and any(token in normalized for token in work)
+
     def _employee_bindings(self, agents: list[ChatAgent]) -> list[EmployeeBinding]:
         values: list[EmployeeBinding] = []
         for agent in agents:

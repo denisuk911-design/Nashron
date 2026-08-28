@@ -1085,7 +1085,7 @@ class MainWindow(QMainWindow):
     def _try_start_runtime_v3_goal(self, text: str, message_id: int | None) -> bool:
         if selected_runtime(self.settings) != RuntimeEngine.HYBRID_V3_EXPERIMENTAL:
             return False
-        goal_requested = bool(getattr(self.chat, "goal_mode_requested", lambda: False)())
+        goal_requested = bool(getattr(self.chat, "goal_mode_requested", lambda: False)()) or RuntimeV3GoalService.is_explicit_work_intent(text)
         if not goal_requested:
             return False
         if not self.active_organization_id:
