@@ -36,7 +36,7 @@ def test_feedback_report_attaches_sanitized_support_only_after_consent(tmp_path)
     FeedbackService(install).create_report(profile, output, "Ошибка запуска", attach_diagnostics=True)
 
     with zipfile.ZipFile(output) as archive:
-        assert set(archive.namelist()) == {"feedback.json", "support-report.json"}
+        assert set(archive.namelist()) == {"feedback.json", "support-report.json", "health-report.json"}
         report = json.loads(archive.read("support-report.json"))
         payload = archive.read("support-report.json").decode("utf-8")
     assert report["secrets_included"] is False

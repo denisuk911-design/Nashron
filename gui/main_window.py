@@ -49,6 +49,7 @@ from core.identity_service import IdentityError, IdentityService
 from core.internal_assistant_service import Team2050InternalAssistant
 from core.finding_service import FindingService
 from core.feedback_service import FeedbackService
+from core.beta_health_service import BetaHealthService
 from core.knowledge_service import KnowledgeService
 from core.knowledge_application_service import KnowledgeApplicationService
 from core.learning_evidence_service import LearningEvidenceService
@@ -126,6 +127,8 @@ class MainWindow(QMainWindow):
         self.paths = settings_service.paths
         self.logger = logger
         self.settings = settings_service.load()
+        self.health_monitor = BetaHealthService(self.paths.user_dir)
+        self.health_monitor.mark_start()
         self._session_theme_backgrounds: dict[str, str] = {}
         self.chat_sound_service = ChatSoundService(self.paths.data_dir / "sounds", self.settings)
         self._set_startup_state("SETTINGS_READY")
@@ -309,6 +312,7 @@ class MainWindow(QMainWindow):
         self._update_workspace_status()
         self._set_startup_state("MAINWINDOW_READY")
         self._set_startup_state("USER_INTERACTIVE")
+        self.health_monitor.mark_ready()
 
     def _set_startup_state(self, state: str) -> None:
         self.startup_state = state
@@ -1157,9 +1161,12 @@ class MainWindow(QMainWindow):
             result = service.run_goal(self.active_organization_id, text, self._chat_agents())
         except Exception as exc:
             self.logger.exception("runtime_v3_goal_failed")
+            self.health_monitor.record_goal_failure(f"{type(exc).__name__}: {exc}")
             result_text = f"Цель не выполнена: {type(exc).__name__}: {exc}"
         else:
             result_text = result.summary
+            if not result.ok:
+                self.health_monitor.record_goal_failure(result.summary)
             self.database.log_event(
                 "runtime_v3_goal_completed" if result.ok else "runtime_v3_goal_incomplete",
                 f"message_id={message_id}; artifacts={len(result.state.artifacts)}; evidence={len(result.state.evidence)}",
@@ -2173,6 +2180,7 @@ class MainWindow(QMainWindow):
             detail = result.error or "Провайдер не вернул ответ"
             content = f"Провайдер сотрудника не ответил: {detail}"
             self.database.log_event("provider_runtime_error", f"{agent_key}: {detail}"[:1000])
+            self.health_monitor.record_provider_failure(agent_key, detail)
             self.database.add_message(self.conversation_id, "system", content, status="provider_error")
             self.chat.add_message("system", content)
             self._mark_send_stage("response_rendered", agent_key)

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .beta_recovery_service import BetaRecoveryService
+from .beta_health_service import BetaHealthService
 from .build_info import build_info
 
 
@@ -44,5 +45,9 @@ class FeedbackService:
                 BetaRecoveryService(self.install_dir).create_support_bundle(profile, support_path)
                 with zipfile.ZipFile(support_path) as support:
                     archive.writestr("support-report.json", support.read("support-report.json"))
+                archive.writestr(
+                    "health-report.json",
+                    json.dumps(BetaHealthService(profile).snapshot(), ensure_ascii=False, indent=2),
+                )
                 support_path.unlink(missing_ok=True)
         return output
