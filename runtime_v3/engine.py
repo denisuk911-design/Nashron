@@ -29,6 +29,7 @@ from .models import (
     new_id,
     utc_now,
 )
+from .outcome_engine import OutcomeEngine
 from .repository import JsonCheckpointRepository
 from .supervisor import GoalSupervisor
 from .tools import ToolRuntime
@@ -58,9 +59,11 @@ class HybridWorkflowEngine:
         )
         self.repository = JsonCheckpointRepository(Path(workspace_root) / "checkpoints")
         self.max_rework_attempts = max(1, max_rework_attempts)
+        self.outcome_engine = OutcomeEngine()
 
     def create_goal(self, objective: str) -> Goal:
         goal = Goal(new_id("goal"), objective)
+        goal.definition_of_done = self.outcome_engine.derive_definition_of_done(goal)
         self.state.goals[goal.goal_id] = goal
         self.checkpoint("goal_created")
         return goal
@@ -73,6 +76,8 @@ class HybridWorkflowEngine:
         for item in work_items:
             self.state.work_items[item.work_item_id] = item
         goal.plan_id = plan.plan_id
+        # A social turn has no executable work; all actual goals remain planned
+        # until their Definition of Done is backed by runtime evidence.
         goal.status = GoalStatus.PLANNED if work_items else GoalStatus.COMPLETED
         goal.updated_at = utc_now()
         self.checkpoint("plan_created")
@@ -401,6 +406,12 @@ class HybridWorkflowEngine:
             self._create_artifact_from_write(item, action, observation)
         elif action.action_type == ActionType.REVIEW_ARTIFACT:
             item.result = {"review_observation_id": observation.observation_id}
+            review_evidence = Evidence(
+                new_id("evidence"), item.goal_id, item.work_item_id, "REVIEW_RECORD",
+                action.action_id, observation.observation_id, "independent artifact review accepted",
+                bool(observation.data.get("accepted", False)),
+            )
+            self.state.evidence[review_evidence.evidence_id] = review_evidence
         return True
 
     def _create_artifact_from_write(self, item: WorkItem, action: Action, observation: Observation) -> None:
@@ -462,7 +473,11 @@ class HybridWorkflowEngine:
                 continue
             content = Path(artifact.path).read_text(encoding="utf-8")
             owner = self.state.work_items[artifact.work_item_id]
-            requires_requested_rework = "force rework" in owner.objective.lower() and artifact.revision == 1
+            objective = owner.objective.lower()
+            requires_requested_rework = (
+                ("force rework" in objective or "контролируемая доработка" in objective)
+                and artifact.revision == 1
+            )
             missing_source_evidence = artifact.artifact_type == "SOURCE_RESEARCH" and "source evidence" not in content.lower()
             if requires_requested_rework or missing_source_evidence:
                 if missing_source_evidence:
@@ -584,7 +599,8 @@ class HybridWorkflowEngine:
         elif any(item.status == WorkItemStatus.REWORK for item in items):
             goal.status = GoalStatus.REWORK
         elif all(item.status == WorkItemStatus.COMPLETED for item in items):
-            goal.status = GoalStatus.COMPLETED
+            receipt = self.outcome_engine.issue_receipt(self.state, goal)
+            goal.status = GoalStatus.COMPLETED if receipt is not None else GoalStatus.REWORK
         else:
             goal.status = GoalStatus.RUNNING
         goal.updated_at = utc_now()

@@ -86,11 +86,31 @@ class EmployeeBinding:
 
 
 @dataclass
+class OutcomeCriterion:
+    criterion_id: str
+    description: str
+    required_artifact_type: str = ""
+    required_evidence_type: str = ""
+
+
+@dataclass
+class WorkReceipt:
+    receipt_id: str
+    goal_id: str
+    criterion_ids: list[str]
+    artifact_ids: list[str]
+    evidence_ids: list[str]
+    issued_at: str = field(default_factory=utc_now)
+
+
+@dataclass
 class Goal:
     goal_id: str
     objective: str
     status: GoalStatus = GoalStatus.DRAFT
     plan_id: str | None = None
+    definition_of_done: list[OutcomeCriterion] = field(default_factory=list)
+    work_receipt_id: str | None = None
     created_at: str = field(default_factory=utc_now)
     updated_at: str = field(default_factory=utc_now)
 
@@ -310,6 +330,7 @@ class RuntimeState:
     employee_snapshots: dict[str, dict[str, Any]] = field(default_factory=dict)
     trace_events: dict[str, RuntimeTraceEvent] = field(default_factory=dict)
     provider_runs: dict[str, ProviderRun] = field(default_factory=dict)
+    work_receipts: dict[str, WorkReceipt] = field(default_factory=dict)
     checkpoints: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -336,6 +357,7 @@ class RuntimeState:
         state.employee_snapshots = {key: dict(item) for key, item in value.get("employee_snapshots", {}).items()}
         state.trace_events = {key: RuntimeTraceEvent(**item) for key, item in value.get("trace_events", {}).items()}
         state.provider_runs = {key: ProviderRun(**item) for key, item in value.get("provider_runs", {}).items()}
+        state.work_receipts = {key: WorkReceipt(**item) for key, item in value.get("work_receipts", {}).items()}
         state.checkpoints = list(value.get("checkpoints", []))
         return state
 
@@ -367,6 +389,7 @@ def load_state(path: Path) -> RuntimeState:
 def _goal(item: dict[str, Any]) -> Goal:
     item = dict(item)
     item["status"] = GoalStatus(item["status"])
+    item["definition_of_done"] = [OutcomeCriterion(**criterion) for criterion in item.get("definition_of_done", [])]
     return Goal(**item)
 
 

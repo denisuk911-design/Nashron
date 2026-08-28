@@ -6,6 +6,7 @@ from runtime_v3.agent_runtime import ProviderAgentRuntime
 from runtime_v3.engine import HybridWorkflowEngine
 from runtime_v3.models import EmployeeBinding, WorkItem
 from runtime_v3.models import load_state
+import time
 
 
 class FakeProviderAdapter:
@@ -233,6 +234,37 @@ def test_provider_runtime_cancellation_prevents_new_provider_run():
 
     assert decision.failure_kind == "PROVIDER_CANCELLED"
     assert provider.prompts == []
+
+
+def test_provider_runtime_timeout_cancels_slow_adapter_without_leaving_work_running(tmp_path):
+    class SlowProvider(FakeProviderAdapter):
+        def __init__(self):
+            super().__init__("CODEX_CLI")
+            self.cancelled = False
+
+        def execute(self, request):
+            time.sleep(0.2)
+            return super().execute(request)
+
+        def cancel(self):
+            self.cancelled = True
+
+    provider = SlowProvider()
+    runtime = ProviderAgentRuntime(
+        {"CODEX_CLI": provider}, {"engineer": "CODEX_CLI"}, provider_timeout_seconds=0.02
+    )
+    engine = HybridWorkflowEngine(
+        "org", [EmployeeBinding("engineer", "Engineer", "engineering", ["engineering"])],
+        tmp_path, agent_runtime=runtime,
+    )
+    goal = engine.create_goal("Create one file as a simple note")
+    engine.create_plan(goal.goal_id)
+
+    state = engine.start(goal.goal_id)
+
+    assert provider.cancelled
+    assert all(item.status.value != "RUNNING" for item in state.work_items.values())
+    assert any(run.status == "FAILED" and "timed out" in run.error for run in state.provider_runs.values())
 
 
 def test_provider_circuit_opens_after_failure_and_prevents_repeat_call():

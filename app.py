@@ -42,7 +42,7 @@ def setup_logging(settings_service: SettingsService) -> logging.Logger:
 
 GOLDEN_GOAL = (
     "Подготовьте техническую спецификацию преобразователя 24 В -> 12 В, 5 А "
-    "и подберите подходящий контроллер."
+    "и подберите подходящий контроллер. Требуется одна контролируемая доработка перед приёмкой."
 )
 
 
@@ -72,6 +72,9 @@ def _prepare_runtime_v3_smoke_settings(settings_service: SettingsService) -> Non
             "workspace_root": smoke_workspace,
             "interface_language": "ru",
             "onboarding_skipped": True,
+            # The packaged smoke must finish deterministically even when a
+            # locally installed provider CLI stops responding.
+            "codex_timeout_seconds": 20,
         }
     )
     settings_service.save(settings)
@@ -174,7 +177,7 @@ def _run_runtime_v3_gui_smoke(app: QApplication, window: MainWindow, logger: log
             rework_artifacts = [
                 artifact
                 for artifact in artifacts
-                if artifact.artifact_type == "TECHNICAL_SPECIFICATION" and artifact.revision >= 2
+                if artifact.artifact_type == "WORK_PRODUCT" and artifact.revision >= 2
             ]
             passed_source_evidence = [
                 item for item in evidence if item.evidence_type == "SOURCE_RECORD" and item.passed

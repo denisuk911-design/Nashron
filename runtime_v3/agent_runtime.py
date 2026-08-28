@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor, TimeoutError
 import json
 import threading
 from typing import Protocol
@@ -90,6 +90,7 @@ class ProviderAgentRuntime:
         fallback: DeterministicAgentRuntime | None = None,
         context_policy: ContextWindowPolicy | None = None,
         max_concurrent_runs: int = 4,
+        provider_timeout_seconds: float = 45.0,
         circuit_breaker: ProviderCircuitBreaker | None = None,
         provider_contract_versions: dict[str, str] | None = None,
     ) -> None:
@@ -99,6 +100,10 @@ class ProviderAgentRuntime:
         self.fallback = fallback or DeterministicAgentRuntime()
         self.context_policy = context_policy or ContextWindowPolicy()
         self._executor = ThreadPoolExecutor(max_workers=max(1, max_concurrent_runs), thread_name_prefix="team2050-provider")
+        self._provider_executor = ThreadPoolExecutor(
+            max_workers=max(1, max_concurrent_runs), thread_name_prefix="team2050-provider-call"
+        )
+        self.provider_timeout_seconds = max(0.1, float(provider_timeout_seconds))
         self._cancelled = threading.Event()
         self.circuit_breaker = circuit_breaker or ProviderCircuitBreaker()
         self.provider_contract_versions = dict(provider_contract_versions or {})
@@ -189,7 +194,7 @@ class ProviderAgentRuntime:
                 correlation_id=correlation_id,
             )
             try:
-                result = provider.execute(request)
+                result = self._execute_provider(provider, request)
             except Exception as exc:
                 result = ProviderExecutionResult(
                     request.run_id,
@@ -222,6 +227,21 @@ class ProviderAgentRuntime:
             self.circuit_breaker.record_failure(provider_id)
         detail = runs[-1].error if runs else "no provider adapter is available"
         return AgentDecision(message=detail or "provider failure", failure_kind="PROVIDER_FAILURE", provider_run=runs[-1] if runs else None, provider_runs=runs)
+
+    def _execute_provider(self, provider, request: ProviderExecutionRequest) -> ProviderExecutionResult:
+        """Bound a provider call even when an external CLI ignores its own timeout."""
+        future = self._provider_executor.submit(provider.execute, request)
+        try:
+            return future.result(timeout=self.provider_timeout_seconds)
+        except TimeoutError:
+            cancel = getattr(provider, "cancel", None)
+            if callable(cancel):
+                cancel()
+            return ProviderExecutionResult(
+                request.run_id, request.employee_id, request.provider_id, request.work_item_id,
+                "FAILED", request.started_at, utc_now(),
+                error=f"provider execution timed out after {self.provider_timeout_seconds:g} seconds",
+            )
 
     def provider_health(self, provider_id: str) -> dict[str, object]:
         snapshot = self.circuit_breaker.snapshot(provider_id)
