@@ -40,7 +40,7 @@ from core.config_repository import ConfigurationRepository
 from core.conversation_mode import ConversationMode, infer_mode
 from core.conversation_thread_service import ConversationThreadService
 from core.database import Database
-from core.director_service import DirectorAction, DirectorService
+from core.director_service import DirectorAction
 from core.gemini_client import GeminiClient
 from core.identity_service import IdentityError, IdentityService
 from core.internal_assistant_service import Team2050InternalAssistant
@@ -71,6 +71,7 @@ from core.skill_progress_service import SkillProgressService
 from core.skill_package_service import SkillPackageService
 from core.skill_service import SkillService
 from core.standards_service import StandardsService
+from core.supervisor_application_service import SupervisorApplicationService
 from core.structured_response import ParsedAgentResponse, parse_agent_response
 from core.team_routing import ManualRouting, TeamRouter, TeamRoutingDecision
 from core.thread_question_service import ThreadQuestionService
@@ -167,7 +168,7 @@ class MainWindow(QMainWindow):
             organization_id=self.active_organization_id,
         )
         self.task_orchestrator.ensure_project()
-        self.director_service = DirectorService(self.database)
+        self.director_service = SupervisorApplicationService(self.database)
         self.universal_platform_service = UniversalPlatformService(
             self.database,
             management_service=self.management_service,
