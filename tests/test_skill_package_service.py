@@ -30,15 +30,20 @@ def test_skill_package_lifecycle_is_audited(tmp_path):
         purpose="Проверять схемы по ERC и инженерному чек-листу.",
         validation_checklist=["ERC без ошибок", "Номиналы проверены"],
     )
-    service.update_status(skill_id, "ACTIVE", reason="owner approved")
+    try:
+        service.update_status(skill_id, "ACTIVE", reason="owner approved")
+    except ValueError as exc:
+        assert "qualified" in str(exc)
+    else:
+        raise AssertionError("an unqualified skill must not activate")
 
     package = service.list_packages()[0]
     events = service.list_events(skill_id)
 
     assert package.skill_id == skill_id
-    assert package.status == "ACTIVE"
+    assert package.status == "DRAFT"
     assert package.validation_checklist == ["ERC без ошибок", "Номиналы проверены"]
-    assert [event.event_type for event in events] == ["STATUS_CHANGED", "CREATED"]
+    assert [event.event_type for event in events] == ["CREATED"]
 
 
 def test_skill_assignment_appears_in_progress_without_fake_percent(tmp_path):

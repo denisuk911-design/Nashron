@@ -799,6 +799,8 @@ class Database:
                 examples TEXT NOT NULL DEFAULT '[]',
                 negative_examples TEXT NOT NULL DEFAULT '[]',
                 qualification_tasks TEXT NOT NULL DEFAULT '[]',
+                test_cases TEXT NOT NULL DEFAULT '[]',
+                failure_patterns TEXT NOT NULL DEFAULT '[]',
                 version TEXT NOT NULL DEFAULT '0.1.0',
                 status TEXT NOT NULL DEFAULT 'DRAFT',
                 lifecycle_state TEXT NOT NULL DEFAULT 'CANDIDATE',
@@ -831,6 +833,11 @@ class Database:
             );
             """
         )
+        columns = {str(row["name"]) for row in conn.execute("PRAGMA table_info(skill_packages)").fetchall()}
+        if "test_cases" not in columns:
+            conn.execute("ALTER TABLE skill_packages ADD COLUMN test_cases TEXT NOT NULL DEFAULT '[]'")
+        if "failure_patterns" not in columns:
+            conn.execute("ALTER TABLE skill_packages ADD COLUMN failure_patterns TEXT NOT NULL DEFAULT '[]'")
 
     def _ensure_knowledge_schema(self, conn: sqlite3.Connection) -> None:
         conn.executescript(
@@ -2363,6 +2370,8 @@ class Database:
         examples: list[str] | None = None,
         negative_examples: list[str] | None = None,
         qualification_tasks: list[str] | None = None,
+        test_cases: list[str] | None = None,
+        failure_patterns: list[str] | None = None,
         version: str = "0.1.0",
         status: str = "DRAFT",
         actor: str = "owner",
@@ -2376,10 +2385,10 @@ class Database:
                 INSERT INTO skill_packages (
                     id, organization_id, name, purpose, supported_roles, prerequisites, source_material,
                     instructions, tools, expected_inputs, expected_outputs, prohibited_actions,
-                    validation_checklist, examples, negative_examples, qualification_tasks,
+                    validation_checklist, examples, negative_examples, qualification_tasks, test_cases, failure_patterns,
                     version, status, lifecycle_state, created_by
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     skill_id,
@@ -2398,6 +2407,8 @@ class Database:
                     self._json(examples or []),
                     self._json(negative_examples or []),
                     self._json(qualification_tasks or []),
+                    self._json(test_cases or []),
+                    self._json(failure_patterns or []),
                     version,
                     status,
                     lifecycle_state or self._skill_lifecycle_for_status(status),
@@ -2424,6 +2435,40 @@ class Database:
     def get_skill_package(self, skill_id: str) -> sqlite3.Row | None:
         with self.connect() as conn:
             return conn.execute("SELECT * FROM skill_packages WHERE id = ?", (skill_id,)).fetchone()
+
+    def delete_skill_package(self, skill_id: str, organization_id: str, actor: str = "owner") -> bool:
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT id FROM skill_packages WHERE id = ? AND organization_id = ?", (skill_id, organization_id)
+            ).fetchone()
+            if row is None:
+                return False
+            self._insert_skill_package_event(conn, skill_id, "UNINSTALL_REQUESTED", actor, "organization scoped removal")
+            conn.execute("DELETE FROM skill_packages WHERE id = ?", (skill_id,))
+        return True
+
+    def update_skill_package_version(self, skill_id: str, version: str, actor: str = "owner", organization_id: str | None = None) -> None:
+        version = version.strip()
+        if not version:
+            raise ValueError("skill version is required")
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT version FROM skill_packages WHERE id = ?" + (" AND organization_id = ?" if organization_id else ""),
+                (skill_id, organization_id) if organization_id else (skill_id,),
+            ).fetchone()
+            if row is None:
+                raise ValueError(f"Skill package not found: {skill_id}")
+            conn.execute("UPDATE skill_packages SET version = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (version, skill_id))
+            self._insert_skill_package_event(conn, skill_id, "VERSION_CHANGED", actor, f"{row['version']} -> {version}")
+
+    def has_qualified_skill_assignment(self, skill_id: str, organization_id: str) -> bool:
+        with self.connect() as conn:
+            return conn.execute(
+                """SELECT 1 FROM employee_skill_assignments esa
+                   JOIN skill_packages sp ON sp.id = esa.skill_id
+                   WHERE esa.skill_id = ? AND sp.organization_id = ? AND esa.state = 'QUALIFIED' LIMIT 1""",
+                (skill_id, organization_id),
+            ).fetchone() is not None
 
     def update_skill_package_status(self, skill_id: str, status: str, actor: str = "owner", reason: str = "", organization_id: str | None = None) -> None:
         with self.connect() as conn:

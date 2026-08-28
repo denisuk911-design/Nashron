@@ -41,6 +41,8 @@ class SkillPackage:
     examples: list[str]
     negative_examples: list[str]
     qualification_tasks: list[str]
+    test_cases: list[str]
+    failure_patterns: list[str]
     version: str
     status: str
     lifecycle_state: str
@@ -92,6 +94,8 @@ class SkillPackageService:
         examples: list[str] | None = None,
         negative_examples: list[str] | None = None,
         qualification_tasks: list[str] | None = None,
+        test_cases: list[str] | None = None,
+        failure_patterns: list[str] | None = None,
         version: str = "0.1.0",
         status: str = "DRAFT",
         actor: str = "owner",
@@ -116,6 +120,8 @@ class SkillPackageService:
             examples=examples or [],
             negative_examples=negative_examples or [],
             qualification_tasks=qualification_tasks or [],
+            test_cases=test_cases or [],
+            failure_patterns=failure_patterns or [],
             version=version.strip() or "0.1.0",
             status=status,
             actor=actor,
@@ -127,12 +133,23 @@ class SkillPackageService:
 
     def update_status(self, skill_id: str, status: str, *, actor: str = "owner", reason: str = "", organization_id: str | None = None) -> None:
         self._require_status(status)
+        if status == "ACTIVE":
+            if not organization_id or not self.database.has_qualified_skill_assignment(skill_id, organization_id):
+                raise ValueError("skill activation requires an independently qualified employee")
         if status in {"VERIFIED", "MATURE", "ACTIVE"} and "evidence:" not in reason.lower() and actor != "owner":
             raise ValueError("Переход навыка требует evidence.")
         self.database.update_skill_package_status(skill_id, status, actor, reason.strip(), organization_id)
 
+    def uninstall_package(self, skill_id: str, organization_id: str, *, actor: str = "owner") -> bool:
+        return self.database.delete_skill_package(skill_id, organization_id, actor)
+
+    def set_version(self, skill_id: str, version: str, *, actor: str = "owner", organization_id: str | None = None) -> None:
+        self.database.update_skill_package_version(skill_id, version, actor, organization_id)
+
     def assign_to_employee(self, agent_id: str, skill_id: str, *, state: str = "ASSIGNED", actor: str = "owner", reason: str = "") -> str:
         self._require_employee_state(state)
+        if state == "QUALIFIED" and "review_run:" not in reason:
+            raise ValueError("employee qualification requires independent review evidence")
         if not agent_id.strip():
             raise ValueError("Сотрудник обязателен.")
         return self.database.assign_skill_to_agent(
@@ -176,6 +193,8 @@ class SkillPackageService:
             examples=self._json_list(row["examples"]),
             negative_examples=self._json_list(row["negative_examples"]),
             qualification_tasks=self._json_list(row["qualification_tasks"]),
+            test_cases=self._json_list(row["test_cases"]),
+            failure_patterns=self._json_list(row["failure_patterns"]),
             version=str(row["version"] or ""),
             status=str(row["status"] or ""),
             lifecycle_state=str(row["lifecycle_state"] or "CANDIDATE"),
