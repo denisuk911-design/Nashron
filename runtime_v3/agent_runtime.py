@@ -51,7 +51,7 @@ class DeterministicAgentRuntime:
                     )
                 ],
             )
-        filename = "artifacts/specification.md" if "specification" in objective else "artifacts/controller_research.md"
+        filename = "artifacts/research.md" if "research" in objective else "artifacts/work_product.md"
         content = self._content_for(work_item, attempt)
         return AgentDecision(
             f"Write {filename}",
@@ -68,21 +68,14 @@ class DeterministicAgentRuntime:
 
     @staticmethod
     def _content_for(work_item: WorkItem, attempt: int) -> str:
-        if "controller research" in work_item.objective.lower():
+        if "research" in work_item.objective.lower():
             return (
-                "# Controller research\n\n"
-                "Candidate: TI LM5146 buck controller.\n"
-                "Input: 24 V. Output: 12 V 5 A.\n"
-                "Source evidence: TI LM5146 datasheet, https://www.ti.com/lit/ds/symlink/lm5146.pdf.\n"
+                f"# Research notes\n\nObjective: {work_item.objective}\n\n"
+                "Source evidence: research requires an authoritative source before release.\n"
             )
-        if attempt == 0 and "force rework" in work_item.objective.lower():
-            return "# Technical specification\n\n24 V to 12 V converter draft. Control section is missing.\n"
         return (
-            "# Technical specification\n\n"
-            "Input: 24 V DC.\n"
-            "Output: 12 V DC, 5 A.\n"
-            "Topology: synchronous buck.\n"
-            "Controller requirement: documented and cross-checked.\n"
+            f"# Work product\n\nObjective: {work_item.objective}\n\n"
+            "Result: a concise draft prepared for independent review.\n"
         )
 
 
@@ -249,8 +242,7 @@ class ProviderAgentRuntime:
                 "Return either one action or an actions list of up to 32 declared tools.",
                 f"Write only to this relative path: {output_path}",
                 "Write a concise factual work product satisfying the objective.",
-                "For a technical specification, include the word controller.",
-                "For controller research, include a 'Source evidence' section with an authoritative source URL.",
+                "For research work, include a 'Source evidence' section with an authoritative source URL.",
                 f'{{"actions":[{{"action":"filesystem.write","path":"{output_path}","content":"..."}}]}}',
                 f"Objective: {work_item.objective}",
                 f"Acceptance criteria: {', '.join(work_item.acceptance_criteria) or 'artifact created'}",

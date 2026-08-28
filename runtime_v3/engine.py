@@ -462,16 +462,13 @@ class HybridWorkflowEngine:
                 continue
             content = Path(artifact.path).read_text(encoding="utf-8")
             owner = self.state.work_items[artifact.work_item_id]
-            requires_golden_rework = "force rework" in owner.objective.lower() and artifact.revision == 1
-            missing_controller = artifact.artifact_type == "TECHNICAL_SPECIFICATION" and "controller" not in content.lower()
+            requires_requested_rework = "force rework" in owner.objective.lower() and artifact.revision == 1
             missing_source_evidence = artifact.artifact_type == "SOURCE_RESEARCH" and "source evidence" not in content.lower()
-            if requires_golden_rework or missing_controller or missing_source_evidence:
+            if requires_requested_rework or missing_source_evidence:
                 if missing_source_evidence:
                     description = "Research artifact does not contain source evidence"
-                elif requires_golden_rework:
-                    description = "Initial specification revision requires controlled rework"
                 else:
-                    description = "Specification does not mention controller"
+                    description = "Owner explicitly requested a controlled rework"
                 finding = Finding(
                     new_id("finding"),
                     item.goal_id,

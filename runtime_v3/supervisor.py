@@ -40,30 +40,31 @@ class GoalSupervisor:
             )
             plan = Plan(new_id("plan"), goal.goal_id, self.supervisor_employee_id, [item.work_item_id], strategy=self.choose_strategy([item]))
             return plan, [item]
-        spec_employee = self._select_employee(["requirements", "specification", "engineering"], {"filesystem.write", "structured_output"})
+        deliverable_employee = self._select_employee(["requirements", "specification", "engineering"], {"filesystem.write", "structured_output"})
         research_employee = self._select_employee(["research", "components"], {"filesystem.write", "structured_output"})
         reviewer = self._select_employee(["review", "qa", "evidence"])
-        spec = WorkItem(
+        objective = self._clean_objective(goal.objective)
+        deliverable = WorkItem(
             new_id("work"),
             goal.goal_id,
-            "Prepare technical specification for 24 V to 12 V 5 A converter; force rework",
-            spec_employee.employee_id,
+            f"Create the primary deliverable for: {objective}",
+            deliverable_employee.employee_id,
             required_capabilities=["specification"],
             required_tools=["filesystem.write"],
-            expected_artifact_types=["TECHNICAL_SPECIFICATION"],
-            acceptance_criteria=["mentions input", "mentions output", "mentions controller"],
+            expected_artifact_types=["WORK_PRODUCT"],
+            acceptance_criteria=["addresses the stated goal", "contains a usable result"],
             evidence_requirements=["successful filesystem.write observation"],
             status=WorkItemStatus.READY,
         )
         research = WorkItem(
             new_id("work"),
             goal.goal_id,
-            "Perform controller research for the converter",
+            f"Research sources, constraints, and options relevant to: {objective}",
             research_employee.employee_id,
             required_capabilities=["research"],
             required_tools=["filesystem.write"],
             expected_artifact_types=["SOURCE_RESEARCH"],
-            acceptance_criteria=["names controller", "contains source evidence"],
+            acceptance_criteria=["contains source evidence", "is relevant to the stated goal"],
             evidence_requirements=["successful filesystem.write observation"],
             status=WorkItemStatus.READY,
         )
@@ -72,7 +73,7 @@ class GoalSupervisor:
             goal.goal_id,
             "Review artifacts and evidence",
             reviewer.employee_id,
-            dependencies=[spec.work_item_id, research.work_item_id],
+            dependencies=[deliverable.work_item_id, research.work_item_id],
             required_capabilities=["review"],
             required_tools=["artifact.review", "filesystem.read"],
             expected_artifact_types=["REVIEW_RESULT"],
@@ -81,10 +82,10 @@ class GoalSupervisor:
         )
         plan = Plan(
             new_id("plan"), goal.goal_id, self.supervisor_employee_id,
-            [spec.work_item_id, research.work_item_id, review.work_item_id],
-            strategy=self.choose_strategy([spec, research, review]),
+            [deliverable.work_item_id, research.work_item_id, review.work_item_id],
+            strategy=self.choose_strategy([deliverable, research, review]),
         )
-        return plan, [spec, research, review]
+        return plan, [deliverable, research, review]
 
     @staticmethod
     def choose_strategy(work_items: list[WorkItem]) -> str:
@@ -187,6 +188,10 @@ class GoalSupervisor:
     @staticmethod
     def _is_simple_single_item(text: str) -> bool:
         normalized = " ".join(str(text or "").lower().split())
-        complex_tokens = ("research", "review", "controller", "24", "12", "specification", "преобраз", "контроллер", "исслед")
+        complex_tokens = ("research", "review", "analysis", "plan", "specification", "исслед", "анализ", "план", "специфик")
         simple_tokens = ("one file", "single file", "прост", "один файл", "заметка")
         return any(token in normalized for token in simple_tokens) and not any(token in normalized for token in complex_tokens)
+
+    @staticmethod
+    def _clean_objective(text: str) -> str:
+        return " ".join(str(text or "").split())[:1200]

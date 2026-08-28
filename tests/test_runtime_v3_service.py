@@ -32,11 +32,10 @@ class FakeProviderAdapter:
 
 class GoldenProviderAdapter(FakeProviderAdapter):
     def execute(self, request) -> ProviderExecutionResult:
-        if "controller research" in request.prompt.lower():
+        if "research sources" in request.prompt.lower():
             self.content = (
-                '{"action":"filesystem.write","path":"v3_provider_output/controller_research.md",'
-                '"content":"# Controller research\\nCandidate: TI LM5146.\\n'
-                'Source evidence: https://www.ti.com/lit/ds/symlink/lm5146.pdf"}'
+                '{"action":"filesystem.write","path":"v3_provider_output/research.md",'
+                '"content":"# Research notes\\nSource evidence: https://example.com/source"}'
             )
         else:
             self.content = (
@@ -124,7 +123,7 @@ def test_runtime_v3_golden_goal_uses_two_provider_items_then_rework_and_final_re
         ChatAgent("reviewer", "agent-reviewer", "Reviewer", "CODEX_CLI", ["QA_ENGINEER"], "reviewer", "", None),
     ]
 
-    result = service.run_goal("org", "Prepare technical specification for 24 V to 12 V 5 A converter and select a controller.", agents)
+    result = service.run_goal("org", "Prepare technical specification for 24 V to 12 V 5 A converter and select a controller; force rework.", agents)
 
     assert result.ok
     assert len(result.state.work_items) == 3
@@ -135,7 +134,7 @@ def test_runtime_v3_golden_goal_uses_two_provider_items_then_rework_and_final_re
     assert len(result.state.actions) >= 5
     assert len(result.state.observations) >= 5
     assert any(
-        artifact.artifact_type == "TECHNICAL_SPECIFICATION" and artifact.revision >= 2
+        artifact.artifact_type == "WORK_PRODUCT" and artifact.revision >= 2
         for artifact in result.state.artifacts.values()
     )
     assert any(evidence.evidence_type == "SOURCE_RECORD" and evidence.passed for evidence in result.state.evidence.values())

@@ -25,6 +25,23 @@ def test_social_chat_does_not_create_goal_work_items(tmp_path):
     assert engine.get_state().work_items == {}
 
 
+def test_planner_builds_goal_specific_work_graphs_without_domain_contamination(tmp_path):
+    objectives = ["Create a marketing plan", "Analyze a Python project", "Prepare a menu and recipe"]
+    planned = []
+    for index, objective in enumerate(objectives):
+        supervisor = GoalSupervisor(employees())
+        plan, items = supervisor.create_plan(Goal(f"goal-{index}", objective))
+        planned.append((plan.strategy, [item.objective for item in items]))
+
+    assert all(strategy == "HANDOFF" for strategy, _items in planned)
+    for objective, (_strategy, item_objectives) in zip(objectives, planned):
+        assert any(objective.lower() in item_objective.lower() for item_objective in item_objectives)
+        joined = " ".join(item_objectives).lower()
+        assert "24 v" not in joined and "12 v" not in joined
+        assert "controller" not in joined
+    assert planned[0] != planned[1] != planned[2]
+
+
 def test_ordinary_goal_remains_autonomous_without_hitl(tmp_path):
     engine = HybridWorkflowEngine("org", employees(), tmp_path)
     goal = engine.create_goal("Create one file as a simple note")
@@ -220,7 +237,7 @@ def test_blocked_provider_work_is_replanned_once_without_an_infinite_loop(tmp_pa
 
 def test_rework_replans_the_work_graph_and_preserves_handoff_inputs(tmp_path):
     engine = HybridWorkflowEngine("org", employees(), tmp_path)
-    goal = engine.create_goal("Prepare technical specification for converter")
+    goal = engine.create_goal("Prepare technical specification for converter; force rework")
     engine.create_plan(goal.goal_id)
 
     state = engine.start(goal.goal_id)
@@ -250,7 +267,7 @@ def test_provider_failure_does_not_consume_the_content_rework_budget(tmp_path):
     engine = HybridWorkflowEngine(
         "org", employees(), tmp_path, agent_runtime=TemporarySpecificationProviderFailure(), max_rework_attempts=2
     )
-    goal = engine.create_goal("Prepare technical specification for converter")
+    goal = engine.create_goal("Prepare technical specification for converter; force rework")
     engine.create_plan(goal.goal_id)
 
     state = engine.start(goal.goal_id)
@@ -344,7 +361,7 @@ def test_hitl_interrupt_survives_restart_and_resumes_without_duplicate_effects(t
 
 def test_canonical_workflow_graph_restores_strategy_interrupt_and_replan_history(tmp_path):
     engine = HybridWorkflowEngine("org", employees(), tmp_path)
-    goal = engine.create_goal("Prepare technical specification for converter")
+    goal = engine.create_goal("Prepare technical specification for converter; force rework")
     engine.create_plan(goal.goal_id)
     state = engine.start(goal.goal_id)
     expected = state.workflow_graph(goal.goal_id)
@@ -360,7 +377,7 @@ def test_canonical_workflow_graph_restores_strategy_interrupt_and_replan_history
 
 def test_goal_runs_through_action_tool_observation_artifacts_review_rework(tmp_path):
     engine = HybridWorkflowEngine("org", employees(), tmp_path)
-    goal = engine.create_goal("Prepare technical specification for converter")
+    goal = engine.create_goal("Prepare technical specification for converter; force rework")
     engine.create_plan(goal.goal_id)
     state = engine.start(goal.goal_id)
 
@@ -371,7 +388,7 @@ def test_goal_runs_through_action_tool_observation_artifacts_review_rework(tmp_p
     assert all(artifact.created_from_observation_id in state.observations for artifact in state.artifacts.values())
     assert all(evidence.passed for evidence in state.evidence.values() if evidence.evidence_type == "TOOL_OBSERVATION")
     assert state.findings
-    assert any(artifact.revision == 2 for artifact in state.artifacts.values() if artifact.artifact_type == "TECHNICAL_SPECIFICATION")
+    assert any(artifact.revision == 2 for artifact in state.artifacts.values() if artifact.artifact_type == "WORK_PRODUCT")
     assert any(evidence.evidence_type == "SOURCE_RECORD" and evidence.passed for evidence in state.evidence.values())
 
 
