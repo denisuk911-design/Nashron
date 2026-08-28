@@ -86,6 +86,16 @@ class OrganizationActivation:
 
 
 @dataclass(frozen=True)
+class ProfessionalTeamBuild:
+    organization: Organization
+    activation: OrganizationActivation
+    template_id: str
+    selection_mode: str
+    rationale: str
+    definition_of_done: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class WorkflowDefinition:
     workflow_id: str
     name: str
@@ -283,7 +293,9 @@ class UniversalPlatformService:
         employee_ids: list[str] = []
         used_employee_names: set[str] = set()
         missing_providers: list[str] = []
+        role_metadata: list[dict[str, Any]] = []
         for index, role in enumerate(roles, start=1):
+            role = self._role_with_profession_data(role)
             department_name = str(role.get("department") or "")
             department_id = None
             if department_name:
@@ -334,12 +346,25 @@ class UniversalPlatformService:
                 }
             )
             member_ids.append(member_id)
+            role_metadata.append({
+                "position": position,
+                "profession": role.get("profession", ""),
+                "skills": role.get("initial_skills", []),
+                "tools": role.get("recommended_tools", []),
+                "definition_of_done": role.get("definition_of_done", role.get("typical_results", [])),
+            })
+        definition_of_done = [
+            str(item)
+            for role in role_metadata
+            for item in role.get("definition_of_done", [])
+            if str(item).strip()
+        ]
         workspace_id = self.database.create_organization_workspace(
             {
                 "organization_id": organization_id,
                 "conversation_id": organization_conversation_id,
                 "workspace_path": workspace_path or str(self.workspace_root or ""),
-                "routing_config": {"template_id": template_id, "workflow_id": row["workflow_id"], "team_size": team_size},
+                "routing_config": {"template_id": template_id, "workflow_id": row["workflow_id"], "team_size": team_size, "roles": role_metadata, "definition_of_done": definition_of_done},
                 "status": "READY_WITH_UNASSIGNED" if missing_providers else "READY",
                 "is_active": True,
             }
@@ -351,6 +376,80 @@ class UniversalPlatformService:
         )
         org_row = next(item for item in self.database.list_organizations() if str(item["id"]) == organization_id)
         return OrganizationActivation(self._organization(org_row), tuple(member_ids), tuple(employee_ids), workspace_id, "READY_WITH_UNASSIGNED" if missing_providers else "READY", tuple(missing_providers))
+
+    def build_professional_team(
+        self,
+        brief: str,
+        organization_name: str,
+        *,
+        template_id: str | None = None,
+        team_size: str = "STANDARD",
+        provider_assignments: dict[str, str] | None = None,
+    ) -> ProfessionalTeamBuild:
+        """Supervisor-facing team composition entry point.
+
+        Selection is deterministic and auditable: a supplied template wins;
+        otherwise the catalog is ranked against the brief. The provider is
+        never asked to invent roles, skills, tools, or completion criteria.
+        """
+        brief = str(brief or "").strip()
+        if not brief:
+            raise ValueError("team_brief_required")
+        self.seed_management_library()
+        templates = self.list_templates()
+        selected = next((item for item in templates if item.template_id == template_id), None) if template_id else self._select_template_for_brief(brief, templates)
+        if selected is None:
+            raise ValueError("unknown_team_template")
+        activation = self.activate_template(
+            selected.template_id,
+            organization_name,
+            purpose=brief,
+            team_size=team_size,
+            provider_assignments=provider_assignments,
+        )
+        workspace = self.database.get_organization_workspace(activation.organization.organization_id)
+        config = self._json_value(workspace["routing_config"] if workspace is not None else {})
+        config.update({
+            "builder": "PROFESSIONAL_TEAM_BUILDER",
+            "selection_mode": "EXPLICIT_TEMPLATE" if template_id else "SUPERVISOR_CATALOG_MATCH",
+            "brief": brief,
+            "rationale": f"Выбран релевантный шаблон «{selected.name}» по домену и назначению задачи.",
+        })
+        if workspace is not None:
+            self.database.create_organization_workspace({
+                "id": str(workspace["id"]),
+                "organization_id": activation.organization.organization_id,
+                "conversation_id": workspace["conversation_id"],
+                "workspace_path": workspace["workspace_path"],
+                "routing_config": config,
+                "status": workspace["status"],
+                "is_active": bool(workspace["is_active"]),
+            })
+        self.database.audit_event("professional_team_built", None, {
+            "organization_id": activation.organization.organization_id,
+            "template_id": selected.template_id,
+            "selection_mode": config["selection_mode"],
+            "brief": brief,
+        })
+        return ProfessionalTeamBuild(
+            activation.organization, activation, selected.template_id, config["selection_mode"],
+            str(config["rationale"]), tuple(map(str, config.get("definition_of_done", []))),
+        )
+
+    @staticmethod
+    def _select_template_for_brief(brief: str, templates: list[OrganizationTemplate]) -> OrganizationTemplate | None:
+        words = set(re.findall(r"[a-zа-яіїєґ0-9]+", brief.lower()))
+        if not words:
+            return templates[0] if templates else None
+        best: tuple[int, OrganizationTemplate] | None = None
+        for template in templates:
+            haystack = " ".join((template.name, template.purpose, template.catalog_category, template.domain_package)).lower()
+            score = sum(2 for word in words if word in haystack)
+            score += sum(3 for marker in ("pcb", "плата", "электрон", "electronic", "kicad") if marker in brief.lower() and marker in haystack)
+            score += 1 if template.review_required else 0
+            if best is None or score > best[0]:
+                best = (score, template)
+        return best[1] if best else None
 
     def organization_dashboard(self, organization_id: str) -> dict[str, Any]:
         dashboard = self.database.organization_dashboard(organization_id)
@@ -648,6 +747,32 @@ class UniversalPlatformService:
             if item.name.lower() == wanted:
                 return item.profession_id
         return None
+
+    def _role_with_profession_data(self, role: dict[str, Any]) -> dict[str, Any]:
+        """Resolve profession defaults once, so activation has an explicit contract."""
+        enriched = dict(role)
+        wanted = str(role.get("profession") or "").strip().lower()
+        profession = next((item for item in self.list_professions() if item.name.lower() == wanted), None) if wanted else None
+        if profession is not None:
+            for key, value in {
+                "responsibilities": profession.responsibilities,
+                "typical_results": profession.typical_results,
+                "required_capabilities": profession.required_capabilities,
+                "initial_skills": profession.initial_skills,
+                "recommended_tools": profession.recommended_tools,
+            }.items():
+                if not enriched.get(key):
+                    enriched[key] = list(value)
+            if not enriched.get("description"):
+                enriched["description"] = profession.description
+            if not enriched.get("definition_of_done"):
+                enriched["definition_of_done"] = list(profession.typical_results)
+        # Catalog roles without a named profession still receive a minimal,
+        # explicit contract; a narrative response cannot satisfy these fields.
+        enriched.setdefault("initial_skills", [f"{enriched.get('position') or 'specialist'}: базовая операция домена"])
+        enriched.setdefault("recommended_tools", ["рабочая папка", "чек-лист проверки"])
+        enriched.setdefault("definition_of_done", ["результат сохранён как артефакт", "проверка результата зафиксирована"])
+        return enriched
 
     def _ensure_fixture_workflow(self, name: str, steps: list[dict[str, Any]]) -> WorkflowDefinition:
         existing = next((row for row in self.database.list_workflows() if str(row["name"]) == name), None)

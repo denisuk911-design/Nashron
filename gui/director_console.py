@@ -348,6 +348,7 @@ class UniversalPlatformTab(QWidget):
         create_organization = QPushButton("Создать организацию")
         create_template = QPushButton("Создать шаблон")
         instantiate = QPushButton("Создать команду из пресета")
+        build_team = QPushButton("Собрать команду по задаче")
         seed = QPushButton("Загрузить демонстрационные шаблоны")
         archive_organization = QPushButton("Архивировать")
         restore_organization = QPushButton("Восстановить")
@@ -357,6 +358,7 @@ class UniversalPlatformTab(QWidget):
         create_organization.clicked.connect(self.create_organization)
         create_template.clicked.connect(self.create_template)
         instantiate.clicked.connect(self.instantiate_template)
+        build_team.clicked.connect(self.build_team_from_brief)
         seed.clicked.connect(self.seed_fixtures)
         archive_organization.clicked.connect(lambda: self.change_organization_status("ARCHIVED"))
         restore_organization.clicked.connect(lambda: self.change_organization_status("ACTIVE"))
@@ -367,7 +369,7 @@ class UniversalPlatformTab(QWidget):
         self.organizations.setContextMenuPolicy(Qt.CustomContextMenu)
         self.organizations.customContextMenuRequested.connect(self._show_organization_menu)
         actions = QHBoxLayout()
-        for button in (create_profession, create_organization, create_template, instantiate, seed, archive_organization, restore_organization, delete_organization, cleanup_legacy):
+        for button in (create_profession, create_organization, create_template, instantiate, build_team, seed, archive_organization, restore_organization, delete_organization, cleanup_legacy):
             actions.addWidget(button)
         columns = QHBoxLayout()
         columns.addLayout(self._column("Профессии", self.professions), 1)
@@ -574,6 +576,27 @@ class UniversalPlatformTab(QWidget):
                 self.organizations.setCurrentRow(self.organizations.count() - 1)
         except Exception as exc:
             QMessageBox.warning(self, "Организация не создана", str(exc))
+
+    def build_team_from_brief(self) -> None:
+        if self.service is None:
+            return
+        brief, ok = QInputDialog.getMultiLineText(self, "Собрать профессиональную команду", "Опишите задачу или домен:")
+        if not ok or not brief.strip():
+            return
+        name, ok = QInputDialog.getText(self, "Собрать профессиональную команду", "Название организации:")
+        if not ok or not name.strip():
+            return
+        try:
+            result = self.service.build_professional_team(brief, name.strip())
+            QMessageBox.information(
+                self,
+                "Команда готова",
+                f"Выбран шаблон: {result.template_id}\nСотрудников: {len(result.activation.employee_ids)}\n"
+                f"Критериев готовности: {len(result.definition_of_done)}",
+            )
+            self.refresh()
+        except Exception as exc:
+            QMessageBox.warning(self, "Команда не создана", friendly_error(str(exc), self.language))
 
     def seed_fixtures(self) -> None:
         if self.service is not None:
