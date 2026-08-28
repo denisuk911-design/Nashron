@@ -1,0 +1,10 @@
+{
+  "inference_ok": true,
+  "label": "SOCIAL",
+  "model": "qwen2.5-0.5b-instruct-q4_k_m.gguf",
+  "runtime": "llama-server.exe",
+  "timed_out": false,
+  "external_provider_calls": 0,
+  "stdout_excerpt": "SOCIAL",
+  "stderr_excerpt": ""
+}
