@@ -18,3 +18,20 @@ def test_product_settings_expose_translated_sections_and_persist_values():
     assert values["interface_language"] == "uk"
     assert values["developer_mode"] is False
     dialog.close()
+
+
+@pytest.mark.parametrize(
+    ("language", "expected"),
+    [
+        ("ru", "Проверяется при запуске чата"),
+        ("uk", "Перевіряється під час запуску чату"),
+        ("en", "Checked when chat starts"),
+    ],
+)
+def test_product_connection_statuses_follow_interface_language(language, expected):
+    widgets = pytest.importorskip("PySide6.QtWidgets")
+    app = widgets.QApplication.instance() or widgets.QApplication([])
+    dialog = LuminiferaSettingsDialog({"interface_language": language})
+    connections = dialog.findChild(widgets.QTabWidget).widget(3)
+    assert any(expected in label.text() for label in connections.findChildren(widgets.QLabel))
+    dialog.close()

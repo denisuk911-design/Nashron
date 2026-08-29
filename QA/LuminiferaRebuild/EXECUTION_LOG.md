@@ -249,3 +249,14 @@ ENGINE_PARITY: The Iris window is now reused while open, preserves its conversat
 VISUAL_SCREENSHOT: `Screenshots/iris_persistent_recheck.png`
 KNOWN_GAPS: Manual owner visual acceptance and the previously documented hanging legacy GUI/subprocess tests remain open.
 FILES_CHANGED: `gui/main_window.py`
+
+## Product connection-status localization
+
+STEP: 09 follow-up
+STATUS: PASS for RU/UA/EN connection-status copy.
+TECHNICAL_TESTS: `32 passed` across the focused Luminifera/Iris suite; provider status labels are asserted for all supported interface languages.
+PACKAGED_TEST: PASS; rebuilt `dist/Team2050/Team2050.exe`; isolated Settings preview exited with code 0 and `checks_passed=true` (`Screenshots/settings_localized_recheck.json`).
+ENGINE_PARITY: No provider or runtime behavior changed; only Product Mode presentation strings were localized.
+VISUAL_SCREENSHOT: `Screenshots/settings_localized_recheck.png`
+KNOWN_GAPS: Legacy diagnostics remain behind the documented fallback; final manual visual acceptance is still required.
+FILES_CHANGED: `ui_luminifera/settings/dialog.py`; `tests/test_luminifera_settings.py`

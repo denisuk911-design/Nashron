@@ -71,9 +71,16 @@ class LuminiferaSettingsDialog(QDialog):
 
         providers = QWidget()
         provider_form = QFormLayout(providers)
-        provider_form.addRow("Codex", QLabel("Проверяется при запуске чата"))
-        provider_form.addRow("Gemini", QLabel("Проверяется при запуске чата"))
-        provider_form.addRow("Iris", QLabel("Доступен в рабочем чате"))
+        provider_rows = [
+            ("Codex", "Проверяется при запуске чата"),
+            ("Gemini", "Проверяется при запуске чата"),
+            ("Iris", "Доступен в рабочем чате"),
+        ]
+        provider_labels = []
+        for provider_name, provider_status in provider_rows:
+            status_label = QLabel(provider_status)
+            provider_form.addRow(provider_name, status_label)
+            provider_labels.append((provider_name, status_label))
         tabs.addTab(providers, "Подключения")
 
         data = QWidget()
@@ -135,6 +142,13 @@ class LuminiferaSettingsDialog(QDialog):
                 "developer": "Developer mode (diagnostics and technical details)",
             },
         }.get(self.language_code, {})
+        localized_provider_status = {
+            "ru": ("Проверяется при запуске чата", "Проверяется при запуске чата", "Доступен в рабочем чате"),
+            "uk": ("Перевіряється під час запуску чату", "Перевіряється під час запуску чату", "Доступний у робочому чаті"),
+            "en": ("Checked when chat starts", "Checked when chat starts", "Available in the work chat"),
+        }.get(self.language_code, ("Checked when chat starts", "Checked when chat starts", "Available in the work chat"))
+        for (_, status_label), status in zip(provider_labels, localized_provider_status):
+            status_label.setText(status)
         for index, title in enumerate(labels.get("tabs", [])):
             tabs.setTabText(index, title)
         combo_labels = {
