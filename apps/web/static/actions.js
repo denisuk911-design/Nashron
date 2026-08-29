@@ -160,13 +160,25 @@
       const employee = employees[index];
       const controls = document.createElement('span');
       controls.style.cssText = 'display:flex;gap:6px;align-items:center';
-      controls.innerHTML = `<button class="ghost" data-archive="${employee.agent_id}">Archive</button><button class="ghost" data-delete="${employee.agent_id}">Delete</button>`;
+      controls.innerHTML = `<select aria-label="Role for ${employee.display_name}" data-role="${employee.agent_id}"><option value="CUSTOM_ROLE">Specialist</option><option value="PROJECT_MANAGER">Project manager</option><option value="DESIGN_ENGINEER">Design engineer</option><option value="QA_ENGINEER">QA engineer</option><option value="DOCUMENT_CONTROL_OFFICER">Document control</option></select><button class="ghost" data-reassign="${employee.agent_id}">Apply</button><button class="ghost" data-archive="${employee.agent_id}">Archive</button><button class="ghost" data-delete="${employee.agent_id}">Delete</button>`;
+      controls.querySelector('[data-role]').value = employee.primary_role || 'CUSTOM_ROLE';
       row.append(controls);
     });
     view.querySelectorAll('[data-archive]').forEach(button => button.addEventListener('click', async () => {
       button.disabled = true;
       const response = await fetch(`/api/organizations/${select.value}/employees/${encodeURIComponent(button.dataset.archive)}/archive`, {method: 'POST'});
       if (!response.ok) { alert(`Archive failed: ${await response.text()}`); button.disabled = false; return; }
+      document.querySelector('[data-view="team"]')?.click();
+    }));
+    view.querySelectorAll('[data-reassign]').forEach(button => button.addEventListener('click', async () => {
+      const role = view.querySelector(`[data-role="${button.dataset.reassign}"]`);
+      button.disabled = true;
+      const response = await fetch(`/api/organizations/${select.value}/employees/${encodeURIComponent(button.dataset.reassign)}/role`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({role_id: role.value}),
+      });
+      if (!response.ok) { alert(`Role update failed: ${await response.text()}`); button.disabled = false; return; }
       document.querySelector('[data-view="team"]')?.click();
     }));
     view.querySelectorAll('[data-delete]').forEach(button => button.addEventListener('click', async () => {

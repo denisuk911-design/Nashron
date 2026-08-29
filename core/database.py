@@ -4043,6 +4043,22 @@ class Database:
         with self.connect() as conn:
             return conn.execute("SELECT * FROM organization_members WHERE organization_id = ? ORDER BY id ASC", (organization_id,)).fetchall()
 
+    def get_organization_member(self, organization_id: str, agent_id: str) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM organization_members WHERE organization_id = ? AND agent_id = ?",
+                (organization_id, agent_id),
+            ).fetchone()
+
+    def update_organization_member_role(self, organization_id: str, agent_id: str, role_id: str) -> None:
+        with self.connect() as conn:
+            cursor = conn.execute(
+                "UPDATE organization_members SET role_id = ? WHERE organization_id = ? AND agent_id = ?",
+                (role_id, organization_id, agent_id),
+            )
+            if cursor.rowcount != 1:
+                raise ValueError("organization_member_not_found")
+
     def list_organization_agent_ids(self, organization_id: str) -> set[str]:
         return {
             str(row["agent_id"])

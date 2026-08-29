@@ -70,6 +70,10 @@ class EmployeeRequest(BaseModel):
     provider_id: str = Field(default="UNAVAILABLE", max_length=80)
 
 
+class EmployeeRoleRequest(BaseModel):
+    role_id: str = Field(min_length=1, max_length=80)
+
+
 class TeamRequest(BaseModel):
     brief: str = Field(min_length=3, max_length=5_000)
     organization_name: str = Field(min_length=1, max_length=160)
@@ -312,6 +316,41 @@ async def archive_employee(organization_id: str, agent_id: str) -> dict[str, str
     core.management.archive_agent(agent_id, OWNER_ROLE, "Web archive")
     await core.events.publish({"type": "employee.updated", "data": {"agent_id": agent_id, "state": "ARCHIVED"}})
     return {"agent_id": agent_id, "state": "ARCHIVED"}
+
+
+@app.patch("/api/organizations/{organization_id}/employees/{agent_id}/role")
+async def reassign_employee_role(organization_id: str, agent_id: str, request: EmployeeRoleRequest) -> dict[str, Any]:
+    core.organization_id(organization_id)
+    if agent_id not in core.database.list_organization_agent_ids(organization_id):
+        raise HTTPException(status_code=404, detail="employee_not_found")
+    profile = core.database.get_agent_profile(agent_id)
+    if profile is None:
+        raise HTTPException(status_code=404, detail="employee_not_found")
+    role_id = request.role_id.upper()
+    permissions = sorted(ROLE_DEFAULT_PERMISSIONS.get(role_id, {"CHAT"}) | {"CHAT"})
+    preview = core.management.edit_agent(
+        agent_id,
+        display_name=str(profile["display_name"]),
+        description=str(profile["description"] or ""),
+        provider_id=str(profile["provider_id"]),
+        persona_id=str(profile["persona_id"]) if profile["persona_id"] else None,
+        roles=[role_id],
+        permission_grants=permissions,
+        permission_denies=core.database.list_agent_permission_denies(agent_id),
+        expected_updated_at=str(profile["updated_at"]),
+        avatar_path=str(profile["avatar_path"]) if profile["avatar_path"] else None,
+        preferred_name=str(profile["preferred_name"] or ""),
+        informal_name=str(profile["informal_name"] or ""),
+        actor_role=OWNER_ROLE,
+        reason="Web role reassignment",
+    )
+    if not preview.ok:
+        raise HTTPException(status_code=422, detail={"errors": preview.errors, "warnings": preview.warnings})
+    core.universal.reassign_member_role(organization_id, agent_id, role_id)
+    employee = core.management.get_employee(agent_id)
+    payload = _plain(employee) if employee is not None else {"agent_id": agent_id, "role_id": role_id}
+    await core.events.publish({"type": "employee.updated", "data": payload})
+    return payload
 
 
 @app.delete("/api/organizations/{organization_id}/employees/{agent_id}")

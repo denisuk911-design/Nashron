@@ -17,7 +17,7 @@ LOCALIZATION: Initial product copy is Russian; settings API accepts RU/UA/EN and
 EXISTING_ENGINE_TESTS: Not rerun in this web foundation checkpoint; no core files were changed
 WEB_TESTS: targeted Web/API, management and supervisor-chat coverage: 28 passed; isolated service-backed smoke passed
 SERVICE_SMOKE: `scripts/web_smoke.py` proves team creation, persisted Iris chat, Director plan creation and WebCore restart persistence in a clean profile
-KNOWN_GAPS: Employee reassignment, full WorkItem execution streaming, review/rework API, provider auth UI, complete RU/UA/EN catalogs and browser visual acceptance still need extraction and coverage
+KNOWN_GAPS: Full WorkItem execution streaming, review/rework API, provider auth UI, complete RU/UA/EN catalogs and browser visual acceptance still need extraction and coverage
 LEGACY_PYSIDE_STATUS: Preserved unchanged as legacy fallback/test harness
 COMMERCIAL_READINESS: Landing and local API foundation are present; auth, billing, quotas and cloud deployment are intentionally not implemented
 

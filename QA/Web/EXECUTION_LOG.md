@@ -65,4 +65,4 @@
 
 - The Team view now exposes real archive and delete controls for each scoped employee.
 - Archive calls the existing ManagementService-backed endpoint. Delete requires a browser confirmation and the server-side `confirm=true` gate.
-- Reassignment remains a separate extracted service/API gap; the new controls do not bypass the service layer.
+- Role reassignment is now extracted through `ManagementService` plus `UniversalPlatformService`, so profile roles and organization routing roles remain consistent.

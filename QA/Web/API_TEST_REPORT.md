@@ -22,3 +22,8 @@ The full browser regression suite remains a hardening item after the remaining l
 - `services.web_dev_server` at `127.0.0.1:13000`: `/` and `/assets/app.js` returned HTTP 200.
 - FastAPI at `127.0.0.1:18000`: `/api/health` returned HTTP 200.
 - The two hosts were shut down immediately after the probe.
+
+## Team reassignment service
+
+- `pytest tests/test_universal_platform_u1.py tests/test_web_api.py tests/test_management_foundations.py`: **20 passed**.
+- The new unit check proves membership role reassignment is persisted through `UniversalPlatformService`; the Web endpoint also updates the employee profile through `ManagementService` before publishing its event.

@@ -60,3 +60,16 @@ def test_u1_fixtures_share_generic_core(tmp_path):
     )
     service.update_runtime_state("agent-roman", current_operation="CREATE", status="WORKING")
     assert database.get_agent_runtime_state("agent-roman")["status"] == "WORKING"
+
+
+def test_u1_reassigns_membership_role_for_routing(tmp_path):
+    database = Database(tmp_path / "team.sqlite3")
+    database.initialize()
+    service = UniversalPlatformService(database)
+    organization = service.create_organization("Role reassignment")
+    database.create_agent_profile(AgentProfile("agent-mira", "Mira", "", "ACTIVE", "UNAVAILABLE"), actor="owner", reason="test")
+    database.create_organization_member({"organization_id": organization.organization_id, "agent_id": "agent-mira", "role_id": "CUSTOM_ROLE"})
+
+    service.reassign_member_role(organization.organization_id, "agent-mira", "QA_ENGINEER")
+
+    assert database.get_organization_member(organization.organization_id, "agent-mira")["role_id"] == "QA_ENGINEER"

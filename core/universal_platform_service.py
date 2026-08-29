@@ -184,6 +184,12 @@ class UniversalPlatformService:
     def restore_organization(self, organization_id: str) -> Organization:
         return self.set_organization_status(organization_id, "ACTIVE")
 
+    def reassign_member_role(self, organization_id: str, agent_id: str, role_id: str) -> None:
+        """Update the organization-side role used for routing and planning."""
+        if not self.database.get_organization_member(organization_id, agent_id):
+            raise ValueError("organization_member_not_found")
+        self.database.update_organization_member_role(organization_id, agent_id, role_id.strip().upper())
+
     def delete_organization(self, organization_id: str) -> None:
         self.database.delete_organization(organization_id)
 
