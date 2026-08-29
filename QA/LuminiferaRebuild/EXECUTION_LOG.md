@@ -107,7 +107,7 @@ TECHNICAL_TESTS: 13 focused profile/settings/files/bootstrap tests passed
 PACKAGED_TEST: PASS; source and packaged preview path generated `09_profile.json` with `checks_passed=true`; actual profile screenshot reviewed
 ENGINE_PARITY: Owner identity is persisted through the existing settings service and remains separate from employee avatar data; profile changes update the product shell immediately.
 VISUAL_SCREENSHOT: `QA/LuminiferaRebuild/Screenshots/09_profile.png`
-KNOWN_GAPS: Avatar removal and a richer preference summary can be added during final polish; upload/choose and persistence are implemented.
+KNOWN_GAPS: A richer preference summary can be added during final polish; upload, choose, remove and persistence are implemented.
 FILES_CHANGED: `ui_luminifera/profile/`; `gui/main_window.py`; `app.py`; `tests/test_luminifera_profile.py`
 
 ## STEP 11 - Product States
@@ -154,4 +154,4 @@ EVIDENCE: `EngineParity/FINAL.md`
 
 STEP: 17
 STATUS: PARTIAL; packaged executable and isolated smoke scenarios pass, but full pytest is blocked by pre-existing hanging GUI/subprocess tests and manual visual acceptance is pending.
-EVIDENCE: `Screenshots/final_home.json`, `Screenshots/final_profile.json`, `EngineParity/FINAL.md`
+EVIDENCE: `Screenshots/final_home.json`, `Screenshots/final_profile.json`, `Screenshots/final3_profile.json`, `EngineParity/FINAL.md`

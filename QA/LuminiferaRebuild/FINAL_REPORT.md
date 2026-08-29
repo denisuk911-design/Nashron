@@ -23,7 +23,7 @@ Steps 01-10 have packaged previews and targeted tests. Steps 11-15 are partial m
 - screenshots: `QA/LuminiferaRebuild/Screenshots/`;
 - engine parity: `QA/LuminiferaRebuild/EngineParity/FINAL.md`;
 - legacy status: `QA/LuminiferaRebuild/LegacyAudit/README.md`;
-- packaged final Home/Profile/Work/Settings reports: `final_home.json`, `final_profile.json`, `10_states.json`, `final2_settings.json`, `final2_work.json`;
+- packaged final Home/Profile/Work/Settings reports: `final_home.json`, `final_profile.json`, `final3_profile.json`, `10_states.json`, `final2_settings.json`, `final2_work.json`;
 - RC foreign-key result: `foreign_key_errors=0`, equivalent to `FK=[]`.
 
 ## Verification

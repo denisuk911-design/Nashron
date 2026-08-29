@@ -4,7 +4,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import QFileDialog, QDialog, QDialogButtonBox, QFormLayout, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFileDialog, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget
 
 
 class LuminiferaProfileDialog(QDialog):
@@ -26,7 +26,12 @@ class LuminiferaProfileDialog(QDialog):
         browse = QPushButton("Выбрать аватар")
         browse.clicked.connect(self._browse_avatar)
         form.addRow("Аватар", self.avatar_path)
-        form.addRow("", browse)
+        remove = QPushButton("Удалить аватар")
+        remove.clicked.connect(self._remove_avatar)
+        avatar_actions = QHBoxLayout()
+        avatar_actions.addWidget(browse)
+        avatar_actions.addWidget(remove)
+        form.addRow("", avatar_actions)
         layout.addLayout(form)
         self._render_avatar()
         buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
@@ -43,6 +48,10 @@ class LuminiferaProfileDialog(QDialog):
     def _render_avatar(self) -> None:
         pixmap = QPixmap(self.avatar_path.text())
         self.avatar.setPixmap(pixmap.scaled(self.avatar.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation) if not pixmap.isNull() else QPixmap())
+
+    def _remove_avatar(self) -> None:
+        self.avatar_path.clear()
+        self.avatar.clear()
 
     def values(self) -> dict[str, object]:
         return {"owner_display_name": self.name.text().strip() or "Владелец", "user_avatar_path": self.avatar_path.text().strip()}
