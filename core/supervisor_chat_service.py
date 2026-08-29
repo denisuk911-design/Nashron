@@ -49,6 +49,7 @@ class SupervisorChatApplicationService:
         save_settings: Callable[[dict[str, Any]], None] | None = None,
         local_runtime: Any | None = None,
         strong_handler: Callable[[str, str | None], str] | None = None,
+        goal_handler: Callable[[str, str], Any] | None = None,
     ) -> None:
         self.supervisor_service = supervisor_service
         self.universal_service = universal_service
@@ -57,6 +58,7 @@ class SupervisorChatApplicationService:
         self.save_settings = save_settings or (lambda _settings: None)
         self.local_runtime = local_runtime
         self.strong_handler = strong_handler
+        self.goal_handler = goal_handler
         self._pending: dict[str, tuple[str, str | None]] = {}
 
     def handle(self, text: str, organization_id: str | None = None, *, confirmed: bool = False) -> SupervisorChatResult:
@@ -212,6 +214,16 @@ class SupervisorChatApplicationService:
             raise ValueError("не выбрана организация")
         if operation == "create":
             goal = re.sub(r".*?(?:создай цель|новая цель|запусти цель|start goal)\s*", "", text, flags=re.I).strip(" :.-")
+            if self.goal_handler is not None:
+                result = self.goal_handler(goal, organization_id)
+                summary = str(getattr(result, "summary", result))
+                return SupervisorChatResult(
+                    bool(getattr(result, "ok", True)),
+                    summary,
+                    route="STRONG",
+                    action="runtime_goal",
+                    data={"runtime": True},
+                )
             plan = self.supervisor_service.director(organization_id, goal)
         else:
             plans = self.supervisor_service.list_plans(organization_id)

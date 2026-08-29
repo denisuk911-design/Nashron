@@ -227,3 +227,14 @@ FILES V3 VISIBILITY: Files now projects durable Runtime V3 artifacts alongside l
 PRODUCT STATE SAFETY: Work maps RUNNING, REWORK, FAILED and unknown goal/step states to localized human-readable copy; raw runtime enum values no longer leak into Product Mode. Targeted tests: `10 passed`; packaged Work smoke: `exit=0`, `checks_passed=true` (`Screenshots/work_state_labels_recheck.json`, `Screenshots/work_state_labels_recheck.png`).
 RESULT HANDOFF: Work now offers an explicit `Открыть результат` action only when the verified receipt is ready; it navigates to the product Files view. The action is hidden while review is pending. Luminifera test suite: `27 passed`; packaged Work smoke: `exit=0`, `checks_passed=true` (`Screenshots/work_result_action_recheck.json`, `Screenshots/work_result_action_recheck.png`).
 NAVIGATION STATE: Direct product transitions now update the active sidebar item themselves, keeping navigation selection synchronized when Work/Files are opened from contextual actions. Targeted tests: `16 passed`; packaged Work smoke: `exit=0`, `checks_passed=true` (`Screenshots/work_nav_recheck.json`, `Screenshots/work_nav_recheck.png`).
+
+## Iris Runtime V3 goal handoff
+
+STEP: 04/06 integration follow-up
+STATUS: PASS for Iris-to-Runtime-V3 goal handoff.
+TECHNICAL_TESTS: `28 passed` across Luminifera and Supervisor application-service tests; dedicated goal-handler regression confirms the organization context and objective are forwarded.
+PACKAGED_TEST: PASS; rebuilt `dist/Team2050/Team2050.exe`; isolated Iris preview exited with code 0 and `checks_passed=true` (`Screenshots/iris_runtime_goal_recheck.json`).
+ENGINE_PARITY: Iris goal creation now uses the existing `RuntimeV3GoalService` boundary when available, so durable goal/work/artifact projections remain shared with Chat, Home, Work and Files. Legacy plan handling remains as compatibility fallback when no V3 handler is supplied.
+VISUAL_SCREENSHOT: `Screenshots/iris_runtime_goal_recheck.png`
+KNOWN_GAPS: Full legacy pytest and owner manual visual acceptance remain documented as open; no new Product Mode internals were exposed.
+FILES_CHANGED: `core/supervisor_chat_service.py`; `gui/main_window.py`; `tests/test_supervisor_chat_application_service.py`

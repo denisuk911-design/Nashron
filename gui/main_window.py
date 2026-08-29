@@ -2892,6 +2892,7 @@ class MainWindow(QMainWindow):
             save_settings=self.settings_service.save,
             local_runtime=getattr(self.runtime_v3_goal_service, "local_supervisor", None),
             strong_handler=self._run_supervisor_strong_request,
+            goal_handler=self._run_supervisor_runtime_goal,
         )
         dialog = SupervisorChatDialog(
             service,
@@ -2912,6 +2913,14 @@ class MainWindow(QMainWindow):
         self.apply_theme()
         self._refresh_organization_selector()
         self._refresh_chat_agents()
+
+    def _run_supervisor_runtime_goal(self, objective: str, organization_id: str):
+        """Run Iris goals through the same durable V3 boundary as main Chat."""
+        return self.runtime_v3_goal_service.run_goal(
+            organization_id,
+            objective,
+            self._chat_agents(),
+        )
 
     def show_supervisor_guide(self) -> None:
         dialog = SupervisorGuideDialog(self.supervisor_guide_service, "main", self)

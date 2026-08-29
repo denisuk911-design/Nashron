@@ -145,3 +145,22 @@ def test_application_failure_does_not_expose_exception_or_internal_state():
     assert result.action == "error"
     assert "sqlite stack path" not in result.message
     assert "RuntimeError" not in result.message
+
+
+def test_goal_creation_uses_runtime_v3_handler_when_available():
+    service, _management, _settings = make_service()
+    calls = []
+
+    class RuntimeResult:
+        ok = True
+        summary = "Цель выполнена.\nАртефакты: 1."
+
+    service.goal_handler = lambda objective, organization_id: calls.append((objective, organization_id)) or RuntimeResult()
+
+    result = service.handle("создай цель: подготовь спецификацию", "org-owner")
+
+    assert result.ok
+    assert result.action == "runtime_goal"
+    assert result.data["runtime"] is True
+    assert result.message.startswith("Цель выполнена")
+    assert calls == [("подготовь спецификацию", "org-owner")]
