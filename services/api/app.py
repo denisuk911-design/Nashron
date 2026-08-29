@@ -39,6 +39,7 @@ from core.universal_platform_service import UniversalPlatformService
 from core.tool_access import effective_permissions_for_agent
 from core.skill_package_service import SkillPackageService
 from core.knowledge_service import KnowledgeService
+from services.api.events import EventEnvelope
 
 
 class ChatRequest(BaseModel):
@@ -86,7 +87,8 @@ class ConnectionHub:
         self._clients.discard(socket)
 
     async def publish(self, event: dict[str, Any]) -> None:
-        payload = json.dumps(event, ensure_ascii=False)
+        envelope = EventEnvelope.model_validate(event) if "occurred_at" in event else EventEnvelope.create(event["type"], event["data"])
+        payload = envelope.model_dump_json()
         stale: list[WebSocket] = []
         for socket in tuple(self._clients):
             try:

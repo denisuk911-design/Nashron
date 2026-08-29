@@ -27,3 +27,11 @@ def test_websocket_event_contract_is_available():
     client = TestClient(app)
     with client.websocket_connect("/api/events") as socket:
         socket.send_text("ping")
+
+
+def test_web_event_contract_stamps_real_event_time():
+    from services.api.events import EventEnvelope
+
+    event = EventEnvelope.create("goal.created", {"goal": "test"})
+    assert event.type == "goal.created"
+    assert event.occurred_at.endswith("+00:00")
