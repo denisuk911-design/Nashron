@@ -30,3 +30,12 @@ def test_work_view_marks_receipt_only_when_evidence_is_ready():
     assert "2" in dashboard.result_body.text()
     assert "1" in dashboard.result_body.text()
     dashboard.close()
+
+
+def test_work_product_view_does_not_expose_runtime_enum_states():
+    widgets = pytest.importorskip("PySide6.QtWidgets")
+    app = widgets.QApplication.instance() or widgets.QApplication([])
+    dashboard = WorkDashboard("en")
+    dashboard.render(WorkSnapshot(goal_title="Brief", goal_state="RUNNING"))
+    assert "RUNNING" not in dashboard.goal_status.text()
+    dashboard.close()

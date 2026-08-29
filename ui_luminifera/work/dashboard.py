@@ -88,7 +88,10 @@ class WorkDashboard(QWidget):
             "uk": {"PENDING": "Очікує запуску", "PLANNED": "Запланована", "IN_PROGRESS": "У роботі", "REVIEW": "На перевірці", "COMPLETED": "Завершена", "BLOCKED": "Заблокована", "CANCELLED": "Скасована"},
             "en": {"PENDING": "Waiting to start", "PLANNED": "Planned", "IN_PROGRESS": "In progress", "REVIEW": "In review", "COMPLETED": "Completed", "BLOCKED": "Blocked", "CANCELLED": "Cancelled"},
         }
-        state = state_labels[self.language].get(snapshot.goal_state.upper(), snapshot.goal_state.replace("_", " ")) if snapshot.goal_state else ""
+        for labels in state_labels.values():
+            labels.update({"RUNNING": labels.get("IN_PROGRESS", "In progress"), "REWORK": labels.get("BLOCKED", "Blocked"), "FAILED": labels.get("BLOCKED", "Blocked")})
+        fallback_state = {"ru": "В работе", "uk": "У роботі", "en": "In progress"}[self.language]
+        state = state_labels[self.language].get(snapshot.goal_state.upper(), fallback_state) if snapshot.goal_state else ""
         self.goal_status.setText(copy["status"].format(state=state) if state else copy["empty_body"])
         self.progress.setValue(snapshot.goal_progress)
         action = copy["review_next"] if snapshot.goal_progress >= 75 else copy["start"] if snapshot.goal_title else copy["talk"]
@@ -116,5 +119,6 @@ class WorkDashboard(QWidget):
             "AWAITING_REVIEW": {"ru": "На проверке", "uk": "На перевірці", "en": "In review"},
             "COMPLETED": {"ru": "Завершён", "uk": "Завершено", "en": "Completed"},
         }
-        steps = [f"{item.title}: {step_labels.get(item.status, {}).get(self.language, item.status)}" for item in snapshot.steps]
+        fallback_step = {"ru": "В работе", "uk": "У роботі", "en": "In progress"}[self.language]
+        steps = [f"{item.title}: {step_labels.get(item.status, {}).get(self.language, fallback_step)}" for item in snapshot.steps]
         self.steps_body.setText("\n".join(steps) or {"ru": "Этапы появятся после запуска цели", "uk": "Етапи з'являться після запуску цілі", "en": "Steps appear after the goal starts"}[self.language])

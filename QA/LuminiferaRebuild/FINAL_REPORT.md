@@ -67,3 +67,6 @@ The Work surface now distinguishes a real verified result from ordinary progress
 ## Files artifact projection
 
 The Files product view now includes artifacts from durable Runtime V3 checkpoints, while keeping legacy artifact support. Product labels use only safe filenames and human statuses; packaged Files smoke passed.
+## Product state safety
+
+Runtime V3 goal and step statuses are localized in the Work surface, including running, rework, failure and unknown-state fallbacks. Product Mode does not expose raw enum names. Packaged Work smoke passed.
