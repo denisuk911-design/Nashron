@@ -437,6 +437,18 @@ class ThemeManager:
             color: {c['text']};
             border-color: {c['line']};
         }}
+        QPushButton#luminiferaNavButton:focus, QPushButton#luminiferaUtilityButton:focus,
+        QPushButton#luminiferaHomePrimary:focus, QPushButton#luminiferaHomeSecondary:focus,
+        QToolButton#luminiferaProfileButton:focus {{
+            border: 2px solid {c['cyan']};
+            outline: none;
+        }}
+        QPushButton#luminiferaNavButton:disabled, QPushButton#luminiferaUtilityButton:disabled,
+        QPushButton#luminiferaHomePrimary:disabled, QPushButton#luminiferaHomeSecondary:disabled {{
+            color: {c['muted_2']};
+            background: {c['surface']};
+            border-color: {c['line_soft']};
+        }}
         QPushButton#luminiferaNavButton:checked {{
             background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 {c['violet_dark']}, stop:1 {c['surface_alt']});
             color: #ffffff;
@@ -537,6 +549,8 @@ class ThemeManager:
         QFrame#luminiferaWorkCard {{ background: {c['surface']}; border: 1px solid {c['line_soft']}; border-radius: 14px; }}
         QLabel#luminiferaWorkCardHeading {{ color: {c['text']}; font-size: 10pt; font-weight: 700; }}
         QLabel#luminiferaWorkCardBody {{ color: {c['muted']}; font-size: 9pt; }}
+        QProgressBar {{ background: {c['input']}; color: {c['text']}; border: 1px solid {c['line_soft']}; border-radius: 7px; min-height: 12px; text-align: center; }}
+        QProgressBar::chunk {{ background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 {c['cyan_dark']}, stop:1 {c['violet']}); border-radius: 6px; }}
         QWidget#luminiferaFiles {{ background: transparent; }}
         QLabel#luminiferaFilesHeading {{ color: {c['text']}; font-size: 20pt; font-weight: 700; }}
         QListWidget#luminiferaFilesList {{ background: transparent; border: 0; padding: 4px 0; }}

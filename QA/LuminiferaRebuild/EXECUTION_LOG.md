@@ -172,6 +172,8 @@ FILES_CHANGED: `ui_luminifera/team/builder.py`; `ui_luminifera/settings/dialog.p
 
 STATE COPY: Added a shared RU/UA/EN Product Mode state catalog for provider-unavailable, worker-timeout and blocked-work conditions. Chat provider failures now show safe, actionable user copy while technical details remain in the event log; timeout activity uses the same product language. Targeted tests: `14 passed`; packaged Work/state smoke: `exit=0`, `checks_passed=true` (`Screenshots/states_recheck.png`).
 
+VISUAL POLISH: Added explicit focus, disabled and progress-bar styling for the Luminifera Product Mode controls, preserving readable contrast and keyboard focus visibility. Targeted theme/shell/work tests: `7 passed`; rebuilt packaged Work preview: `exit=0`, `checks_passed=true` (`Screenshots/visual_polish_recheck.png`).
+
 FINALIZATION_NOTE: Rebuilt packaged Settings preview after replacing the default dialog button text; screenshot now shows localized `Сохранить` and `Отмена`, with packaged exit code 0 and `checks_passed=true`.
 
 ## Product language refresh follow-up
