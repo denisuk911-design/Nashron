@@ -47,3 +47,10 @@
 
 - Added multipart upload with a 20 MiB bound and durable `ChatAttachmentService` storage.
 - Attachment IDs are bound to the owner message only after the message exists; binary data is never inserted into chat text or sent to Iris as an untracked claim.
+
+## Deterministic service-backed smoke
+
+- Added `scripts/web_smoke.py` for a repeatable Web boundary check in an isolated `TEAM2050_HOME` profile.
+- The smoke creates a professional team through `UniversalPlatformService`, persists an Iris chat message, creates a Director plan, and verifies the organization survives a new `WebCore` instance.
+- A missing director now returns HTTP 409 `director_not_assigned` instead of leaking a 500 from the API boundary.
+- Latest isolated run: `checks_passed=true`, four provisioned team members, Iris chat result `true`, durable plan created.

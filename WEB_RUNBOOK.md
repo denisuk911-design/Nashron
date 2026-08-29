@@ -29,6 +29,12 @@ Open `http://localhost:8000`. API documentation is available at `http://localhos
 .venv\Scripts\python.exe -m pytest tests/test_web_api.py
 ```
 
+Run an isolated service-backed smoke:
+
+```powershell
+.venv\Scripts\python.exe scripts\web_smoke.py --profile .tmp_web_smoke --report QA\Web\web_smoke.json
+```
+
 The web process uses the normal Team2050 profile. Set `TEAM2050_HOME` to an isolated profile for a clean local demo.
 
 ## Troubleshooting

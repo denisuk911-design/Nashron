@@ -42,3 +42,17 @@ def test_unknown_provider_check_is_rejected():
 
     client = TestClient(app)
     assert client.post("/api/providers/not-real/check").status_code == 404
+
+
+def test_web_goal_requires_an_assigned_director_without_server_error():
+    from services.api.app import app
+
+    client = TestClient(app)
+    organization = client.post("/api/organizations", json={"name": "No director", "purpose": "API error contract"})
+    response = client.post(
+        "/api/goals",
+        headers={"X-Organization-Id": organization.json()["organization_id"]},
+        json={"objective": "Verify the API error contract"},
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"] == "director_not_assigned"

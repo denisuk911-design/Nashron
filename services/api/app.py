@@ -395,7 +395,10 @@ async def create_goal(request: GoalRequest, x_organization_id: str | None = Head
     organization_id = core.organization_id(x_organization_id)
     if not organization_id:
         raise HTTPException(status_code=400, detail="organization_required")
-    plan = core.supervisor.director(organization_id, request.objective)
+    try:
+        plan = core.supervisor.director(organization_id, request.objective)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     result = _plain(plan)
     await core.events.publish({"type": "goal.created", "data": result})
     return result
