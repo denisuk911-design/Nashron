@@ -60,3 +60,9 @@
 - Added `services.web_dev_server` as a thin static host for the Product UI on port 3000.
 - `scripts/run_web.ps1` now starts the static shell and FastAPI engine as separate local processes; browser API and WebSocket requests are directed to the engine on port 8000.
 - Probe run on alternate ports returned HTTP 200 for the Web entrypoint, `app.js`, and API health. The temporary probe processes were stopped after verification.
+
+## Team lifecycle controls
+
+- The Team view now exposes real archive and delete controls for each scoped employee.
+- Archive calls the existing ManagementService-backed endpoint. Delete requires a browser confirmation and the server-side `confirm=true` gate.
+- Reassignment remains a separate extracted service/API gap; the new controls do not bypass the service layer.

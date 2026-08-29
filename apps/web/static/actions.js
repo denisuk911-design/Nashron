@@ -144,3 +144,39 @@
   new MutationObserver(attachTeamControls).observe(document.querySelector('#view'), {childList:true,subtree:true});
   document.querySelector('[data-view="team"]')?.addEventListener('click', () => setTimeout(attachTeamControls, 30));
 })();
+
+(() => {
+  const enhanceTeamLifecycle = async () => {
+    const view = document.querySelector('#view');
+    const select = document.querySelector('#org-select');
+    const activeView = document.querySelector('.side-nav button.active')?.dataset.view;
+    if (!view || !select?.value || activeView !== 'team' || view.querySelector('[data-archive]')) return;
+    const response = await fetch(`/api/organizations/${select.value}/employees`);
+    if (!response.ok) return;
+    const employees = await response.json();
+    const rows = view.querySelectorAll('.list-row');
+    if (rows.length !== employees.length) return;
+    rows.forEach((row, index) => {
+      const employee = employees[index];
+      const controls = document.createElement('span');
+      controls.style.cssText = 'display:flex;gap:6px;align-items:center';
+      controls.innerHTML = `<button class="ghost" data-archive="${employee.agent_id}">Archive</button><button class="ghost" data-delete="${employee.agent_id}">Delete</button>`;
+      row.append(controls);
+    });
+    view.querySelectorAll('[data-archive]').forEach(button => button.addEventListener('click', async () => {
+      button.disabled = true;
+      const response = await fetch(`/api/organizations/${select.value}/employees/${encodeURIComponent(button.dataset.archive)}/archive`, {method: 'POST'});
+      if (!response.ok) { alert(`Archive failed: ${await response.text()}`); button.disabled = false; return; }
+      document.querySelector('[data-view="team"]')?.click();
+    }));
+    view.querySelectorAll('[data-delete]').forEach(button => button.addEventListener('click', async () => {
+      if (!window.confirm('Delete this employee permanently? This cannot be undone.')) return;
+      button.disabled = true;
+      const response = await fetch(`/api/organizations/${select.value}/employees/${encodeURIComponent(button.dataset.delete)}?confirm=true`, {method: 'DELETE'});
+      if (!response.ok) { alert(`Delete failed: ${await response.text()}`); button.disabled = false; return; }
+      document.querySelector('[data-view="team"]')?.click();
+    }));
+  };
+  new MutationObserver(() => { enhanceTeamLifecycle().catch(() => {}); }).observe(document.querySelector('#view'), {childList: true, subtree: true});
+  document.querySelector('[data-view="team"]')?.addEventListener('click', () => setTimeout(() => enhanceTeamLifecycle().catch(() => {}), 60));
+})();
