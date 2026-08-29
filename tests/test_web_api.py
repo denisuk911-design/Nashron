@@ -55,6 +55,14 @@ def test_web_work_items_is_a_safe_product_read_model():
     assert isinstance(response.json(), list)
 
 
+def test_web_review_is_a_safe_product_read_model():
+    from services.api.app import app
+
+    response = TestClient(app).get("/api/work/review")
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+
+
 def test_web_goal_requires_an_assigned_director_without_server_error():
     from services.api.app import app
 

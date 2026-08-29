@@ -57,6 +57,14 @@ class WorkItemView:
     findings: int
 
 
+@dataclass(frozen=True)
+class ReviewFindingView:
+    title: str
+    severity: str
+    status: str
+    reviewer: str
+
+
 class LuminiferaWorkService:
     _PROGRESS = {
         "PENDING": 10,
@@ -174,6 +182,31 @@ class LuminiferaWorkService:
             )
             for item in state.work_items.values()
             if item.goal_id == goal_id
+        )
+
+    def review_findings(self, organization_id: str | None) -> tuple[ReviewFindingView, ...]:
+        if not organization_id or self._runtime_root is None:
+            return ()
+        state_path = self._runtime_root / organization_id / "checkpoints" / "state.json"
+        if not state_path.is_file():
+            return ()
+        try:
+            state = load_state(state_path)
+        except (OSError, ValueError, KeyError, TypeError):
+            return ()
+        goals = sorted(state.goals.values(), key=lambda item: (item.updated_at, item.created_at), reverse=True)
+        if not goals:
+            return ()
+        names = {item.employee_id: item.display_name for item in state.employee_snapshots.values()}
+        return tuple(
+            ReviewFindingView(
+                title=finding.description,
+                severity=finding.severity,
+                status=finding.status,
+                reviewer=names.get(finding.reviewer_employee_id, "Review team member"),
+            )
+            for finding in state.findings.values()
+            if finding.goal_id == goals[0].goal_id
         )
 
     def _runtime_snapshot(self, organization_id: str, organization_name: str) -> WorkSnapshot | None:
