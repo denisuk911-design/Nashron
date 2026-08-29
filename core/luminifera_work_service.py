@@ -32,6 +32,8 @@ class WorkSnapshot:
     goal_progress: int = 0
     artifacts: tuple[WorkArtifact, ...] = ()
     findings: int = 0
+    evidence_count: int = 0
+    receipt_ready: bool = False
     steps: tuple[WorkStep, ...] = ()
 
 
@@ -88,6 +90,8 @@ class LuminiferaWorkService:
             goal_progress=self._PROGRESS.get(state.upper(), 0),
             artifacts=tuple(WorkArtifact(str(row["relative_path"] or row["kind"] or "Результат"), str(row["status"] or "")) for row in artifacts),
             findings=len(findings),
+            evidence_count=0,
+            receipt_ready=False,
             steps=steps,
         )
 
@@ -115,6 +119,14 @@ class LuminiferaWorkService:
         )
         artifacts = [item for item in state.artifacts.values() if item.goal_id == goal.goal_id]
         findings = [item for item in state.findings.values() if item.goal_id == goal.goal_id]
+        receipt = state.work_receipts.get(goal.work_receipt_id) if goal.work_receipt_id else None
+        evidence_count = sum(1 for item in state.evidence.values() if item.goal_id == goal.goal_id and item.passed)
+        receipt_ready = bool(
+            goal.status == GoalStatus.COMPLETED
+            and receipt is not None
+            and receipt.artifact_ids
+            and receipt.evidence_ids
+        )
         steps = tuple(
             WorkStep(
                 title=item.objective,
@@ -130,5 +142,7 @@ class LuminiferaWorkService:
             goal_progress=max(0, min(100, progress)),
             artifacts=tuple(WorkArtifact(Path(item.path).name or item.artifact_type, "verified") for item in artifacts[:6]),
             findings=len(findings),
+            evidence_count=evidence_count,
+            receipt_ready=receipt_ready,
             steps=steps,
         )

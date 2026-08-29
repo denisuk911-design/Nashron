@@ -55,7 +55,8 @@ class WorkDashboard(QWidget):
         self.artifacts_card, self.artifacts_heading, self.artifacts_body = self._card()
         self.review_card, self.review_heading, self.review_body = self._card()
         self.steps_card, self.steps_heading, self.steps_body = self._card()
-        for card in (self.team_card, self.artifacts_card, self.review_card, self.steps_card):
+        self.result_card, self.result_heading, self.result_body = self._card()
+        for card in (self.team_card, self.artifacts_card, self.review_card, self.steps_card, self.result_card):
             cards.addWidget(card)
         layout.addLayout(cards)
         layout.addStretch(1)
@@ -98,6 +99,16 @@ class WorkDashboard(QWidget):
         self.artifacts_body.setText("\n".join(item.title for item in snapshot.artifacts) or copy["no_results"])
         self.review_heading.setText(copy["review"])
         self.review_body.setText(copy["findings"].format(count=snapshot.findings))
+        result_labels = {
+            "ru": ("Проверенный результат", "Готов: {artifacts} материалов, {evidence} подтверждений", "Проверка еще не завершена"),
+            "uk": ("Перевірений результат", "Готово: {artifacts} матеріалів, {evidence} підтверджень", "Перевірку ще не завершено"),
+            "en": ("Verified result", "Ready: {artifacts} artifacts, {evidence} evidence records", "Review is not complete yet"),
+        }[self.language]
+        self.result_heading.setText(result_labels[0])
+        self.result_body.setText(
+            result_labels[1].format(artifacts=len(snapshot.artifacts), evidence=snapshot.evidence_count)
+            if snapshot.receipt_ready else result_labels[2]
+        )
         self.steps_heading.setText({"ru": "Этапы", "uk": "Етапи", "en": "Steps"}[self.language])
         step_labels = {
             "ASSIGNED": {"ru": "Назначен", "uk": "Призначено", "en": "Assigned"},

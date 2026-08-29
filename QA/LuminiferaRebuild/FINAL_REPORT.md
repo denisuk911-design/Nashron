@@ -61,3 +61,6 @@ The Work product view now reads the latest durable Runtime V3 checkpoint for the
 ## Home and Work Runtime V3 projection
 
 Home and Work now share the durable Runtime V3 checkpoint projection. A real goal remains visible with computed progress and artifacts after execution/restart rather than disappearing because it is absent from the legacy `tasks` table. Packaged Home smoke passed with `checks_passed=true`.
+## Verified result receipt
+
+The Work surface now distinguishes a real verified result from ordinary progress. The receipt card requires a completed Runtime V3 goal plus durable artifact and evidence references; user-facing copy does not infer completion from agent claims.

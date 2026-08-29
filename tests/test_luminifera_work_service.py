@@ -25,6 +25,8 @@ def test_work_view_projects_durable_v3_goal_and_artifacts(tmp_path):
     assert snapshot.goal_state == "COMPLETED"
     assert snapshot.goal_progress == 100
     assert snapshot.artifacts
+    assert snapshot.receipt_ready
+    assert snapshot.evidence_count
     assert snapshot.steps
 
 
