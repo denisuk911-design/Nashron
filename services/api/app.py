@@ -25,10 +25,17 @@ from core.luminifera_files_service import LuminiferaFilesService
 from core.luminifera_home_service import LuminiferaHomeService
 from core.luminifera_work_service import LuminiferaWorkService
 from core.management_service import ManagementService
+from core.management_models import AgentProfile, OWNER_ROLE, ROLE_DEFAULT_PERMISSIONS
+from core.codex_client import CodexClient
+from core.gemini_client import GeminiClient
+from core.provider_credentials import ProviderCredentialService
+from core.provider_service import CodexProviderAdapter, GeminiProviderAdapter
+from core.runtime_v3_service import RuntimeV3GoalService
 from core.settings_service import SettingsService
 from core.supervisor_application_service import SupervisorApplicationService
 from core.supervisor_chat_service import SupervisorChatApplicationService
 from core.universal_platform_service import UniversalPlatformService
+from core.tool_access import effective_permissions_for_agent
 
 
 class ChatRequest(BaseModel):
@@ -48,6 +55,20 @@ class SettingsRequest(BaseModel):
     interface_language: str | None = None
     theme: str | None = None
     message_sounds_enabled: bool | None = None
+
+
+class EmployeeRequest(BaseModel):
+    display_name: str = Field(min_length=1, max_length=120)
+    role_id: str = Field(default="CUSTOM_ROLE", min_length=1, max_length=80)
+    description: str = Field(default="", max_length=2_000)
+    provider_id: str = Field(default="UNAVAILABLE", max_length=80)
+
+
+class TeamRequest(BaseModel):
+    brief: str = Field(min_length=3, max_length=5_000)
+    organization_name: str = Field(min_length=1, max_length=160)
+    template_id: str | None = None
+    team_size: str = Field(default="STANDARD", max_length=30)
 
 
 class ConnectionHub:
@@ -97,6 +118,27 @@ class WebCore:
             avatar_dir=self.paths.avatar_dir,
         )
         self.universal.seed_management_library()
+        self.provider_credentials = ProviderCredentialService(self.database)
+        runtime_workspace = self.workspace_root / "web_provider_runtime"
+        self.codex_client = CodexClient(
+            workspace=runtime_workspace / "codex",
+            timeout_seconds=int(self.settings.get("codex_timeout_seconds", 180)),
+            logger=logging.getLogger("luminifera.web"),
+        )
+        self.gemini_client = GeminiClient(
+            workspace=runtime_workspace / "gemini",
+            timeout_seconds=int(self.settings.get("codex_timeout_seconds", 180)),
+            credential_lookup=lambda: self.provider_credentials.read("GEMINI_CLI"),
+            logger=logging.getLogger("luminifera.web"),
+        )
+        self.runtime_v3 = RuntimeV3GoalService(
+            self.workspace_root / "runtime_v3_goals",
+            provider_adapters={
+                "CODEX_CLI": CodexProviderAdapter(self.codex_client),
+                "GEMINI_CLI": GeminiProviderAdapter(self.gemini_client),
+            },
+            permission_resolver=lambda agent_id: effective_permissions_for_agent(self.database, agent_id),
+        )
         self.supervisor = SupervisorApplicationService(self.database)
         self.chat = SupervisorChatApplicationService(
             supervisor_service=self.supervisor,
@@ -195,6 +237,81 @@ def teams(organization_id: str) -> list[dict[str, Any]]:
     return [_row(row) for row in core.database.list_organization_departments(organization_id)]
 
 
+@app.get("/api/teams/templates")
+def team_templates() -> list[dict[str, Any]]:
+    return [_plain(item) for item in core.universal.list_templates()]
+
+
+@app.post("/api/teams")
+async def build_team(request: TeamRequest) -> dict[str, Any]:
+    result = core.universal.build_professional_team(
+        request.brief,
+        request.organization_name,
+        template_id=request.template_id,
+        team_size=request.team_size,
+    )
+    payload = _plain(result)
+    await core.events.publish({"type": "team.updated", "data": payload})
+    return payload
+
+
+@app.post("/api/organizations/{organization_id}/employees")
+async def hire_employee(organization_id: str, request: EmployeeRequest) -> dict[str, Any]:
+    core.organization_id(organization_id)
+    agent_id = core.management.generate_agent_id(request.display_name)
+    role_id = request.role_id.upper()
+    permissions = sorted(ROLE_DEFAULT_PERMISSIONS.get(role_id, {"CHAT"}) | {"CHAT"})
+    profile = AgentProfile(
+        agent_id=agent_id,
+        display_name=request.display_name.strip(),
+        description=request.description.strip(),
+        lifecycle_state="DRAFT" if request.provider_id == "UNAVAILABLE" else "ACTIVE",
+        provider_id=request.provider_id,
+        persona_id=f"{agent_id}-persona",
+        full_name=request.display_name.strip(),
+    )
+    preview = core.management.create_agent(profile, [role_id], permissions, OWNER_ROLE, "Web hire")
+    if not preview.ok:
+        raise HTTPException(status_code=422, detail={"errors": preview.errors, "warnings": preview.warnings})
+    core.database.create_organization_member(
+        {
+            "organization_id": organization_id,
+            "agent_id": agent_id,
+            "role_id": role_id,
+            "position": request.display_name.strip(),
+            "provider_id": request.provider_id,
+            "permissions": permissions,
+            "provisioning_status": "READY" if request.provider_id != "UNAVAILABLE" else "UNASSIGNED",
+        }
+    )
+    employee = core.management.get_employee(agent_id)
+    payload = _plain(employee) if employee is not None else {"agent_id": agent_id}
+    await core.events.publish({"type": "employee.updated", "data": payload})
+    return payload
+
+
+@app.post("/api/organizations/{organization_id}/employees/{agent_id}/archive")
+async def archive_employee(organization_id: str, agent_id: str) -> dict[str, str]:
+    core.organization_id(organization_id)
+    if agent_id not in core.database.list_organization_agent_ids(organization_id):
+        raise HTTPException(status_code=404, detail="employee_not_found")
+    core.management.archive_agent(agent_id, OWNER_ROLE, "Web archive")
+    await core.events.publish({"type": "employee.updated", "data": {"agent_id": agent_id, "state": "ARCHIVED"}})
+    return {"agent_id": agent_id, "state": "ARCHIVED"}
+
+
+@app.delete("/api/organizations/{organization_id}/employees/{agent_id}")
+async def delete_employee(organization_id: str, agent_id: str, confirm: bool = Query(default=False)) -> dict[str, str]:
+    core.organization_id(organization_id)
+    if not confirm:
+        raise HTTPException(status_code=409, detail="confirmation_required")
+    if agent_id not in core.database.list_organization_agent_ids(organization_id):
+        raise HTTPException(status_code=404, detail="employee_not_found")
+    core.management.delete_agent(agent_id, OWNER_ROLE, confirmed=True)
+    await core.events.publish({"type": "employee.updated", "data": {"agent_id": agent_id, "state": "DELETED"}})
+    return {"agent_id": agent_id, "state": "DELETED"}
+
+
 @app.get("/api/chat")
 def chat_history(x_organization_id: str | None = Header(default=None), limit: int = Query(default=80, ge=1, le=500)) -> list[dict[str, Any]]:
     organization_id = core.organization_id(x_organization_id)
@@ -268,6 +385,28 @@ async def cancel_goal(plan_id: str, x_organization_id: str | None = Header(defau
     result = _plain(core.supervisor.cancel(plan_id))
     await core.events.publish({"type": "goal.blocked", "data": result})
     return result
+
+
+@app.post("/api/goals/{plan_id}/start")
+async def start_goal(plan_id: str, x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
+    organization_id = core.organization_id(x_organization_id)
+    plan = _goal_for_scope(plan_id, organization_id)
+    agents = list_chat_agents(core.database, organization_id=organization_id)
+    if not agents:
+        raise HTTPException(status_code=409, detail="team_required_before_goal_start")
+    await core.events.publish({"type": "goal.started", "data": {"plan_id": plan_id, "goal": plan.goal}})
+    result = core.runtime_v3.run_goal(organization_id, plan.goal, agents)
+    payload = {
+        "ok": result.ok,
+        "summary": result.summary,
+        "work_items": len(result.state.work_items),
+        "artifacts": len(result.state.artifacts),
+        "evidence": len(result.state.evidence),
+        "findings": len(result.state.findings),
+        "receipt_ready": bool(result.state.work_receipts),
+    }
+    await core.events.publish({"type": "goal.completed" if result.ok else "goal.blocked", "data": payload})
+    return payload
 
 
 @app.get("/api/work")

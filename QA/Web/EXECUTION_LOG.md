@@ -16,3 +16,14 @@
 - `git diff --check`: passed.
 - Live uvicorn smoke: `/`, `/openapi.json`, `/api/health`, `/assets/iris_poster.png` returned 200.
 - Browser screenshot acceptance is not claimed because this environment has no browser automation runtime.
+
+## Runtime V3 web handoff
+
+- Added `POST /api/goals/{plan_id}/start`.
+- It runs the existing `RuntimeV3GoalService` with the same Codex/Gemini adapter model and permission resolver as the desktop client.
+- The endpoint reports actual artifact/evidence/findings counts and emits real lifecycle events; provider failure remains a failure and is never converted to a fake completed result.
+
+## Team lifecycle API smoke
+
+- Isolated profile smoke created `Web E2E` organization through HTTP, hired `Mira`, returned a scoped roster with HTTP 200, and rejected deletion without confirmation with HTTP 409.
+- This verifies the web boundary uses `UniversalPlatformService` and `ManagementService`, including the destructive-action gate.
