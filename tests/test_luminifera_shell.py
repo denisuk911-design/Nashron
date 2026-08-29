@@ -61,3 +61,14 @@ def test_luminifera_product_tree_hides_legacy_technical_toolbar(tmp_path, monkey
     assert "Iris" in product_text
 
     window.close()
+
+
+def test_product_shell_keeps_developer_diagnostics_out_of_normal_navigation(tmp_path, monkeypatch):
+    window = _build_window(_make_settings_service(tmp_path), monkeypatch)
+
+    assert window.settings.get("developer_mode") is False
+    assert window.product_shell.findChild(QPushButton, "smallAction") is None
+    assert window.product_shell.findChild(QPushButton, "routingDebug") is None
+    assert window.product_shell.findChild(QPushButton, "workContext") is None
+
+    window.close()

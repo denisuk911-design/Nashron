@@ -126,6 +126,8 @@ STEP: 12
 STATUS: PARTIAL; existing developer diagnostics remain opt-in, but a complete product-mode audit is deferred.
 KNOWN_GAPS: Legacy diagnostic controls require a final visibility audit.
 
+STEP 12 FOLLOW-UP: Product shell audit confirms normal navigation has no legacy technical toolbar, routing diagnostics or work-context controls; `developer_mode` remains disabled by default. Targeted shell/state tests: `6 passed`.
+
 ## STEP 13 - Visual Polish
 
 STEP: 13
