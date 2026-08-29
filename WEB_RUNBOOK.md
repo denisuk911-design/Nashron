@@ -16,12 +16,12 @@
 From `Roman2050`:
 
 ```powershell
-.venv\Scripts\python.exe -m services.api.run
+powershell -ExecutionPolicy Bypass -File .\scripts\run_web.ps1
 ```
 
-Equivalent helper: `powershell -ExecutionPolicy Bypass -File .\scripts\run_web.ps1`.
+The command starts the static Web frontend on `http://127.0.0.1:3000` and the FastAPI engine on `http://127.0.0.1:8000`. The frontend only calls the API; it has no direct database access.
 
-Open `http://localhost:8000`. API documentation is available at `http://localhost:8000/api/docs`.
+API documentation is available at `http://127.0.0.1:8000/api/docs`. For an API-only process, use `powershell -ExecutionPolicy Bypass -File .\scripts\run_web.ps1 -ApiOnly`.
 
 ## Checks
 

@@ -3,9 +3,9 @@
 WEB_STACK: FastAPI + vanilla ES modules-compatible browser UI (React/Next migration remains optional); uvicorn local server
 FRONTEND_PATH: `apps/web/static`
 API_PATH: `services/api/app.py`
-RUN_COMMAND: `.venv\Scripts\python.exe -m services.api.run`
+RUN_COMMAND: `powershell -ExecutionPolicy Bypass -File .\scripts\run_web.ps1`
 LANDING_STATUS: Implemented using supplied Iris poster and animation assets; responsive commercial art direction
-APP_STATUS: Implemented local Product shell with organization, chat, team, work and files views
+APP_STATUS: Implemented local Product shell with organization, chat, team, work and files views; separate local Web (`3000`) and engine (`8000`) hosts
 IRIS_REAL_CORE: Connected to `SupervisorChatApplicationService`; owner chat is persisted and responses are persisted
 TEAM_REAL_CORE: Real organization-scoped employee read model
 GOAL_REAL_CORE: Real Director service create/approve/replan/cancel routes with scope checks

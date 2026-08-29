@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from uuid import uuid4
+
 from fastapi.testclient import TestClient
 
 
@@ -48,7 +50,10 @@ def test_web_goal_requires_an_assigned_director_without_server_error():
     from services.api.app import app
 
     client = TestClient(app)
-    organization = client.post("/api/organizations", json={"name": "No director", "purpose": "API error contract"})
+    organization = client.post(
+        "/api/organizations",
+        json={"name": f"No director {uuid4().hex}", "purpose": "API error contract"},
+    )
     response = client.post(
         "/api/goals",
         headers={"X-Organization-Id": organization.json()["organization_id"]},

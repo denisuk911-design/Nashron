@@ -54,3 +54,9 @@
 - The smoke creates a professional team through `UniversalPlatformService`, persists an Iris chat message, creates a Director plan, and verifies the organization survives a new `WebCore` instance.
 - A missing director now returns HTTP 409 `director_not_assigned` instead of leaking a 500 from the API boundary.
 - Latest isolated run: `checks_passed=true`, four provisioned team members, Iris chat result `true`, durable plan created.
+
+## Local Web development stack
+
+- Added `services.web_dev_server` as a thin static host for the Product UI on port 3000.
+- `scripts/run_web.ps1` now starts the static shell and FastAPI engine as separate local processes; browser API and WebSocket requests are directed to the engine on port 8000.
+- Probe run on alternate ports returned HTTP 200 for the Web entrypoint, `app.js`, and API health. The temporary probe processes were stopped after verification.
