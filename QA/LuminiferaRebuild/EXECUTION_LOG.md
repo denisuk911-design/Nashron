@@ -113,12 +113,12 @@ FILES_CHANGED: `ui_luminifera/profile/`; `gui/main_window.py`; `app.py`; `tests/
 ## STEP 11 - Product States
 
 STEP: 11
-STATUS: PARTIAL; goal-state copy is now localized and readable, while the final unified error-copy catalog still requires a dedicated polish pass.
-TECHNICAL_TESTS: 7 focused state/work/shell/files/settings/profile tests passed
-PACKAGED_TEST: PASS; packaged Work state preview generated `10_states.json` with `checks_passed=true`; actual screenshot reviewed
+STATUS: PARTIAL; goal-state copy and the critical response-start failure path are now localized and readable, while the full unified error-copy catalog still requires a dedicated polish pass.
+TECHNICAL_TESTS: 45 focused state/shell/files/settings/profile/runtime-v3 tests passed
+PACKAGED_TEST: PASS; packaged Work state and final Home previews generated `10_states.json` and `final4_home.json` with `checks_passed=true`; actual screenshots reviewed
 VISUAL_SCREENSHOT: `QA/LuminiferaRebuild/Screenshots/10_states.png`
 KNOWN_GAPS: Some legacy runtime error paths still need conversion to the product explanation format without raw technical text.
-FILES_CHANGED: `ui_luminifera/work/dashboard.py`; `tests/test_luminifera_work_states.py`
+FILES_CHANGED: `ui_luminifera/work/dashboard.py`; `ui_luminifera/states/`; `gui/main_window.py`; `tests/test_luminifera_work_states.py`; `tests/test_luminifera_states.py`
 
 ## STEP 12 - Developer Mode
 

@@ -122,6 +122,7 @@ from ui_luminifera.work import WorkDashboard
 from ui_luminifera.onboarding import FirstRunOnboarding
 from ui_luminifera.settings import LuminiferaSettingsDialog
 from ui_luminifera.profile import LuminiferaProfileDialog
+from ui_luminifera.states import product_failure_message
 
 
 class MainWindow(QMainWindow):
@@ -1587,7 +1588,8 @@ class MainWindow(QMainWindow):
         self.pending_contextual_handoffs = []
         self._stop_response_latency_timers()
         self.chat.set_busy(False)
-        self.chat.add_message("system", f"Не удалось запустить ответ сотрудников: {detail}")
+        language = str(self.settings.get("interface_language", "ru"))
+        self.chat.add_message("system", product_failure_message(language))
 
     def _ensure_generation_started(self, message_id: int | None = None) -> None:
         if not self.pending_user_message:

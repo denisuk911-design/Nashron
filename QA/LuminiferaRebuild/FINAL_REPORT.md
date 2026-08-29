@@ -14,6 +14,7 @@ Steps 01-10 have packaged previews and targeted tests. Steps 11-15 are partial m
 - separate owner Profile with persisted name and avatar;
 - readable RU/UA/EN product copy across the rebuilt onboarding, shell, Home and Work surfaces;
 - localized goal-state labels that keep internal enum values out of the product view;
+- actionable localized failure copy for a response-start failure, without exposing exception details in chat;
 - readable artifact mapping through application services;
 - isolated packaged screenshots and smoke reports.
 - packaged responsive Home checks at 1366x768, 1920x1080 and 2560x1440.
@@ -24,7 +25,7 @@ Steps 01-10 have packaged previews and targeted tests. Steps 11-15 are partial m
 - screenshots: `QA/LuminiferaRebuild/Screenshots/`;
 - engine parity: `QA/LuminiferaRebuild/EngineParity/FINAL.md`;
 - legacy status: `QA/LuminiferaRebuild/LegacyAudit/README.md`;
-- packaged final Home/Profile/Work/Settings reports: `final_home.json`, `final_profile.json`, `final3_profile.json`, `10_states.json`, `final2_settings.json`, `final2_work.json`;
+- packaged final Home/Profile/Work/Settings reports: `final_home.json`, `final_profile.json`, `final3_profile.json`, `final4_home.json`, `10_states.json`, `final2_settings.json`, `final2_work.json`;
 - responsive screenshots: `responsive_1366x768.png`, `responsive_1920x1080.png`, `responsive_2560x1440.png`;
 - RC foreign-key result: `foreign_key_errors=0`, equivalent to `FK=[]`.
 
