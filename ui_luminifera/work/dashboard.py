@@ -20,6 +20,7 @@ class WorkDashboard(QWidget):
         super().__init__(parent)
         self.setObjectName("luminiferaWork")
         self.language = language if language in COPY else "ru"
+        self._snapshot = WorkSnapshot()
         self._build()
         self.render(WorkSnapshot())
 
@@ -72,8 +73,10 @@ class WorkDashboard(QWidget):
 
     def set_language(self, language: str) -> None:
         self.language = language if language in COPY else "ru"
+        self.render(self._snapshot)
 
     def render(self, snapshot: WorkSnapshot) -> None:
+        self._snapshot = snapshot
         copy = COPY[self.language]
         self.heading.setText(copy["heading"])
         self.iris_button.setText(copy["iris"])

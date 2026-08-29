@@ -23,6 +23,7 @@ class HomeDashboard(QWidget):
         super().__init__(parent)
         self.setObjectName("luminiferaHome")
         self._language = language if language in COPY else "ru"
+        self._snapshot = HomeSnapshot(has_organization=False)
         self._build()
         self.render(HomeSnapshot(has_organization=False))
 
@@ -90,8 +91,10 @@ class HomeDashboard(QWidget):
 
     def set_language(self, language: str) -> None:
         self._language = language if language in COPY else "ru"
+        self.render(self._snapshot)
 
     def render(self, snapshot: HomeSnapshot) -> None:
+        self._snapshot = snapshot
         copy = COPY[self._language]
         has_org = snapshot.has_organization
         self.eyebrow.setText(copy["workspace"] if has_org else copy["eyebrow"])

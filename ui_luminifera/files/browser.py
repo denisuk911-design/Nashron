@@ -12,6 +12,7 @@ class FilesBrowser(QWidget):
     def __init__(self, language: str = "ru", parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.language = language if language in {"ru", "uk", "en"} else "ru"
+        self._artifacts: tuple[ProductArtifact, ...] = ()
         self.setObjectName("luminiferaFiles")
         layout = QVBoxLayout(self)
         layout.setContentsMargins(42, 32, 42, 32)
@@ -46,8 +47,11 @@ class FilesBrowser(QWidget):
         self.subtitle.setText(labels[1])
         self.open_button.setText(labels[2])
         self._empty_text = labels[3]
+        if hasattr(self, "list"):
+            self.render(self._artifacts)
 
     def render(self, artifacts: tuple[ProductArtifact, ...]) -> None:
+        self._artifacts = artifacts
         self.list.clear()
         if not artifacts:
             item = QListWidgetItem(self._empty_text)

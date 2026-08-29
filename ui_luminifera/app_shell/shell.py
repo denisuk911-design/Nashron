@@ -166,6 +166,13 @@ class LuminiferaShell(QWidget):
             self.iris_button.parentWidget().findChild(QLabel, "luminiferaIrisCaption").setText(labels["iris_caption"])
         self.help_button.setText(f"?   {labels.get('help', 'Help')}")
         self.settings_button.setText(f"⚙   {labels.get('settings', 'Settings')}")
+        state_labels = {
+            "ru": ("ИИ готов", "Iris на связи"),
+            "uk": ("ШІ готовий", "Iris на зв'язку"),
+            "en": ("AI ready", "Iris is available"),
+        }.get(language, ("AI ready", "Iris is available"))
+        self.ai_state_label.setText(f"●  {state_labels[0]}")
+        self.iris_state_label.setText(state_labels[1])
         self.profile_button.setToolTip({"ru": "Профиль", "uk": "Профіль", "en": "Profile"}.get(language, "Profile"))
 
     def set_ai_ready(self, ready: bool) -> None:

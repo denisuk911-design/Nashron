@@ -169,3 +169,14 @@ KNOWN_GAPS: Full legacy pytest still has the previously recorded hanging GUI/sub
 FILES_CHANGED: `ui_luminifera/team/builder.py`; `ui_luminifera/settings/dialog.py`; `core/database.py`
 
 FINALIZATION_NOTE: Rebuilt packaged Settings preview after replacing the default dialog button text; screenshot now shows localized `Сохранить` and `Отмена`, with packaged exit code 0 and `checks_passed=true`.
+
+## Product language refresh follow-up
+
+STEP: 09/13
+STATUS: PASS for live Product Mode refresh.
+TECHNICAL_TESTS: `13 passed` across shell, Home/Work/Files, startup and state coverage.
+PACKAGED_TEST: PASS; rebuilt packaged executable and generated `Screenshots/language_recheck.json` with `checks_passed=true`.
+ENGINE_PARITY: No runtime behavior changed; current Home/Work/Files view snapshots are retained while language labels are refreshed.
+VISUAL_SCREENSHOT: `Screenshots/language_recheck.png`
+KNOWN_GAPS: Final populated-state visual acceptance and legacy fallback purge remain documented in the final report.
+FILES_CHANGED: `ui_luminifera/app_shell/shell.py`; `ui_luminifera/home/dashboard.py`; `ui_luminifera/work/dashboard.py`; `ui_luminifera/files/browser.py`
