@@ -12,6 +12,7 @@ Steps 01-10 have packaged previews and targeted tests. Steps 11-15 are partial m
 - Iris owner surface;
 - compact Settings with language, theme, sound, providers, data and advanced sections;
 - separate owner Profile with persisted name and avatar;
+- readable RU/UA/EN product copy across the rebuilt onboarding, shell, Home and Work surfaces;
 - readable artifact mapping through application services;
 - isolated packaged screenshots and smoke reports.
 
@@ -26,7 +27,7 @@ Steps 01-10 have packaged previews and targeted tests. Steps 11-15 are partial m
 
 ## Verification
 
-Targeted product tests passed, including settings, profile, files, team builder, Iris, startup and chat coverage. Packaged Home, Files, Settings and Profile previews exited successfully with `checks_passed=true`. Full pytest was attempted; it reached the existing GUI/subprocess portion but did not terminate cleanly, so it is not reported as PASS.
+Targeted product tests passed, including settings, profile, files, team builder, Iris, startup and chat coverage. Packaged Home, Team, Files, Settings and Profile previews exited successfully with `checks_passed=true`. Full pytest was attempted; it reached the existing GUI/subprocess portion but did not terminate cleanly, so it is not reported as PASS.
 
 ## Remaining
 

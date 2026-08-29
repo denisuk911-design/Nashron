@@ -523,6 +523,7 @@ class MainWindow(QMainWindow):
         self.backup_button = self.product_shell.profile_button
         self.top_settings_button = self.product_shell.settings_button
         self.setCentralWidget(self.product_shell)
+        self.product_shell.set_language(str(self.settings.get("interface_language", "ru")))
 
     def _build_navigation_panel(self) -> QWidget:
         panel = QWidget()
@@ -657,6 +658,8 @@ class MainWindow(QMainWindow):
         self.universal_platform_service.identity_language = language
         self.settings_service.save(self.settings)
         self.chat.set_language(language)
+        if hasattr(self, "product_shell"):
+            self.product_shell.set_language(language)
         self.empty_team_panel.set_language(language)
         if hasattr(self, "home_panel"):
             self.home_panel.set_language(language)
@@ -2850,6 +2853,7 @@ class MainWindow(QMainWindow):
         # Supervisor settings changes are persisted by the application service;
         # apply them immediately to the already-open client as well.
         self.chat.set_language(str(self.settings.get("interface_language", "ru")))
+        self.product_shell.set_language(str(self.settings.get("interface_language", "ru")))
         self.apply_theme()
         self._refresh_organization_selector()
         self._refresh_chat_agents()

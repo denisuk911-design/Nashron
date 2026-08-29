@@ -113,7 +113,7 @@ FILES_CHANGED: `ui_luminifera/profile/`; `gui/main_window.py`; `app.py`; `tests/
 ## STEP 11 - Product States
 
 STEP: 11
-STATUS: PARTIAL; existing runtime state and chat notices remain functional, but a complete unified state catalog still requires a dedicated polish pass.
+STATUS: PARTIAL; existing runtime state and chat notices remain functional, while the final unified error-copy catalog still requires a dedicated polish pass.
 TECHNICAL_TESTS: targeted startup, provider, chat and packaged smoke checks passed
 PACKAGED_TEST: PASS for clean no-team, no-files, provider-status and profile surfaces
 KNOWN_GAPS: Some legacy runtime error paths still need conversion to the product explanation format without raw technical text.
@@ -133,13 +133,13 @@ KNOWN_GAPS: Final typography, hover/focus and populated-state comparison require
 ## STEP 14 - Window Size / Responsive
 
 STEP: 14
-STATUS: PARTIAL; product shell uses responsive layouts and stable panel sizing.
+STATUS: PARTIAL; product shell uses responsive layouts, stable panel sizing and has been checked at the packaged default viewport.
 KNOWN_GAPS: Full 1366x768, 1920x1080 and 2560x1440 screenshot matrix remains for final visual acceptance.
 
 ## STEP 15 - Legacy Purge
 
 STEP: 15
-STATUS: PARTIAL; normal Product Mode now routes through Luminifera surfaces, while legacy dialogs remain available as runtime fallbacks.
+STATUS: PARTIAL; normal Product Mode now routes through Luminifera surfaces, product localization is readable in RU/UA/EN for the rebuilt screens, while legacy dialogs remain available as runtime fallbacks.
 KNOWN_GAPS: A final string/import audit is required before deleting or hiding every legacy path.
 
 ## STEP 16 - Final Engine Parity

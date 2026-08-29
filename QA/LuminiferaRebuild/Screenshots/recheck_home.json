@@ -1,0 +1,14 @@
+{
+  "window_title": "Luminifera",
+  "profile_dir": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_luminifera_recheck_home",
+  "profile_name": ".tmp_luminifera_recheck_home",
+  "database_name": "team2050.sqlite3",
+  "user_avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_luminifera_recheck_home\\data\\avatars\\avatar-01-woman-realistic.png",
+  "background_path": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\night_city\\night-city-01.png",
+  "demo_state": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_luminifera_recheck_home\\demo_sandbox\\checkpoints\\state.json",
+  "rc_checklist": "D:\\My Project\\PI-Witcher\\Roman2050\\.tmp_luminifera_recheck_home\\rc_checklist\\latest.json",
+  "rc_automated_pass": true,
+  "rc_manual_acceptance": "PENDING",
+  "screenshot": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\LuminiferaRebuild\\Screenshots\\recheck_home.png",
+  "checks_passed": true
+}
