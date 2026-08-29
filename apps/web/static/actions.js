@@ -30,6 +30,29 @@
 })();
 
 (() => {
+  const attachChatFiles = () => {
+    const composer = document.querySelector('#composer'); const select = document.querySelector('#org-select');
+    if (!composer || composer.dataset.filesReady || !select) return;
+    composer.dataset.filesReady = 'true';
+    const picker = document.createElement('input'); picker.type = 'file'; picker.multiple = true; picker.style.maxWidth = '130px'; picker.setAttribute('aria-label','Добавить файлы');
+    composer.prepend(picker); let pending = [];
+    picker.addEventListener('change', async () => {
+      if (!select.value) return; pending=[];
+      for (const file of picker.files) { const data = new FormData(); data.append('file',file); const response=await fetch('/api/chat/attachments',{method:'POST',headers:{'X-Organization-Id':select.value},body:data}); if(!response.ok) throw new Error(await response.text()); pending.push((await response.json()).id); }
+    });
+    composer.addEventListener('submit', async event => {
+      event.preventDefault(); event.stopImmediatePropagation();
+      const input=composer.querySelector('#message'); if(!input.value.trim()) return;
+      const response=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json','X-Organization-Id':select.value},body:JSON.stringify({content:input.value.trim(),attachment_ids:pending})});
+      if(!response.ok) { alert(`Не удалось отправить: ${await response.text()}`); return; }
+      input.value=''; picker.value=''; pending=[]; document.querySelector('[data-view="chat"]')?.click();
+    }, true);
+  };
+  new MutationObserver(attachChatFiles).observe(document.querySelector('#view'), {childList:true,subtree:true});
+  document.querySelector('[data-view="chat"]')?.addEventListener('click', () => setTimeout(attachChatFiles, 30));
+})();
+
+(() => {
   const initSettings = () => {
     const topActions = document.querySelector('.top-actions');
     if (!topActions || document.querySelector('.web-settings')) return;

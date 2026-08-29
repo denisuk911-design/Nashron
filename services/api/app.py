@@ -8,7 +8,7 @@ from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Header, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, File, Header, HTTPException, Query, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -39,11 +39,13 @@ from core.universal_platform_service import UniversalPlatformService
 from core.tool_access import effective_permissions_for_agent
 from core.skill_package_service import SkillPackageService
 from core.knowledge_service import KnowledgeService
+from core.chat_attachment_service import ChatAttachmentService
 from services.api.events import EventEnvelope
 
 
 class ChatRequest(BaseModel):
     content: str = Field(min_length=1, max_length=20_000)
+    attachment_ids: list[str] = Field(default_factory=list, max_length=8)
 
 
 class OrganizationRequest(BaseModel):
@@ -162,6 +164,7 @@ class WebCore:
         self.files = LuminiferaFilesService(self.database, runtime_root)
         self.skills = SkillPackageService(self.database)
         self.knowledge = KnowledgeService(self.database)
+        self.attachments = ChatAttachmentService(self.database, self.workspace_root)
         self.events = ConnectionHub()
 
     def _save_settings(self, values: dict[str, Any]) -> None:
@@ -334,6 +337,8 @@ async def send_chat(request: ChatRequest, x_organization_id: str | None = Header
     organization_id = core.organization_id(x_organization_id)
     conversation_id = core.conversation_id(organization_id)
     message_id = core.database.add_message(conversation_id, "owner", request.content.strip())
+    if request.attachment_ids:
+        core.database.bind_chat_attachments(request.attachment_ids, message_id)
     await core.events.publish({"type": "iris.message", "data": {"id": message_id, "role": "owner", "content": request.content.strip()}})
     result = core.chat.handle(request.content, organization_id)
     response_message_id = None
@@ -343,6 +348,20 @@ async def send_chat(request: ChatRequest, x_organization_id: str | None = Header
     response = {"message_id": message_id, "response_message_id": response_message_id, "result": _plain(result)}
     await core.events.publish({"type": "organization.updated", "data": {"organization_id": organization_id, "action": result.action}})
     return response
+
+
+@app.post("/api/chat/attachments")
+async def upload_chat_attachment(file: UploadFile = File(...), x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
+    organization_id = core.organization_id(x_organization_id)
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=422, detail="empty_attachment")
+    if len(content) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="attachment_too_large")
+    attachment = core.attachments.import_bytes(
+        core.conversation_id(organization_id), content, file.filename or "attachment", file.content_type or "application/octet-stream"
+    )
+    return {"id": attachment.attachment_id, "name": attachment.display_name, "media_type": attachment.media_type, "size": attachment.size}
 
 
 @app.get("/api/goals")

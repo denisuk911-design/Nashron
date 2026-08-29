@@ -42,3 +42,8 @@
 
 - Provider responses now use `ProviderRegistry` and persisted health rather than raw database rows; Product labels are Ready, Login required, Busy, Error or Unavailable.
 - Skills and knowledge now serialize service-owned product view models instead of table-shaped internal records.
+
+## Social chat attachments
+
+- Added multipart upload with a 20 MiB bound and durable `ChatAttachmentService` storage.
+- Attachment IDs are bound to the owner message only after the message exists; binary data is never inserted into chat text or sent to Iris as an untracked claim.
