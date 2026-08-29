@@ -542,6 +542,17 @@ def providers() -> list[dict[str, Any]]:
     return result
 
 
+@app.post("/api/providers/{provider_id}/check")
+async def check_provider(provider_id: str) -> dict[str, Any]:
+    if core.provider_registry.get(provider_id) is None:
+        raise HTTPException(status_code=404, detail="provider_not_found")
+    health = core.provider_health.check_provider(provider_id)
+    state = "Ready" if health.health_status == "READY" else "Login required" if health.authentication_status in {"NOT_AUTHENTICATED", "AUTHENTICATION_REQUIRED"} else "Unavailable"
+    payload = {"id": provider_id, "state": state, "available": health.health_status == "READY"}
+    await core.events.publish({"type": "provider.updated", "data": payload})
+    return payload
+
+
 @app.get("/api/skills")
 def skills(x_organization_id: str | None = Header(default=None)) -> list[dict[str, Any]]:
     organization_id = core.organization_id(x_organization_id)

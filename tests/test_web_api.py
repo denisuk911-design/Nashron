@@ -35,3 +35,10 @@ def test_web_event_contract_stamps_real_event_time():
     event = EventEnvelope.create("goal.created", {"goal": "test"})
     assert event.type == "goal.created"
     assert event.occurred_at.endswith("+00:00")
+
+
+def test_unknown_provider_check_is_rejected():
+    from services.api.app import app
+
+    client = TestClient(app)
+    assert client.post("/api/providers/not-real/check").status_code == 404
