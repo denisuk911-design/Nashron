@@ -176,6 +176,8 @@ VISUAL POLISH: Added explicit focus, disabled and progress-bar styling for the L
 
 STATE CATALOG: Expanded the shared state catalog to cover sign-in required, failed/recoverable goal, no organization/team/files and destructive confirmation states in RU/UA/EN. Targeted state/shell tests: `6 passed`; packaged Work smoke after rebuild: `exit=0`, `checks_passed=true` (`Screenshots/state_catalog_recheck.png`).
 
+LEGACY AUDIT: Added `LEGACY_UI_MAP.md` documenting retained compatibility surfaces, their service boundaries and Product Mode replacements. Verified the default `MainWindow` path is `LuminiferaShell`; legacy diagnostics and admin controls are not mounted in the Product shell.
+
 FINALIZATION_NOTE: Rebuilt packaged Settings preview after replacing the default dialog button text; screenshot now shows localized `Сохранить` and `Отмена`, with packaged exit code 0 and `checks_passed=true`.
 
 ## Product language refresh follow-up
