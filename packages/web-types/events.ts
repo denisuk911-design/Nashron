@@ -1,0 +1,2 @@
+export type LuminiferaEventType = 'organization.updated'|'team.updated'|'employee.started'|'employee.updated'|'goal.created'|'goal.started'|'goal.progressed'|'goal.blocked'|'goal.completed'|'work.started'|'work.progressed'|'work.completed'|'artifact.created'|'artifact.updated'|'review.started'|'review.rework_requested'|'review.passed'|'iris.state_changed'|'iris.message'|'provider.updated';
+export interface LuminiferaEvent<T=unknown>{type:LuminiferaEventType;data:T;occurred_at?:string}

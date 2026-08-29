@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Luminifera | AI workforce</title>
+  <link rel="stylesheet" href="/assets/app.css">
+  <link rel="stylesheet" href="/assets/iris.css">
+</head>
+<body>
+  <div class="aurora aurora-a"></div><div class="aurora aurora-b"></div>
+  <header class="topbar">
+    <a class="brand" href="/"><span class="brand-mark">L</span><span><strong>Luminifera</strong><small>AI workforce</small></span></a>
+    <nav><a href="#home">Рабочее место</a><a href="#team">Команда</a><a href="#files">Файлы</a></nav>
+    <div class="top-actions"><span id="api-state" class="status"><i></i> проверяем связь</span><button class="icon-button" aria-label="Профиль">◌</button></div>
+  </header>
+  <main class="shell">
+    <section class="hero" id="home">
+      <div class="hero-copy"><span class="eyebrow">Ваша цифровая организация</span><h1>Опишите результат.<br><em>Iris соберёт работу.</em></h1><p>Одна рабочая среда для команды AI-сотрудников, целей, артефактов и проверенного результата.</p><div class="hero-actions"><button class="primary" id="ask-iris">Начать с Iris <span>↗</span></button><a class="secondary" href="#workspace">Открыть рабочее место</a></div><div class="trust-row"><span>✦ Реальная работа</span><span>◈ Память организации</span><span>⌁ Локально и приватно</span></div></div>
+      <div class="iris-stage"><div class="iris-orbit"></div><img src="/assets/iris_poster.png" alt="Iris" class="iris-portrait"><video class="iris-video" muted playsinline preload="metadata"><source src="/assets/iris_animation.mp4" type="video/mp4"></video><div class="iris-caption"><span class="presence-dot"></span><span><b>Iris</b><small>Supervisor вашей организации</small></span><span class="iris-state" id="iris-state">Рядом</span></div></div>
+    </section>
+    <section class="workspace" id="workspace">
+      <aside class="sidebar"><div class="section-label">Организация</div><select id="org-select"><option value="">Выберите организацию</option></select><button class="new-org" id="new-org">+ Новая организация</button><div class="side-nav"><button class="active" data-view="overview">Обзор</button><button data-view="chat">Iris чат</button><button data-view="team">Команда</button><button data-view="work">Цели и работа</button><button data-view="files">Файлы</button></div><div class="sidebar-foot"><span class="avatar">В</span><span><b>Владелец</b><small>Личная организация</small></span></div></aside>
+      <section class="content"><div class="content-head"><div><span class="eyebrow">Сегодня</span><h2 id="view-title">Рабочее место</h2></div><button class="ghost" id="refresh">Обновить ↻</button></div><div id="view"></div></section>
+    </section>
+  </main>
+  <dialog id="org-dialog"><form method="dialog" id="org-form"><button class="dialog-close" value="cancel" aria-label="Закрыть">×</button><span class="eyebrow">Новая организация</span><h2>С чего начнём?</h2><p>Назовите пространство, где Iris будет собирать команду и работу.</p><label>Название<input id="org-name" required maxlength="160" placeholder="Например, Nova Lab"></label><label>Направление<textarea id="org-purpose" maxlength="2000" placeholder="Что вы хотите создавать?"></textarea></label><button class="primary" value="default">Создать организацию</button></form></dialog>
+  <script src="/assets/app.js" defer></script>
+</body>
+</html>

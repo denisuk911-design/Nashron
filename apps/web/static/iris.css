@@ -1,0 +1,1 @@
+.iris-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;opacity:0;transition:opacity 1s ease;z-index:1}.iris-stage.animating .iris-video{opacity:1}.iris-stage.animating .iris-portrait{opacity:0}.iris-orbit{z-index:2}

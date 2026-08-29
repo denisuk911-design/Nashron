@@ -1,0 +1,1 @@
+"""Luminifera Web application assets."""
