@@ -71,3 +71,14 @@
 
 - Full Python engine suite passed: `498 passed` in 157.48 seconds.
 - Web service extraction has not broken the existing Runtime V2/V3, management, organization, chat or PySide compatibility coverage.
+
+## Phase 15 - providers, skills and organization knowledge
+
+- Added a dedicated `Подключения` product view backed by the provider registry, skill packages, organization memory and competence graph.
+- Provider checks call the real provider-health endpoint; the UI never changes availability optimistically.
+- Knowledge and competence reads are server-scoped by organization and contain only durable Core records. Competence growth is shown as evidence-backed points, not an invented percentage.
+- Added runtime Web/API configuration so non-default local ports work without rebuilding frontend assets.
+- Browser verification used the local Web host on port 3015 and API on port 8015. The view rendered successfully with no JavaScript console errors and no repeated request loop.
+- Actual browser capture: `QA/Web/SCREENSHOTS/phase15_connections_actual.png`.
+- Phase 15 targeted tests: `14 passed`; deterministic Web smoke: `checks_passed=true`; JavaScript syntax, Python compilation and `git diff --check`: passed.
+- Restored the supplied canonical Iris poster and animation in the static bundle. Browser verification reported portrait width `1123` and video ready state `4`; direct asset probes returned HTTP 200.

@@ -40,6 +40,7 @@ from core.tool_access import effective_permissions_for_agent
 from core.skill_package_service import SkillPackageService
 from core.knowledge_service import KnowledgeService
 from core.chat_attachment_service import ChatAttachmentService
+from core.competence_graph_service import CompetenceGraphService
 from services.api.events import EventEnvelope
 
 
@@ -168,6 +169,7 @@ class WebCore:
         self.files = LuminiferaFilesService(self.database, runtime_root)
         self.skills = SkillPackageService(self.database)
         self.knowledge = KnowledgeService(self.database)
+        self.competence = CompetenceGraphService(self.database)
         self.attachments = ChatAttachmentService(self.database, self.workspace_root)
         self.events = ConnectionHub()
 
@@ -207,6 +209,7 @@ app = FastAPI(title="Luminifera API", version="0.1.0", docs_url="/api/docs", red
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origin_regex=r"^http://(?:localhost|127\.0\.0\.1)(?::\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -617,10 +620,37 @@ def skills(x_organization_id: str | None = Header(default=None)) -> list[dict[st
 
 
 @app.get("/api/knowledge")
-def knowledge() -> list[dict[str, Any]]:
+def knowledge(x_organization_id: str | None = Header(default=None)) -> list[dict[str, Any]]:
+    organization_id = core.organization_id(x_organization_id)
+    if not organization_id:
+        return []
     return [
-        {"id": item.knowledge_id, "title": item.title, "summary": item.summary, "status": item.status, "version": item.version, "tags": item.tags, "source": item.source_title}
-        for item in core.knowledge.list_cards()
+        {
+            "id": item.entry_id,
+            "title": item.title,
+            "summary": item.content,
+            "status": item.lifecycle_state,
+            "source": item.source_employee_name,
+            "verified": item.lifecycle_state == "VERIFIED",
+        }
+        for item in core.competence.list_memory(organization_id)
+    ]
+
+
+@app.get("/api/competence")
+def competence(x_organization_id: str | None = Header(default=None)) -> list[dict[str, Any]]:
+    organization_id = core.organization_id(x_organization_id)
+    if not organization_id:
+        return []
+    return [
+        {
+            "id": item.node_id,
+            "employee": item.employee_name,
+            "competence": item.competence,
+            "growth_points": item.growth_points,
+            "status": item.lifecycle_state,
+        }
+        for item in core.competence.list_competence(organization_id)
     ]
 
 

@@ -17,7 +17,7 @@ $api = Start-Process -FilePath $python -ArgumentList @("-m", "uvicorn", "service
 try {
   Write-Host "Luminifera Web: http://127.0.0.1:$WebPort"
   Write-Host "Luminifera API: http://127.0.0.1:$ApiPort/api/docs"
-  & $python -m services.web_dev_server --host 127.0.0.1 --port $WebPort
+  & $python -m services.web_dev_server --host 127.0.0.1 --port $WebPort --api-base "http://127.0.0.1:$ApiPort"
 }
 finally {
   if (-not $api.HasExited) {

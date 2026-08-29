@@ -230,3 +230,77 @@
   new MutationObserver(() => { enhanceTeamLifecycle().catch(() => {}); }).observe(document.querySelector('#view'), {childList: true, subtree: true});
   document.querySelector('[data-view="team"]')?.addEventListener('click', () => setTimeout(() => enhanceTeamLifecycle().catch(() => {}), 60));
 })();
+
+(() => {
+  const view = document.querySelector('#view');
+  const select = document.querySelector('#org-select');
+  const button = document.querySelector('[data-view="connections"]');
+  if (!view || !select || !button) return;
+
+  const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;',
+  })[character]);
+  const stateLabel = value => ({
+    Ready: 'Готов', 'Login required': 'Требуется вход', Unavailable: 'Недоступен', Busy: 'Занят', Error: 'Ошибка',
+    ACTIVE: 'Активен', VERIFIED: 'Проверено', CANDIDATE: 'Ожидает проверки', DRAFT: 'Черновик',
+  })[String(value)] || String(value || 'Неизвестно');
+  const empty = text => `<p class="connections-empty">${escapeHtml(text)}</p>`;
+  let rendering = false;
+
+  const renderConnections = async () => {
+    if (rendering || document.querySelector('.side-nav button.active')?.dataset.view !== 'connections') return;
+    document.querySelector('#view-title').textContent = 'Подключения и знания';
+    const organizationId = select.value;
+    if (!organizationId) {
+      view.innerHTML = '<div class="empty"><h3>Сначала выберите организацию</h3><p>Навыки и память всегда принадлежат конкретной организации.</p></div>';
+      return;
+    }
+    rendering = true;
+    view.innerHTML = '<div class="connections-hub"><p class="connections-empty">Загружаем состояние Core...</p></div>';
+    const headers = {'X-Organization-Id': organizationId};
+    try {
+      const responses = await Promise.all([
+        fetch('/api/providers'), fetch('/api/skills', {headers}), fetch('/api/knowledge', {headers}), fetch('/api/competence', {headers}),
+      ]);
+      const failed = responses.find(response => !response.ok);
+      if (failed) throw new Error(await failed.text());
+      const [providers, skills, knowledge, competence] = await Promise.all(responses.map(response => response.json()));
+      view.innerHTML = `<div class="connections-hub">
+        <section class="connections-section"><div class="connections-heading"><span><span class="eyebrow">AI-соединения</span><h3>Провайдеры</h3></span><small>Показываются только реально поддерживаемые подключения</small></div><div class="list">${providers.length ? providers.map(provider => `<div class="list-row"><span><b>${escapeHtml(provider.name)}</b><br><small>${provider.available ? 'Готов к выполнению задач' : 'Проверьте установку или авторизацию'}</small></span><span class="connection-actions"><span class="tag ${provider.available ? '' : 'tag-muted'}">${escapeHtml(stateLabel(provider.state))}</span><button class="ghost" data-provider-check="${escapeHtml(provider.id)}">Проверить</button></span></div>`).join('') : empty('Поддерживаемые провайдеры не настроены.')}</div></section>
+        <div class="connections-grid">
+          <section class="connections-section"><div class="connections-heading"><span><span class="eyebrow">Рабочие возможности</span><h3>Навыки</h3></span><small>${skills.length}</small></div><div class="list">${skills.length ? skills.map(skill => `<div class="list-row"><span><b>${escapeHtml(skill.name)}</b><br><small>${escapeHtml(skill.purpose || 'Описание не указано')}</small></span><span class="tag">${escapeHtml(stateLabel(skill.status))} · v${escapeHtml(skill.version)}</span></div>`).join('') : empty('У организации пока нет установленных навыков.')}</div></section>
+          <section class="connections-section"><div class="connections-heading"><span><span class="eyebrow">Память организации</span><h3>Проверенные знания</h3></span><small>${knowledge.filter(item => item.verified).length}/${knowledge.length}</small></div><div class="list">${knowledge.length ? knowledge.map(item => `<div class="list-row"><span><b>${escapeHtml(item.title)}</b><br><small>${escapeHtml(item.summary || 'Без описания')}${item.source ? ` · ${escapeHtml(item.source)}` : ''}</small></span><span class="tag ${item.verified ? '' : 'tag-muted'}">${escapeHtml(stateLabel(item.status))}</span></div>`).join('') : empty('Память появится только после реальной работы и независимой проверки.')}</div></section>
+        </div>
+        <section class="connections-section"><div class="connections-heading"><span><span class="eyebrow">Рост по доказательствам</span><h3>Компетенции команды</h3></span><small>${competence.length}</small></div><div class="list">${competence.length ? competence.map(item => `<div class="list-row"><span><b>${escapeHtml(item.competence)}</b><br><small>${escapeHtml(item.employee || 'Команда')}</small></span><span class="tag">${Number(item.growth_points || 0)} подтверждённых улучшений</span></div>`).join('') : empty('Компетенции растут только после принятого результата с evidence.')}</div></section>
+      </div>`;
+      view.querySelectorAll('[data-provider-check]').forEach(check => check.addEventListener('click', async () => {
+        check.disabled = true;
+        check.textContent = 'Проверяем...';
+        const response = await fetch(`/api/providers/${encodeURIComponent(check.dataset.providerCheck)}/check`, {method: 'POST'});
+        if (!response.ok) {
+          check.disabled = false;
+          check.textContent = 'Повторить';
+          window.alert(`Проверка не выполнена: ${await response.text()}`);
+          return;
+        }
+        rendering = false;
+        await renderConnections();
+      }));
+    } catch (error) {
+      view.innerHTML = `<div class="empty"><h3>Не удалось загрузить подключения</h3><p>${escapeHtml(error.message)}</p></div>`;
+    } finally {
+      rendering = false;
+    }
+  };
+
+  let settleTimer = null;
+  new MutationObserver(() => {
+    if (document.querySelector('.side-nav button.active')?.dataset.view !== 'connections' || view.querySelector('.connections-hub')) return;
+    window.clearTimeout(settleTimer);
+    settleTimer = window.setTimeout(() => renderConnections().catch(() => {}), 50);
+  }).observe(view, {childList: true});
+  button.addEventListener('click', () => window.setTimeout(() => renderConnections().catch(() => {}), 80));
+  select.addEventListener('change', () => window.setTimeout(() => renderConnections().catch(() => {}), 80));
+  document.querySelector('#refresh')?.addEventListener('click', () => window.setTimeout(() => renderConnections().catch(() => {}), 80));
+  window.renderConnections = renderConnections;
+})();

@@ -1,8 +1,8 @@
 {
-  "organization_id": "ORG-EADE68AA29E4",
+  "organization_id": "ORG-A2BF2D224CFB",
   "team_member_count": 4,
   "chat_result": true,
-  "goal_id": "PLAN-1F9D6B09FC5A",
+  "goal_id": "PLAN-C251DAD69D3A",
   "persistence_after_webcore_restart": true,
   "checks_passed": true
 }

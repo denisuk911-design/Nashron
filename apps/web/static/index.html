@@ -6,6 +6,7 @@
   <title>Luminifera | AI workforce</title>
   <link rel="stylesheet" href="/assets/app.css">
   <link rel="stylesheet" href="/assets/iris.css">
+  <link rel="stylesheet" href="/assets/connections.css">
 </head>
 <body>
   <div class="aurora aurora-a"></div><div class="aurora aurora-b"></div>
@@ -20,14 +21,12 @@
       <div class="iris-stage"><div class="iris-orbit"></div><img src="/assets/iris_poster.png" alt="Iris" class="iris-portrait"><video class="iris-video" muted playsinline preload="metadata"><source src="/assets/iris_animation.mp4" type="video/mp4"></video><div class="iris-caption"><span class="presence-dot"></span><span><b>Iris</b><small>Supervisor вашей организации</small></span><span class="iris-state" id="iris-state">Рядом</span></div></div>
     </section>
     <section class="workspace" id="workspace">
-      <aside class="sidebar"><div class="section-label">Организация</div><select id="org-select"><option value="">Выберите организацию</option></select><button class="new-org" id="new-org">+ Новая организация</button><div class="side-nav"><button class="active" data-view="overview">Обзор</button><button data-view="chat">Iris чат</button><button data-view="team">Команда</button><button data-view="work">Цели и работа</button><button data-view="files">Файлы</button></div><div class="sidebar-foot"><span class="avatar">В</span><span><b>Владелец</b><small>Личная организация</small></span></div></aside>
+      <aside class="sidebar"><div class="section-label">Организация</div><select id="org-select"><option value="">Выберите организацию</option></select><button class="new-org" id="new-org">+ Новая организация</button><div class="side-nav"><button class="active" data-view="overview">Обзор</button><button data-view="chat">Iris чат</button><button data-view="team">Команда</button><button data-view="work">Цели и работа</button><button data-view="files">Файлы</button><button data-view="connections">Подключения</button></div><div class="sidebar-foot"><span class="avatar">В</span><span><b>Владелец</b><small>Личная организация</small></span></div></aside>
       <section class="content"><div class="content-head"><div><span class="eyebrow">Сегодня</span><h2 id="view-title">Рабочее место</h2></div><button class="ghost" id="refresh">Обновить ↻</button></div><div id="view"></div></section>
     </section>
   </main>
   <dialog id="org-dialog"><form method="dialog" id="org-form"><button class="dialog-close" value="cancel" aria-label="Закрыть">×</button><span class="eyebrow">Новая организация</span><h2>С чего начнём?</h2><p>Назовите пространство, где Iris будет собирать команду и работу.</p><label>Название<input id="org-name" required maxlength="160" placeholder="Например, Nova Lab"></label><label>Направление<textarea id="org-purpose" maxlength="2000" placeholder="Что вы хотите создавать?"></textarea></label><button class="primary" value="default">Создать организацию</button></form></dialog>
-  <script>
-    window.LUMINIFERA_API_BASE = location.port === '3000' ? 'http://127.0.0.1:8000' : '';
-  </script>
+  <script src="/runtime-config.js"></script>
   <script src="/assets/app.js" defer></script>
   <script src="/assets/actions.js" defer></script>
 </body>
