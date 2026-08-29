@@ -99,6 +99,9 @@ class LuminiferaSettingsDialog(QDialog):
         self.allow_local_tools = QCheckBox("Разрешить локальные инструменты сотрудникам")
         self.allow_local_tools.setChecked(bool(settings.get("allow_local_tools", False)))
         advanced_form.addRow("", self.allow_local_tools)
+        self.developer_mode = QCheckBox("Режим разработчика (диагностика и технические детали)")
+        self.developer_mode.setChecked(bool(settings.get("developer_mode", False)))
+        advanced_form.addRow("", self.developer_mode)
         tabs.addTab(advanced, "Дополнительно")
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -122,4 +125,5 @@ class LuminiferaSettingsDialog(QDialog):
             "receive_sound_enabled": self.receive_sound.isChecked(),
             "workspace_root": self.workspace.text().strip(),
             "allow_local_tools": self.allow_local_tools.isChecked(),
+            "developer_mode": self.developer_mode.isChecked(),
         }

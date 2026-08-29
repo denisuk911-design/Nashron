@@ -16,4 +16,5 @@ def test_product_settings_expose_translated_sections_and_persist_values():
     values = dialog.values()
     assert values["theme"] == "light"
     assert values["interface_language"] == "uk"
+    assert values["developer_mode"] is False
     dialog.close()
