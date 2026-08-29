@@ -131,3 +131,17 @@ def test_unmapped_complex_request_uses_real_strong_callback():
     assert result.action == "strong"
     assert result.message == "краткий совет"
     assert calls == [("проанализируй риски проекта и предложи решение", "org-owner")]
+
+
+def test_application_failure_does_not_expose_exception_or_internal_state():
+    service, _management, _settings = make_service()
+    service.universal_service.create_organization = lambda _name: (_ for _ in ()).throw(
+        RuntimeError("sqlite stack path")
+    )
+
+    result = service.handle("create organization: Test")
+
+    assert not result.ok
+    assert result.action == "error"
+    assert "sqlite stack path" not in result.message
+    assert "RuntimeError" not in result.message

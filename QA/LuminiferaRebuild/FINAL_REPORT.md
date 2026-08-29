@@ -52,3 +52,6 @@ Targeted product tests passed, including settings, profile, files, team builder,
 ## Remaining
 
 Manual visual review is still required for populated team/work/file states, responsive screenshot matrix and final legacy visibility audit. The packaged executable remains the existing `Team2050.exe` filename during the branding migration.
+## Latest Iris safety hardening
+
+The Product Mode Iris service no longer exposes raw application exceptions, Strong-provider internals, or plan IDs/raw statuses. Targeted tests passed (`16 passed`); packaged Iris smoke passed (`exit=0`, `checks_passed=true`). Evidence: `Screenshots/iris_safety_recheck.json` and `Screenshots/iris_safety_recheck.png`.

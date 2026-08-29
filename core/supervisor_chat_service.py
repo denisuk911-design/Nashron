@@ -140,7 +140,7 @@ class SupervisorChatApplicationService:
                 plans = self.supervisor_service.list_plans(organization_id)
                 return SupervisorChatResult(True, self._plans_text(plans), action="list_goals", data={"count": len(plans)})
             if route == "STRONG":
-                return SupervisorChatResult(False, "Для этого запроса нужен Strong provider, но он не подключён.", route=route, action="strong_unavailable")
+                return SupervisorChatResult(False, "Сложная задача ждёт подключения рабочего AI-провайдера в настройках.", route=route, action="strong_unavailable")
             outcome_words = ("созд", "разработ", "сдел", "нужн", "хочу", "команд", "проект", "прилож", "результат", "build", "create", "develop", "need")
             if organization_id is None and any(word in lowered for word in outcome_words):
                 return SupervisorChatResult(
@@ -150,8 +150,8 @@ class SupervisorChatApplicationService:
                     data={"brief": text},
                 )
             return SupervisorChatResult(True, "Понял запрос. Уточните, какую цель или действие нужно выполнить.", action="help")
-        except (ValueError, KeyError, RuntimeError) as exc:
-            return SupervisorChatResult(False, f"Не выполнено: {exc}", route=route, action="error")
+        except (ValueError, KeyError, RuntimeError):
+            return SupervisorChatResult(False, "Не удалось выполнить действие. Данные в безопасности. Проверьте настройки и попробуйте ещё раз.", route=route, action="error")
 
     def confirm(self, token: str) -> SupervisorChatResult:
         pending = self._pending.pop(token, None)
@@ -256,4 +256,5 @@ class SupervisorChatApplicationService:
     def _plans_text(plans: list[Any]) -> str:
         if not plans:
             return "Целей пока нет."
-        return "\n".join(f"{item.plan_id}: {item.goal} — {item.status}" for item in plans[-10:])
+        labels = {"PENDING": "Ожидает запуска", "PLANNED": "Запланирована", "IN_PROGRESS": "В работе", "REVIEW": "На проверке", "COMPLETED": "Завершена", "BLOCKED": "Приостановлена", "CANCELLED": "Отменена"}
+        return "\n".join(f"{item.goal} — {labels.get(str(item.status).upper(), 'В работе')}" for item in plans[-10:])
