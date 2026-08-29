@@ -12,3 +12,5 @@ Automated RC evidence from the packaged isolated profile confirms:
 - SQLite foreign-key check: PASS, `foreign_key_errors=0` (`FK=[]`).
 
 The product UI reads this state through application services; runtime/provider/orchestration services were not replaced by UI mocks.
+
+Targeted runtime verification: `tests/runtime_v2` and `tests/runtime_v3` passed, 71 tests in 1.66s.
