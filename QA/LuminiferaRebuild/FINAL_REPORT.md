@@ -13,6 +13,7 @@ Steps 01-10 have packaged previews and targeted tests. Steps 11-15 are partial m
 - compact Settings with language, theme, sound, providers, data and advanced sections;
 - separate owner Profile with persisted name and avatar;
 - readable RU/UA/EN product copy across the rebuilt onboarding, shell, Home and Work surfaces;
+- localized goal-state labels that keep internal enum values out of the product view;
 - readable artifact mapping through application services;
 - isolated packaged screenshots and smoke reports.
 
@@ -22,7 +23,7 @@ Steps 01-10 have packaged previews and targeted tests. Steps 11-15 are partial m
 - screenshots: `QA/LuminiferaRebuild/Screenshots/`;
 - engine parity: `QA/LuminiferaRebuild/EngineParity/FINAL.md`;
 - legacy status: `QA/LuminiferaRebuild/LegacyAudit/README.md`;
-- packaged final Home/Profile reports: `final_home.json`, `final_profile.json`;
+- packaged final Home/Profile/Work reports: `final_home.json`, `final_profile.json`, `10_states.json`;
 - RC foreign-key result: `foreign_key_errors=0`, equivalent to `FK=[]`.
 
 ## Verification

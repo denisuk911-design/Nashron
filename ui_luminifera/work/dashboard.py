@@ -78,7 +78,12 @@ class WorkDashboard(QWidget):
         self.heading.setText(copy["heading"])
         self.iris_button.setText(copy["iris"])
         self.goal_title.setText(snapshot.goal_title or copy["empty"])
-        state = snapshot.goal_state.replace("_", " ").title() if snapshot.goal_state else ""
+        state_labels = {
+            "ru": {"PENDING": "Ожидает запуска", "PLANNED": "Запланирована", "IN_PROGRESS": "В работе", "REVIEW": "На проверке", "COMPLETED": "Завершена", "BLOCKED": "Заблокирована", "CANCELLED": "Отменена"},
+            "uk": {"PENDING": "Очікує запуску", "PLANNED": "Запланована", "IN_PROGRESS": "У роботі", "REVIEW": "На перевірці", "COMPLETED": "Завершена", "BLOCKED": "Заблокована", "CANCELLED": "Скасована"},
+            "en": {"PENDING": "Waiting to start", "PLANNED": "Planned", "IN_PROGRESS": "In progress", "REVIEW": "In review", "COMPLETED": "Completed", "BLOCKED": "Blocked", "CANCELLED": "Cancelled"},
+        }
+        state = state_labels[self.language].get(snapshot.goal_state.upper(), snapshot.goal_state.replace("_", " ")) if snapshot.goal_state else ""
         self.goal_status.setText(copy["status"].format(state=state) if state else copy["empty_body"])
         self.progress.setValue(snapshot.goal_progress)
         action = copy["review_next"] if snapshot.goal_progress >= 75 else copy["start"] if snapshot.goal_title else copy["talk"]
