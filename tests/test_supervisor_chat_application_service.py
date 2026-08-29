@@ -114,6 +114,12 @@ def test_first_run_request_returns_team_proposal_instead_of_advisory_only():
     assert result.data["brief"] == "Соберите команду для запуска приложения"
 
 
+def test_first_run_social_message_does_not_open_team_builder():
+    service, _management, _settings = make_service()
+    result = service.handle("Привет, Iris")
+    assert result.action == "help"
+
+
 def test_unmapped_complex_request_uses_real_strong_callback():
     service, _management, _settings = make_service()
     service.local_runtime = SimpleNamespace(decide=lambda _text: "COMPLEX")

@@ -32,6 +32,7 @@ Steps 01-10 have packaged previews and targeted tests. Steps 11-15 are partial m
 - latest packaged checks: `team_builder_recheck.json`, `settings_recheck.json`;
 - live language refresh check: `language_recheck.json` and `language_recheck.png`;
 - Iris first-run handoff check: `iris_recheck.json` and `iris_recheck.png`;
+- guarded Iris social-vs-outcome routing is covered by `tests/test_supervisor_chat_application_service.py`;
 - RC foreign-key result: `foreign_key_errors=0`, equivalent to `FK=[]`.
 
 ## Verification

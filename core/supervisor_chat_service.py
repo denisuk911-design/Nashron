@@ -141,7 +141,8 @@ class SupervisorChatApplicationService:
                 return SupervisorChatResult(True, self._plans_text(plans), action="list_goals", data={"count": len(plans)})
             if route == "STRONG":
                 return SupervisorChatResult(False, "Для этого запроса нужен Strong provider, но он не подключён.", route=route, action="strong_unavailable")
-            if organization_id is None:
+            outcome_words = ("созд", "разработ", "сдел", "нужн", "хочу", "команд", "проект", "прилож", "результат", "build", "create", "develop", "need")
+            if organization_id is None and any(word in lowered for word in outcome_words):
                 return SupervisorChatResult(
                     True,
                     "Понял задачу. Давайте сначала соберём подходящую команду, а затем превратим результат в рабочую цель.",
