@@ -117,6 +117,25 @@
 })();
 
 (() => {
+  const showWorkItems = async () => {
+    const view = document.querySelector('#view');
+    const select = document.querySelector('#org-select');
+    if (!view || !select?.value || document.querySelector('.side-nav button.active')?.dataset.view !== 'work' || view.querySelector('.web-work-items')) return;
+    const response = await fetch('/api/work/items', {headers: {'X-Organization-Id': select.value}});
+    if (!response.ok) return;
+    const items = await response.json();
+    if (!items.length) return;
+    const panel = document.createElement('section');
+    panel.className = 'web-work-items magic-card';
+    panel.style.marginTop = '14px';
+    panel.innerHTML = `<span class="eyebrow">Work items</span><div class="list">${items.map(item => `<div class="list-row"><span><b>${String(item.title).replace(/[&<>]/g, '')}</b><br><small>${String(item.assignee).replace(/[&<>]/g, '')} · attempt ${item.attempt} · artifacts ${item.artifacts} · findings ${item.findings}</small></span><span class="tag">${String(item.status).replace(/[&<>]/g, '')}</span></div>`).join('')}</div>`;
+    view.append(panel);
+  };
+  new MutationObserver(() => { showWorkItems().catch(() => {}); }).observe(document.querySelector('#view'), {childList: true, subtree: true});
+  document.querySelector('[data-view="work"]')?.addEventListener('click', () => setTimeout(() => showWorkItems().catch(() => {}), 50));
+})();
+
+(() => {
   const attachTeamControls = () => {
     const title = document.querySelector('#view-title');
     const view = document.querySelector('#view');
