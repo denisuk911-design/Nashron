@@ -193,3 +193,5 @@ KNOWN_GAPS: Existing-organizations goal creation still uses the established expl
 FILES_CHANGED: `core/supervisor_chat_service.py`; `gui/supervisor_chat_dialog.py`; `gui/main_window.py`; `tests/test_supervisor_chat_application_service.py`
 
 FOLLOW_UP: First-run team handoff is now intent-gated: social greetings remain ordinary Iris help, while outcome-oriented descriptions expose the Team Builder action. Rebuilt packaged Iris smoke after the guard (`exit=0`, `checks_passed=true`).
+
+FOLLOW_UP: `team_proposal` now carries the original first-run brief to the Team Builder; ordinary social messages remain `help`. Added regression coverage for both branches (`13 passed` targeted Supervisor/Iris/Product suite).
