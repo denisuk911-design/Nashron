@@ -238,3 +238,14 @@ ENGINE_PARITY: Iris goal creation now uses the existing `RuntimeV3GoalService` b
 VISUAL_SCREENSHOT: `Screenshots/iris_runtime_goal_recheck.png`
 KNOWN_GAPS: Full legacy pytest and owner manual visual acceptance remain documented as open; no new Product Mode internals were exposed.
 FILES_CHANGED: `core/supervisor_chat_service.py`; `gui/main_window.py`; `tests/test_supervisor_chat_application_service.py`
+
+## Persistent Iris product window
+
+STEP: 04/06 integration follow-up
+STATUS: PASS for persistent owner workspace behavior.
+TECHNICAL_TESTS: `29 passed` across Luminifera, Iris dialog and Supervisor application-service tests; source modules compile with the project virtual environment.
+PACKAGED_TEST: PASS; rebuilt `dist/Team2050/Team2050.exe`; isolated Iris and Work previews exited with code 0 and `checks_passed=true` (`Screenshots/iris_persistent_recheck.json`, `Screenshots/home_after_iris_recheck.json`).
+ENGINE_PARITY: The Iris window is now reused while open, preserves its conversation context, updates organization context when the user switches workspace, and opens non-modally from Product Mode. Runtime behavior remains service-backed.
+VISUAL_SCREENSHOT: `Screenshots/iris_persistent_recheck.png`
+KNOWN_GAPS: Manual owner visual acceptance and the previously documented hanging legacy GUI/subprocess tests remain open.
+FILES_CHANGED: `gui/main_window.py`

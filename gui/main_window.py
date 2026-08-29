@@ -2883,7 +2883,14 @@ class MainWindow(QMainWindow):
             self._refresh_chat_agents()
         self._update_empty_team_state()
 
-    def show_supervisor_chat(self, *, modal: bool = True) -> None:
+    def show_supervisor_chat(self, *, modal: bool = False) -> None:
+        existing_dialog = getattr(self, "_iris_dialog", None)
+        if not modal and existing_dialog is not None:
+            existing_dialog.organization_id = self.active_organization_id
+            existing_dialog.show()
+            existing_dialog.raise_()
+            existing_dialog.activateWindow()
+            return
         service = SupervisorChatApplicationService(
             supervisor_service=self.director_service,
             universal_service=self.universal_platform_service,
