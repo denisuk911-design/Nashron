@@ -58,3 +58,6 @@ The Product Mode Iris service no longer exposes raw application exceptions, Stro
 ## Runtime V3 Work visibility
 
 The Work product view now reads the latest durable Runtime V3 checkpoint for the active organization and displays its goal, computed progress, artifacts, findings and work steps. The existing database task view remains the fallback. Targeted tests: `14 passed`; packaged Work smoke: `exit=0`, `checks_passed=true`.
+## Home and Work Runtime V3 projection
+
+Home and Work now share the durable Runtime V3 checkpoint projection. A real goal remains visible with computed progress and artifacts after execution/restart rather than disappearing because it is absent from the legacy `tasks` table. Packaged Home smoke passed with `checks_passed=true`.

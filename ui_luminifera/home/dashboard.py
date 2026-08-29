@@ -110,7 +110,11 @@ class HomeDashboard(QWidget):
         self.team_heading.setText(copy["team"])
         self.team_body.setText(copy["members"].format(count=snapshot.team_size) if has_org else copy["no_goal"])
         self.goal_heading.setText(copy["goal"])
-        self.goal_body.setText(snapshot.goal_title or copy["no_goal"])
+        progress_label = {"ru": "Прогресс", "uk": "Прогрес", "en": "Progress"}[self._language]
+        self.goal_body.setText(
+            f"{snapshot.goal_title}\n{progress_label}: {snapshot.goal_progress}%"
+            if snapshot.goal_title else copy["no_goal"]
+        )
         self.artifact_heading.setText(copy["results"])
         self.artifact_body.setText("\n".join(item.title for item in snapshot.artifacts) or copy["no_results"])
         for card in (self.team_card, self.goal_card, self.artifact_card):

@@ -40,9 +40,12 @@ class LuminiferaWorkService:
         "PENDING": 10,
         "PLANNED": 15,
         "IN_PROGRESS": 50,
+        "RUNNING": 50,
         "REVIEW": 75,
+        "REWORK": 60,
         "COMPLETED": 100,
         "DONE": 100,
+        "FAILED": 0,
         "BLOCKED": 25,
         "CANCELLED": 0,
     }
@@ -105,7 +108,11 @@ class LuminiferaWorkService:
         goal = goals[0]
         items = [item for item in state.work_items.values() if item.goal_id == goal.goal_id]
         completed = sum(item.status == WorkItemStatus.COMPLETED for item in items)
-        progress = 100 if goal.status == GoalStatus.COMPLETED else round((completed / len(items)) * 100) if items else self._PROGRESS.get(goal.status.value.upper(), 0)
+        base_progress = self._PROGRESS.get(goal.status.value.upper(), 0)
+        progress = 100 if goal.status == GoalStatus.COMPLETED else max(
+            base_progress,
+            round((completed / len(items)) * 100) if items else 0,
+        )
         artifacts = [item for item in state.artifacts.values() if item.goal_id == goal.goal_id]
         findings = [item for item in state.findings.values() if item.goal_id == goal.goal_id]
         steps = tuple(
