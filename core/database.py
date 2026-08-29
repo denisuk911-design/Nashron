@@ -1951,7 +1951,9 @@ class Database:
         if organization_id:
             clauses.append("(tasks.organization_id = ? OR projects.organization_id = ?)")
             params.extend([organization_id, organization_id])
-        sql = "SELECT artifacts.* FROM artifacts LEFT JOIN tasks ON tasks.id = artifacts.task_id LEFT JOIN projects ON projects.id = artifacts.project_id"
+        # Keep the legacy ``kind`` alias for read-only product adapters while the
+        # canonical artifact field remains ``artifact_type``.
+        sql = "SELECT artifacts.*, artifacts.artifact_type AS kind FROM artifacts LEFT JOIN tasks ON tasks.id = artifacts.task_id LEFT JOIN projects ON projects.id = artifacts.project_id"
         if clauses:
             sql += " WHERE " + " AND ".join(clauses)
         sql += " ORDER BY relative_path ASC, id ASC LIMIT ?"

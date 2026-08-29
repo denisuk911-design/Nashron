@@ -6,45 +6,43 @@ from PySide6.QtWidgets import QDialog, QDialogButtonBox, QFormLayout, QLabel, QL
 from gui.localization import catalog_label
 
 
+COPY = {
+    "ru": {"title": "Собрать команду", "question": "Что хотите реализовать?", "description": "Опишите желаемый результат или область работы.", "name": "Название команды", "placeholder": "Например: Команда запуска продукта", "show": "Показать состав", "proposal": "Предложенный состав", "create": "Создать команду", "cancel": "Отмена", "role": "Специалист", "responsibility": "Отвечает за свой участок работы"},
+    "uk": {"title": "Зібрати команду", "question": "Що хочете реалізувати?", "description": "Опишіть бажаний результат або сферу роботи.", "name": "Назва команди", "placeholder": "Наприклад: Команда запуску продукту", "show": "Показати склад", "proposal": "Запропонований склад", "create": "Створити команду", "cancel": "Скасувати", "role": "Спеціаліст", "responsibility": "Відповідає за свою ділянку роботи"},
+    "en": {"title": "Build a team", "question": "What do you want to build?", "description": "Describe the desired result or area of work.", "name": "Team name", "placeholder": "For example: Product launch team", "show": "Show team", "proposal": "Suggested team", "create": "Create team", "cancel": "Cancel", "role": "Specialist", "responsibility": "Owns a part of the work"},
+}
+
+
 class TeamBuilderDialog(QDialog):
     """Human-readable team proposal before the universal service is invoked."""
 
     def __init__(self, service, language: str = "ru", parent=None) -> None:
         super().__init__(parent)
         self.service = service
-        self.language = language if language in {"ru", "uk", "en"} else "ru"
+        self.language = language if language in COPY else "ru"
         self.build = None
         self._template = None
-        self.setWindowTitle({"ru": "Собрать команду", "uk": "Зібрати команду", "en": "Build a team"}[self.language])
+        copy = COPY[self.language]
+        self.setWindowTitle(copy["title"])
         self.setMinimumSize(660, 520)
-        self._build_ui()
-
-    def _build_ui(self) -> None:
-        copy = {
-            "ru": ("Что хотите реализовать?", "Опишите желаемый результат или область работы.", "Название команды", "Например: Команда запуска продукта", "Показать состав", "Предложенный состав", "Создать команду"),
-            "uk": ("Що хочете реалізувати?", "Опишіть бажаний результат або сферу роботи.", "Назва команди", "Наприклад: Команда запуску продукту", "Показати склад", "Запропонований склад", "Створити команду"),
-            "en": ("What do you want to build?", "Describe the desired result or area of work.", "Team name", "For example: Product launch team", "Show team", "Suggested team", "Create team"),
-        }[self.language]
         layout = QVBoxLayout(self)
-        intro = QLabel(copy[0])
-        intro.setObjectName("luminiferaTeamBuilderTitle")
+        intro = QLabel(copy["question"], objectName="luminiferaTeamBuilderTitle")
         layout.addWidget(intro)
         self.brief = QTextEdit()
-        self.brief.setPlaceholderText(copy[1])
+        self.brief.setPlaceholderText(copy["description"])
         self.brief.setMinimumHeight(92)
         layout.addWidget(self.brief)
         form = QFormLayout()
         self.name = QLineEdit()
-        self.name.setPlaceholderText(copy[3])
-        form.addRow(copy[2], self.name)
+        self.name.setPlaceholderText(copy["placeholder"])
+        form.addRow(copy["name"], self.name)
         layout.addLayout(form)
         self.propose = QDialogButtonBox(QDialogButtonBox.Apply | QDialogButtonBox.Cancel)
-        self.propose.button(QDialogButtonBox.Apply).setText(copy[4])
-        self.propose.button(QDialogButtonBox.Cancel).setText("Отмена" if self.language == "ru" else "Cancel")
+        self.propose.button(QDialogButtonBox.Apply).setText(copy["show"])
+        self.propose.button(QDialogButtonBox.Cancel).setText(copy["cancel"])
         self.propose.clicked.connect(self._propose_clicked)
         layout.addWidget(self.propose)
-        self.proposal_title = QLabel(copy[5])
-        self.proposal_title.setObjectName("luminiferaTeamBuilderSection")
+        self.proposal_title = QLabel(copy["proposal"], objectName="luminiferaTeamBuilderSection")
         self.proposal_title.setVisible(False)
         layout.addWidget(self.proposal_title)
         self.roster = QListWidget()
@@ -52,8 +50,8 @@ class TeamBuilderDialog(QDialog):
         self.roster.setSpacing(4)
         layout.addWidget(self.roster, 1)
         self.actions = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        self.actions.button(QDialogButtonBox.Ok).setText(copy[6])
-        self.actions.button(QDialogButtonBox.Cancel).setText("Отмена" if self.language == "ru" else "Cancel")
+        self.actions.button(QDialogButtonBox.Ok).setText(copy["create"])
+        self.actions.button(QDialogButtonBox.Cancel).setText(copy["cancel"])
         self.actions.accepted.connect(self._create)
         self.actions.rejected.connect(self.reject)
         self.actions.setVisible(False)
@@ -73,9 +71,10 @@ class TeamBuilderDialog(QDialog):
         if not self.name.text().strip():
             self.name.setText(self._template.name.replace("_", " ").title())
         self.roster.clear()
+        copy = COPY[self.language]
         for role in self._template.roles:
-            position = str(role.get("position") or role.get("role") or "Специалист")
-            responsibility = str(role.get("responsibility") or role.get("description") or "Отвечает за свой участок работы")
+            position = str(role.get("position") or role.get("role") or copy["role"])
+            responsibility = str(role.get("responsibility") or role.get("description") or copy["responsibility"])
             item = QListWidgetItem(f"{catalog_label(self.language, position)}\n{responsibility}")
             item.setData(Qt.UserRole, position)
             self.roster.addItem(item)
@@ -87,7 +86,5 @@ class TeamBuilderDialog(QDialog):
     def _create(self) -> None:
         if self._template is None or not self.name.text().strip():
             return
-        self.build = self.service.build_professional_team(
-            self.brief.toPlainText().strip(), self.name.text().strip(), template_id=self._template.template_id
-        )
+        self.build = self.service.build_professional_team(self.brief.toPlainText().strip(), self.name.text().strip(), template_id=self._template.template_id)
         self.accept()

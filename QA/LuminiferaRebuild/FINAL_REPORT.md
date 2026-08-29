@@ -16,6 +16,8 @@ Steps 01-10 have packaged previews and targeted tests. Steps 11-15 are partial m
 - localized goal-state labels that keep internal enum values out of the product view;
 - actionable localized failure copy for a response-start failure, without exposing exception details in chat;
 - readable artifact mapping through application services;
+- localized Team Builder and Settings labels/choices for RU/UA/EN;
+- explicit artifact-type compatibility for Home/Work product adapters;
 - isolated packaged screenshots and smoke reports.
 - packaged responsive Home checks at 1366x768, 1920x1080 and 2560x1440.
 
@@ -27,6 +29,7 @@ Steps 01-10 have packaged previews and targeted tests. Steps 11-15 are partial m
 - legacy status: `QA/LuminiferaRebuild/LegacyAudit/README.md`;
 - packaged final Home/Profile/Work/Settings reports: `final_home.json`, `final_profile.json`, `final3_profile.json`, `final4_home.json`, `10_states.json`, `final2_settings.json`, `final2_work.json`;
 - responsive screenshots: `responsive_1366x768.png`, `responsive_1920x1080.png`, `responsive_2560x1440.png`;
+- latest packaged checks: `team_builder_recheck.json`, `settings_recheck.json`;
 - RC foreign-key result: `foreign_key_errors=0`, equivalent to `FK=[]`.
 
 ## Verification

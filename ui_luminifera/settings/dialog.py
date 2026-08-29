@@ -104,7 +104,76 @@ class LuminiferaSettingsDialog(QDialog):
         advanced_form.addRow("", self.developer_mode)
         tabs.addTab(advanced, "Дополнительно")
 
+        # The settings dialog is also used as the language picker, so refresh every
+        # visible label from the selected language before the dialog is shown.
+        labels = {
+            "ru": {
+                "tabs": ["Основные", "Внешний вид", "Звук", "Подключения", "Данные", "Дополнительно"],
+                "language": "Язык интерфейса", "responses": "Ответы команды", "theme": "Тема",
+                "motion": "Уменьшить декоративные анимации", "sounds": "Звуки сообщений",
+                "send": "Звук отправки", "receive": "Звук получения", "workspace": "Рабочая папка",
+                "browse_hint": "Выберите рабочую папку кнопкой справа", "browse": "Обзор",
+                "tools": "Разрешить локальные инструменты сотрудникам",
+                "developer": "Режим разработчика (диагностика и технические детали)",
+            },
+            "uk": {
+                "tabs": ["Основні", "Вигляд", "Звук", "Підключення", "Дані", "Додатково"],
+                "language": "Мова інтерфейсу", "responses": "Відповіді команди", "theme": "Тема",
+                "motion": "Зменшити декоративні анімації", "sounds": "Звуки повідомлень",
+                "send": "Звук надсилання", "receive": "Звук отримання", "workspace": "Робоча папка",
+                "browse_hint": "Виберіть робочу папку кнопкою праворуч", "browse": "Огляд",
+                "tools": "Дозволити локальні інструменти співробітникам",
+                "developer": "Режим розробника (діагностика й технічні деталі)",
+            },
+            "en": {
+                "tabs": ["General", "Appearance", "Sound", "Connections", "Data", "Advanced"],
+                "language": "Interface language", "responses": "Team responses", "theme": "Theme",
+                "motion": "Reduce decorative animation", "sounds": "Message sounds",
+                "send": "Send sound", "receive": "Receive sound", "workspace": "Workspace folder",
+                "browse_hint": "Choose a workspace folder with the button on the right", "browse": "Browse",
+                "tools": "Allow local tools for employees",
+                "developer": "Developer mode (diagnostics and technical details)",
+            },
+        }.get(self.language_code, {})
+        for index, title in enumerate(labels.get("tabs", [])):
+            tabs.setTabText(index, title)
+        combo_labels = {
+            "ru": (["Русский", "Украинский", "Английский"], ["Один подходящий сотрудник", "Небольшая группа", "Вся команда"], ["Ночной космос", "Графит", "Ночной город", "Минимализм", "Светлая"]),
+            "uk": (["Українська", "Російська", "Англійська"], ["Один відповідний співробітник", "Невелика група", "Уся команда"], ["Нічний космос", "Графіт", "Нічне місто", "Мінімалізм", "Світла"]),
+            "en": (["Russian", "Ukrainian", "English"], ["One suitable employee", "Small group", "Whole team"], ["Night space", "Graphite", "Night city", "Minimal", "Light"]),
+        }.get(self.language_code, ([], [], []))
+        for index, text in enumerate(combo_labels[0]):
+            self.language.setItemText(index, text)
+        for index, text in enumerate(combo_labels[1]):
+            self.response_mode.setItemText(index, text)
+        for index, text in enumerate(combo_labels[2]):
+            self.theme.setItemText(index, text)
+        self.language_label = general_form.labelForField(self.language)
+        self.response_label = general_form.labelForField(self.response_mode)
+        self.theme_label = appearance_form.labelForField(self.theme)
+        self.workspace_label = data_form.labelForField(workspace_row)
+        if self.language_label:
+            self.language_label.setText(labels["language"])
+        if self.response_label:
+            self.response_label.setText(labels["responses"])
+        if self.theme_label:
+            self.theme_label.setText(labels["theme"])
+        if self.workspace_label:
+            self.workspace_label.setText(labels["workspace"])
+        self.reduce_motion.setText(labels["motion"])
+        self.message_sounds.setText(labels["sounds"])
+        self.send_sound.setText(labels["send"])
+        self.receive_sound.setText(labels["receive"])
+        self.workspace_browse.setPlaceholderText(labels["browse_hint"])
+        button.setText(labels["browse"])
+        self.allow_local_tools.setText(labels["tools"])
+        self.developer_mode.setText(labels["developer"])
+
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_labels = {"ru": ("Сохранить", "Отмена"), "uk": ("Зберегти", "Скасувати"), "en": ("Save", "Cancel")}
+        ok_text, cancel_text = button_labels.get(self.language_code, button_labels["en"])
+        buttons.button(QDialogButtonBox.Ok).setText(ok_text)
+        buttons.button(QDialogButtonBox.Cancel).setText(cancel_text)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         root.addWidget(buttons)

@@ -156,3 +156,16 @@ EVIDENCE: `EngineParity/FINAL.md`
 STEP: 17
 STATUS: PARTIAL; packaged executable and isolated smoke scenarios pass, but full pytest is blocked by pre-existing hanging GUI/subprocess tests and manual visual acceptance is pending.
 EVIDENCE: `Screenshots/final_home.json`, `Screenshots/final_profile.json`, `Screenshots/final3_profile.json`, `EngineParity/FINAL.md`
+
+## RUN COMPLETION CHECK - Product localization and artifact compatibility
+
+STEP: 17 follow-up
+STATUS: PASS for this implementation slice; visual review remains owner responsibility.
+TECHNICAL_TESTS: 13 focused Luminifera/team/startup/work tests passed; artifact access keeps the canonical `artifact_type` field and remains compatible with legacy `kind` readers.
+PACKAGED_TEST: PASS; rebuilt `dist/Team2050/Team2050.exe`; Team Builder and Settings previews exited with code 0 and `checks_passed=true`.
+ENGINE_PARITY: No runtime/provider code paths changed; database artifact query now exposes an explicit compatibility alias.
+VISUAL_SCREENSHOT: `Screenshots/team_builder_recheck.png`; `Screenshots/settings_recheck.png`
+KNOWN_GAPS: Full legacy pytest still has the previously recorded hanging GUI/subprocess segment; final manual visual acceptance and complete legacy purge remain open.
+FILES_CHANGED: `ui_luminifera/team/builder.py`; `ui_luminifera/settings/dialog.py`; `core/database.py`
+
+FINALIZATION_NOTE: Rebuilt packaged Settings preview after replacing the default dialog button text; screenshot now shows localized `Сохранить` and `Отмена`, with packaged exit code 0 and `checks_passed=true`.
