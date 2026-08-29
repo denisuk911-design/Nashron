@@ -174,6 +174,8 @@ STATE COPY: Added a shared RU/UA/EN Product Mode state catalog for provider-unav
 
 VISUAL POLISH: Added explicit focus, disabled and progress-bar styling for the Luminifera Product Mode controls, preserving readable contrast and keyboard focus visibility. Targeted theme/shell/work tests: `7 passed`; rebuilt packaged Work preview: `exit=0`, `checks_passed=true` (`Screenshots/visual_polish_recheck.png`).
 
+STATE CATALOG: Expanded the shared state catalog to cover sign-in required, failed/recoverable goal, no organization/team/files and destructive confirmation states in RU/UA/EN. Targeted state/shell tests: `6 passed`; packaged Work smoke after rebuild: `exit=0`, `checks_passed=true` (`Screenshots/state_catalog_recheck.png`).
+
 FINALIZATION_NOTE: Rebuilt packaged Settings preview after replacing the default dialog button text; screenshot now shows localized `Сохранить` and `Отмена`, with packaged exit code 0 and `checks_passed=true`.
 
 ## Product language refresh follow-up

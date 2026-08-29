@@ -38,6 +38,7 @@ Steps 01-10 have packaged previews and targeted tests. Steps 11-15 are partial m
 - Team roster evidence: `Screenshots/team_roster_recheck.json` and `team_roster_recheck.png`;
 - Product state catalog evidence: `Screenshots/states_recheck.json` and `states_recheck.png`;
 - Visual polish evidence: `Screenshots/visual_polish_recheck.json` and `visual_polish_recheck.png`;
+- Expanded state catalog evidence: `Screenshots/state_catalog_recheck.json` and `state_catalog_recheck.png`;
 - Team empty-state recovery evidence: `Screenshots/team_roster_cta_recheck.json` and `team_roster_cta_recheck.png`;
 - RC foreign-key result: `foreign_key_errors=0`, equivalent to `FK=[]`.
 
