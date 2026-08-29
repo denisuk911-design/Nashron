@@ -178,7 +178,9 @@ STATE CATALOG: Expanded the shared state catalog to cover sign-in required, fail
 
 LEGACY AUDIT: Added `LEGACY_UI_MAP.md` documenting retained compatibility surfaces, their service boundaries and Product Mode replacements. Verified the default `MainWindow` path is `LuminiferaShell`; legacy diagnostics and admin controls are not mounted in the Product shell.
 
-PACKAGED ACCEPTANCE: Rebuilt `Team2050.exe` and exercised clean isolated profiles for onboarding, Home, Iris, Team Builder, Team roster, Work, Chat, Files, Settings and Profile. All nine smoke reports exited 0 with `checks_passed=true`; screenshots are indexed in `Screenshots/SCREENSHOT_INDEX.md`.
+PACKAGED ACCEPTANCE: Rebuilt `Team2050.exe` and exercised clean isolated profiles for onboarding, Home, Iris, Team Builder, Team roster, Work, Chat, Files, Settings and Profile. All ten smoke reports exited 0 with `checks_passed=true`; screenshots are indexed in `Screenshots/SCREENSHOT_INDEX.md`.
+
+ENGINE PARITY RECHECK: Fresh `.venv\\Scripts\\python.exe -m pytest tests/runtime_v2 tests/runtime_v3` passed `71/71` in `1.62s`; packaged acceptance matrix now has 10 reports with zero failures. Updated `EngineParity/FINAL.md` and `FINAL_REPORT.md` with the current evidence.
 
 FINALIZATION_NOTE: Rebuilt packaged Settings preview after replacing the default dialog button text; screenshot now shows localized `Сохранить` and `Отмена`, with packaged exit code 0 and `checks_passed=true`.
 

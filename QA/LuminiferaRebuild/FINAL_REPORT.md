@@ -46,7 +46,7 @@ Steps 01-10 have packaged previews and targeted tests. Steps 11-15 are partial m
 
 ## Verification
 
-Targeted product tests passed, including settings, profile, files, team builder, Iris, startup and chat coverage. Runtime v2/v3 targeted suite passed: 71 tests. Packaged Home, Team, Files, Settings and Profile previews exited successfully with `checks_passed=true`. Full pytest was attempted; it reached the existing GUI/subprocess portion but did not terminate cleanly, so it is not reported as PASS.
+Targeted product tests passed, including settings, profile, files, team builder, Iris, startup and chat coverage. Runtime v2/v3 targeted suite passed: 71/71 tests in 1.62s. Latest packaged acceptance matrix covered 10 isolated screens and every report returned `checks_passed=true`. Full pytest was attempted; it reached the existing GUI/subprocess portion but did not terminate cleanly, so it is not reported as PASS.
 
 ## Remaining
 
