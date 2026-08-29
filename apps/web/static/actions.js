@@ -30,6 +30,21 @@
 })();
 
 (() => {
+  const renderAttachmentLinks = async () => {
+    const list = document.querySelector('.chat-list'); const select = document.querySelector('#org-select');
+    if (!list || list.dataset.attachmentsReady || !select?.value) return;
+    const response = await fetch('/api/chat', {headers:{'X-Organization-Id':select.value}}); if (!response.ok) return;
+    const messages = await response.json(); const nodes = list.querySelectorAll('.message');
+    nodes.forEach((node,index) => {
+      const files = messages[index]?.attachments || []; if (!files.length) return;
+      node.insertAdjacentHTML('beforeend', `<div style="margin-top:8px;display:grid;gap:4px">${files.map(file=>`<a style="color:var(--cyan);font-size:12px" href="/api/chat/attachments/${encodeURIComponent(file.id)}" target="_blank">📎 ${String(file.name)}</a>`).join('')}</div>`);
+    }); list.dataset.attachmentsReady='true';
+  };
+  new MutationObserver(renderAttachmentLinks).observe(document.querySelector('#view'), {childList:true,subtree:true});
+  document.querySelector('[data-view="chat"]')?.addEventListener('click', () => setTimeout(renderAttachmentLinks, 80));
+})();
+
+(() => {
   const attachChatFiles = () => {
     const composer = document.querySelector('#composer'); const select = document.querySelector('#org-select');
     if (!composer || composer.dataset.filesReady || !select) return;

@@ -329,7 +329,14 @@ async def delete_employee(organization_id: str, agent_id: str, confirm: bool = Q
 @app.get("/api/chat")
 def chat_history(x_organization_id: str | None = Header(default=None), limit: int = Query(default=80, ge=1, le=500)) -> list[dict[str, Any]]:
     organization_id = core.organization_id(x_organization_id)
-    return [_plain(item) for item in core.database.list_messages(core.conversation_id(organization_id), limit=limit)]
+    conversation_id = core.conversation_id(organization_id)
+    attachments_by_message: dict[int, list[dict[str, Any]]] = {}
+    for item in core.database.list_chat_attachments(conversation_id):
+        message_id = item["message_id"]
+        if message_id is None:
+            continue
+        attachments_by_message.setdefault(int(message_id), []).append({"id": str(item["id"]), "name": str(item["display_name"]), "media_type": str(item["media_type"]), "size": int(item["size"])})
+    return [{**_plain(item), "attachments": attachments_by_message.get(item.id, [])} for item in core.database.list_messages(conversation_id, limit=limit)]
 
 
 @app.post("/api/chat")
@@ -362,6 +369,19 @@ async def upload_chat_attachment(file: UploadFile = File(...), x_organization_id
         core.conversation_id(organization_id), content, file.filename or "attachment", file.content_type or "application/octet-stream"
     )
     return {"id": attachment.attachment_id, "name": attachment.display_name, "media_type": attachment.media_type, "size": attachment.size}
+
+
+@app.get("/api/chat/attachments/{attachment_id}")
+def download_chat_attachment(attachment_id: str, x_organization_id: str | None = Header(default=None)) -> FileResponse:
+    organization_id = core.organization_id(x_organization_id)
+    conversation_id = core.conversation_id(organization_id)
+    attachment = core.attachments.get_attachment(conversation_id, attachment_id)
+    if attachment is None:
+        raise HTTPException(status_code=404, detail="attachment_not_found")
+    path = core.attachments.physical_path(attachment)
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="attachment_file_not_found")
+    return FileResponse(path, filename=attachment.display_name, media_type=attachment.media_type)
 
 
 @app.get("/api/goals")

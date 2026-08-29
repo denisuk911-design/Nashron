@@ -61,6 +61,13 @@ class ChatAttachmentService:
     def attachments_for_message(self, conversation_id: int, message_id: int) -> list[ChatAttachment]:
         return [self._from_row(row) for row in self.database.list_chat_attachments(conversation_id, message_id)]
 
+    def get_attachment(self, conversation_id: int, attachment_id: str) -> ChatAttachment | None:
+        row = next(
+            (item for item in self.database.list_chat_attachments(conversation_id) if str(item["id"]) == attachment_id),
+            None,
+        )
+        return self._from_row(row) if row is not None else None
+
     def physical_path(self, attachment: ChatAttachment) -> Path:
         path = (self.workspace_root / attachment.relative_path).resolve(strict=False)
         if not path.is_relative_to(self.workspace_root):
