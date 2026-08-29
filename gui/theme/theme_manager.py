@@ -549,6 +549,8 @@ class ThemeManager:
         QFrame#luminiferaWorkCard {{ background: {c['surface']}; border: 1px solid {c['line_soft']}; border-radius: 14px; }}
         QLabel#luminiferaWorkCardHeading {{ color: {c['text']}; font-size: 10pt; font-weight: 700; }}
         QLabel#luminiferaWorkCardBody {{ color: {c['muted']}; font-size: 9pt; }}
+        QLabel#luminiferaTeamStatus {{ color: {c['green']}; font-size: 9pt; font-weight: 600; }}
+        QLabel#luminiferaTeamSkills {{ color: {c['cyan']}; font-size: 9pt; }}
         QProgressBar {{ background: {c['input']}; color: {c['text']}; border: 1px solid {c['line_soft']}; border-radius: 7px; min-height: 12px; text-align: center; }}
         QProgressBar::chunk {{ background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 {c['cyan_dark']}, stop:1 {c['violet']}); border-radius: 6px; }}
         QWidget#luminiferaFiles {{ background: transparent; }}
