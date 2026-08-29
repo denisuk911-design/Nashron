@@ -18,6 +18,7 @@ profiles; each corresponding JSON report has `checks_passed=true`.
 | `accept_profile_latest.png` | Owner profile | `01_LUMINIFERA_ONBOARDING_REFERENCE.png` | Manual visual review pending |
 | `state_catalog_recheck.png` | Product Work state | `02_LUMINIFERA_MAIN_WORKSPACE_REFERENCE.png` | Catalog states are also covered by unit tests |
 | `visual_polish_recheck.png` | Focus/progress styling | `02_LUMINIFERA_MAIN_WORKSPACE_REFERENCE.png` | Manual interaction review pending |
+| `team_skills_recheck.png` | Team status and assigned skills | `04_LUMINIFERA_TEAM_SETTINGS_REFERENCE.png` | Clean profile has no assigned skills; populated cards are covered by unit tests |
 | `responsive_1366x768.png` | Responsive Home | `02_LUMINIFERA_MAIN_WORKSPACE_REFERENCE.png` | Manual wide-screen review pending |
 | `responsive_1920x1080.png` | Responsive Home | `02_LUMINIFERA_MAIN_WORKSPACE_REFERENCE.png` | Manual wide-screen review pending |
 | `responsive_2560x1440.png` | Responsive Home | `02_LUMINIFERA_MAIN_WORKSPACE_REFERENCE.png` | Manual wide-screen review pending |

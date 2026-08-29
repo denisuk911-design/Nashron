@@ -58,6 +58,7 @@ class ChatAgent:
     preferred_name: str = ""
     informal_name: str = ""
     communication_profile: dict[str, object] | None = None
+    skills: tuple[str, ...] = ()
 
     @property
     def primary_role(self) -> str:
@@ -146,6 +147,11 @@ def list_chat_agents(
             raw_communication = json.loads(str(row["communication_profile"] or "{}"))
         except (KeyError, TypeError, ValueError, json.JSONDecodeError):
             raw_communication = {}
+        skill_names = tuple(
+            str(skill["name"])
+            for skill in database.list_employee_skill_assignments(agent_id)
+            if str(skill["name"] or "").strip()
+        )
         agents.append(
             ChatAgent(
                 key=agent_key_from_id(agent_id),
@@ -162,6 +168,7 @@ def list_chat_agents(
                 preferred_name=str(row["preferred_name"] or "") if "preferred_name" in row.keys() else "",
                 informal_name=str(row["informal_name"] or "") if "informal_name" in row.keys() else "",
                 communication_profile=raw_communication if isinstance(raw_communication, dict) else {},
+                skills=skill_names,
             )
         )
     return agents

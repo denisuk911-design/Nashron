@@ -41,6 +41,7 @@ Steps 01-10 have packaged previews and targeted tests. Steps 11-15 are partial m
 - Visual polish evidence: `Screenshots/visual_polish_recheck.json` and `visual_polish_recheck.png`;
 - Expanded state catalog evidence: `Screenshots/state_catalog_recheck.json` and `state_catalog_recheck.png`;
 - Latest packaged acceptance matrix: `Screenshots/accept_*_latest.json` and corresponding PNG screenshots;
+- Team status/skills evidence: `Screenshots/team_skills_recheck.json` and `team_skills_recheck.png`;
 - Team empty-state recovery evidence: `Screenshots/team_roster_cta_recheck.json` and `team_roster_cta_recheck.png`;
 - RC foreign-key result: `foreign_key_errors=0`, equivalent to `FK=[]`.
 

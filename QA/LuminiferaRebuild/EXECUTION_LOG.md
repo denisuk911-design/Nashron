@@ -180,6 +180,8 @@ LEGACY AUDIT: Added `LEGACY_UI_MAP.md` documenting retained compatibility surfac
 
 PACKAGED ACCEPTANCE: Rebuilt `Team2050.exe` and exercised clean isolated profiles for onboarding, Home, Iris, Team Builder, Team roster, Work, Chat, Files, Settings and Profile. All ten smoke reports exited 0 with `checks_passed=true`; screenshots are indexed in `Screenshots/SCREENSHOT_INDEX.md`.
 
+TEAM CARDS: Team roster cards now expose real lifecycle status and up to three assigned skill package names sourced through the agent directory/database service. No provider or internal ID is shown. Targeted roster/startup tests: `13 passed`; packaged roster smoke: `exit=0`, `checks_passed=true` (`Screenshots/team_skills_recheck.png`).
+
 ENGINE PARITY RECHECK: Fresh `.venv\\Scripts\\python.exe -m pytest tests/runtime_v2 tests/runtime_v3` passed `71/71` in `1.62s`; packaged acceptance matrix now has 10 reports with zero failures. Updated `EngineParity/FINAL.md` and `FINAL_REPORT.md` with the current evidence.
 
 FINALIZATION_NOTE: Rebuilt packaged Settings preview after replacing the default dialog button text; screenshot now shows localized `Сохранить` and `Отмена`, with packaged exit code 0 and `checks_passed=true`.

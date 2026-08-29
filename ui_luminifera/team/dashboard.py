@@ -65,6 +65,12 @@ class TeamDashboard(QWidget):
             "uk": {"PROJECT_MANAGER": "Керівник проєкту", "DESIGN_ENGINEER": "Інженер-проєктувальник", "QA_ENGINEER": "Інженер ОТК", "DOCUMENT_CONTROL_OFFICER": "Фахівець з документації", "VERIFICATION_ENGINEER": "Інженер перевірки", "LEARNING_COORDINATOR": "Координатор навчання"},
             "en": {"PROJECT_MANAGER": "Project manager", "DESIGN_ENGINEER": "Design engineer", "QA_ENGINEER": "QA engineer", "DOCUMENT_CONTROL_OFFICER": "Documentation specialist", "VERIFICATION_ENGINEER": "Verification engineer", "LEARNING_COORDINATOR": "Learning coordinator"},
         }[self.language]
+        status_labels = {
+            "ru": {"ACTIVE": "Готов к работе", "PAUSED": "Приостановлен", "ARCHIVED": "В архиве"},
+            "uk": {"ACTIVE": "Готовий до роботи", "PAUSED": "Призупинений", "ARCHIVED": "В архіві"},
+            "en": {"ACTIVE": "Ready to work", "PAUSED": "Paused", "ARCHIVED": "Archived"},
+        }[self.language]
+        skills_heading = {"ru": "Навыки", "uk": "Навички", "en": "Skills"}[self.language]
         for agent in agents:
             card = QFrame()
             card.setObjectName("luminiferaTeamCard")
@@ -85,12 +91,20 @@ class TeamDashboard(QWidget):
             role = role_labels.get(agent.primary_role, agent.primary_role.replace("_", " ").title())
             role_label = QLabel(role)
             role_label.setObjectName("luminiferaWorkMuted")
+            status_label = QLabel(status_labels.get(agent.lifecycle_state, agent.lifecycle_state.replace("_", " ").title()))
+            status_label.setObjectName("luminiferaTeamStatus")
             responsibility = QLabel(agent.description or ({"ru": "Отвечает за свою часть работы", "uk": "Відповідає за свою частину роботи", "en": "Owns a part of the work"}[self.language]))
             responsibility.setWordWrap(True)
             responsibility.setObjectName("luminiferaTeamResponsibility")
             text.addWidget(name)
             text.addWidget(role_label)
+            text.addWidget(status_label)
             text.addWidget(responsibility)
+            if agent.skills:
+                skills = QLabel(f"{skills_heading}: {', '.join(agent.skills[:3])}")
+                skills.setObjectName("luminiferaTeamSkills")
+                skills.setWordWrap(True)
+                text.addWidget(skills)
             row.addLayout(text, 1)
             item = QListWidgetItem()
             item.setSizeHint(card.sizeHint())
