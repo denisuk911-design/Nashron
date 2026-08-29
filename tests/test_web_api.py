@@ -19,3 +19,11 @@ def test_web_unknown_organization_is_rejected():
     client = TestClient(app)
     response = client.get("/api/organizations/missing/home")
     assert response.status_code == 404
+
+
+def test_websocket_event_contract_is_available():
+    from services.api.app import app
+
+    client = TestClient(app)
+    with client.websocket_connect("/api/events") as socket:
+        socket.send_text("ping")
