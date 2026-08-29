@@ -54,7 +54,8 @@ class WorkDashboard(QWidget):
         self.team_card, self.team_heading, self.team_body = self._card()
         self.artifacts_card, self.artifacts_heading, self.artifacts_body = self._card()
         self.review_card, self.review_heading, self.review_body = self._card()
-        for card in (self.team_card, self.artifacts_card, self.review_card):
+        self.steps_card, self.steps_heading, self.steps_body = self._card()
+        for card in (self.team_card, self.artifacts_card, self.review_card, self.steps_card):
             cards.addWidget(card)
         layout.addLayout(cards)
         layout.addStretch(1)
@@ -97,3 +98,12 @@ class WorkDashboard(QWidget):
         self.artifacts_body.setText("\n".join(item.title for item in snapshot.artifacts) or copy["no_results"])
         self.review_heading.setText(copy["review"])
         self.review_body.setText(copy["findings"].format(count=snapshot.findings))
+        self.steps_heading.setText({"ru": "Этапы", "uk": "Етапи", "en": "Steps"}[self.language])
+        step_labels = {
+            "ASSIGNED": {"ru": "Назначен", "uk": "Призначено", "en": "Assigned"},
+            "RUNNING": {"ru": "В работе", "uk": "У роботі", "en": "Working"},
+            "AWAITING_REVIEW": {"ru": "На проверке", "uk": "На перевірці", "en": "In review"},
+            "COMPLETED": {"ru": "Завершён", "uk": "Завершено", "en": "Completed"},
+        }
+        steps = [f"{item.title}: {step_labels.get(item.status, {}).get(self.language, item.status)}" for item in snapshot.steps]
+        self.steps_body.setText("\n".join(steps) or {"ru": "Этапы появятся после запуска цели", "uk": "Етапи з'являться після запуску цілі", "en": "Steps appear after the goal starts"}[self.language])

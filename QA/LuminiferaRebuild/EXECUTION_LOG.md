@@ -197,3 +197,5 @@ FOLLOW_UP: First-run team handoff is now intent-gated: social greetings remain o
 FOLLOW_UP: `team_proposal` now carries the original first-run brief to the Team Builder; ordinary social messages remain `help`. Added regression coverage for both branches (`13 passed` targeted Supervisor/Iris/Product suite).
 
 PRODUCT POLISH: Files cards now translate artifact types and review statuses into user-facing labels for RU/UA/EN. Targeted Files/Work/Supervisor tests: `11 passed`; packaged Files smoke: `exit=0`, `checks_passed=true` (`Screenshots/files_metadata_recheck.png`).
+
+WORK OBSERVABILITY: Work view now includes persisted plan assignments as human-readable stages alongside progress, artifacts and review count. Targeted Work/UI tests: `5 passed`; packaged Work smoke: `exit=0`, `checks_passed=true` (`Screenshots/work_steps_recheck.png`).

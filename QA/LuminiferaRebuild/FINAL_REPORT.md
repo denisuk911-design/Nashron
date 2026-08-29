@@ -34,6 +34,7 @@ Steps 01-10 have packaged previews and targeted tests. Steps 11-15 are partial m
 - Iris first-run handoff check: `iris_recheck.json` and `iris_recheck.png`;
 - guarded Iris social-vs-outcome routing is covered by `tests/test_supervisor_chat_application_service.py`;
 - Files metadata localization evidence: `Screenshots/files_metadata_recheck.json` and `files_metadata_recheck.png`;
+- Work stage observability evidence: `Screenshots/work_steps_recheck.json` and `work_steps_recheck.png`;
 - RC foreign-key result: `foreign_key_errors=0`, equivalent to `FK=[]`.
 
 ## Verification

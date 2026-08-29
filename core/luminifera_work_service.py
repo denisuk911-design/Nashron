@@ -15,6 +15,13 @@ class WorkArtifact:
 
 
 @dataclass(frozen=True)
+class WorkStep:
+    title: str
+    status: str
+    is_review: bool = False
+
+
+@dataclass(frozen=True)
 class WorkSnapshot:
     organization_name: str = ""
     team_size: int = 0
@@ -23,6 +30,7 @@ class WorkSnapshot:
     goal_progress: int = 0
     artifacts: tuple[WorkArtifact, ...] = ()
     findings: int = 0
+    steps: tuple[WorkStep, ...] = ()
 
 
 class LuminiferaWorkService:
@@ -49,6 +57,18 @@ class LuminiferaWorkService:
         tasks = self._database.list_tasks(limit=1, organization_id=organization_id)
         artifacts = self._database.list_artifacts(limit=6, organization_id=organization_id)
         findings = self._database.list_findings(limit=100, organization_id=organization_id)
+        plans = self._database.list_project_plans(organization_id)
+        steps: tuple[WorkStep, ...] = ()
+        if plans:
+            assignments = self._database.list_work_assignments(str(plans[0]["id"]))
+            steps = tuple(
+                WorkStep(
+                    title=str(row["position"] or row["role_id"] or "Участок работы"),
+                    status=str(row["status"] or "ASSIGNED"),
+                    is_review=str(row["assignment_type"] or "") == "REVIEW",
+                )
+                for row in assignments[:8]
+            )
         task = tasks[0] if tasks else None
         state = str(task["state"] or "") if task is not None else ""
         return WorkSnapshot(
@@ -59,4 +79,5 @@ class LuminiferaWorkService:
             goal_progress=self._PROGRESS.get(state.upper(), 0),
             artifacts=tuple(WorkArtifact(str(row["relative_path"] or row["kind"] or "Результат"), str(row["status"] or "")) for row in artifacts),
             findings=len(findings),
+            steps=steps,
         )
