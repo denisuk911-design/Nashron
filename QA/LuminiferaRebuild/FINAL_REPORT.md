@@ -25,6 +25,7 @@ Steps 01-10 have packaged previews and targeted tests. Steps 11-15 are partial m
 
 - packaged executable: `dist/Team2050/Team2050.exe`;
 - screenshots: `QA/LuminiferaRebuild/Screenshots/`;
+- screenshot index: `QA/LuminiferaRebuild/Screenshots/SCREENSHOT_INDEX.md`;
 - engine parity: `QA/LuminiferaRebuild/EngineParity/FINAL.md`;
 - legacy status: `QA/LuminiferaRebuild/LegacyAudit/README.md`;
 - packaged final Home/Profile/Work/Settings reports: `final_home.json`, `final_profile.json`, `final3_profile.json`, `final4_home.json`, `10_states.json`, `final2_settings.json`, `final2_work.json`;
@@ -39,6 +40,7 @@ Steps 01-10 have packaged previews and targeted tests. Steps 11-15 are partial m
 - Product state catalog evidence: `Screenshots/states_recheck.json` and `states_recheck.png`;
 - Visual polish evidence: `Screenshots/visual_polish_recheck.json` and `visual_polish_recheck.png`;
 - Expanded state catalog evidence: `Screenshots/state_catalog_recheck.json` and `state_catalog_recheck.png`;
+- Latest packaged acceptance matrix: `Screenshots/accept_*_latest.json` and corresponding PNG screenshots;
 - Team empty-state recovery evidence: `Screenshots/team_roster_cta_recheck.json` and `team_roster_cta_recheck.png`;
 - RC foreign-key result: `foreign_key_errors=0`, equivalent to `FK=[]`.
 
