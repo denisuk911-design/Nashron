@@ -64,3 +64,6 @@ Home and Work now share the durable Runtime V3 checkpoint projection. A real goa
 ## Verified result receipt
 
 The Work surface now distinguishes a real verified result from ordinary progress. The receipt card requires a completed Runtime V3 goal plus durable artifact and evidence references; user-facing copy does not infer completion from agent claims.
+## Files artifact projection
+
+The Files product view now includes artifacts from durable Runtime V3 checkpoints, while keeping legacy artifact support. Product labels use only safe filenames and human statuses; packaged Files smoke passed.
