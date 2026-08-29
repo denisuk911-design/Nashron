@@ -14,7 +14,7 @@ REVIEW_REAL_CORE: Existing Runtime V3/review engine preserved; Work Receipt API 
 REALTIME: WebSocket `/api/events` publishes organization, Iris and goal lifecycle events
 ORG_ISOLATION: Server validates organization IDs and scopes product reads; auth/membership enforcement is the next deployment layer
 LOCALIZATION: Initial product copy is Russian; settings API accepts RU/UA/EN and persists the selected language; provider labels are human-facing
-EXISTING_ENGINE_TESTS: Not rerun in this web foundation checkpoint; no core files were changed
+EXISTING_ENGINE_TESTS: `python -m pytest` completed with 498 passed in 157.48 seconds after Web service extraction
 WEB_TESTS: targeted Web/API, management and supervisor-chat coverage: 28 passed; isolated service-backed smoke passed
 SERVICE_SMOKE: `scripts/web_smoke.py` proves team creation, persisted Iris chat, Director plan creation and WebCore restart persistence in a clean profile
 KNOWN_GAPS: Full WorkItem execution streaming, review/rework API, provider auth UI, complete RU/UA/EN catalogs and browser visual acceptance still need extraction and coverage

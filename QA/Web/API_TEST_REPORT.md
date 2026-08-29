@@ -27,3 +27,8 @@ The full browser regression suite remains a hardening item after the remaining l
 
 - `pytest tests/test_universal_platform_u1.py tests/test_web_api.py tests/test_management_foundations.py`: **20 passed**.
 - The new unit check proves membership role reassignment is persisted through `UniversalPlatformService`; the Web endpoint also updates the employee profile through `ManagementService` before publishing its event.
+
+## Full Python engine compatibility gate
+
+- `python -m pytest`: **498 passed** in 157.48 seconds.
+- Warnings: Starlette `TestClient` deprecation notice and an existing backup-fixture duplicate zip entry warning. No test failures.

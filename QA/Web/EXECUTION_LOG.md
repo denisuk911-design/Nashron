@@ -66,3 +66,8 @@
 - The Team view now exposes real archive and delete controls for each scoped employee.
 - Archive calls the existing ManagementService-backed endpoint. Delete requires a browser confirmation and the server-side `confirm=true` gate.
 - Role reassignment is now extracted through `ManagementService` plus `UniversalPlatformService`, so profile roles and organization routing roles remain consistent.
+
+## Full compatibility verification
+
+- Full Python engine suite passed: `498 passed` in 157.48 seconds.
+- Web service extraction has not broken the existing Runtime V2/V3, management, organization, chat or PySide compatibility coverage.
