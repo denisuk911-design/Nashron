@@ -46,6 +46,15 @@ def test_unknown_provider_check_is_rejected():
     assert client.post("/api/providers/not-real/check").status_code == 404
 
 
+def test_web_work_items_is_a_safe_product_read_model():
+    from services.api.app import app
+
+    client = TestClient(app)
+    response = client.get("/api/work/items")
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+
+
 def test_web_goal_requires_an_assigned_director_without_server_error():
     from services.api.app import app
 

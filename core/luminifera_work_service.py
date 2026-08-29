@@ -47,6 +47,16 @@ class WorkReceiptView:
     review_status: str = ""
 
 
+@dataclass(frozen=True)
+class WorkItemView:
+    title: str
+    status: str
+    assignee: str
+    attempt: int
+    artifacts: int
+    findings: int
+
+
 class LuminiferaWorkService:
     _PROGRESS = {
         "PENDING": 10,
@@ -134,6 +144,36 @@ class LuminiferaWorkService:
             evidence_count=evidence_count,
             findings_count=findings_count,
             review_status="PASSED" if receipt is not None and goal.status == GoalStatus.COMPLETED else "IN_PROGRESS" if goal.status != GoalStatus.COMPLETED else "NEEDS_ATTENTION",
+        )
+
+    def items(self, organization_id: str | None) -> tuple[WorkItemView, ...]:
+        if not organization_id or self._runtime_root is None:
+            return ()
+        state_path = self._runtime_root / organization_id / "checkpoints" / "state.json"
+        if not state_path.is_file():
+            return ()
+        try:
+            state = load_state(state_path)
+        except (OSError, ValueError, KeyError, TypeError):
+            return ()
+        goals = sorted(state.goals.values(), key=lambda item: (item.updated_at, item.created_at), reverse=True)
+        if not goals:
+            return ()
+        goal_id = goals[0].goal_id
+        names = {item.employee_id: item.display_name for item in state.employee_snapshots.values()}
+        artifacts = tuple(state.artifacts.values())
+        findings = tuple(state.findings.values())
+        return tuple(
+            WorkItemView(
+                title=item.objective,
+                status=item.status.value,
+                assignee=names.get(item.assigned_employee_id, "Assigned team member"),
+                attempt=item.attempt,
+                artifacts=sum(artifact.work_item_id == item.work_item_id for artifact in artifacts),
+                findings=sum(finding.work_item_id == item.work_item_id for finding in findings),
+            )
+            for item in state.work_items.values()
+            if item.goal_id == goal_id
         )
 
     def _runtime_snapshot(self, organization_id: str, organization_name: str) -> WorkSnapshot | None:
