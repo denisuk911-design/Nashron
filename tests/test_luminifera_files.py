@@ -18,6 +18,9 @@ def test_files_browser_renders_empty_state_and_artifact_metadata():
     card = browser.list.itemWidget(browser.list.item(0))
     assert card is not None
     assert "docs/spec.md" in card.findChild(widgets.QLabel, "luminiferaFileTitle").text()
+    assert browser._artifact_type_label("BOM") == "Спецификация"
+    assert browser._status_label("VERIFIED") == "Проверен"
     browser.set_language("en")
     assert browser.heading.text() == "Files and results"
+    assert browser._artifact_type_label("BOM") == "Bill of materials"
     browser.close()

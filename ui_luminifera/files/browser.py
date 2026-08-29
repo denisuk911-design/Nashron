@@ -69,7 +69,10 @@ class FilesBrowser(QWidget):
             text = QVBoxLayout()
             title = QLabel(artifact.title)
             title.setObjectName("luminiferaFileTitle")
-            meta = QLabel(f"{artifact.artifact_type}  •  {artifact.status or 'Готовится'}  •  {artifact.modified[:16]}")
+            meta = QLabel(
+                f"{self._artifact_type_label(artifact.artifact_type)}  •  "
+                f"{self._status_label(artifact.status)}  •  {artifact.modified[:16]}"
+            )
             meta.setObjectName("luminiferaWorkMuted")
             text.addWidget(title)
             text.addWidget(meta)
@@ -78,3 +81,19 @@ class FilesBrowser(QWidget):
             item.setSizeHint(card.sizeHint())
             self.list.addItem(item)
             self.list.setItemWidget(item, card)
+
+    def _artifact_type_label(self, value: str) -> str:
+        labels = {
+            "ru": {"BOM": "Спецификация", "DOC": "Документ", "REPORT": "Отчёт", "WORK_PRODUCT": "Рабочий результат", "IMAGE": "Изображение"},
+            "uk": {"BOM": "Специфікація", "DOC": "Документ", "REPORT": "Звіт", "WORK_PRODUCT": "Робочий результат", "IMAGE": "Зображення"},
+            "en": {"BOM": "Bill of materials", "DOC": "Document", "REPORT": "Report", "WORK_PRODUCT": "Work product", "IMAGE": "Image"},
+        }
+        return labels[self.language].get(str(value or "").upper(), str(value or "Результат"))
+
+    def _status_label(self, value: str) -> str:
+        labels = {
+            "ru": {"DRAFT": "Черновик", "READY": "Готов", "VERIFIED": "Проверен", "APPROVED": "Одобрен", "REJECTED": "Нужна доработка"},
+            "uk": {"DRAFT": "Чернетка", "READY": "Готовий", "VERIFIED": "Перевірений", "APPROVED": "Схвалений", "REJECTED": "Потрібне доопрацювання"},
+            "en": {"DRAFT": "Draft", "READY": "Ready", "VERIFIED": "Verified", "APPROVED": "Approved", "REJECTED": "Needs revision"},
+        }
+        return labels[self.language].get(str(value or "").upper(), str(value or ("Готовится" if self.language == "ru" else "Готується" if self.language == "uk" else "Preparing")))

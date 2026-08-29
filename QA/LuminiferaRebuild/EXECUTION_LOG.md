@@ -195,3 +195,5 @@ FILES_CHANGED: `core/supervisor_chat_service.py`; `gui/supervisor_chat_dialog.py
 FOLLOW_UP: First-run team handoff is now intent-gated: social greetings remain ordinary Iris help, while outcome-oriented descriptions expose the Team Builder action. Rebuilt packaged Iris smoke after the guard (`exit=0`, `checks_passed=true`).
 
 FOLLOW_UP: `team_proposal` now carries the original first-run brief to the Team Builder; ordinary social messages remain `help`. Added regression coverage for both branches (`13 passed` targeted Supervisor/Iris/Product suite).
+
+PRODUCT POLISH: Files cards now translate artifact types and review statuses into user-facing labels for RU/UA/EN. Targeted Files/Work/Supervisor tests: `11 passed`; packaged Files smoke: `exit=0`, `checks_passed=true` (`Screenshots/files_metadata_recheck.png`).
