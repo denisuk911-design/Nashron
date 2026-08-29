@@ -136,6 +136,25 @@
 })();
 
 (() => {
+  const showReviewFindings = async () => {
+    const view = document.querySelector('#view');
+    const select = document.querySelector('#org-select');
+    if (!view || !select?.value || document.querySelector('.side-nav button.active')?.dataset.view !== 'work' || view.querySelector('.web-review-findings')) return;
+    const response = await fetch('/api/work/review', {headers: {'X-Organization-Id': select.value}});
+    if (!response.ok) return;
+    const findings = await response.json();
+    if (!findings.length) return;
+    const panel = document.createElement('section');
+    panel.className = 'web-review-findings magic-card';
+    panel.style.marginTop = '14px';
+    panel.innerHTML = `<span class="eyebrow">Review findings</span><div class="list">${findings.map(finding => `<div class="list-row"><span><b>${String(finding.title).replace(/[&<>]/g, '')}</b><br><small>${String(finding.reviewer).replace(/[&<>]/g, '')}</small></span><span class="tag">${String(finding.severity).replace(/[&<>]/g, '')} · ${String(finding.status).replace(/[&<>]/g, '')}</span></div>`).join('')}</div>`;
+    view.append(panel);
+  };
+  new MutationObserver(() => { showReviewFindings().catch(() => {}); }).observe(document.querySelector('#view'), {childList: true, subtree: true});
+  document.querySelector('[data-view="work"]')?.addEventListener('click', () => setTimeout(() => showReviewFindings().catch(() => {}), 70));
+})();
+
+(() => {
   const attachTeamControls = () => {
     const title = document.querySelector('#view-title');
     const view = document.querySelector('#view');
