@@ -35,9 +35,10 @@
     if (!list || list.dataset.attachmentsReady || !select?.value) return;
     const response = await fetch('/api/chat', {headers:{'X-Organization-Id':select.value}}); if (!response.ok) return;
     const messages = await response.json(); const nodes = list.querySelectorAll('.message');
+    const apiBase = window.LUMINIFERA_API_BASE || '';
     nodes.forEach((node,index) => {
       const files = messages[index]?.attachments || []; if (!files.length) return;
-      node.insertAdjacentHTML('beforeend', `<div style="margin-top:8px;display:grid;gap:4px">${files.map(file=>`<a style="color:var(--cyan);font-size:12px" href="/api/chat/attachments/${encodeURIComponent(file.id)}" target="_blank">📎 ${String(file.name)}</a>`).join('')}</div>`);
+      node.insertAdjacentHTML('beforeend', `<div style="margin-top:8px;display:grid;gap:4px">${files.map(file=>`<a style="color:var(--cyan);font-size:12px" href="${apiBase}/api/chat/attachments/${encodeURIComponent(file.id)}" target="_blank">📎 ${String(file.name)}</a>`).join('')}</div>`);
     }); list.dataset.attachmentsReady='true';
   };
   new MutationObserver(renderAttachmentLinks).observe(document.querySelector('#view'), {childList:true,subtree:true});
