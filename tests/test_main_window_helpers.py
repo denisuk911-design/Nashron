@@ -253,6 +253,7 @@ def test_runtime_v3_goal_mode_runs_service_and_records_result(tmp_path):
     window.runtime_v3_goal_service = FakeService()
     window.active_organization_id = "organization-test"
     window.conversation_id = "conversation-test"
+    window.show_work_view = lambda: events.append(("show_work",))
     window.logger = type("Logger", (), {"exception": lambda *_args: None})()
     window._chat_agents = lambda: [
         ChatAgent("roman", "agent-roman", "Roman", "CODEX_CLI", ["DESIGN_ENGINEER"], "roman_2050", "", None),
@@ -261,8 +262,10 @@ def test_runtime_v3_goal_mode_runs_service_and_records_result(tmp_path):
     handled = MainWindow._try_start_runtime_v3_goal(window, "Цель: создать спецификацию", 7)
 
     assert handled
-    assert events[0][0] == "run_goal"
-    assert events[0][1:3] == ("organization-test", "Цель: создать спецификацию")
+    assert events[0][0] == "show_work"
+    assert any(event[0] == "run_goal" for event in events)
+    run_event = next(event for event in events if event[0] == "run_goal")
+    assert run_event[1:3] == ("organization-test", "Цель: создать спецификацию")
     assert ("event", "runtime_v3_goal_completed", "message_id=7; artifacts=0; evidence=0") in events
     assert any(event[:3] == ("message", "conversation-test", "runtime_v3") for event in events)
     assert ("receive",) in events

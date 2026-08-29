@@ -260,3 +260,14 @@ ENGINE_PARITY: No provider or runtime behavior changed; only Product Mode presen
 VISUAL_SCREENSHOT: `Screenshots/settings_localized_recheck.png`
 KNOWN_GAPS: Legacy diagnostics remain behind the documented fallback; final manual visual acceptance is still required.
 FILES_CHANGED: `ui_luminifera/settings/dialog.py`; `tests/test_luminifera_settings.py`
+
+## Runtime result refresh and team visibility
+
+STEP: 06 follow-up
+STATUS: PASS for Product Mode refresh after a Runtime V3 goal.
+TECHNICAL_TESTS: `51 passed` across Luminifera, Iris and MainWindow helper tests; durable checkpoint inspection confirms `3` employee snapshots, `1` goal, artifacts and evidence are available to the Work adapter.
+PACKAGED_TEST: Build PASS. A repeated packaged golden run entered the real GUI path and opened Work, but its external Codex/Gemini calls timed out before review; that run is recorded as FAIL and is not used as acceptance evidence.
+ENGINE_PARITY: After V3 execution, Home/Work/Files projections are refreshed in the same application flow. Work uses durable employee snapshots for team size and no longer reports zero participants for a populated goal.
+VISUAL_SCREENSHOT: Work rendering is covered by the existing packaged `Screenshots/work_v3_checkpoint_recheck.png`; the latest failed provider run is intentionally not promoted as PASS evidence.
+KNOWN_GAPS: Packaged external provider timeouts remain an infrastructure/runtime issue requiring provider availability or timeout policy work; full legacy pytest and owner manual visual acceptance remain open.
+FILES_CHANGED: `gui/main_window.py`; `core/luminifera_work_service.py`; `tests/test_main_window_helpers.py`; `tests/test_luminifera_work_service.py`

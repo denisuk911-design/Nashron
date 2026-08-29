@@ -135,8 +135,15 @@ class LuminiferaWorkService:
             )
             for item in items[:8]
         )
+        team_size = len(state.employee_snapshots)
+        if not team_size:
+            try:
+                team_size = len(list_chat_agents(self._database, organization_id=organization_id))
+            except (AttributeError, KeyError, TypeError):
+                team_size = 0
         return WorkSnapshot(
             organization_name=organization_name,
+            team_size=team_size,
             goal_title=goal.objective,
             goal_state=goal.status.value,
             goal_progress=max(0, min(100, progress)),

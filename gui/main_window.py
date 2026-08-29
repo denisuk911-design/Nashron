@@ -1234,6 +1234,9 @@ class MainWindow(QMainWindow):
         self.chat.set_goal_status(True, text, 0)
         self.chat.set_busy(True)
         self.chat.start_agent_typing("runtime_v3", "создаю план")
+        open_work = getattr(self, "show_work_view", None)
+        if callable(open_work):
+            open_work()
         try:
             result = service.run_goal(self.active_organization_id, text, self._chat_agents())
         except Exception as exc:
@@ -1252,6 +1255,10 @@ class MainWindow(QMainWindow):
             self.chat.stop_agent_typing("runtime_v3")
             self.chat.set_busy(False)
             self.chat.set_goal_status(False)
+            for refresh_name in ("_refresh_luminifera_home", "_refresh_luminifera_work", "_refresh_luminifera_files"):
+                refresh = getattr(self, refresh_name, None)
+                if callable(refresh):
+                    refresh()
         response_item = self.chat.add_message("runtime_v3", result_text)
         response_id = self.database.add_message(self.conversation_id, "runtime_v3", result_text)
         bind_message_id = getattr(self.chat, "bind_message_id", None)

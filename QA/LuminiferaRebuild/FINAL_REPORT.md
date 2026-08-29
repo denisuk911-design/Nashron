@@ -76,3 +76,6 @@ The Work receipt card now exposes a product-level `Open result` action only afte
 ## Navigation state synchronization
 
 Contextual navigation into Home, Chat, Work, Team and Files now updates the product sidebar selection as well as the content view. Packaged Work smoke passed after the change.
+## Latest Product Mode runtime handoff
+
+Iris goal creation now uses the durable Runtime V3 service when available. The main Product Mode automatically opens Work for a goal and refreshes Home, Work and Files after execution, while Work derives team size from durable employee snapshots. Targeted suite: `51 passed`; latest successful packaged V3 golden evidence recorded `3` work items, `6` observations, `4` artifacts, `10` evidence and `checks_passed=true`. A later repeat exposed intermittent external Codex/Gemini CLI timeouts; that failed run is retained only as local diagnostic output and is not reported as acceptance PASS.
