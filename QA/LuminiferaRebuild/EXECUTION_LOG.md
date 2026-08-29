@@ -135,8 +135,9 @@ KNOWN_GAPS: Final typography, hover/focus and populated-state comparison require
 ## STEP 14 - Window Size / Responsive
 
 STEP: 14
-STATUS: PARTIAL; product shell uses responsive layouts, stable panel sizing and has been checked at the packaged default viewport.
-KNOWN_GAPS: Full 1366x768, 1920x1080 and 2560x1440 screenshot matrix remains for final visual acceptance.
+STATUS: PARTIAL; product shell uses responsive layouts, stable panel sizing and has been checked in packaged Home previews at 1366x768, 1920x1080 and 2560x1440.
+VISUAL_SCREENSHOTS: `Screenshots/responsive_1366x768.png`; `Screenshots/responsive_1920x1080.png`; `Screenshots/responsive_2560x1440.png`
+KNOWN_GAPS: Final owner visual acceptance remains required for wide-screen composition and populated states.
 
 ## STEP 15 - Legacy Purge
 

@@ -363,6 +363,14 @@ def _run_preview_smoke(app: QApplication, window: MainWindow) -> None:
             window._profile_dialog_preview.show()
             window.product_shell.set_active_navigation("profile")
             QApplication.processEvents()
+        preview_size = os.environ.get("TEAM2050_PREVIEW_SIZE", "")
+        if "x" in preview_size.lower():
+            try:
+                width, height = (int(value) for value in preview_size.lower().split("x", 1))
+                window.resize(max(760, width), max(560, height))
+                QApplication.processEvents()
+            except (TypeError, ValueError):
+                logger.warning("invalid_preview_size=%s", preview_size)
         rc_checks = RcChecklistService(window.paths.user_dir).run()
         rc_report = RcChecklistService(window.paths.user_dir).report_path
         demo_state = window.paths.user_dir / "demo_sandbox" / "checkpoints" / "state.json"
