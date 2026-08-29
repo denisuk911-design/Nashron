@@ -180,3 +180,14 @@ ENGINE_PARITY: No runtime behavior changed; current Home/Work/Files view snapsho
 VISUAL_SCREENSHOT: `Screenshots/language_recheck.png`
 KNOWN_GAPS: Final populated-state visual acceptance and legacy fallback purge remain documented in the final report.
 FILES_CHANGED: `ui_luminifera/app_shell/shell.py`; `ui_luminifera/home/dashboard.py`; `ui_luminifera/work/dashboard.py`; `ui_luminifera/files/browser.py`
+
+## Iris first-run outcome flow
+
+STEP: 04/05
+STATUS: PASS for the first-run handoff.
+TECHNICAL_TESTS: Supervisor/Iris and Luminifera targeted suite passed (`18 passed`).
+PACKAGED_TEST: PASS; rebuilt `Team2050.exe`; packaged Iris preview exited 0 with `checks_passed=true`.
+ENGINE_PARITY: Free-form first-run requests now return a service-owned `team_proposal` result; the UI offers `Собрать команду` and forwards the original brief to Team Builder.
+VISUAL_SCREENSHOT: `Screenshots/iris_recheck.png`
+KNOWN_GAPS: Existing-organizations goal creation still uses the established explicit Goal commands; final full acceptance and legacy fallback audit remain open.
+FILES_CHANGED: `core/supervisor_chat_service.py`; `gui/supervisor_chat_dialog.py`; `gui/main_window.py`; `tests/test_supervisor_chat_application_service.py`

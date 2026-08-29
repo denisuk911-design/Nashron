@@ -106,6 +106,14 @@ def test_explicit_complex_command_is_not_diverted_to_strong():
     assert calls == []
 
 
+def test_first_run_request_returns_team_proposal_instead_of_advisory_only():
+    service, _management, _settings = make_service()
+    result = service.handle("Соберите команду для запуска приложения")
+    assert result.ok
+    assert result.action == "team_proposal"
+    assert result.data["brief"] == "Соберите команду для запуска приложения"
+
+
 def test_unmapped_complex_request_uses_real_strong_callback():
     service, _management, _settings = make_service()
     service.local_runtime = SimpleNamespace(decide=lambda _text: "COMPLEX")

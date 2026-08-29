@@ -141,7 +141,14 @@ class SupervisorChatApplicationService:
                 return SupervisorChatResult(True, self._plans_text(plans), action="list_goals", data={"count": len(plans)})
             if route == "STRONG":
                 return SupervisorChatResult(False, "Для этого запроса нужен Strong provider, но он не подключён.", route=route, action="strong_unavailable")
-            return SupervisorChatResult(True, "Команда понятна, но отдельное действие не найдено. Уточните объект и операцию.", action="help")
+            if organization_id is None:
+                return SupervisorChatResult(
+                    True,
+                    "Понял задачу. Давайте сначала соберём подходящую команду, а затем превратим результат в рабочую цель.",
+                    action="team_proposal",
+                    data={"brief": text},
+                )
+            return SupervisorChatResult(True, "Понял запрос. Уточните, какую цель или действие нужно выполнить.", action="help")
         except (ValueError, KeyError, RuntimeError) as exc:
             return SupervisorChatResult(False, f"Не выполнено: {exc}", route=route, action="error")
 

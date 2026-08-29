@@ -717,9 +717,11 @@ class MainWindow(QMainWindow):
         if hasattr(self, "files_panel"):
             self.files_panel.render(self.luminifera_files_service.list_files(self.active_organization_id))
 
-    def _start_first_team_creation(self) -> None:
+    def _start_first_team_creation(self, brief: str = "") -> None:
         language = str(self.settings.get("interface_language", "ru"))
         builder = TeamBuilderDialog(self.universal_platform_service, language, self)
+        if brief.strip():
+            builder.brief.setPlainText(brief.strip())
         if builder.exec() != TeamBuilderDialog.Accepted or builder.build is None:
             return
         self.settings["onboarding_skipped"] = False
@@ -2845,7 +2847,12 @@ class MainWindow(QMainWindow):
             local_runtime=getattr(self.runtime_v3_goal_service, "local_supervisor", None),
             strong_handler=self._run_supervisor_strong_request,
         )
-        dialog = SupervisorChatDialog(service, self.active_organization_id, self)
+        dialog = SupervisorChatDialog(
+            service,
+            self.active_organization_id,
+            self,
+            team_builder_handler=lambda brief: self._start_first_team_creation(brief),
+        )
         if modal:
             dialog.exec()
         else:

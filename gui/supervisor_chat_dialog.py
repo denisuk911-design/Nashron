@@ -10,10 +10,11 @@ from gui.dialog_chrome import apply_team_dialog_chrome
 class SupervisorChatDialog(QDialog):
     """Dedicated owner surface for Iris, backed by application services."""
 
-    def __init__(self, service: SupervisorChatApplicationService, organization_id: str | None, parent=None) -> None:
+    def __init__(self, service: SupervisorChatApplicationService, organization_id: str | None, parent=None, team_builder_handler=None) -> None:
         super().__init__(parent)
         self.service = service
         self.organization_id = organization_id
+        self.team_builder_handler = team_builder_handler
         self._pending_token = ""
         apply_team_dialog_chrome(self, minimum_width=720)
         self.setWindowTitle("Iris - Luminifera")
@@ -33,10 +34,14 @@ class SupervisorChatDialog(QDialog):
         self.confirm = QPushButton("Подтвердить действие")
         self.confirm.setVisible(False)
         self.confirm.clicked.connect(self._confirm)
+        self.build_team = QPushButton("Собрать команду")
+        self.build_team.setVisible(False)
+        self.build_team.clicked.connect(self._build_team)
         close = QPushButton("Закрыть")
         close.clicked.connect(self.close)
         buttons = QHBoxLayout()
         buttons.addWidget(self.confirm)
+        buttons.addWidget(self.build_team)
         buttons.addStretch(1)
         buttons.addWidget(close)
         buttons.addWidget(self.send)
@@ -65,8 +70,17 @@ class SupervisorChatDialog(QDialog):
         self.confirm.setVisible(False)
         self._show_result(result)
 
+    def _build_team(self) -> None:
+        brief = getattr(self, "_team_brief", "")
+        self.build_team.setVisible(False)
+        if self.team_builder_handler is not None:
+            self.team_builder_handler(brief)
+
     def _show_result(self, result: SupervisorChatResult) -> None:
         self._append("Iris", result.message)
+        if result.action == "team_proposal":
+            self._team_brief = str(result.data.get("brief") or "")
+            self.build_team.setVisible(self.team_builder_handler is not None)
         if result.confirmation_required:
             self._pending_token = result.confirmation_token
             self.confirm.setVisible(True)
