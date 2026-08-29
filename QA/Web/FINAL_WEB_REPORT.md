@@ -13,7 +13,7 @@ ARTIFACT_REAL_CORE: Real artifact and file read models, server-side text preview
 REVIEW_REAL_CORE: Existing Runtime V3/review engine preserved; Work Receipt API projects actual completion/evidence/findings/review state
 REALTIME: WebSocket `/api/events` publishes organization, Iris and goal lifecycle events
 ORG_ISOLATION: Server validates organization IDs and scopes product reads; auth/membership enforcement is the next deployment layer
-LOCALIZATION: Initial product copy is Russian; settings API accepts RU/UA/EN and persists the selected language
+LOCALIZATION: Initial product copy is Russian; settings API accepts RU/UA/EN and persists the selected language; provider labels are human-facing
 EXISTING_ENGINE_TESTS: Not rerun in this web foundation checkpoint; no core files were changed
 WEB_TESTS: `tests/test_web_api.py` passed (2 tests)
 KNOWN_GAPS: Employee/team mutation forms, full WorkItem execution streaming, artifact download/preview, review/rework API, provider auth UI, complete RU/UA/EN catalogs and browser visual acceptance still need extraction and coverage

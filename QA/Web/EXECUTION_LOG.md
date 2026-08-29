@@ -37,3 +37,8 @@
 
 - Added a durable `WorkReceiptView` read model and `/api/work/receipt`.
 - It projects only human-facing completion, artifacts, evidence count, findings count and review status from Runtime V3 checkpoints.
+
+## Human-facing provider, skill and knowledge surfaces
+
+- Provider responses now use `ProviderRegistry` and persisted health rather than raw database rows; Product labels are Ready, Login required, Busy, Error or Unavailable.
+- Skills and knowledge now serialize service-owned product view models instead of table-shaped internal records.

@@ -30,13 +30,15 @@ from core.path_guard import PathGuard, PathGuardError
 from core.codex_client import CodexClient
 from core.gemini_client import GeminiClient
 from core.provider_credentials import ProviderCredentialService
-from core.provider_service import CodexProviderAdapter, GeminiProviderAdapter
+from core.provider_service import CodexProviderAdapter, GeminiProviderAdapter, ProviderHealthService, ProviderRegistry
 from core.runtime_v3_service import RuntimeV3GoalService
 from core.settings_service import SettingsService
 from core.supervisor_application_service import SupervisorApplicationService
 from core.supervisor_chat_service import SupervisorChatApplicationService
 from core.universal_platform_service import UniversalPlatformService
 from core.tool_access import effective_permissions_for_agent
+from core.skill_package_service import SkillPackageService
+from core.knowledge_service import KnowledgeService
 
 
 class ChatRequest(BaseModel):
@@ -132,12 +134,16 @@ class WebCore:
             credential_lookup=lambda: self.provider_credentials.read("GEMINI_CLI"),
             logger=logging.getLogger("luminifera.web"),
         )
+        self.provider_adapters = {
+            "CODEX_CLI": CodexProviderAdapter(self.codex_client),
+            "GEMINI_CLI": GeminiProviderAdapter(self.gemini_client),
+        }
+        self.provider_registry = ProviderRegistry(self.database)
+        self.provider_registry.ensure_defaults()
+        self.provider_health = ProviderHealthService(self.database, self.provider_registry, self.provider_adapters)
         self.runtime_v3 = RuntimeV3GoalService(
             self.workspace_root / "runtime_v3_goals",
-            provider_adapters={
-                "CODEX_CLI": CodexProviderAdapter(self.codex_client),
-                "GEMINI_CLI": GeminiProviderAdapter(self.gemini_client),
-            },
+            provider_adapters=self.provider_adapters,
             permission_resolver=lambda agent_id: effective_permissions_for_agent(self.database, agent_id),
         )
         self.supervisor = SupervisorApplicationService(self.database)
@@ -152,6 +158,8 @@ class WebCore:
         self.home = LuminiferaHomeService(self.database, runtime_root)
         self.work = LuminiferaWorkService(self.database, runtime_root)
         self.files = LuminiferaFilesService(self.database, runtime_root)
+        self.skills = SkillPackageService(self.database)
+        self.knowledge = KnowledgeService(self.database)
         self.events = ConnectionHub()
 
     def _save_settings(self, values: dict[str, Any]) -> None:
@@ -473,7 +481,24 @@ def download_artifact(artifact_id: str, x_organization_id: str | None = Header(d
 
 @app.get("/api/providers")
 def providers() -> list[dict[str, Any]]:
-    return [_row(row) for row in core.database.list_provider_definitions()]
+    labels = {
+        "READY": "Ready",
+        "AUTHENTICATION_REQUIRED": "Login required",
+        "NOT_AUTHENTICATED": "Login required",
+        "BUSY": "Busy",
+        "ERROR": "Error",
+    }
+    result = []
+    for profile in core.provider_registry.profiles():
+        health = core.provider_health.latest_health(profile.provider_id)
+        raw_state = health.health_status if health is not None else "UNAVAILABLE"
+        result.append({
+            "id": profile.provider_id,
+            "name": profile.display_name,
+            "state": labels.get(raw_state, "Unavailable"),
+            "available": raw_state == "READY",
+        })
+    return result
 
 
 @app.get("/api/skills")
@@ -481,12 +506,18 @@ def skills(x_organization_id: str | None = Header(default=None)) -> list[dict[st
     organization_id = core.organization_id(x_organization_id)
     if not organization_id:
         return []
-    return [_row(row) for row in core.database.list_skill_packages(organization_id)]
+    return [
+        {"id": item.skill_id, "name": item.name, "purpose": item.purpose, "status": item.status, "version": item.version, "roles": item.supported_roles}
+        for item in core.skills.list_packages(organization_id)
+    ]
 
 
 @app.get("/api/knowledge")
 def knowledge() -> list[dict[str, Any]]:
-    return [_row(row) for row in core.database.list_knowledge_cards()]
+    return [
+        {"id": item.knowledge_id, "title": item.title, "summary": item.summary, "status": item.status, "version": item.version, "tags": item.tags, "source": item.source_title}
+        for item in core.knowledge.list_cards()
+    ]
 
 
 @app.get("/api/settings")
