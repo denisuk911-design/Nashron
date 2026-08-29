@@ -24,7 +24,7 @@ def test_luminifera_shell_has_readable_primary_navigation(tmp_path, monkeypatch)
     window = _build_window(_make_settings_service(tmp_path), monkeypatch)
     buttons = window.product_shell._navigation_buttons
 
-    assert set(buttons) == {"home", "chat", "work", "files", "iris"}
+    assert set(buttons) == {"home", "chat", "work", "team", "files", "iris"}
     assert [buttons[key].text().split()[-1] for key in ("home", "chat", "work", "files", "iris")] == [
         "Главная",
         "Чат",

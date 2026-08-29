@@ -199,3 +199,5 @@ FOLLOW_UP: `team_proposal` now carries the original first-run brief to the Team 
 PRODUCT POLISH: Files cards now translate artifact types and review statuses into user-facing labels for RU/UA/EN. Targeted Files/Work/Supervisor tests: `11 passed`; packaged Files smoke: `exit=0`, `checks_passed=true` (`Screenshots/files_metadata_recheck.png`).
 
 WORK OBSERVABILITY: Work view now includes persisted plan assignments as human-readable stages alongside progress, artifacts and review count. Targeted Work/UI tests: `5 passed`; packaged Work smoke: `exit=0`, `checks_passed=true` (`Screenshots/work_steps_recheck.png`).
+
+TEAM VISIBILITY: Added a Product Mode Team screen with a readable roster, avatar, role and responsibility, connected to organization-filtered chat agents through the existing directory/application boundary. Targeted UI/startup tests: `13 passed`; packaged roster smoke: `exit=0`, `checks_passed=true` (`Screenshots/team_roster_recheck.png`).

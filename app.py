@@ -106,7 +106,7 @@ def _prepare_preview_smoke_settings(settings_service: SettingsService) -> None:
                 "chat_background_opacity": 18,
             }
         )
-    if os.environ.get("TEAM2050_PREVIEW_SCREEN") in {"home", "work", "iris", "team", "chat", "files", "settings", "profile"}:
+    if os.environ.get("TEAM2050_PREVIEW_SCREEN") in {"home", "work", "iris", "team", "team_roster", "chat", "files", "settings", "profile"}:
         settings["onboarding_skipped"] = True
     settings_service.save(settings)
 
@@ -331,6 +331,12 @@ def _run_preview_smoke(app: QApplication, window: MainWindow) -> None:
             window._team_builder_dialog.brief.setPlainText("Создать инженерную команду продукта")
             window._team_builder_dialog._propose_clicked(window._team_builder_dialog.propose.button(QDialogButtonBox.Apply))
             window._team_builder_dialog.show()
+            QApplication.processEvents()
+        if os.environ.get("TEAM2050_PREVIEW_SCREEN") == "team_roster":
+            window._luminifera_active_view = "team"
+            window.product_shell.set_active_navigation("team")
+            window._refresh_luminifera_team()
+            window._update_empty_team_state()
             QApplication.processEvents()
         if os.environ.get("TEAM2050_PREVIEW_SCREEN") == "work":
             window._luminifera_active_view = "work"

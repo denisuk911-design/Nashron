@@ -50,7 +50,7 @@ class LuminiferaShell(QWidget):
         brand_row.addWidget(name, 1)
         layout.addLayout(brand_row)
         layout.addSpacing(24)
-        for key, symbol, label in (("home", "⌂", "Главная"), ("chat", "◌", "Чат"), ("work", "□", "Работа"), ("files", "▱", "Файлы")):
+        for key, symbol, label in (("home", "⌂", "Главная"), ("chat", "◌", "Чат"), ("work", "□", "Работа"), ("team", "♙", "Команда"), ("files", "▱", "Файлы")):
             layout.addWidget(self._navigation_button(key, symbol, label))
         divider = QFrame()
         divider.setObjectName("luminiferaDivider")
@@ -154,11 +154,11 @@ class LuminiferaShell(QWidget):
 
     def set_language(self, language: str) -> None:
         labels = {
-            "ru": {"home": "Главная", "chat": "Чат", "work": "Работа", "files": "Файлы", "iris": "Iris", "iris_caption": "AI-супервизер", "help": "Помощь", "settings": "Настройки"},
-            "uk": {"home": "Головна", "chat": "Чат", "work": "Робота", "files": "Файли", "iris": "Iris", "iris_caption": "AI-супервізор", "help": "Допомога", "settings": "Налаштування"},
-            "en": {"home": "Home", "chat": "Chat", "work": "Work", "files": "Files", "iris": "Iris", "iris_caption": "AI supervisor", "help": "Help", "settings": "Settings"},
+            "ru": {"home": "Главная", "chat": "Чат", "work": "Работа", "team": "Команда", "files": "Файлы", "iris": "Iris", "iris_caption": "AI-супервизер", "help": "Помощь", "settings": "Настройки"},
+            "uk": {"home": "Головна", "chat": "Чат", "work": "Робота", "team": "Команда", "files": "Файли", "iris": "Iris", "iris_caption": "AI-супервізор", "help": "Допомога", "settings": "Налаштування"},
+            "en": {"home": "Home", "chat": "Chat", "work": "Work", "team": "Team", "files": "Files", "iris": "Iris", "iris_caption": "AI supervisor", "help": "Help", "settings": "Settings"},
         }.get(language, {})
-        symbols = {"home": "⌂", "chat": "◌", "work": "□", "files": "▱", "iris": "✦"}
+        symbols = {"home": "⌂", "chat": "◌", "work": "□", "team": "♙", "files": "▱", "iris": "✦"}
         for key, label in labels.items():
             if key in self._navigation_buttons:
                 self._navigation_buttons[key].setText(f"{symbols.get(key, '')}   {label}")

@@ -35,6 +35,7 @@ Steps 01-10 have packaged previews and targeted tests. Steps 11-15 are partial m
 - guarded Iris social-vs-outcome routing is covered by `tests/test_supervisor_chat_application_service.py`;
 - Files metadata localization evidence: `Screenshots/files_metadata_recheck.json` and `files_metadata_recheck.png`;
 - Work stage observability evidence: `Screenshots/work_steps_recheck.json` and `work_steps_recheck.png`;
+- Team roster evidence: `Screenshots/team_roster_recheck.json` and `team_roster_recheck.png`;
 - RC foreign-key result: `foreign_key_errors=0`, equivalent to `FK=[]`.
 
 ## Verification

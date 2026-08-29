@@ -117,7 +117,7 @@ from runtime_v2.feature_flag import RuntimeEngine, selected_runtime
 from ui_luminifera.app_shell import LuminiferaShell
 from ui_luminifera.home import HomeDashboard
 from ui_luminifera.files import FilesBrowser
-from ui_luminifera.team import TeamBuilderDialog
+from ui_luminifera.team import TeamBuilderDialog, TeamDashboard
 from ui_luminifera.work import WorkDashboard
 from ui_luminifera.onboarding import FirstRunOnboarding
 from ui_luminifera.settings import LuminiferaSettingsDialog
@@ -507,6 +507,7 @@ class MainWindow(QMainWindow):
                 "home": self.show_home_view,
                 "chat": self.show_chat_view,
                 "work": self.show_work_view,
+                "team": self.show_team_view,
                 "files": self.show_files_view,
                 "iris": self.show_supervisor_chat,
                 "settings": self.open_settings,
@@ -518,6 +519,7 @@ class MainWindow(QMainWindow):
         )
         self.chat_view_button = self.product_shell._navigation_buttons["chat"]
         self.work_view_button = self.product_shell._navigation_buttons["work"]
+        self.team_view_button = self.product_shell._navigation_buttons["team"]
         self.files_view_button = self.product_shell._navigation_buttons["files"]
         self.supervisor_chat_button = self.product_shell.iris_button
         self.feedback_button = self.product_shell.help_button
@@ -608,11 +610,13 @@ class MainWindow(QMainWindow):
         self.home_panel.work_requested.connect(self.show_work_view)
         self.work_panel = WorkDashboard(str(self.settings.get("interface_language", "ru")))
         self.work_panel.talk_to_iris.connect(self.show_supervisor_chat)
+        self.team_panel = TeamDashboard(str(self.settings.get("interface_language", "ru")))
         self.files_panel = FilesBrowser(str(self.settings.get("interface_language", "ru")))
         self.files_panel.open_workspace_requested.connect(self.open_workspace)
         layout.addWidget(self.empty_team_panel, 1)
         layout.addWidget(self.home_panel, 1)
         layout.addWidget(self.work_panel, 1)
+        layout.addWidget(self.team_panel, 1)
         layout.addWidget(self.files_panel, 1)
         layout.addWidget(self.chat, 1)
         self._update_empty_team_state()
@@ -671,6 +675,9 @@ class MainWindow(QMainWindow):
         if hasattr(self, "files_panel"):
             self.files_panel.set_language(language)
             self._refresh_luminifera_files()
+        if hasattr(self, "team_panel"):
+            self.team_panel.set_language(language)
+            self._refresh_luminifera_team()
 
     def _skip_onboarding(self) -> None:
         self.settings["onboarding_skipped"] = True
@@ -695,12 +702,14 @@ class MainWindow(QMainWindow):
         onboarding = not has_team and not skipped
         show_home = not onboarding and self._luminifera_active_view == "home"
         show_work = not onboarding and self._luminifera_active_view == "work"
+        show_team = not onboarding and self._luminifera_active_view == "team"
         show_files = not onboarding and self._luminifera_active_view == "files"
         self.empty_team_panel.setVisible(onboarding)
         self.home_panel.setVisible(show_home)
         self.work_panel.setVisible(show_work)
+        self.team_panel.setVisible(show_team)
         self.files_panel.setVisible(show_files)
-        self.chat.setVisible(not onboarding and not show_home and not show_work and not show_files)
+        self.chat.setVisible(not onboarding and not show_home and not show_work and not show_team and not show_files)
         shell = getattr(self, "product_shell", None)
         if shell is not None:
             shell.set_onboarding_mode(onboarding)
@@ -716,6 +725,10 @@ class MainWindow(QMainWindow):
     def _refresh_luminifera_files(self) -> None:
         if hasattr(self, "files_panel"):
             self.files_panel.render(self.luminifera_files_service.list_files(self.active_organization_id))
+
+    def _refresh_luminifera_team(self) -> None:
+        if hasattr(self, "team_panel"):
+            self.team_panel.render(self._chat_agents())
 
     def _start_first_team_creation(self, brief: str = "") -> None:
         language = str(self.settings.get("interface_language", "ru"))
@@ -1563,6 +1576,11 @@ class MainWindow(QMainWindow):
         self._refresh_luminifera_work()
         self._update_empty_team_state()
         self._refresh_work_context_strip()
+
+    def show_team_view(self) -> None:
+        self._luminifera_active_view = "team"
+        self._refresh_luminifera_team()
+        self._update_empty_team_state()
 
     def show_files_view(self) -> None:
         self._luminifera_active_view = "files"
