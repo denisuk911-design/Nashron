@@ -73,3 +73,6 @@ Runtime V3 goal and step statuses are localized in the Work surface, including r
 ## Result handoff action
 
 The Work receipt card now exposes a product-level `Open result` action only after verified completion and routes the user to Files. It stays hidden while review is pending. Packaged Work smoke passed.
+## Navigation state synchronization
+
+Contextual navigation into Home, Chat, Work, Team and Files now updates the product sidebar selection as well as the content view. Packaged Work smoke passed after the change.

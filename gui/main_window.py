@@ -1573,6 +1573,8 @@ class MainWindow(QMainWindow):
     def show_home_view(self) -> None:
         self.conversation_mode = ConversationMode.SOCIAL
         self._luminifera_active_view = "home"
+        if hasattr(self, "product_shell"):
+            self.product_shell.set_active_navigation("home")
         self._refresh_luminifera_home()
         self._update_empty_team_state()
         self._refresh_work_context_strip()
@@ -1580,23 +1582,31 @@ class MainWindow(QMainWindow):
     def show_chat_view(self) -> None:
         self.conversation_mode = ConversationMode.SOCIAL
         self._luminifera_active_view = "chat"
+        if hasattr(self, "product_shell"):
+            self.product_shell.set_active_navigation("chat")
         self._update_empty_team_state()
         self._refresh_work_context_strip()
 
     def show_work_view(self) -> None:
         self.conversation_mode = ConversationMode.WORK
         self._luminifera_active_view = "work"
+        if hasattr(self, "product_shell"):
+            self.product_shell.set_active_navigation("work")
         self._refresh_luminifera_work()
         self._update_empty_team_state()
         self._refresh_work_context_strip()
 
     def show_team_view(self) -> None:
         self._luminifera_active_view = "team"
+        if hasattr(self, "product_shell"):
+            self.product_shell.set_active_navigation("team")
         self._refresh_luminifera_team()
         self._update_empty_team_state()
 
     def show_files_view(self) -> None:
         self._luminifera_active_view = "files"
+        if hasattr(self, "product_shell"):
+            self.product_shell.set_active_navigation("files")
         self._refresh_luminifera_files()
         self._update_empty_team_state()
 
