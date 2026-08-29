@@ -611,6 +611,7 @@ class MainWindow(QMainWindow):
         self.work_panel = WorkDashboard(str(self.settings.get("interface_language", "ru")))
         self.work_panel.talk_to_iris.connect(self.show_supervisor_chat)
         self.team_panel = TeamDashboard(str(self.settings.get("interface_language", "ru")))
+        self.team_panel.create_team_requested.connect(self._start_first_team_creation)
         self.files_panel = FilesBrowser(str(self.settings.get("interface_language", "ru")))
         self.files_panel.open_workspace_requested.connect(self.open_workspace)
         layout.addWidget(self.empty_team_panel, 1)

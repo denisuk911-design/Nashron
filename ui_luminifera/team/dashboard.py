@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QPushButton, QVBoxLayout, QWidget
 
 from core.agent_directory import ChatAgent
 
@@ -25,6 +25,10 @@ class TeamDashboard(QWidget):
         self.subtitle = QLabel()
         self.subtitle.setObjectName("luminiferaWorkMuted")
         layout.addWidget(self.subtitle)
+        self.create_button = QPushButton()
+        self.create_button.setObjectName("luminiferaHomePrimary")
+        self.create_button.clicked.connect(self.create_team_requested)
+        layout.addWidget(self.create_button, 0, Qt.AlignLeft)
         self.list = QListWidget()
         self.list.setObjectName("luminiferaTeamList")
         self.list.setSpacing(8)
@@ -34,13 +38,14 @@ class TeamDashboard(QWidget):
     def set_language(self, language: str) -> None:
         self.language = language if language in {"ru", "uk", "en"} else "ru"
         copy = {
-            "ru": ("Команда", "Люди и AI-специалисты, назначенные в это рабочее пространство", "В команде пока никого нет"),
-            "uk": ("Команда", "Люди та AI-фахівці, призначені до цього робочого простору", "У команді поки нікого немає"),
-            "en": ("Team", "People and AI specialists assigned to this workspace", "No team members yet"),
+            "ru": ("Команда", "Люди и AI-специалисты, назначенные в это рабочее пространство", "В команде пока никого нет", "Собрать команду"),
+            "uk": ("Команда", "Люди та AI-фахівці, призначені до цього робочого простору", "У команді поки нікого немає", "Зібрати команду"),
+            "en": ("Team", "People and AI specialists assigned to this workspace", "No team members yet", "Build a team"),
         }[self.language]
         self.heading.setText(copy[0])
         self.subtitle.setText(copy[1])
         self._empty_text = copy[2]
+        self.create_button.setText(copy[3])
         if hasattr(self, "list"):
             self._rendered_agents = getattr(self, "_rendered_agents", ())
             self.render(self._rendered_agents)
@@ -49,10 +54,12 @@ class TeamDashboard(QWidget):
         self._rendered_agents = tuple(agents)
         self.list.clear()
         if not agents:
+            self.create_button.setVisible(True)
             item = QListWidgetItem(self._empty_text)
             item.setTextAlignment(Qt.AlignCenter)
             self.list.addItem(item)
             return
+        self.create_button.setVisible(False)
         role_labels = {
             "ru": {"PROJECT_MANAGER": "Руководитель проекта", "DESIGN_ENGINEER": "Инженер-проектировщик", "QA_ENGINEER": "Инженер ОТК", "DOCUMENT_CONTROL_OFFICER": "Специалист по документации", "VERIFICATION_ENGINEER": "Инженер проверки", "LEARNING_COORDINATOR": "Координатор обучения"},
             "uk": {"PROJECT_MANAGER": "Керівник проєкту", "DESIGN_ENGINEER": "Інженер-проєктувальник", "QA_ENGINEER": "Інженер ОТК", "DOCUMENT_CONTROL_OFFICER": "Фахівець з документації", "VERIFICATION_ENGINEER": "Інженер перевірки", "LEARNING_COORDINATOR": "Координатор навчання"},
@@ -89,3 +96,4 @@ class TeamDashboard(QWidget):
             item.setSizeHint(card.sizeHint())
             self.list.addItem(item)
             self.list.setItemWidget(item, card)
+    create_team_requested = Signal()

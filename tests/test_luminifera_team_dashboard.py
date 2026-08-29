@@ -10,6 +10,7 @@ def test_team_dashboard_renders_roster_and_localizes_heading():
     widgets = pytest.importorskip("PySide6.QtWidgets")
     app = widgets.QApplication.instance() or widgets.QApplication([])
     dashboard = TeamDashboard("ru")
+    assert dashboard.create_button.text() == "Собрать команду"
     agent = ChatAgent(
         key="roman", agent_id="agent-roman", display_name="Роман", provider_id="CODEX_CLI",
         roles=["DESIGN_ENGINEER"], persona_id=None, description="Проектирует решение", avatar_path=None,
@@ -21,4 +22,5 @@ def test_team_dashboard_renders_roster_and_localizes_heading():
     assert card is not None
     dashboard.set_language("en")
     assert dashboard.heading.text() == "Team"
+    assert dashboard.create_button.text() == "Build a team"
     dashboard.close()

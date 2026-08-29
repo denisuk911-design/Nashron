@@ -201,3 +201,5 @@ PRODUCT POLISH: Files cards now translate artifact types and review statuses int
 WORK OBSERVABILITY: Work view now includes persisted plan assignments as human-readable stages alongside progress, artifacts and review count. Targeted Work/UI tests: `5 passed`; packaged Work smoke: `exit=0`, `checks_passed=true` (`Screenshots/work_steps_recheck.png`).
 
 TEAM VISIBILITY: Added a Product Mode Team screen with a readable roster, avatar, role and responsibility, connected to organization-filtered chat agents through the existing directory/application boundary. Targeted UI/startup tests: `13 passed`; packaged roster smoke: `exit=0`, `checks_passed=true` (`Screenshots/team_roster_recheck.png`).
+
+TEAM RECOVERY: Empty Team state now exposes a localized `Собрать команду` action that opens the existing Team Builder, so a user who skipped onboarding can recover into team setup without internal commands. Targeted tests: `12 passed`; packaged roster smoke: `exit=0`, `checks_passed=true` (`Screenshots/team_roster_cta_recheck.png`).
