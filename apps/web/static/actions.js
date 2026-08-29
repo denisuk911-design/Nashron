@@ -30,6 +30,38 @@
 })();
 
 (() => {
+  const attachWorkControls = async () => {
+    const title = document.querySelector('#view-title');
+    const view = document.querySelector('#view');
+    const select = document.querySelector('#org-select');
+    if (!title || !view || !select || title.textContent !== 'Цели и работа' || view.querySelector('.web-goals') || !select.value) return;
+    const panel = document.createElement('section');
+    panel.className = 'web-goals magic-card'; panel.style.marginTop = '14px';
+    panel.innerHTML = '<span class="eyebrow">Планы Iris</span><div class="list"><p style="color:var(--muted)">Загружаем цели...</p></div>';
+    view.append(panel);
+    try {
+      const response = await fetch('/api/goals', {headers:{'X-Organization-Id':select.value}});
+      if (!response.ok) throw new Error(await response.text());
+      const goals = await response.json(); const list = panel.querySelector('.list');
+      if (!goals.length) { list.innerHTML = '<p style="color:var(--muted)">Планов пока нет. Создайте цель через кнопку «Новая цель».</p>'; return; }
+      list.innerHTML = goals.slice().reverse().map(goal => `<div class="list-row"><span><b>${String(goal.goal || '').replace(/[&<>]/g,'')}</b><br><small>${goal.status || 'Создан'}</small></span><button class="ghost" data-plan="${goal.plan_id}">Запустить</button></div>`).join('');
+      list.querySelectorAll('button[data-plan]').forEach(button => button.addEventListener('click', async () => {
+        button.disabled = true; button.textContent = 'Запуск...';
+        try {
+          const start = await fetch(`/api/goals/${button.dataset.plan}/start`, {method:'POST',headers:{'X-Organization-Id':select.value}});
+          if (!start.ok) throw new Error(await start.text());
+          const result = await start.json(); button.textContent = result.ok ? 'Готово' : 'Нужна проверка';
+          const receipt = await fetch('/api/work/receipt', {headers:{'X-Organization-Id':select.value}}).then(r=>r.json());
+          panel.insertAdjacentHTML('beforeend', `<p style="margin-top:12px;color:var(--muted)">Результат: ${receipt.artifacts?.length||0} артефактов, ${receipt.evidence_count||0} доказательств, review: ${receipt.review_status||'в процессе'}.</p>`);
+        } catch (error) { button.disabled = false; button.textContent = 'Ошибка запуска'; alert(`Работа не запущена: ${error.message}`); }
+      }));
+    } catch (error) { panel.querySelector('.list').innerHTML = `<p style="color:var(--muted)">Не удалось загрузить планы: ${error.message}</p>`; }
+  };
+  new MutationObserver(attachWorkControls).observe(document.querySelector('#view'), {childList:true,subtree:true});
+  document.querySelector('[data-view="work"]')?.addEventListener('click', () => setTimeout(attachWorkControls, 30));
+})();
+
+(() => {
   const attachTeamControls = () => {
     const title = document.querySelector('#view-title');
     const view = document.querySelector('#view');
