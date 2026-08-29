@@ -27,3 +27,8 @@
 
 - Isolated profile smoke created `Web E2E` organization through HTTP, hired `Mira`, returned a scoped roster with HTTP 200, and rejected deletion without confirmation with HTTP 409.
 - This verifies the web boundary uses `UniversalPlatformService` and `ManagementService`, including the destructive-action gate.
+
+## Artifact delivery boundary
+
+- Added authenticated-in-future, organization-scoped artifact `preview` and `download` endpoints.
+- The API resolves artifact paths through `PathGuard` on the server; Product UI receives artifact identity and safe content only, never a raw workspace path.

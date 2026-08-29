@@ -9,7 +9,7 @@ APP_STATUS: Implemented local Product shell with organization, chat, team, work 
 IRIS_REAL_CORE: Connected to `SupervisorChatApplicationService`; owner chat is persisted and responses are persisted
 TEAM_REAL_CORE: Real organization-scoped employee read model
 GOAL_REAL_CORE: Real Director service create/approve/replan/cancel routes with scope checks
-ARTIFACT_REAL_CORE: Real artifact and file read models
+ARTIFACT_REAL_CORE: Real artifact and file read models, server-side text preview and safe download endpoints
 REVIEW_REAL_CORE: Existing Runtime V3/review engine preserved; dedicated web execution/review commands remain to be extracted
 REALTIME: WebSocket `/api/events` publishes organization, Iris and goal lifecycle events
 ORG_ISOLATION: Server validates organization IDs and scopes product reads; auth/membership enforcement is the next deployment layer

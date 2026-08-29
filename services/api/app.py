@@ -26,6 +26,7 @@ from core.luminifera_home_service import LuminiferaHomeService
 from core.luminifera_work_service import LuminiferaWorkService
 from core.management_service import ManagementService
 from core.management_models import AgentProfile, OWNER_ROLE, ROLE_DEFAULT_PERMISSIONS
+from core.path_guard import PathGuard, PathGuardError
 from core.codex_client import CodexClient
 from core.gemini_client import GeminiClient
 from core.provider_credentials import ProviderCredentialService
@@ -425,6 +426,44 @@ def artifacts(x_organization_id: str | None = Header(default=None)) -> list[dict
     if not organization_id:
         return []
     return [_row(row) for row in core.database.list_artifacts(limit=100, organization_id=organization_id)]
+
+
+def _artifact_for_scope(artifact_id: str, organization_id: str | None) -> Any:
+    artifact = core.database.get_artifact(artifact_id)
+    if artifact is None or not organization_id:
+        raise HTTPException(status_code=404, detail="artifact_not_found")
+    task_id = str(artifact["task_id"] or "")
+    task = core.database.get_task(task_id) if task_id else None
+    if task is not None and str(task["organization_id"] or "") != organization_id:
+        raise HTTPException(status_code=404, detail="artifact_not_found")
+    return artifact
+
+
+def _artifact_path(artifact: Any) -> Path:
+    try:
+        return PathGuard(core.workspace_root).resolve_safe_path(str(artifact["relative_path"] or ""))
+    except PathGuardError as exc:
+        raise HTTPException(status_code=400, detail="artifact_path_invalid") from exc
+
+
+@app.get("/api/artifacts/{artifact_id}/preview")
+def artifact_preview(artifact_id: str, x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
+    artifact = _artifact_for_scope(artifact_id, core.organization_id(x_organization_id))
+    path = _artifact_path(artifact)
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="artifact_file_not_found")
+    if path.suffix.lower() not in {".txt", ".md", ".json", ".csv", ".log"}:
+        return {"kind": "binary", "title": path.name, "preview": ""}
+    return {"kind": "text", "title": path.name, "preview": path.read_text(encoding="utf-8", errors="replace")[:50_000]}
+
+
+@app.get("/api/artifacts/{artifact_id}/download")
+def download_artifact(artifact_id: str, x_organization_id: str | None = Header(default=None)) -> FileResponse:
+    artifact = _artifact_for_scope(artifact_id, core.organization_id(x_organization_id))
+    path = _artifact_path(artifact)
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="artifact_file_not_found")
+    return FileResponse(path, filename=path.name, media_type=str(artifact["media_type"] or "application/octet-stream"))
 
 
 @app.get("/api/providers")
