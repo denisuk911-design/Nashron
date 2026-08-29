@@ -122,7 +122,7 @@ from ui_luminifera.work import WorkDashboard
 from ui_luminifera.onboarding import FirstRunOnboarding
 from ui_luminifera.settings import LuminiferaSettingsDialog
 from ui_luminifera.profile import LuminiferaProfileDialog
-from ui_luminifera.states import product_failure_message
+from ui_luminifera.states import product_failure_message, product_state
 
 
 class MainWindow(QMainWindow):
@@ -2265,8 +2265,10 @@ class MainWindow(QMainWindow):
             # A deliberate stop is not a provider failure and should not add noise to the chat.
             pass
         else:
-            detail = result.error or "Провайдер не вернул ответ"
-            content = f"Провайдер сотрудника не ответил: {detail}"
+            detail = result.error or "provider_error"
+            language = str(self.settings.get("interface_language", "ru"))
+            state = product_state(language, "provider_unavailable")
+            content = f"{state['title']}. {state['body']}"
             self.database.log_event("provider_runtime_error", f"{agent_key}: {detail}"[:1000])
             self.health_monitor.record_provider_failure(agent_key, detail)
             self.database.add_message(self.conversation_id, "system", content, status="provider_error")
@@ -2340,7 +2342,8 @@ class MainWindow(QMainWindow):
             return
         agent_key = self.worker.agent_key
         self.database.log_event("response_latency_timeout_cancelled", agent_key)
-        self.chat.set_activity_status("лимит ожидания истёк, останавливаю ответ")
+        language = str(self.settings.get("interface_language", "ru"))
+        self.chat.set_activity_status(product_state(language, "worker_timeout")["title"])
         self.worker.cancel()
 
     def _client_for_agent(self, agent_key: str):
@@ -2557,12 +2560,14 @@ class MainWindow(QMainWindow):
                 self._clear_goal_state()
                 self.pending_agent_keys = []
         else:
-            detail = result.error or "Провайдер не вернул ответ"
+            detail = result.error or "provider_error"
             if result.cancelled:
                 content = "Ответ остановлен пользователем."
                 self.database.add_message(conversation_id, "system", content, status="cancelled")
             else:
-                content = f"Провайдер сотрудника не ответил: {detail}"
+                language = str(self.settings.get("interface_language", "ru"))
+                state = product_state(language, "provider_unavailable")
+                content = f"{state['title']}. {state['body']}"
                 self.database.log_event("provider_runtime_error", f"{agent_key}: {detail}"[:1000])
                 self.database.add_message(conversation_id, "system", content, status="provider_error")
             self.chat.add_message("system", content)

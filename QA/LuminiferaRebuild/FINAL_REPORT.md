@@ -36,6 +36,7 @@ Steps 01-10 have packaged previews and targeted tests. Steps 11-15 are partial m
 - Files metadata localization evidence: `Screenshots/files_metadata_recheck.json` and `files_metadata_recheck.png`;
 - Work stage observability evidence: `Screenshots/work_steps_recheck.json` and `work_steps_recheck.png`;
 - Team roster evidence: `Screenshots/team_roster_recheck.json` and `team_roster_recheck.png`;
+- Product state catalog evidence: `Screenshots/states_recheck.json` and `states_recheck.png`;
 - Team empty-state recovery evidence: `Screenshots/team_roster_cta_recheck.json` and `team_roster_cta_recheck.png`;
 - RC foreign-key result: `foreign_key_errors=0`, equivalent to `FK=[]`.
 

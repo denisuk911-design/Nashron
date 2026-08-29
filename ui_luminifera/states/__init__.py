@@ -1,3 +1,3 @@
-from .messages import product_failure_message
+from .messages import product_failure_message, product_state
 
-__all__ = ["product_failure_message"]
+__all__ = ["product_failure_message", "product_state"]
