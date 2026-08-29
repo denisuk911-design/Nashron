@@ -621,6 +621,7 @@ class MainWindow(QMainWindow):
         self.home_panel.work_requested.connect(self.show_work_view)
         self.work_panel = WorkDashboard(str(self.settings.get("interface_language", "ru")))
         self.work_panel.talk_to_iris.connect(self.show_supervisor_chat)
+        self.work_panel.open_result_requested.connect(self.show_files_view)
         self.team_panel = TeamDashboard(str(self.settings.get("interface_language", "ru")))
         self.team_panel.create_team_requested.connect(self._start_first_team_creation)
         self.files_panel = FilesBrowser(str(self.settings.get("interface_language", "ru")))

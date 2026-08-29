@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QProgressBar, QPushButton, QVBoxLayout, QWidget
 
 from core.luminifera_work_service import WorkSnapshot
@@ -15,6 +15,7 @@ COPY = {
 
 class WorkDashboard(QWidget):
     talk_to_iris = Signal()
+    open_result_requested = Signal()
 
     def __init__(self, language: str = "ru", parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -59,6 +60,9 @@ class WorkDashboard(QWidget):
         for card in (self.team_card, self.artifacts_card, self.review_card, self.steps_card, self.result_card):
             cards.addWidget(card)
         layout.addLayout(cards)
+        self.open_result_button = QPushButton(objectName="luminiferaHomePrimary")
+        self.open_result_button.clicked.connect(self.open_result_requested)
+        layout.addWidget(self.open_result_button, 0, Qt.AlignLeft)
         layout.addStretch(1)
 
     @staticmethod
@@ -108,6 +112,8 @@ class WorkDashboard(QWidget):
             "en": ("Verified result", "Ready: {artifacts} artifacts, {evidence} evidence records", "Review is not complete yet"),
         }[self.language]
         self.result_heading.setText(result_labels[0])
+        self.open_result_button.setText({"ru": "Открыть результат", "uk": "Відкрити результат", "en": "Open result"}[self.language])
+        self.open_result_button.setVisible(snapshot.receipt_ready)
         self.result_body.setText(
             result_labels[1].format(artifacts=len(snapshot.artifacts), evidence=snapshot.evidence_count)
             if snapshot.receipt_ready else result_labels[2]

@@ -29,6 +29,7 @@ def test_work_view_marks_receipt_only_when_evidence_is_ready():
     )
     assert "2" in dashboard.result_body.text()
     assert "1" in dashboard.result_body.text()
+    assert not dashboard.open_result_button.isHidden()
     dashboard.close()
 
 

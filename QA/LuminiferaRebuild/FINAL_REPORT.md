@@ -70,3 +70,6 @@ The Files product view now includes artifacts from durable Runtime V3 checkpoint
 ## Product state safety
 
 Runtime V3 goal and step statuses are localized in the Work surface, including running, rework, failure and unknown-state fallbacks. Product Mode does not expose raw enum names. Packaged Work smoke passed.
+## Result handoff action
+
+The Work receipt card now exposes a product-level `Open result` action only after verified completion and routes the user to Files. It stays hidden while review is pending. Packaged Work smoke passed.
