@@ -55,3 +55,6 @@ Manual visual review is still required for populated team/work/file states, resp
 ## Latest Iris safety hardening
 
 The Product Mode Iris service no longer exposes raw application exceptions, Strong-provider internals, or plan IDs/raw statuses. Targeted tests passed (`16 passed`); packaged Iris smoke passed (`exit=0`, `checks_passed=true`). Evidence: `Screenshots/iris_safety_recheck.json` and `Screenshots/iris_safety_recheck.png`.
+## Runtime V3 Work visibility
+
+The Work product view now reads the latest durable Runtime V3 checkpoint for the active organization and displays its goal, computed progress, artifacts, findings and work steps. The existing database task view remains the fallback. Targeted tests: `14 passed`; packaged Work smoke: `exit=0`, `checks_passed=true`.

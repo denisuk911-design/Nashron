@@ -155,7 +155,6 @@ class MainWindow(QMainWindow):
         self.database.initialize()
         self.luminifera_home_service = LuminiferaHomeService(self.database)
         self.luminifera_files_service = LuminiferaFilesService(self.database)
-        self.luminifera_work_service = LuminiferaWorkService(self.database)
         self._set_startup_state("DATABASE_READY")
         self.management_repository = ConfigurationRepository(self.paths.management_config_dir)
         self.management_service = ManagementService(self.database, self.management_repository)
@@ -232,6 +231,10 @@ class MainWindow(QMainWindow):
         self.workspace_service.ensure()
         self.settings["workspace_root"] = str(self.workspace_service.root)
         self.settings_service.save(self.settings)
+        self.luminifera_work_service = LuminiferaWorkService(
+            self.database,
+            self.workspace_service.root / "runtime_v3_goals",
+        )
         self.artifact_service = ArtifactService(self.database, self.workspace_service.root)
         self.chat_attachment_service = ChatAttachmentService(self.database, self.workspace_service.root)
         self.pending_chat_attachments: list[ChatAttachment] = []
