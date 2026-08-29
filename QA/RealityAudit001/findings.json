@@ -1,0 +1,115 @@
+[
+  {
+    "id": "ROUTE-001",
+    "severity": "P0",
+    "scenario": "Direct message to an employee whose first name exists in another organization.",
+    "expected": "The full-name addressee in the active organization is selected.",
+    "actual": "The blocked-agent lookup crossed organization boundaries; ambiguous short names could keep the previous owner.",
+    "root_cause": "Configured-agent routing was not organization-scoped and short-name ambiguity was resolved before an exact full-name match.",
+    "fix": "Scope configured agents to active_organization_id and prioritize full-name matches.",
+    "verification": "Packaged GUI routed a direct message to the exact employee; routing regression suite passes.",
+    "evidence": [
+      "chat_b.png"
+    ],
+    "status": "FIXED"
+  },
+  {
+    "id": "CANCEL-001",
+    "severity": "P0",
+    "scenario": "Stop immediately after dispatch, then send a new message.",
+    "expected": "The first run cancels and the queued message starts.",
+    "actual": "A pre-start cancel was lost when the provider reset its cancellation flag.",
+    "root_cause": "Cancellation state existed only in the client subprocess lifecycle.",
+    "fix": "Add worker-owned cancellation state and preserve client cancellation until generation returns.",
+    "verification": "Packaged GUI accepted the next message in 565 ms and produced its response; cancellation unit tests pass.",
+    "evidence": [
+      "chat_b.png"
+    ],
+    "status": "FIXED"
+  },
+  {
+    "id": "PROVIDER-001",
+    "severity": "P1",
+    "scenario": "Several employees use the same CLI provider concurrently.",
+    "expected": "Each employee has an independent process and response.",
+    "actual": "Shared client process state caused poll/return-code collisions and missing responses.",
+    "root_cause": "All workers shared one mutable provider client instance.",
+    "fix": "Create an isolated provider client and workspace for every employee run.",
+    "verification": "Six parallel packaged-GUI responses completed with zero provider collision errors.",
+    "evidence": [
+      "typing_parallel.png"
+    ],
+    "status": "FIXED"
+  },
+  {
+    "id": "ROLE-001",
+    "severity": "P1",
+    "scenario": "Preset positions use roles outside the fixed role map.",
+    "expected": "Generated employees can read/write files, run commands, and create documents.",
+    "actual": "Unknown roles inherited CHAT only.",
+    "root_cause": "The unknown-role fallback bypassed CUSTOM_ROLE defaults.",
+    "fix": "Use CUSTOM_ROLE permissions for unknown roles and add reviewer permissions where applicable.",
+    "verification": "Database effective permissions and organization activation regression test.",
+    "evidence": [
+      "employees_generated.png"
+    ],
+    "status": "FIXED"
+  },
+  {
+    "id": "LOC-001",
+    "severity": "P2",
+    "scenario": "Russian and Ukrainian preset/role labels.",
+    "expected": "Internal English identifiers are not primary UI labels.",
+    "actual": "Generic presets and dynamic roles leaked English labels.",
+    "root_cause": "Localization covered fixed legacy roles only.",
+    "fix": "Add catalog labels and dynamic role labels without changing canonical role semantics.",
+    "verification": "Localization and preset catalog regression tests.",
+    "evidence": [
+      "organization_created.png"
+    ],
+    "status": "FIXED"
+  },
+  {
+    "id": "GUI-001",
+    "severity": "P2",
+    "scenario": "Personality edit survives close and restart.",
+    "expected": "Generated and edited communication settings persist.",
+    "actual": "Persistence exists in SQLite, but the edit-close-reopen sequence was not completed in the packaged GUI audit.",
+    "root_cause": "Audit coverage gap.",
+    "fix": "None in this task.",
+    "verification": "NOT VERIFIED.",
+    "evidence": [
+      "employee_profile.png"
+    ],
+    "status": "OPEN"
+  },
+  {
+    "id": "THEME-001",
+    "severity": "P2",
+    "scenario": "Switch to another image within the same theme category.",
+    "expected": "A different packaged image is rendered.",
+    "actual": "Category switching was verified; same-category cycling was not exercised.",
+    "root_cause": "Audit coverage gap.",
+    "fix": "None in this task.",
+    "verification": "NOT VERIFIED.",
+    "evidence": [
+      "theme_city.png",
+      "theme_forest.png",
+      "theme_mountains.png",
+      "theme_ocean.png"
+    ],
+    "status": "OPEN"
+  },
+  {
+    "id": "UNICODE-001",
+    "severity": "P2",
+    "scenario": "Provider health diagnostic stored for Codex CLI.",
+    "expected": "Readable diagnostic text.",
+    "actual": "One internal provider-health row contains a garbled external CLI diagnostic; the top-level GUI shows Codex: OK.",
+    "root_cause": "External CLI status decoding/normalization is incomplete.",
+    "fix": "Not exposed in the audited main UI; retained as an open diagnostic issue.",
+    "verification": "SQLite provider_health_checks inspection.",
+    "evidence": [],
+    "status": "OPEN"
+  }
+]

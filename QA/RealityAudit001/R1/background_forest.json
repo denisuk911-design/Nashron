@@ -1,0 +1,32 @@
+[
+  {
+    "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\forest\\forest-03.png",
+    "asset_sha256": "b3973689cd519e585b44b1e5ea888b1da1f0170381b88885d45e25b1d4ab6335",
+    "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\forest_01.png",
+    "screenshot_sha256": "7be9348c83e0dab315e61e3d3bf99680affad47781d8d58ab111f59e679e3359"
+  },
+  {
+    "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\forest\\forest-01.png",
+    "asset_sha256": "ccd991ba52203d6deda5d3349e18ac8a541bd55803f59976a428f22d75fc986d",
+    "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\forest_02.png",
+    "screenshot_sha256": "650090e02a6e5513867196785856ea9ec1b9dd5c4aab410bdd19aa5d362be18b"
+  },
+  {
+    "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\forest\\forest-02.png",
+    "asset_sha256": "77db3da0752e7acc29b44a7b7fcf1c4f661de439f8041d69aa26aa42578d344f",
+    "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\forest_03.png",
+    "screenshot_sha256": "d6bd201375197213caa7c83a3cb73a1114c5599267a04a87a073f822347a8085"
+  },
+  {
+    "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\forest\\forest-03.png",
+    "asset_sha256": "b3973689cd519e585b44b1e5ea888b1da1f0170381b88885d45e25b1d4ab6335",
+    "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\forest_04.png",
+    "screenshot_sha256": "7be9348c83e0dab315e61e3d3bf99680affad47781d8d58ab111f59e679e3359"
+  },
+  {
+    "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\forest\\forest-01.png",
+    "asset_sha256": "ccd991ba52203d6deda5d3349e18ac8a541bd55803f59976a428f22d75fc986d",
+    "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\forest_05.png",
+    "screenshot_sha256": "650090e02a6e5513867196785856ea9ec1b9dd5c4aab410bdd19aa5d362be18b"
+  }
+]

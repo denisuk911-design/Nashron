@@ -353,7 +353,7 @@ class ThemeManager:
     def _stylesheet(c: dict[str, str]) -> str:
         f = TOKENS.font_family
         return f"""
-        QWidget {{ color: {c['text']}; font-family: {f}; font-size: 10pt; }}
+        QWidget {{ color: {c['text']}; font-family: "{f}"; font-size: 10pt; }}
         QMainWindow, QDialog, QMessageBox {{ background: {c['dialog_bg']}; color: {c['text']}; }}
         QDialog QWidget, QMessageBox QWidget {{ background: {c['dialog_bg']}; color: {c['text']}; }}
         QMessageBox QLabel, QDialog QLabel {{ color: {c['text']}; }}
@@ -400,6 +400,150 @@ class ThemeManager:
             background: {c['input']};
         }}
         QCheckBox::indicator:checked {{ background: {c['cyan_dark']}; border-color: {c['cyan_dark']}; }}
+        QWidget#luminiferaShell, QWidget#luminiferaWorkspace {{ background: {c['bg']}; }}
+        QWidget#luminiferaSidebar {{
+            background: {c['surface']};
+            border-right: 1px solid {c['line']};
+        }}
+        QWidget#luminiferaTopbar {{
+            background: {c['surface']};
+            border-bottom: 1px solid {c['line_soft']};
+            min-height: 48px;
+        }}
+        QLabel#luminiferaBrandMark {{
+            color: #9d7cff;
+            background: {c['surface_alt']};
+            border: 1px solid {c['violet']};
+            border-radius: 22px;
+            font-size: 23pt;
+            font-weight: 700;
+        }}
+        QLabel#luminiferaBrandName {{
+            color: {c['text']};
+            font-size: 14pt;
+            font-weight: 700;
+        }}
+        QPushButton#luminiferaNavButton, QPushButton#luminiferaUtilityButton {{
+            background: transparent;
+            color: {c['muted']};
+            border: 1px solid transparent;
+            border-radius: 10px;
+            padding: 12px 14px;
+            text-align: left;
+            font-size: 11pt;
+        }}
+        QPushButton#luminiferaNavButton:hover, QPushButton#luminiferaUtilityButton:hover {{
+            background: {c['surface_hover']};
+            color: {c['text']};
+            border-color: {c['line']};
+        }}
+        QPushButton#luminiferaNavButton:checked {{
+            background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 {c['violet_dark']}, stop:1 {c['surface_alt']});
+            color: #ffffff;
+            border-color: {c['violet']};
+            font-weight: 700;
+        }}
+        QPushButton#luminiferaNavButton[distinct="true"] {{ color: #c6b5ff; }}
+        QLabel#luminiferaIrisCaption {{ color: {c['muted_2']}; font-size: 9pt; }}
+        QFrame#luminiferaDivider {{ color: {c['line_soft']}; background: {c['line_soft']}; max-height: 1px; }}
+        QComboBox#luminiferaOrganizationSelector {{
+            background: {c['surface_alt']};
+            color: {c['text']};
+            border: 1px solid {c['line']};
+            border-radius: 10px;
+            padding: 9px 14px;
+            font-size: 10pt;
+        }}
+        QLabel#luminiferaAiState, QLabel#luminiferaIrisState {{
+            color: {c['muted']};
+            background: {c['surface_alt']};
+            border: 1px solid {c['line_soft']};
+            border-radius: 16px;
+            padding: 8px 13px;
+            font-size: 9pt;
+        }}
+        QLabel#luminiferaAiState[ready="true"] {{ color: {c['green']}; }}
+        QLabel#luminiferaAiState[ready="false"] {{ color: {c['amber']}; }}
+        QToolButton#luminiferaProfileButton {{
+            background: {c['surface_alt']};
+            color: {c['text']};
+            border: 1px solid {c['violet']};
+            border-radius: 21px;
+            font-weight: 700;
+            padding: 0;
+        }}
+        QToolButton#luminiferaProfileButton:hover {{ background: {c['surface_hover']}; }}
+        QLabel#luminiferaOnboardingBrand {{ color: {c['text']}; font-size: 16pt; font-weight: 700; }}
+        QComboBox#luminiferaOnboardingLanguage {{
+            background: {c['surface_alt']}; color: {c['text']}; border: 1px solid {c['line']};
+            border-radius: 16px; padding: 8px 12px; font-size: 10pt;
+        }}
+        QWidget#luminiferaOnboarding {{ background: transparent; }}
+        QFrame#luminiferaOnboardingCard {{
+            background: rgba(16, 27, 42, 232); border: 1px solid {c['line']}; border-radius: 24px;
+        }}
+        QLabel#luminiferaOnboardingMark {{
+            background: {c['surface_alt']}; color: #ae8cff; border: 1px solid {c['violet']};
+            border-radius: 36px; font-size: 34pt; font-weight: 700;
+        }}
+        QLabel#luminiferaOnboardingTitle {{ color: {c['text']}; font-size: 25pt; font-weight: 700; }}
+        QLabel#luminiferaOnboardingValue {{ color: {c['muted']}; font-size: 12pt; }}
+        QLabel#luminiferaOnboardingQuestion {{ color: {c['text']}; font-size: 15pt; font-weight: 700; }}
+        QFrame#luminiferaAvatarPanel {{ background: {c['surface']}; border: 1px solid {c['line_soft']}; border-radius: 16px; }}
+        QToolButton#luminiferaAvatarChoice {{
+            background: {c['surface_alt']}; border: 1px solid {c['line']}; border-radius: 29px; padding: 3px;
+        }}
+        QToolButton#luminiferaAvatarChoice:checked {{ border: 2px solid {c['violet']}; background: {c['surface_hover']}; }}
+        QPushButton#luminiferaAvatarUpload {{
+            background: transparent; color: {c['muted']}; border: 1px dashed {c['line']}; border-radius: 16px; padding: 9px 14px;
+        }}
+        QPushButton#luminiferaOnboardingPrimary {{
+            background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 {c['cyan_dark']}, stop:1 {c['violet']});
+            color: #ffffff; border: 0; border-radius: 14px; padding: 13px 20px; font-size: 13pt; font-weight: 700;
+        }}
+        QPushButton#luminiferaOnboardingSecondary {{
+            background: {c['surface']}; color: {c['text']}; border: 1px solid {c['line']}; border-radius: 14px;
+            padding: 12px 16px; font-size: 10pt; min-height: 48px;
+        }}
+        QPushButton#luminiferaOnboardingSkip {{ background: transparent; color: {c['muted']}; border: 0; padding: 7px 14px; }}
+        QPushButton#luminiferaOnboardingSkip:hover {{ color: {c['text']}; background: {c['surface_hover']}; border-radius: 10px; }}
+        QLabel#luminiferaOnboardingResult {{ color: {c['green']}; font-size: 10pt; }}
+        QWidget#luminiferaHome {{ background: transparent; }}
+        QFrame#luminiferaHomeHero {{
+            background: {c['surface_alt']}; border: 1px solid {c['line']}; border-radius: 22px;
+        }}
+        QLabel#luminiferaHomeEyebrow {{ color: {c['cyan']}; font-size: 9pt; font-weight: 700; letter-spacing: 1px; }}
+        QLabel#luminiferaHomeTitle {{ color: {c['text']}; font-size: 25pt; font-weight: 700; }}
+        QLabel#luminiferaHomeDescription {{ color: {c['muted']}; font-size: 12pt; }}
+        QPushButton#luminiferaHomePrimary {{
+            background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 {c['cyan_dark']}, stop:1 {c['violet']});
+            color: #ffffff; border: 0; border-radius: 12px; padding: 12px 22px; font-size: 11pt; font-weight: 700;
+        }}
+        QPushButton#luminiferaHomeSecondary {{
+            background: {c['surface']}; color: {c['muted']}; border: 1px solid {c['line']}; border-radius: 10px; padding: 10px 14px;
+        }}
+        QPushButton#luminiferaHomeSecondary:hover {{ color: {c['text']}; border-color: {c['cyan_dark']}; background: {c['surface_hover']}; }}
+        QFrame#luminiferaHomeSummary {{ background: {c['surface']}; border: 1px solid {c['line_soft']}; border-radius: 14px; }}
+        QLabel#luminiferaHomeSummaryHeading {{ color: {c['text']}; font-size: 10pt; font-weight: 700; }}
+        QLabel#luminiferaHomeSummaryBody {{ color: {c['muted']}; font-size: 9pt; }}
+        QLabel#luminiferaTeamBuilderTitle {{ color: {c['text']}; font-size: 17pt; font-weight: 700; padding: 8px 0; }}
+        QLabel#luminiferaTeamBuilderSection {{ color: {c['cyan']}; font-size: 11pt; font-weight: 700; padding-top: 8px; }}
+        QWidget#luminiferaWork {{ background: transparent; }}
+        QLabel#luminiferaWorkHeading {{ color: {c['text']}; font-size: 20pt; font-weight: 700; }}
+        QFrame#luminiferaWorkGoal {{ background: {c['surface_alt']}; border: 1px solid {c['line']}; border-radius: 18px; }}
+        QLabel#luminiferaWorkGoalTitle {{ color: {c['text']}; font-size: 16pt; font-weight: 700; }}
+        QLabel#luminiferaWorkMuted {{ color: {c['muted']}; font-size: 10pt; }}
+        QLabel#luminiferaWorkNext {{ color: {c['cyan']}; font-size: 10pt; font-weight: 700; padding-top: 7px; }}
+        QFrame#luminiferaWorkCard {{ background: {c['surface']}; border: 1px solid {c['line_soft']}; border-radius: 14px; }}
+        QLabel#luminiferaWorkCardHeading {{ color: {c['text']}; font-size: 10pt; font-weight: 700; }}
+        QLabel#luminiferaWorkCardBody {{ color: {c['muted']}; font-size: 9pt; }}
+        QWidget#luminiferaFiles {{ background: transparent; }}
+        QLabel#luminiferaFilesHeading {{ color: {c['text']}; font-size: 20pt; font-weight: 700; }}
+        QListWidget#luminiferaFilesList {{ background: transparent; border: 0; padding: 4px 0; }}
+        QListWidget#luminiferaFilesList::item {{ border: 0; padding: 0; margin: 4px 0; }}
+        QFrame#luminiferaFileCard {{ background: {c['surface']}; border: 1px solid {c['line']}; border-radius: 14px; }}
+        QLabel#luminiferaFileIcon {{ color: {c['cyan']}; font-size: 18pt; padding-right: 8px; }}
+        QLabel#luminiferaFileTitle {{ color: {c['text']}; font-size: 10pt; font-weight: 700; }}
         QWidget#appRoot {{ background: {c['bg']}; }}
         QWidget#topBar {{ background: {c['surface']}; border-bottom: 1px solid {c['line']}; }}
         QWidget#statusBar {{ background: {c['surface']}; border-top: 1px solid {c['line_soft']}; }}

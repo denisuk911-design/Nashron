@@ -1,0 +1,38 @@
+[
+  {
+    "id": "GUI-PROFILE-EDIT",
+    "severity": "P1",
+    "status": "FIXED",
+    "root_cause": "The employee edit dialog did not expose preferred/informal names or the communication profile, and the update service accepted only the legacy subset.",
+    "fix": "Added profile/communication/roles tabs and optional identity and communication fields to ManagementService.update_employee.",
+    "commit": "06ce911",
+    "verification": ["final_personality_profile.png", "final_personality_communication.png", "final_personality_after_restart.png", "tests/test_director_console.py"]
+  },
+  {
+    "id": "THEME-RESTART-ADVANCE",
+    "severity": "P1",
+    "status": "FIXED",
+    "root_cause": "The stored background cycle counter was reapplied on every startup, advancing a remembered background without a user action.",
+    "fix": "Persisted chat_background_cycle_applied and apply a pending cycle exactly once, including legacy-profile migration.",
+    "commit": "06ce911",
+    "verification": ["final_background_after_click.png", "final_background_after_restart.png", "tests/test_theme_background_service.py"]
+  },
+  {
+    "id": "UNICODE-LEGACY-DIAGNOSTIC",
+    "severity": "P1",
+    "status": "FIXED",
+    "root_cause": "The CP1251 bytes for авторизован had previously been decoded as CP1255, leaving an exact Hebrew-looking legacy diagnostic in SQLite.",
+    "fix": "Added a targeted migration for that exact corrupted Codex diagnostic when current authentication is valid; current CLI decoding remains UTF-8.",
+    "commit": "06ce911",
+    "verification": ["final_build_startup.png", "tests/test_database.py", "tests/test_codex_client.py"]
+  },
+  {
+    "id": "ORG-CONVERSATION-ORPHAN",
+    "severity": "P1",
+    "status": "FIXED",
+    "root_cause": "Database.delete_organization removed the organization and workspace but left the organization-owned conversation row behind.",
+    "fix": "Capture the workspace conversation before deletion and delete it when no remaining workspace references it, allowing message/thread cascades.",
+    "commit": "57a4fe7",
+    "verification": ["final_org_created.png", "final_org_deleted.png", "final_org_after_restart.png", "tests/test_organization_lifecycle.py"]
+  }
+]

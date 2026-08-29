@@ -445,6 +445,13 @@ class UniversalPlatformService:
         for template in templates:
             haystack = " ".join((template.name, template.purpose, template.catalog_category, template.domain_package)).lower()
             score = sum(2 for word in words if word in haystack)
+            brief_lower = brief.lower()
+            if any(marker in brief_lower for marker in ("engineering", "инженер", "pcb", "kicad", "электрон")) and "engineering" in haystack:
+                score += 20
+            if any(marker in brief_lower for marker in ("software", "программ", "код")) and "software" in haystack:
+                score += 20
+            if any(marker in brief_lower for marker in ("документ", "documentation", "регламент")) and "document" in haystack:
+                score += 20
             score += sum(3 for marker in ("pcb", "плата", "электрон", "electronic", "kicad") if marker in brief.lower() and marker in haystack)
             score += 1 if template.review_required else 0
             if best is None or score > best[0]:

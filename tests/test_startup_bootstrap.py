@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 
 import pytest
+from PySide6.QtWidgets import QLabel
 
 from core.database import Database
 from core.settings_service import SettingsService
@@ -60,7 +61,8 @@ def test_first_run_can_be_skipped_without_creating_seed_employees(tmp_path, monk
     window._skip_onboarding()
 
     assert window.empty_team_panel.isHidden()
-    assert not window.chat.isHidden()
+    assert not window.home_panel.isHidden()
+    assert window.chat.isHidden()
     assert window.database.list_organizations() == []
     assert window.database.list_agent_profiles() == []
     assert settings_service.load()["onboarding_skipped"] is True
@@ -76,13 +78,28 @@ def test_onboarding_user_avatar_is_saved_and_restored(tmp_path, monkeypatch):
     avatars = list_avatar_files(settings_service.paths.avatar_dir)
     assert avatars
 
-    index = window.empty_team_avatar.findData(str(avatars[0]))
-    assert index > 0
-    window.empty_team_avatar.setCurrentIndex(index)
+    window.empty_team_panel.select_avatar(str(avatars[0]))
     window.close()
 
     restored = settings_service.load()
     assert restored["user_avatar_path"] == str(avatars[0])
+
+
+def test_luminifera_onboarding_uses_owner_copy_and_complete_language_switch(tmp_path, monkeypatch):
+    window = _build_window(_make_settings_service(tmp_path), monkeypatch)
+
+    assert "Luminifera" in window.empty_team_panel.title.text()
+    assert "Team2050" not in window.empty_team_panel.title.text()
+    assert "Iris" in window.empty_team_panel.setup_button.text()
+    assert window.product_shell.sidebar.isHidden()
+
+    language_index = window.empty_team_language.findData("uk")
+    window.empty_team_language.setCurrentIndex(language_index)
+
+    assert "Ласкаво" in window.empty_team_panel.title.text()
+    assert "Iris" in window.empty_team_panel.setup_button.text()
+    assert window.empty_team_panel.skip_button.text() == "Ознайомитися"
+    window.close()
 
 
 def test_first_team_activation_refreshes_chat_without_restart(tmp_path, monkeypatch):
@@ -104,9 +121,23 @@ def test_first_team_activation_refreshes_chat_without_restart(tmp_path, monkeypa
         activation.organization.organization_id,
         activation.organization.name,
     )
-    assert not window.chat.isHidden()
+    assert not window.home_panel.isHidden()
+    assert window.chat.isHidden()
     assert window.empty_team_panel.isHidden()
     assert len(window._chat_agents()) == len(activation.employee_ids)
+    window.close()
+
+
+def test_home_dashboard_uses_real_organization_state(tmp_path, monkeypatch):
+    window = _build_window(_make_settings_service(tmp_path), monkeypatch)
+    template = next(item for item in window.universal_platform_service.list_templates() if item.name == "SOLO_PROFESSIONAL")
+    activation = window.universal_platform_service.activate_template(template.template_id, "Work team", team_size="MINI")
+
+    window._activate_organization_live(activation.organization.organization_id)
+
+    assert window.home_panel.title.text() == "Work team"
+    assert "участник" in window.home_panel.team_card.findChildren(QLabel)[1].text()
+    assert "Team2050" not in window.home_panel.title.text()
     window.close()
 
 

@@ -1,0 +1,209 @@
+[
+  {
+    "id": "PERSONALITY_GUI_EDIT",
+    "status": "PASS",
+    "expected": "Existing employee identity and communication parameters are editable in the GUI.",
+    "actual": "The edit dialog exposes profile, communication, roles and permissions; preferred and informal names and all communication parameters are editable.",
+    "evidence": ["final_personality_profile.png", "final_personality_communication.png", "tests/test_director_console.py"],
+    "build": "2.6.0+57a4fe7",
+    "timestamp": "2026-08-14T00:37:28.3381317+03:00"
+  },
+  {
+    "id": "PERSONALITY_RESTART",
+    "status": "PASS",
+    "expected": "Changed communication parameters survive save and full application restart.",
+    "actual": "Directness/warmth/formality changed from 5/2/4 to 4/3/2 and reopened as 4/3/2 after packaged EXE restart.",
+    "evidence": ["final_personality_changed.png", "final_personality_after_restart.png"],
+    "build": "2.6.0+57a4fe7",
+    "timestamp": "2026-08-14T00:37:28.3381317+03:00"
+  },
+  {
+    "id": "ARCHIVE_RESTART_RESTORE",
+    "status": "PASS",
+    "expected": "Archived employees stay excluded after restart and can be restored.",
+    "actual": "Employee remained ARCHIVED/BLOCKED after restart, was excluded from active routing and was restored to ACTIVE.",
+    "evidence": ["archive_before.png", "archive_after.png", "archive_after_restart.png"],
+    "build": "2.6.0+57a4fe7",
+    "timestamp": "2026-08-14T00:37:28.3381317+03:00"
+  },
+  {
+    "id": "BACKGROUND_CITY_5",
+    "status": "PASS",
+    "expected": "Five same-category cycles produce actual city backgrounds without blank output.",
+    "actual": "Sequence city-01, city-02, city-03, city-01, city-02; all screenshots are nonblank and visually city-themed.",
+    "evidence": ["background_city.json", "backgrounds/city_01.png", "backgrounds/city_02.png", "backgrounds/city_03.png", "backgrounds/city_04.png", "backgrounds/city_05.png"],
+    "build": "2.6.0+57a4fe7",
+    "timestamp": "2026-08-14T00:37:28.3381317+03:00"
+  },
+  {
+    "id": "BACKGROUND_FOREST_5",
+    "status": "PASS",
+    "expected": "Five same-category cycles produce actual forest backgrounds without blank output.",
+    "actual": "Sequence forest-03, forest-01, forest-02, forest-03, forest-01; all screenshots are nonblank and visually forest-themed.",
+    "evidence": ["background_forest.json", "backgrounds/forest_01.png", "backgrounds/forest_02.png", "backgrounds/forest_03.png", "backgrounds/forest_04.png", "backgrounds/forest_05.png"],
+    "build": "2.6.0+57a4fe7",
+    "timestamp": "2026-08-14T00:37:28.3381317+03:00"
+  },
+  {
+    "id": "BACKGROUND_MOUNTAINS_5",
+    "status": "PASS",
+    "expected": "Five same-category cycles produce actual mountain backgrounds without blank output.",
+    "actual": "Sequence mountains-02, mountains-03, mountains-01, mountains-02, mountains-03; all screenshots are nonblank and visually mountain-themed.",
+    "evidence": ["background_mountains.json", "backgrounds/mountains_01.png", "backgrounds/mountains_02.png", "backgrounds/mountains_03.png", "backgrounds/mountains_04.png", "backgrounds/mountains_05.png"],
+    "build": "2.6.0+57a4fe7",
+    "timestamp": "2026-08-14T00:37:28.3381317+03:00"
+  },
+  {
+    "id": "BACKGROUND_OCEAN_5",
+    "status": "PASS",
+    "expected": "Five same-category cycles produce actual ocean backgrounds without blank output.",
+    "actual": "Sequence ocean-02, ocean-03, ocean-01, ocean-02, ocean-03; all screenshots are nonblank and visually ocean-themed.",
+    "evidence": ["background_ocean.json", "backgrounds/ocean_01.png", "backgrounds/ocean_02.png", "backgrounds/ocean_03.png", "backgrounds/ocean_04.png", "backgrounds/ocean_05.png"],
+    "build": "2.6.0+57a4fe7",
+    "timestamp": "2026-08-14T00:37:28.3381317+03:00"
+  },
+  {
+    "id": "BACKGROUND_REMEMBER_RESTART",
+    "status": "PASS",
+    "expected": "Remembered background does not advance merely because the application restarts.",
+    "actual": "ocean-01 remained selected with cycle=42 and cycle_applied=42 after packaged EXE restart.",
+    "evidence": ["final_background_after_click.png", "final_background_after_restart.png", "profile/data/app_settings.json"],
+    "build": "2.6.0+57a4fe7",
+    "timestamp": "2026-08-14T00:37:28.3381317+03:00"
+  },
+  {
+    "id": "CLAIM_SUCCESS_EVIDENCE",
+    "status": "PASS",
+    "expected": "A successful file-creation claim has a real file artifact.",
+    "actual": "Gemini reported qa_claim_test.txt created; the file exists in the agent runtime workspace and contains exactly CLAIM_OK.",
+    "evidence": ["claim_success_typing.png", "workspace/.runtime/gemini/agents/employee-e5a2c7/qa_claim_test.txt"],
+    "build": "2.6.0+57a4fe7",
+    "timestamp": "2026-08-14T00:37:28.3381317+03:00"
+  },
+  {
+    "id": "CLAIM_IMPOSSIBLE",
+    "status": "PASS",
+    "expected": "When local tools are disabled the agent admits it cannot create the requested file.",
+    "actual": "Agent explicitly reported read-only/tool-disabled state; qa_claim_impossible.txt does not exist.",
+    "evidence": ["claim_impossible_typing.png"],
+    "build": "2.6.0+57a4fe7",
+    "timestamp": "2026-08-14T00:37:28.3381317+03:00"
+  },
+  {
+    "id": "CLAIM_TOOL_FAILURE",
+    "status": "PASS",
+    "expected": "A failed command is reported as failed rather than successful.",
+    "actual": "The nonexistent command returned exit code 1/CommandNotFoundException and the agent reported the failure.",
+    "evidence": ["claim_tool_failure_typing.png"],
+    "build": "2.6.0+57a4fe7",
+    "timestamp": "2026-08-14T00:37:28.3381317+03:00"
+  },
+  {
+    "id": "LEARNING_NO_SOURCE",
+    "status": "PASS",
+    "expected": "An agent cannot claim learning without a source.",
+    "actual": "Agent requested text/file/link and created no learning source, knowledge card or skill package.",
+    "evidence": ["profile/roman2050.sqlite3: learning_sources=0, knowledge_cards=0, skill_packages=0"],
+    "build": "2.6.0+57a4fe7",
+    "timestamp": "2026-08-14T00:37:28.3381317+03:00"
+  },
+  {
+    "id": "GUI_RESPONSIVE_DURING_PROVIDER",
+    "status": "PASS",
+    "expected": "The GUI stays responsive while a provider request is pending.",
+    "actual": "Window move/restore and chat scrolling completed in approximately 407.5 ms while Gemini was still running.",
+    "evidence": ["claim_success_typing.png"],
+    "build": "2.6.0+57a4fe7",
+    "timestamp": "2026-08-14T00:37:28.3381317+03:00"
+  },
+  {
+    "id": "UNICODE_DIAGNOSTIC",
+    "status": "PASS",
+    "expected": "Legacy provider diagnostics are stored and displayed as valid Cyrillic.",
+    "actual": "Exact corrupted CP1255-decoded legacy row was migrated; SQLite stores Codex: авторизован as U+0430...U+043D and the UI shows Codex: доступен.",
+    "evidence": ["final_build_startup.png", "tests/test_database.py", "tests/test_codex_client.py"],
+    "build": "2.6.0+57a4fe7",
+    "timestamp": "2026-08-14T00:37:28.3381317+03:00"
+  },
+  {
+    "id": "ORG_DELETE_RESTART",
+    "status": "PASS",
+    "expected": "Deleting an empty organization removes its workspace, owned conversation and messages and remains deleted after restart.",
+    "actual": "ORG-7C8146F49E33, OWS-42A9D82D6E0A and conversation 10 are all absent before and after restart; deleted org is absent from the console; foreign_key_check is empty.",
+    "evidence": ["final_org_created.png", "final_org_deleted.png", "final_org_after_restart.png", "tests/test_organization_lifecycle.py"],
+    "build": "2.6.0+57a4fe7",
+    "timestamp": "2026-08-14T00:37:28.3381317+03:00"
+  },
+  {
+    "id": "ORG_SWITCH_ABA",
+    "status": "PASS",
+    "expected": "Two organizations can be switched A to B to A without chat or roster leakage.",
+    "actual": "Audit Organization 6 to 7 to 6 switching completed; active workspace and chat followed the selected organization.",
+    "evidence": ["switch_A1.png", "switch_B.png", "switch_A2.png"],
+    "build": "2.6.0+57a4fe7",
+    "timestamp": "2026-08-14T00:37:28.3381317+03:00"
+  },
+  {
+    "id": "EMPLOYEES_12_RESTART",
+    "status": "PASS",
+    "expected": "At least ten generated employees retain human names and ready provider assignments after restart.",
+    "actual": "12/12 employees across Audit Organizations 6 and 7 have human display/preferred names, ACTIVE lifecycle and READY provisioning after restart.",
+    "evidence": ["employees_after_restart.png", "profile/roman2050.sqlite3"],
+    "build": "2.6.0+57a4fe7",
+    "timestamp": "2026-08-14T00:37:28.3381317+03:00"
+  },
+  {
+    "id": "ROUTING_DIRECT",
+    "status": "PASS",
+    "expected": "Елена, привет routes only to Elena.",
+    "actual": "User message 15 produced one employee response, message 16 from employee-51e6f4 (Елена Козак).",
+    "evidence": ["routing_direct_exact_sent.png", "profile/roman2050.sqlite3: messages 15-16"],
+    "build": "2.6.0+57a4fe7",
+    "timestamp": "2026-08-14T00:37:28.3381317+03:00"
+  },
+  {
+    "id": "ROUTING_TEAM",
+    "status": "PASS",
+    "expected": "Всем привет routes once to every active team member.",
+    "actual": "User message 17 produced six distinct employee responses, messages 18 through 23.",
+    "evidence": ["routing_team_sent.png", "profile/roman2050.sqlite3: messages 17-23"],
+    "build": "2.6.0+57a4fe7",
+    "timestamp": "2026-08-14T00:37:28.3381317+03:00"
+  },
+  {
+    "id": "ROUTING_SOCIAL",
+    "status": "PASS",
+    "expected": "Как настроение? is treated as social conversation rather than a work task.",
+    "actual": "User message 24 produced a concise social response from Elena in message 25 and did not start an old task.",
+    "evidence": ["profile/roman2050.sqlite3: messages 24-25"],
+    "build": "2.6.0+57a4fe7",
+    "timestamp": "2026-08-14T00:37:28.3381317+03:00"
+  },
+  {
+    "id": "ROUTING_WORK",
+    "status": "PASS",
+    "expected": "Команда, начинаем работу над тестовым проектом. starts a bounded team work discussion.",
+    "actual": "User message 26 produced six role-specific responses and one evidence warning, then stopped without an infinite loop.",
+    "evidence": ["routing_work_complete.png", "profile/roman2050.sqlite3: messages 26-33"],
+    "build": "2.6.0+57a4fe7",
+    "timestamp": "2026-08-14T00:37:28.3381317+03:00"
+  },
+  {
+    "id": "FULL_TEST_SUITE",
+    "status": "PASS",
+    "expected": "The full automated suite passes on the final source revision.",
+    "actual": "330 tests passed in 88.68 seconds.",
+    "evidence": ["pytest -q"],
+    "build": "2.6.0+57a4fe7",
+    "timestamp": "2026-08-14T00:37:28.3381317+03:00"
+  },
+  {
+    "id": "PACKAGED_BUILD",
+    "status": "PASS",
+    "expected": "A packaged Windows client is built from the final commit and starts responsively.",
+    "actual": "dist/Team2050/Team2050.exe starts with Responding=true and displays v2.6.0 build 57a4fe7.",
+    "evidence": ["build/build_info.json", "final_build_startup.png", "dist/Team2050/Team2050.exe"],
+    "build": "2.6.0+57a4fe7",
+    "timestamp": "2026-08-14T00:37:28.3381317+03:00"
+  }
+]

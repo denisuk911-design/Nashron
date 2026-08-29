@@ -1,0 +1,5 @@
+Материал не приложен, поэтому изучить и сохранить результат сейчас нельзя. Пришлите текст, файл или ссылку.
+
+```json
+{"schema_version":"1.0","agent_id":"agent-employee-091494","role":"RESEARCH_ASSISTANT","task_id":"TASK-2DACE2109B69","run_id":"RUN-73223C3221C7","action":"MESSAGE","participation":{"decision":"RESPOND","reason":"ROUTER_SELECTED","thread_id":"conversation-6","reply_to_message_id":null},"claims":[],"evidence":[],"skills_used":[],"proposed_state":null,"summary":"Запрошен исходный материал или ссылка для изучения.","files_read":[],"files_created":[],"files_modified":[],"files_deleted":[],"checks":[],"findings":[],"risks":[],"knowledge_used":[],"standards_used":[],"handoff_to_role":null,"owner_action_required":true}
+```

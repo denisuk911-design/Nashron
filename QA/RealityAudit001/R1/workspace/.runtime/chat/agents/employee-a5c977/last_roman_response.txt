@@ -1,0 +1,5 @@
+Подключаюсь по QA. После получения требований подготовлю тестовые сценарии и чек-лист приёмки. Риск сейчас один: без описания продукта проверять пока нечего.
+
+```json
+{"schema_version":"1.0","agent_id":"agent-employee-a5c977","role":"QA_ENGINEER","task_id":"TASK-BAC9D19C5CC3","run_id":"RUN-9E7073AB7919","action":"MESSAGE","participation":{"decision":"RESPOND","reason":"ROUTER_SELECTED","thread_id":"conversation-8","reply_to_message_id":null},"claims":[],"evidence":[],"skills_used":[],"proposed_state":null,"summary":"Обозначена зона QA и необходимость требований для начала проверки.","files_read":[],"files_created":[],"files_modified":[],"files_deleted":[],"checks":[],"findings":[],"risks":[],"knowledge_used":[],"standards_used":[],"handoff_to_role":null,"owner_action_required":false}
+```

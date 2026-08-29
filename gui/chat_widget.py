@@ -335,6 +335,7 @@ class ChatWidget(QWidget):
         toolbar.addWidget(self.mode_selector)
         toolbar.addStretch(1)
         toolbar.addWidget(self.stop_button)
+        self.routing_toolbar = toolbar
         composer_layout.addLayout(toolbar)
 
         layout = QVBoxLayout(self)
@@ -414,6 +415,11 @@ class ChatWidget(QWidget):
         self.mode_selector.setCurrentIndex(index if index >= 0 else 0)
         self.mode_selector.blockSignals(False)
         self.mode_selector.setToolTip(labels["mode_tip"])
+
+    def set_product_mode(self, enabled: bool = True) -> None:
+        """Keep routing automatic in Product UI while retaining runtime APIs."""
+        self.recipient_selector.setVisible(not enabled)
+        self.mode_selector.setVisible(not enabled)
 
     def add_message(
         self,

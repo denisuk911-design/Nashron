@@ -1,0 +1,302 @@
+[
+  {
+    "employee_id": "agent-employee-36cda9",
+    "display_name": "Лейла Вебер",
+    "preferred_name": "Лейла",
+    "role_id": "RESEARCH_ASSISTANT",
+    "profession": "Researcher",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-02-woman-realistic.png",
+    "communication_profile": "{\"assertiveness\": 4, \"directness\": 2, \"disagreement_style\": \"direct\", \"emotionality\": 3, \"explanation_style\": \"examples\", \"formality\": 1, \"humor\": 3, \"initiative\": 4, \"verbosity\": 3, \"warmth\": 2}",
+    "organization": "Audit Organization 1"
+  },
+  {
+    "employee_id": "agent-employee-3fa807",
+    "display_name": "Ярослав Кравченко",
+    "preferred_name": "Ярослав",
+    "role_id": "CUSTOM_ENGAGEMENT_LEAD",
+    "profession": "Engagement Lead",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-18-man-cartoon.png",
+    "communication_profile": "{\"assertiveness\": 4, \"directness\": 5, \"disagreement_style\": \"diplomatic\", \"emotionality\": 5, \"explanation_style\": \"short\", \"formality\": 1, \"humor\": 3, \"initiative\": 4, \"verbosity\": 1, \"warmth\": 4}",
+    "organization": "Audit Organization 1"
+  },
+  {
+    "employee_id": "agent-employee-766eea",
+    "display_name": "Наталья Козак",
+    "preferred_name": "Наталья",
+    "role_id": "CUSTOM_ANALYST",
+    "profession": "Analyst",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-19-reaction-woman.png",
+    "communication_profile": "{\"assertiveness\": 5, \"directness\": 3, \"disagreement_style\": \"diplomatic\", \"emotionality\": 5, \"explanation_style\": \"examples\", \"formality\": 4, \"humor\": 3, \"initiative\": 4, \"verbosity\": 2, \"warmth\": 4}",
+    "organization": "Audit Organization 1"
+  },
+  {
+    "employee_id": "agent-employee-a7e269",
+    "display_name": "Виктория Бондаренко",
+    "preferred_name": "Виктория",
+    "role_id": "DOCUMENT_CONTROL_OFFICER",
+    "profession": "Documentation",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-11-woman-cartoon.png",
+    "communication_profile": "{\"assertiveness\": 3, \"directness\": 2, \"disagreement_style\": \"direct\", \"emotionality\": 3, \"explanation_style\": \"technical\", \"formality\": 4, \"humor\": 0, \"initiative\": 5, \"verbosity\": 1, \"warmth\": 3}",
+    "organization": "Audit Organization 1"
+  },
+  {
+    "employee_id": "agent-employee-b80c82",
+    "display_name": "Дмитрий Петренко",
+    "preferred_name": "Дмитрий",
+    "role_id": "CUSTOM_REVIEWER",
+    "profession": "Reviewer",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-07-man-realistic.png",
+    "communication_profile": "{\"assertiveness\": 5, \"directness\": 4, \"disagreement_style\": \"diplomatic\", \"emotionality\": 4, \"explanation_style\": \"short\", \"formality\": 4, \"humor\": 0, \"initiative\": 3, \"verbosity\": 1, \"warmth\": 3}",
+    "organization": "Audit Organization 1"
+  },
+  {
+    "employee_id": "agent-employee-ec2ac8",
+    "display_name": "Сара Новак",
+    "preferred_name": "Сара",
+    "role_id": "CUSTOM_DOMAIN_SPECIALIST",
+    "profession": "Domain Specialist",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-11-woman-cartoon.png",
+    "communication_profile": "{\"assertiveness\": 2, \"directness\": 5, \"disagreement_style\": \"direct\", \"emotionality\": 1, \"explanation_style\": \"technical\", \"formality\": 4, \"humor\": 0, \"initiative\": 4, \"verbosity\": 3, \"warmth\": 3}",
+    "organization": "Audit Organization 1"
+  },
+  {
+    "employee_id": "agent-employee-4c6c79",
+    "display_name": "Эрик Вебер",
+    "preferred_name": "Эрик",
+    "role_id": "RESEARCH_ASSISTANT",
+    "profession": "Researcher",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-90-playful.png",
+    "communication_profile": "{\"assertiveness\": 4, \"directness\": 4, \"disagreement_style\": \"diplomatic\", \"emotionality\": 2, \"explanation_style\": \"short\", \"formality\": 3, \"humor\": 2, \"initiative\": 5, \"verbosity\": 3, \"warmth\": 2}",
+    "organization": "Audit Organization 2"
+  },
+  {
+    "employee_id": "agent-employee-638722",
+    "display_name": "Томас Вебер",
+    "preferred_name": "Томас",
+    "role_id": "CUSTOM_DOMAIN_SPECIALIST",
+    "profession": "Domain Specialist",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-04-woman-realistic.png",
+    "communication_profile": "{\"assertiveness\": 2, \"directness\": 4, \"disagreement_style\": \"evidence_first\", \"emotionality\": 3, \"explanation_style\": \"examples\", \"formality\": 1, \"humor\": 3, \"initiative\": 4, \"verbosity\": 2, \"warmth\": 2}",
+    "organization": "Audit Organization 2"
+  },
+  {
+    "employee_id": "agent-employee-92d4ce",
+    "display_name": "Амир Патель",
+    "preferred_name": "Амир",
+    "role_id": "CUSTOM_ENGAGEMENT_LEAD",
+    "profession": "Engagement Lead",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-06-man-realistic.png",
+    "communication_profile": "{\"assertiveness\": 3, \"directness\": 3, \"disagreement_style\": \"direct\", \"emotionality\": 1, \"explanation_style\": \"technical\", \"formality\": 1, \"humor\": 2, \"initiative\": 2, \"verbosity\": 1, \"warmth\": 4}",
+    "organization": "Audit Organization 2"
+  },
+  {
+    "employee_id": "agent-employee-a29c28",
+    "display_name": "Амир Росси",
+    "preferred_name": "Амир",
+    "role_id": "DOCUMENT_CONTROL_OFFICER",
+    "profession": "Documentation",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-22-realistic.png",
+    "communication_profile": "{\"assertiveness\": 2, \"directness\": 3, \"disagreement_style\": \"evidence_first\", \"emotionality\": 3, \"explanation_style\": \"detailed\", \"formality\": 2, \"humor\": 1, \"initiative\": 4, \"verbosity\": 1, \"warmth\": 3}",
+    "organization": "Audit Organization 2"
+  },
+  {
+    "employee_id": "agent-employee-c39d8f",
+    "display_name": "Оскар Росси",
+    "preferred_name": "Оскар",
+    "role_id": "CUSTOM_ANALYST",
+    "profession": "Analyst",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-06-man-realistic.png",
+    "communication_profile": "{\"assertiveness\": 2, \"directness\": 4, \"disagreement_style\": \"diplomatic\", \"emotionality\": 5, \"explanation_style\": \"examples\", \"formality\": 3, \"humor\": 2, \"initiative\": 2, \"verbosity\": 1, \"warmth\": 3}",
+    "organization": "Audit Organization 2"
+  },
+  {
+    "employee_id": "agent-employee-ed44b4",
+    "display_name": "Игорь Левченко",
+    "preferred_name": "Игорь",
+    "role_id": "CUSTOM_REVIEWER",
+    "profession": "Reviewer",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-01-woman-realistic.png",
+    "communication_profile": "{\"assertiveness\": 2, \"directness\": 2, \"disagreement_style\": \"evidence_first\", \"emotionality\": 4, \"explanation_style\": \"short\", \"formality\": 2, \"humor\": 0, \"initiative\": 4, \"verbosity\": 3, \"warmth\": 5}",
+    "organization": "Audit Organization 2"
+  },
+  {
+    "employee_id": "agent-employee-456ec4",
+    "display_name": "Олена Романюк",
+    "preferred_name": "Олена",
+    "role_id": "CUSTOM_ANALYST",
+    "profession": "Analyst",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-12-woman-cartoon.png",
+    "communication_profile": "{\"assertiveness\": 3, \"directness\": 4, \"disagreement_style\": \"diplomatic\", \"emotionality\": 4, \"explanation_style\": \"technical\", \"formality\": 2, \"humor\": 1, \"initiative\": 5, \"verbosity\": 3, \"warmth\": 5}",
+    "organization": "Audit Organization 3"
+  },
+  {
+    "employee_id": "agent-employee-96380a",
+    "display_name": "Дарья Козак",
+    "preferred_name": "Дарья",
+    "role_id": "DOCUMENT_CONTROL_OFFICER",
+    "profession": "Documentation",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-34-realistic.png",
+    "communication_profile": "{\"assertiveness\": 5, \"directness\": 5, \"disagreement_style\": \"diplomatic\", \"emotionality\": 5, \"explanation_style\": \"detailed\", \"formality\": 1, \"humor\": 3, \"initiative\": 2, \"verbosity\": 2, \"warmth\": 2}",
+    "organization": "Audit Organization 3"
+  },
+  {
+    "employee_id": "agent-employee-97361c",
+    "display_name": "Даниэль Сильва",
+    "preferred_name": "Даниэль",
+    "role_id": "RESEARCH_ASSISTANT",
+    "profession": "Researcher",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-01-woman-realistic.png",
+    "communication_profile": "{\"assertiveness\": 3, \"directness\": 4, \"disagreement_style\": \"diplomatic\", \"emotionality\": 5, \"explanation_style\": \"examples\", \"formality\": 3, \"humor\": 3, \"initiative\": 5, \"verbosity\": 3, \"warmth\": 4}",
+    "organization": "Audit Organization 3"
+  },
+  {
+    "employee_id": "agent-employee-aaaba4",
+    "display_name": "Андрей Коваль",
+    "preferred_name": "Андрей",
+    "role_id": "CUSTOM_REVIEWER",
+    "profession": "Reviewer",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-60-illustrated.png",
+    "communication_profile": "{\"assertiveness\": 3, \"directness\": 2, \"disagreement_style\": \"direct\", \"emotionality\": 5, \"explanation_style\": \"technical\", \"formality\": 1, \"humor\": 1, \"initiative\": 5, \"verbosity\": 2, \"warmth\": 2}",
+    "organization": "Audit Organization 3"
+  },
+  {
+    "employee_id": "agent-employee-c6dbdc",
+    "display_name": "Ева Вебер",
+    "preferred_name": "Ева",
+    "role_id": "CUSTOM_DOMAIN_SPECIALIST",
+    "profession": "Domain Specialist",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-04-woman-realistic.png",
+    "communication_profile": "{\"assertiveness\": 4, \"directness\": 4, \"disagreement_style\": \"diplomatic\", \"emotionality\": 2, \"explanation_style\": \"examples\", \"formality\": 2, \"humor\": 0, \"initiative\": 2, \"verbosity\": 3, \"warmth\": 2}",
+    "organization": "Audit Organization 3"
+  },
+  {
+    "employee_id": "agent-employee-e0cfcd",
+    "display_name": "Диана Танака",
+    "preferred_name": "Диана",
+    "role_id": "CUSTOM_ENGAGEMENT_LEAD",
+    "profession": "Engagement Lead",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-02-woman-realistic.png",
+    "communication_profile": "{\"assertiveness\": 5, \"directness\": 5, \"disagreement_style\": \"diplomatic\", \"emotionality\": 4, \"explanation_style\": \"short\", \"formality\": 1, \"humor\": 0, \"initiative\": 4, \"verbosity\": 2, \"warmth\": 5}",
+    "organization": "Audit Organization 3"
+  },
+  {
+    "employee_id": "agent-employee-3045a4",
+    "display_name": "Ярослав Савченко",
+    "preferred_name": "Ярослав",
+    "role_id": "CUSTOM_DOMAIN_SPECIALIST",
+    "profession": "Domain Specialist",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-24-realistic.png",
+    "communication_profile": "{\"assertiveness\": 2, \"directness\": 3, \"disagreement_style\": \"direct\", \"emotionality\": 1, \"explanation_style\": \"detailed\", \"formality\": 3, \"humor\": 3, \"initiative\": 4, \"verbosity\": 1, \"warmth\": 3}",
+    "organization": "Audit Organization 4"
+  },
+  {
+    "employee_id": "agent-employee-5d5d68",
+    "display_name": "Мария Ким",
+    "preferred_name": "Мария",
+    "role_id": "CUSTOM_ANALYST",
+    "profession": "Analyst",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-11-woman-cartoon.png",
+    "communication_profile": "{\"assertiveness\": 4, \"directness\": 5, \"disagreement_style\": \"evidence_first\", \"emotionality\": 2, \"explanation_style\": \"detailed\", \"formality\": 1, \"humor\": 2, \"initiative\": 4, \"verbosity\": 1, \"warmth\": 3}",
+    "organization": "Audit Organization 4"
+  },
+  {
+    "employee_id": "agent-employee-aba4ea",
+    "display_name": "Мартин Хаддад",
+    "preferred_name": "Мартин",
+    "role_id": "CUSTOM_ENGAGEMENT_LEAD",
+    "profession": "Engagement Lead",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-20-reaction-man.png",
+    "communication_profile": "{\"assertiveness\": 5, \"directness\": 3, \"disagreement_style\": \"evidence_first\", \"emotionality\": 4, \"explanation_style\": \"examples\", \"formality\": 4, \"humor\": 1, \"initiative\": 2, \"verbosity\": 1, \"warmth\": 3}",
+    "organization": "Audit Organization 4"
+  },
+  {
+    "employee_id": "agent-employee-b4f8f1",
+    "display_name": "Максим Левченко",
+    "preferred_name": "Максим",
+    "role_id": "RESEARCH_ASSISTANT",
+    "profession": "Researcher",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-90-playful.png",
+    "communication_profile": "{\"assertiveness\": 3, \"directness\": 3, \"disagreement_style\": \"direct\", \"emotionality\": 1, \"explanation_style\": \"technical\", \"formality\": 2, \"humor\": 2, \"initiative\": 3, \"verbosity\": 2, \"warmth\": 2}",
+    "organization": "Audit Organization 4"
+  },
+  {
+    "employee_id": "agent-employee-be1d19",
+    "display_name": "Диана Ли",
+    "preferred_name": "Диана",
+    "role_id": "DOCUMENT_CONTROL_OFFICER",
+    "profession": "Documentation",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-05-woman-realistic.png",
+    "communication_profile": "{\"assertiveness\": 3, \"directness\": 3, \"disagreement_style\": \"diplomatic\", \"emotionality\": 4, \"explanation_style\": \"short\", \"formality\": 1, \"humor\": 1, \"initiative\": 2, \"verbosity\": 2, \"warmth\": 3}",
+    "organization": "Audit Organization 4"
+  },
+  {
+    "employee_id": "agent-employee-c8a4d9",
+    "display_name": "Тарас Гриценко",
+    "preferred_name": "Тарас",
+    "role_id": "CUSTOM_REVIEWER",
+    "profession": "Reviewer",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-18-man-cartoon.png",
+    "communication_profile": "{\"assertiveness\": 2, \"directness\": 4, \"disagreement_style\": \"evidence_first\", \"emotionality\": 5, \"explanation_style\": \"detailed\", \"formality\": 1, \"humor\": 0, \"initiative\": 4, \"verbosity\": 1, \"warmth\": 3}",
+    "organization": "Audit Organization 4"
+  },
+  {
+    "employee_id": "agent-employee-091494",
+    "display_name": "Ярослав Бондаренко",
+    "preferred_name": "Ярослав",
+    "role_id": "RESEARCH_ASSISTANT",
+    "profession": "Researcher",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-32-realistic.png",
+    "communication_profile": "{\"assertiveness\": 3, \"directness\": 4, \"disagreement_style\": \"diplomatic\", \"emotionality\": 2, \"explanation_style\": \"technical\", \"formality\": 3, \"humor\": 0, \"initiative\": 3, \"verbosity\": 2, \"warmth\": 5}",
+    "organization": "Audit Organization 5"
+  },
+  {
+    "employee_id": "agent-employee-186fb9",
+    "display_name": "Наталья Коваль",
+    "preferred_name": "Наталья",
+    "role_id": "CUSTOM_REVIEWER",
+    "profession": "Reviewer",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-05-woman-realistic.png",
+    "communication_profile": "{\"assertiveness\": 4, \"directness\": 4, \"disagreement_style\": \"evidence_first\", \"emotionality\": 1, \"explanation_style\": \"technical\", \"formality\": 3, \"humor\": 3, \"initiative\": 4, \"verbosity\": 2, \"warmth\": 4}",
+    "organization": "Audit Organization 5"
+  },
+  {
+    "employee_id": "agent-employee-6ec77b",
+    "display_name": "Мартин Беннет",
+    "preferred_name": "Мартин",
+    "role_id": "CUSTOM_ANALYST",
+    "profession": "Analyst",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-06-man-realistic.png",
+    "communication_profile": "{\"assertiveness\": 3, \"directness\": 2, \"disagreement_style\": \"diplomatic\", \"emotionality\": 4, \"explanation_style\": \"detailed\", \"formality\": 3, \"humor\": 1, \"initiative\": 2, \"verbosity\": 2, \"warmth\": 4}",
+    "organization": "Audit Organization 5"
+  },
+  {
+    "employee_id": "agent-employee-8801f0",
+    "display_name": "Сара Патель",
+    "preferred_name": "Сара",
+    "role_id": "DOCUMENT_CONTROL_OFFICER",
+    "profession": "Documentation",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-04-woman-realistic.png",
+    "communication_profile": "{\"assertiveness\": 2, \"directness\": 4, \"disagreement_style\": \"direct\", \"emotionality\": 2, \"explanation_style\": \"short\", \"formality\": 1, \"humor\": 0, \"initiative\": 5, \"verbosity\": 3, \"warmth\": 5}",
+    "organization": "Audit Organization 5"
+  },
+  {
+    "employee_id": "agent-employee-b5fbbc",
+    "display_name": "Олена Коваль",
+    "preferred_name": "Олена",
+    "role_id": "CUSTOM_ENGAGEMENT_LEAD",
+    "profession": "Engagement Lead",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-25-realistic.png",
+    "communication_profile": "{\"assertiveness\": 5, \"directness\": 5, \"disagreement_style\": \"evidence_first\", \"emotionality\": 5, \"explanation_style\": \"detailed\", \"formality\": 4, \"humor\": 2, \"initiative\": 2, \"verbosity\": 1, \"warmth\": 4}",
+    "organization": "Audit Organization 5"
+  },
+  {
+    "employee_id": "agent-employee-e5a2c7",
+    "display_name": "Мария Ли",
+    "preferred_name": "Мария",
+    "role_id": "CUSTOM_DOMAIN_SPECIALIST",
+    "profession": "Domain Specialist",
+    "avatar_path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\data\\avatars\\avatar-60-illustrated.png",
+    "communication_profile": "{\"assertiveness\": 3, \"directness\": 4, \"disagreement_style\": \"diplomatic\", \"emotionality\": 5, \"explanation_style\": \"detailed\", \"formality\": 4, \"humor\": 2, \"initiative\": 5, \"verbosity\": 2, \"warmth\": 3}",
+    "organization": "Audit Organization 5"
+  }
+]

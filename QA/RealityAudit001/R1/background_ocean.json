@@ -1,0 +1,32 @@
+[
+  {
+    "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\ocean\\ocean-02.png",
+    "asset_sha256": "3be92b2514df3473d9e8c5783279651f48211f609a2d7cfb3fa9f881bd3dc832",
+    "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\ocean_01.png",
+    "screenshot_sha256": "4d2faf3da6aea744d0e0e75d683596224a55ed2dbc56dd1fe8afe0bdf505ad96"
+  },
+  {
+    "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\ocean\\ocean-03.png",
+    "asset_sha256": "6e6f6d5825b56e90595b9822929505eb4aa813657914c03c711a4d641e99a22d",
+    "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\ocean_02.png",
+    "screenshot_sha256": "e89d673047d1ce5cc8d24775b4d3813c3df8c036216026e4014965f11d738007"
+  },
+  {
+    "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\ocean\\ocean-01.png",
+    "asset_sha256": "3fa6db6f0c0a3bb16ede1ea8d8f066747e9e10f55290f1364d039f6d418dcfa1",
+    "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\ocean_03.png",
+    "screenshot_sha256": "2a084d6edc62315a0be543c933a36ed89e9ac0621e4837f1d069d0732dfc7858"
+  },
+  {
+    "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\ocean\\ocean-02.png",
+    "asset_sha256": "3be92b2514df3473d9e8c5783279651f48211f609a2d7cfb3fa9f881bd3dc832",
+    "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\ocean_04.png",
+    "screenshot_sha256": "4d2faf3da6aea744d0e0e75d683596224a55ed2dbc56dd1fe8afe0bdf505ad96"
+  },
+  {
+    "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\ocean\\ocean-03.png",
+    "asset_sha256": "6e6f6d5825b56e90595b9822929505eb4aa813657914c03c711a4d641e99a22d",
+    "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\ocean_05.png",
+    "screenshot_sha256": "e89d673047d1ce5cc8d24775b4d3813c3df8c036216026e4014965f11d738007"
+  }
+]

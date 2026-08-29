@@ -1,0 +1,182 @@
+{
+  "task": "TEAM2050-P0-REALITY-AUDIT-001",
+  "status": "READY_FOR_REVIEW",
+  "build": {
+    "commit": "2f5db52",
+    "exe": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\Team2050.exe",
+    "exe_exists": true,
+    "python": "3.14.5 (main, May 10 2026, 20:29:46) [MSC v.1944 64 bit (AMD64)]",
+    "qt_pyside": "6.11.1",
+    "windows": "Windows-10-10.0.19045-SP0",
+    "clean_profile": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final",
+    "database": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\RealityAudit001\\clean_profile_final\\roman2050.sqlite3",
+    "schema": {
+      "management_schema_version": "1.0",
+      "organization_expansion_schema_version": "1.0",
+      "phase1_schema_version": "1",
+      "provider_schema_version": "1.0",
+      "thread_question_schema_version": "1",
+      "universal_schema_version": "1.0"
+    },
+    "providers": [
+      {
+        "provider_id": "CODEX_CLI",
+        "installation_status": "INSTALLED",
+        "authentication_status": "AUTHENTICATED",
+        "access_status": "ACCESS_AVAILABLE",
+        "health_status": "READY",
+        "detected_version": "codex-cli 0.145.0-alpha.27"
+      },
+      {
+        "provider_id": "GEMINI_CLI",
+        "installation_status": "INSTALLED",
+        "authentication_status": "AUTHENTICATED",
+        "access_status": "NOT_CHECKED",
+        "health_status": "DEGRADED",
+        "detected_version": "0.54.4"
+      }
+    ]
+  },
+  "clean_gui_inventory": {
+    "organizations": 5,
+    "employees": 30,
+    "human_display_names": 30,
+    "unique_gui_avatars": 18,
+    "provider_assignments": {
+      "CODEX_CLI": 15,
+      "GEMINI_CLI": 14,
+      "UNAVAILABLE": 1
+    },
+    "permission_grant_counts_per_employee": {
+      "5": 20,
+      "6": 5,
+      "7": 5
+    },
+    "foreign_key_errors": []
+  },
+  "identity_500": {
+    "sample_size": 500,
+    "unique_full_names": 359,
+    "unique_first_names": 48,
+    "unique_surnames": 32,
+    "duplicate_profiles": 141,
+    "ru": 0,
+    "ua": 247,
+    "international": 253,
+    "avatar_sample_size": 100,
+    "avatar_sample_unique": 43
+  },
+  "avatars": {
+    "A_source_image_assets": 102,
+    "B_runtime_resolver_assets": 96,
+    "C_generator_assets": 96,
+    "D_unique_in_100_generated": 43,
+    "E_unique_in_30_gui_employees": 18,
+    "packaged_image_assets": 102
+  },
+  "theme_assets": {
+    "source": 18,
+    "packaged": 18,
+    "categories": [
+      "city",
+      "forest",
+      "mountains",
+      "night_city",
+      "ocean",
+      "space"
+    ]
+  },
+  "real_gui": {
+    "startup": {
+      "status": "PASS",
+      "evidence": "startup.png"
+    },
+    "organization_creation": {
+      "status": "PASS",
+      "count": 5,
+      "evidence": "organization_created.png"
+    },
+    "employee_names": {
+      "status": "PASS",
+      "human_names": 30,
+      "total": 30,
+      "evidence": "employees_generated.png"
+    },
+    "theme_backgrounds": {
+      "status": "PASS",
+      "verified": [
+        "city",
+        "forest",
+        "mountains",
+        "ocean"
+      ]
+    },
+    "chat_immediate_send": {
+      "status": "PASS",
+      "external_t0_to_t1_ms": 117,
+      "internal_insert_ms_range": [
+        6,
+        10
+      ],
+      "t2_worker_start": "NOT_SEPARATELY_INSTRUMENTED",
+      "t3_typing": "VISIBLE",
+      "t4_first_response_seconds": 6.97
+    },
+    "typing_indicator": {
+      "status": "PASS",
+      "evidence": "typing_parallel.png"
+    },
+    "autoscroll": {
+      "status": "PASS",
+      "bottom_follow": true,
+      "history_position_preserved": true,
+      "follow_restored": true
+    },
+    "organization_isolation": {
+      "status": "PASS",
+      "evidence": [
+        "chat_a.png",
+        "chat_b.png"
+      ]
+    },
+    "employee_delete": {
+      "status": "PASS",
+      "database_rows_after": 0,
+      "foreign_key_errors": 0
+    },
+    "organization_delete": {
+      "status": "PARTIAL",
+      "database_rows_after": 0,
+      "restart_recheck": "NOT_VERIFIED"
+    },
+    "provider_failure": {
+      "status": "PASS",
+      "unavailable_assignment_present": true,
+      "gui_frozen": false
+    },
+    "stop_recovery": {
+      "status": "PASS",
+      "next_message_started_ms": 565
+    },
+    "unicode": {
+      "status": "PARTIAL",
+      "main_gui": "PASS",
+      "internal_provider_diagnostic": "FAIL"
+    },
+    "personality_restart_persistence": {
+      "status": "NOT_VERIFIED"
+    },
+    "same_category_background_cycle": {
+      "status": "NOT_VERIFIED"
+    },
+    "response_quality_fake_claims": {
+      "status": "NOT_VERIFIED"
+    }
+  },
+  "findings": {
+    "fixed": 5,
+    "open": 3,
+    "unresolved_p0": [],
+    "unresolved_p1": []
+  }
+}

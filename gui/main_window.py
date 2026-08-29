@@ -56,6 +56,9 @@ from core.knowledge_service import KnowledgeService
 from core.knowledge_application_service import KnowledgeApplicationService
 from core.learning_evidence_service import LearningEvidenceService
 from core.learning_manager_service import LearningManagerService
+from core.luminifera_home_service import LuminiferaHomeService
+from core.luminifera_files_service import LuminiferaFilesService
+from core.luminifera_work_service import LuminiferaWorkService
 from core.management_service import ManagementService
 from core.memory_service import MemoryService
 from core.prompt_builder import PromptBuilder
@@ -79,6 +82,7 @@ from core.skill_package_service import SkillPackageService
 from core.skill_service import SkillService
 from core.standards_service import StandardsService
 from core.supervisor_application_service import SupervisorApplicationService
+from core.supervisor_chat_service import SupervisorChatApplicationService
 from core.supervisor_guide_service import SupervisorGuideService
 from core.structured_response import ParsedAgentResponse, parse_agent_response
 from core.team_routing import ManualRouting, TeamRouter, TeamRoutingDecision
@@ -105,12 +109,19 @@ from gui.chat_widget import ChatWidget
 from gui.director_console import DirectorConsoleDialog, OrganizationActivationWizard
 from gui.login_dialog import show_install_instructions
 from gui.localization import catalog_label, role_label
-from gui.settings_dialog import SettingsDialog
 from gui.supervisor_chat_dialog import SupervisorChatDialog
 from gui.supervisor_guide_dialog import SupervisorGuideDialog
 from gui.theme import ThemeBackdrop, ThemeManager
 from gui.worker import GenerateWorker
 from runtime_v2.feature_flag import RuntimeEngine, selected_runtime
+from ui_luminifera.app_shell import LuminiferaShell
+from ui_luminifera.home import HomeDashboard
+from ui_luminifera.files import FilesBrowser
+from ui_luminifera.team import TeamBuilderDialog
+from ui_luminifera.work import WorkDashboard
+from ui_luminifera.onboarding import FirstRunOnboarding
+from ui_luminifera.settings import LuminiferaSettingsDialog
+from ui_luminifera.profile import LuminiferaProfileDialog
 
 
 class MainWindow(QMainWindow):
@@ -132,6 +143,7 @@ class MainWindow(QMainWindow):
         self.paths = settings_service.paths
         self.logger = logger
         self.settings = settings_service.load()
+        self._luminifera_active_view = "home"
         self.health_monitor = BetaHealthService(self.paths.user_dir)
         self.health_monitor.mark_start()
         self._session_theme_backgrounds: dict[str, str] = {}
@@ -140,6 +152,9 @@ class MainWindow(QMainWindow):
 
         self.database = Database(self.paths.database_path)
         self.database.initialize()
+        self.luminifera_home_service = LuminiferaHomeService(self.database)
+        self.luminifera_files_service = LuminiferaFilesService(self.database)
+        self.luminifera_work_service = LuminiferaWorkService(self.database)
         self._set_startup_state("DATABASE_READY")
         self.management_repository = ConfigurationRepository(self.paths.management_config_dir)
         self.management_service = ManagementService(self.database, self.management_repository)
@@ -341,6 +356,10 @@ class MainWindow(QMainWindow):
         return label
 
     def _build_ui(self) -> None:
+        self._build_luminifera_ui()
+
+    def _build_legacy_ui_reference(self) -> None:
+        """Retain the old shell as an explicit migration reference only."""
         root = QWidget()
         root.setObjectName("appRoot")
         outer = QVBoxLayout(root)
@@ -458,6 +477,53 @@ class MainWindow(QMainWindow):
         outer.addWidget(footer)
         self.setCentralWidget(root)
 
+    def _build_luminifera_ui(self) -> None:
+        # Compatibility objects remain available to the validated runtime, but
+        # provider-specific and diagnostic controls are not mounted in Product UI.
+        self.organization_selector = QComboBox()
+        self.organization_selector.setToolTip("Выберите рабочее пространство")
+        self.organization_selector.currentIndexChanged.connect(self._switch_organization)
+        self.codex_status_label = QLabel("Codex: проверка")
+        self.gemini_status_label = QLabel("Gemini: проверка")
+        self.auth_button = QPushButton("Войти")
+        self.auth_button.clicked.connect(self._auth_action)
+        self.director_button = QPushButton("Команда")
+        self.director_button.clicked.connect(self.show_director_console_preview)
+        self.supervisor_guide_button = QPushButton("Guide")
+        self.supervisor_guide_button.clicked.connect(self.show_supervisor_guide)
+        self.routing_debug_button = QPushButton("Маршрут")
+        self.routing_debug_button.clicked.connect(self.show_routing_diagnostic)
+        self.work_context_button = QPushButton("Контекст")
+        self.work_context_button.clicked.connect(self.show_work_context_diagnostic)
+        self.work_context_label = QLabel()
+        self.workspace_status_label = QLabel()
+
+        self.chat_panel = self._build_chat_panel()
+        self.product_shell = LuminiferaShell(
+            self.chat_panel,
+            self.organization_selector,
+            {
+                "home": self.show_home_view,
+                "chat": self.show_chat_view,
+                "work": self.show_work_view,
+                "files": self.show_files_view,
+                "iris": self.show_supervisor_chat,
+                "settings": self.open_settings,
+                "help": self.show_feedback_dialog,
+                "profile": self.show_profile,
+            },
+            owner_avatar_path=str(self.settings.get("user_avatar_path") or ""),
+            onboarding_language_selector=self.empty_team_language,
+        )
+        self.chat_view_button = self.product_shell._navigation_buttons["chat"]
+        self.work_view_button = self.product_shell._navigation_buttons["work"]
+        self.files_view_button = self.product_shell._navigation_buttons["files"]
+        self.supervisor_chat_button = self.product_shell.iris_button
+        self.feedback_button = self.product_shell.help_button
+        self.backup_button = self.product_shell.profile_button
+        self.top_settings_button = self.product_shell.settings_button
+        self.setCentralWidget(self.product_shell)
+
     def _build_navigation_panel(self) -> QWidget:
         panel = QWidget()
         panel.setObjectName("navPanel")
@@ -523,6 +589,7 @@ class MainWindow(QMainWindow):
         layout.setSpacing(0)
 
         self.chat = ChatWidget(str(self.settings.get("interface_language", "ru")))
+        self.chat.set_product_mode(True)
         self._refresh_chat_agents()
         self.chat.send_requested.connect(self.send_message)
         self.chat.stop_requested.connect(self.stop_generation)
@@ -532,128 +599,57 @@ class MainWindow(QMainWindow):
         self.chat.attachment_removed.connect(self.remove_pending_attachment)
         self.chat.copy_requested.connect(self.copy_chat_to_clipboard)
         self.empty_team_panel = self._build_empty_team_panel()
+        self.home_panel = HomeDashboard(str(self.settings.get("interface_language", "ru")))
+        self.home_panel.talk_to_iris.connect(self.show_supervisor_chat)
+        self.home_panel.create_team_requested.connect(self._start_first_team_creation)
+        self.home_panel.demo_requested.connect(self._run_demo_sandbox)
+        self.home_panel.work_requested.connect(self.show_work_view)
+        self.work_panel = WorkDashboard(str(self.settings.get("interface_language", "ru")))
+        self.work_panel.talk_to_iris.connect(self.show_supervisor_chat)
+        self.files_panel = FilesBrowser(str(self.settings.get("interface_language", "ru")))
+        self.files_panel.open_workspace_requested.connect(self.open_workspace)
         layout.addWidget(self.empty_team_panel, 1)
+        layout.addWidget(self.home_panel, 1)
+        layout.addWidget(self.work_panel, 1)
+        layout.addWidget(self.files_panel, 1)
         layout.addWidget(self.chat, 1)
         self._update_empty_team_state()
         return panel
 
     def _build_empty_team_panel(self) -> QWidget:
-        panel = QWidget()
-        panel.setObjectName("emptyTeamPanel")
-        outer = QVBoxLayout(panel)
-        outer.setContentsMargins(28, 28, 28, 28)
-        outer.addStretch(1)
-
-        content = QWidget()
-        content.setMaximumWidth(620)
-        layout = QVBoxLayout(content)
-        layout.setSpacing(14)
-        self.empty_team_title = QLabel()
-        self.empty_team_title.setObjectName("pageTitle")
-        self.empty_team_title.setAlignment(Qt.AlignCenter)
-        self.empty_team_text = QLabel()
-        self.empty_team_text.setObjectName("muted")
-        self.empty_team_text.setAlignment(Qt.AlignCenter)
-        self.empty_team_text.setWordWrap(True)
-        self.onboarding_result = QLabel()
-        self.onboarding_result.setObjectName("muted")
-        self.onboarding_result.setAlignment(Qt.AlignCenter)
-        self.onboarding_result.setWordWrap(True)
+        language = str(self.settings.get("interface_language", "ru"))
         self.empty_team_language = QComboBox()
         for label, value in (("Русский", "ru"), ("Українська", "uk"), ("English", "en")):
             self.empty_team_language.addItem(label, value)
-        language = str(self.settings.get("interface_language", "ru"))
         self.empty_team_language.setCurrentIndex(max(0, self.empty_team_language.findData(language)))
         self.empty_team_language.currentIndexChanged.connect(self._change_first_run_language)
-
-        self.empty_team_avatar = QComboBox()
-        self.empty_team_avatar.setMinimumWidth(250)
-        self._load_onboarding_avatars()
-        self.empty_team_avatar.currentIndexChanged.connect(self._change_onboarding_avatar)
-
-        actions = QHBoxLayout()
-        self.connect_ai_button = QPushButton()
-        self.connect_ai_button.setObjectName("smallAction")
-        self.connect_ai_button.clicked.connect(self.show_director_console_preview)
-        self.create_team_button = QPushButton()
-        self.create_team_button.setObjectName("primaryButton")
-        self.create_team_button.clicked.connect(self._start_first_team_creation)
-        self.demo_sandbox_button = QPushButton()
-        self.demo_sandbox_button.setObjectName("smallAction")
-        self.demo_sandbox_button.clicked.connect(self._run_demo_sandbox)
-        actions.addStretch(1)
-        actions.addWidget(self.connect_ai_button)
-        actions.addWidget(self.create_team_button)
-        actions.addWidget(self.demo_sandbox_button)
-        actions.addStretch(1)
-        self.skip_onboarding_button = QPushButton()
-        self.skip_onboarding_button.setObjectName("smallAction")
-        self.skip_onboarding_button.clicked.connect(self._skip_onboarding)
-
-        layout.addWidget(self.empty_team_title)
-        layout.addWidget(self.empty_team_text)
-        layout.addWidget(self.empty_team_language, 0, Qt.AlignHCenter)
-        layout.addWidget(self.empty_team_avatar, 0, Qt.AlignHCenter)
-        layout.addLayout(actions)
-        layout.addWidget(self.onboarding_result)
-        layout.addWidget(self.skip_onboarding_button, 0, Qt.AlignHCenter)
-        outer.addWidget(content, 0, Qt.AlignHCenter)
-        outer.addStretch(2)
-        self._translate_empty_team_panel(language)
+        panel = FirstRunOnboarding(
+            language,
+            list_avatar_files(self.paths.avatar_dir),
+            str(self.settings.get("user_avatar_path") or ""),
+        )
+        panel.avatar_selected.connect(self._change_onboarding_avatar)
+        panel.upload_requested.connect(self._upload_onboarding_avatar)
+        panel.setup_requested.connect(self.show_supervisor_chat)
+        panel.create_team_requested.connect(self._start_first_team_creation)
+        panel.demo_requested.connect(self._run_demo_sandbox)
+        panel.skip_requested.connect(self._skip_onboarding)
+        self.onboarding_result = panel.result
         return panel
 
-    def _translate_empty_team_panel(self, language: str) -> None:
-        labels = {
-            "ru": (
-                "Добро пожаловать в Team2050",
-                "Supervisor поможет выбрать команду, а демонстрация покажет полный рабочий цикл без изменения вашей организации.",
-                "Настроить вместе",
-                "Создать команду",
-                "Демо",
-                "Осмотреться",
-            ),
-            "uk": (
-                "Ласкаво просимо до Team2050",
-                "Supervisor допоможе обрати команду, а демонстрація покаже повний робочий цикл без зміни вашої організації.",
-                "Налаштувати разом",
-                "Створити команду",
-                "Демо",
-                "Оглянутися",
-            ),
-            "en": (
-                "Welcome to Team2050",
-                "Supervisor can help choose a team. The demo shows a complete workflow without changing your organization.",
-                "Set up together",
-                "Create team",
-                "Demo",
-                "Look around",
-            ),
-        }
-        title, text, connect, create, demo, skip = labels.get(language, labels["ru"])
-        self.empty_team_title.setText(title)
-        self.empty_team_text.setText(text)
-        self.connect_ai_button.setText(connect)
-        self.create_team_button.setText(create)
-        self.demo_sandbox_button.setText(demo)
-        self.skip_onboarding_button.setText(skip)
-
-    def _load_onboarding_avatars(self) -> None:
-        """Offer the bundled avatar catalog before the first team is created."""
-        current = str(self.settings.get("user_avatar_path") or "")
-        self.empty_team_avatar.blockSignals(True)
-        self.empty_team_avatar.clear()
-        labels = {"ru": "Мой аватар", "uk": "Мій аватар", "en": "My avatar"}
-        self.empty_team_avatar.addItem(labels.get(str(self.settings.get("interface_language", "ru")), "Мой аватар"), "")
-        for path in list_avatar_files(self.paths.avatar_dir):
-            self.empty_team_avatar.addItem(QIcon(str(path)), path.stem.replace("avatar-", ""), str(path))
-        index = self.empty_team_avatar.findData(current)
-        self.empty_team_avatar.setCurrentIndex(index if index >= 0 else 0)
-        self.empty_team_avatar.blockSignals(False)
-
-    def _change_onboarding_avatar(self) -> None:
-        self.settings["user_avatar_path"] = str(self.empty_team_avatar.currentData() or "")
+    def _change_onboarding_avatar(self, path: str) -> None:
+        self.settings["user_avatar_path"] = str(path or "")
         self.settings_service.save(self.settings)
         self._refresh_chat_agents()
+
+    def _upload_onboarding_avatar(self) -> None:
+        selected, _ = QFileDialog.getOpenFileName(self, "Выберите свой аватар", "", "Images (*.png *.jpg *.jpeg *.webp)")
+        if not selected:
+            return
+        self._change_onboarding_avatar(selected)
+        self.empty_team_panel.select_avatar(selected, emit=False)
+        if hasattr(self, "product_shell"):
+            self.product_shell.set_owner_avatar(selected)
 
     def _change_first_run_language(self) -> None:
         language = str(self.empty_team_language.currentData() or "ru")
@@ -661,8 +657,16 @@ class MainWindow(QMainWindow):
         self.universal_platform_service.identity_language = language
         self.settings_service.save(self.settings)
         self.chat.set_language(language)
-        self._load_onboarding_avatars()
-        self._translate_empty_team_panel(language)
+        self.empty_team_panel.set_language(language)
+        if hasattr(self, "home_panel"):
+            self.home_panel.set_language(language)
+            self._refresh_luminifera_home()
+        if hasattr(self, "work_panel"):
+            self.work_panel.set_language(language)
+            self._refresh_luminifera_work()
+        if hasattr(self, "files_panel"):
+            self.files_panel.set_language(language)
+            self._refresh_luminifera_files()
 
     def _skip_onboarding(self) -> None:
         self.settings["onboarding_skipped"] = True
@@ -672,43 +676,51 @@ class MainWindow(QMainWindow):
     def _run_demo_sandbox(self) -> None:
         result = DemoSandboxService(self.paths.user_dir).run()
         if result.completed:
-            self.onboarding_result.setText(
+            self.empty_team_panel.set_result(
                 f"Демо завершено: {result.work_items} этапа, {result.artifacts} артефакта, "
                 f"{result.reviews} проверка. Результаты сохранены отдельно от команды."
             )
         else:
-            self.onboarding_result.setText("Демо остановлено до завершения проверки.")
+            self.empty_team_panel.set_result("Демо остановлено до завершения проверки.")
 
     def _update_empty_team_state(self) -> None:
-        if not hasattr(self, "empty_team_panel") or not hasattr(self, "chat"):
+        if not hasattr(self, "empty_team_panel") or not hasattr(self, "chat") or not hasattr(self, "home_panel") or not hasattr(self, "work_panel") or not hasattr(self, "files_panel"):
             return
         has_team = bool(self.active_organization_id)
         skipped = bool(self.settings.get("onboarding_skipped", False))
-        self.empty_team_panel.setVisible(not has_team and not skipped)
-        self.chat.setVisible(has_team or skipped)
+        onboarding = not has_team and not skipped
+        show_home = not onboarding and self._luminifera_active_view == "home"
+        show_work = not onboarding and self._luminifera_active_view == "work"
+        show_files = not onboarding and self._luminifera_active_view == "files"
+        self.empty_team_panel.setVisible(onboarding)
+        self.home_panel.setVisible(show_home)
+        self.work_panel.setVisible(show_work)
+        self.files_panel.setVisible(show_files)
+        self.chat.setVisible(not onboarding and not show_home and not show_work and not show_files)
+        shell = getattr(self, "product_shell", None)
+        if shell is not None:
+            shell.set_onboarding_mode(onboarding)
+
+    def _refresh_luminifera_home(self) -> None:
+        if hasattr(self, "home_panel"):
+            self.home_panel.render(self.luminifera_home_service.snapshot(self.active_organization_id))
+
+    def _refresh_luminifera_work(self) -> None:
+        if hasattr(self, "work_panel"):
+            self.work_panel.render(self.luminifera_work_service.snapshot(self.active_organization_id))
+
+    def _refresh_luminifera_files(self) -> None:
+        if hasattr(self, "files_panel"):
+            self.files_panel.render(self.luminifera_files_service.list_files(self.active_organization_id))
 
     def _start_first_team_creation(self) -> None:
         language = str(self.settings.get("interface_language", "ru"))
-        templates = self.universal_platform_service.list_templates()
-        if not templates:
-            return
-        labels = [catalog_label(language, template.name) for template in templates]
-        titles = {
-            "ru": ("Создать команду", "Выберите шаблон:"),
-            "uk": ("Створити команду", "Оберіть шаблон:"),
-            "en": ("Create team", "Choose a template:"),
-        }
-        title, prompt = titles.get(language, titles["ru"])
-        selected, accepted = QInputDialog.getItem(self, title, prompt, labels, 0, False)
-        if not accepted:
-            return
-        template = templates[labels.index(selected)]
-        wizard = OrganizationActivationWizard(self.universal_platform_service, template, language, self)
-        if wizard.exec() != OrganizationActivationWizard.Accepted or wizard.activation is None:
+        builder = TeamBuilderDialog(self.universal_platform_service, language, self)
+        if builder.exec() != TeamBuilderDialog.Accepted or builder.build is None:
             return
         self.settings["onboarding_skipped"] = False
         self.settings_service.save(self.settings)
-        self._activate_organization_live(wizard.activation.organization.organization_id)
+        self._activate_organization_live(builder.build.activation.organization.organization_id)
 
     def _activate_organization_live(self, organization_id: str) -> None:
         self._refresh_organization_selector()
@@ -716,8 +728,9 @@ class MainWindow(QMainWindow):
         if index >= 0:
             if self.active_organization_id != organization_id:
                 self._switch_organization(index)
-            else:
-                self.organization_selector.setCurrentIndex(index)
+        else:
+            self.organization_selector.setCurrentIndex(index)
+        self._refresh_luminifera_home()
         self._update_empty_team_state()
 
     def copy_chat_to_clipboard(self) -> None:
@@ -815,6 +828,7 @@ class MainWindow(QMainWindow):
         self.codex_status_label.setText("Codex: доступен" if codex_available else "Codex: нет")
         self.gemini_status_label.setText("Gemini: доступен" if gemini_available else "Gemini: нет")
         self.auth_button.setText("Проверить вход" if codex_available else "Codex не найден")
+        self._update_product_ai_state(codex_available or gemini_available)
         self.database.log_event(
             "provider_fast_status",
             f"codex_available={codex_available}; gemini_available={gemini_available}",
@@ -842,11 +856,18 @@ class MainWindow(QMainWindow):
         if not self.gemini_client.is_available():
             self.gemini_version = "не найден"
             self.gemini_status_label.setText("Gemini: нет")
+            self._update_product_ai_state(self.codex_authorized)
             return
         self.gemini_version = self.gemini_client.version()
         key_state = "ключ задан" if self.gemini_client.has_api_key() else "нет ключа"
         self.gemini_status_label.setText("Gemini: OK" if self.gemini_client.has_api_key() else "Gemini: ключ")
+        self._update_product_ai_state(self.codex_authorized or self.gemini_client.has_api_key())
         self.database.log_event("gemini_status", f"{self.gemini_version}; key={self.gemini_client.has_api_key()}")
+
+    def _update_product_ai_state(self, ready: bool) -> None:
+        shell = getattr(self, "product_shell", None)
+        if shell is not None:
+            shell.set_ai_ready(ready)
 
     def load_conversation(self) -> None:
         self._refresh_organization_selector()
@@ -1517,13 +1538,30 @@ class MainWindow(QMainWindow):
         )
         QMessageBox.information(self, "Рабочий контекст", text)
 
+    def show_home_view(self) -> None:
+        self.conversation_mode = ConversationMode.SOCIAL
+        self._luminifera_active_view = "home"
+        self._refresh_luminifera_home()
+        self._update_empty_team_state()
+        self._refresh_work_context_strip()
+
     def show_chat_view(self) -> None:
         self.conversation_mode = ConversationMode.SOCIAL
+        self._luminifera_active_view = "chat"
+        self._update_empty_team_state()
         self._refresh_work_context_strip()
 
     def show_work_view(self) -> None:
         self.conversation_mode = ConversationMode.WORK
+        self._luminifera_active_view = "work"
+        self._refresh_luminifera_work()
+        self._update_empty_team_state()
         self._refresh_work_context_strip()
+
+    def show_files_view(self) -> None:
+        self._luminifera_active_view = "files"
+        self._refresh_luminifera_files()
+        self._update_empty_team_state()
 
     def _goal_turn_limit(self) -> int:
         try:
@@ -2792,7 +2830,7 @@ class MainWindow(QMainWindow):
             self._refresh_chat_agents()
         self._update_empty_team_state()
 
-    def show_supervisor_chat(self) -> None:
+    def show_supervisor_chat(self, *, modal: bool = True) -> None:
         service = SupervisorChatApplicationService(
             supervisor_service=self.director_service,
             universal_service=self.universal_platform_service,
@@ -2803,7 +2841,12 @@ class MainWindow(QMainWindow):
             strong_handler=self._run_supervisor_strong_request,
         )
         dialog = SupervisorChatDialog(service, self.active_organization_id, self)
-        dialog.exec()
+        if modal:
+            dialog.exec()
+        else:
+            dialog.setModal(False)
+            self._iris_dialog = dialog
+            dialog.show()
         # Supervisor settings changes are persisted by the application service;
         # apply them immediately to the already-open client as well.
         self.chat.set_language(str(self.settings.get("interface_language", "ru")))
@@ -2885,6 +2928,14 @@ class MainWindow(QMainWindow):
             return
         QMessageBox.information(self, "Отчет создан", f"Отчет сохранен:\n{output}")
 
+    def show_profile(self) -> None:
+        dialog = LuminiferaProfileDialog(self.settings, self)
+        if dialog.exec() != LuminiferaProfileDialog.Accepted:
+            return
+        self.settings.update(dialog.values())
+        self.settings_service.save(self.settings)
+        self.product_shell.set_owner_avatar(str(self.settings.get("user_avatar_path") or ""))
+
     def show_profile_backup_menu(self) -> None:
         action, accepted = QInputDialog.getItem(
             self, "Профиль", "Выберите действие:", ["Сохранить профиль", "Восстановить профиль"], 0, False
@@ -2918,8 +2969,8 @@ class MainWindow(QMainWindow):
         QMessageBox.information(self, "Профиль восстановлен", "Перезапустите Team2050 для применения данных.")
 
     def open_settings(self) -> None:
-        dialog = SettingsDialog(self.settings, self)
-        if dialog.exec() != SettingsDialog.Accepted:
+        dialog = LuminiferaSettingsDialog(self.settings, self)
+        if dialog.exec() != LuminiferaSettingsDialog.Accepted:
             return
         old_workspace = str(self.settings.get("workspace_root", ""))
         values = dialog.values()

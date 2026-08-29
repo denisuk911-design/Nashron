@@ -1,0 +1,190 @@
+{
+  "city": [
+    {
+      "iteration": 1,
+      "theme": "city",
+      "cycle": 2,
+      "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\city\\city-01.png",
+      "asset_sha256": "8de41f6ab732c7e3d1acdddac851c6609cf2f9cda3a85b4953fc86bec2653ce3",
+      "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\city_01.png",
+      "screenshot_sha256": "20bca6891746e6aae61f3ed889a38dd23701a6efcf4af15e1f7ae8ac185c641e"
+    },
+    {
+      "iteration": 2,
+      "theme": "city",
+      "cycle": 3,
+      "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\city\\city-02.png",
+      "asset_sha256": "10dff33c89c9d63249345585aec34995ee78fcf079c26f7c1ea51a5bc5096763",
+      "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\city_02.png",
+      "screenshot_sha256": "9c621084dc79c6e9e4c564e2287a27a393a78b343eda1cedb41256efbd7cd7e1"
+    },
+    {
+      "iteration": 3,
+      "theme": "city",
+      "cycle": 4,
+      "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\city\\city-03.png",
+      "asset_sha256": "dae4b1a5ee5d387ead3f16e818bb7b5c79c5d1b42ea92323bb49a3a9f762c8db",
+      "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\city_03.png",
+      "screenshot_sha256": "2b73385e8a97893a904e0ab3e8e78c58c7758330d9bfb20de7f72f170b6acbbc"
+    },
+    {
+      "iteration": 4,
+      "theme": "city",
+      "cycle": 5,
+      "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\city\\city-01.png",
+      "asset_sha256": "8de41f6ab732c7e3d1acdddac851c6609cf2f9cda3a85b4953fc86bec2653ce3",
+      "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\city_04.png",
+      "screenshot_sha256": "20bca6891746e6aae61f3ed889a38dd23701a6efcf4af15e1f7ae8ac185c641e"
+    },
+    {
+      "iteration": 5,
+      "theme": "city",
+      "cycle": 6,
+      "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\city\\city-02.png",
+      "asset_sha256": "10dff33c89c9d63249345585aec34995ee78fcf079c26f7c1ea51a5bc5096763",
+      "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\city_05.png",
+      "screenshot_sha256": "9c621084dc79c6e9e4c564e2287a27a393a78b343eda1cedb41256efbd7cd7e1"
+    }
+  ],
+  "forest": [
+    {
+      "iteration": 1,
+      "theme": "dark_forest",
+      "cycle": 7,
+      "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\forest\\forest-03.png",
+      "asset_sha256": "b3973689cd519e585b44b1e5ea888b1da1f0170381b88885d45e25b1d4ab6335",
+      "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\forest_01.png",
+      "screenshot_sha256": "7be9348c83e0dab315e61e3d3bf99680affad47781d8d58ab111f59e679e3359"
+    },
+    {
+      "iteration": 2,
+      "theme": "dark_forest",
+      "cycle": 8,
+      "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\forest\\forest-01.png",
+      "asset_sha256": "ccd991ba52203d6deda5d3349e18ac8a541bd55803f59976a428f22d75fc986d",
+      "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\forest_02.png",
+      "screenshot_sha256": "650090e02a6e5513867196785856ea9ec1b9dd5c4aab410bdd19aa5d362be18b"
+    },
+    {
+      "iteration": 3,
+      "theme": "dark_forest",
+      "cycle": 9,
+      "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\forest\\forest-02.png",
+      "asset_sha256": "77db3da0752e7acc29b44a7b7fcf1c4f661de439f8041d69aa26aa42578d344f",
+      "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\forest_03.png",
+      "screenshot_sha256": "d6bd201375197213caa7c83a3cb73a1114c5599267a04a87a073f822347a8085"
+    },
+    {
+      "iteration": 4,
+      "theme": "dark_forest",
+      "cycle": 10,
+      "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\forest\\forest-03.png",
+      "asset_sha256": "b3973689cd519e585b44b1e5ea888b1da1f0170381b88885d45e25b1d4ab6335",
+      "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\forest_04.png",
+      "screenshot_sha256": "7be9348c83e0dab315e61e3d3bf99680affad47781d8d58ab111f59e679e3359"
+    },
+    {
+      "iteration": 5,
+      "theme": "dark_forest",
+      "cycle": 11,
+      "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\forest\\forest-01.png",
+      "asset_sha256": "ccd991ba52203d6deda5d3349e18ac8a541bd55803f59976a428f22d75fc986d",
+      "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\forest_05.png",
+      "screenshot_sha256": "650090e02a6e5513867196785856ea9ec1b9dd5c4aab410bdd19aa5d362be18b"
+    }
+  ],
+  "mountains": [
+    {
+      "iteration": 1,
+      "theme": "mountains",
+      "cycle": 12,
+      "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\mountains\\mountains-02.png",
+      "asset_sha256": "3ac3d9368da23890192e3e1fbc904487dd7d32bc7d510a0b60581e00a44b6565",
+      "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\mountains_01.png",
+      "screenshot_sha256": "be7c13871e9136b99308ef0028ebd308e6cd253c9332b29f233dfae17b9ef577"
+    },
+    {
+      "iteration": 2,
+      "theme": "mountains",
+      "cycle": 13,
+      "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\mountains\\mountains-03.png",
+      "asset_sha256": "869d0a879a8bdbe7aec3027329a149aa53cd6b939b675c7b659f618a87080e14",
+      "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\mountains_02.png",
+      "screenshot_sha256": "5b1c33fe21be47929930690e7be4900b2e5851af6887c6804d8dabc0034719b1"
+    },
+    {
+      "iteration": 3,
+      "theme": "mountains",
+      "cycle": 14,
+      "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\mountains\\mountains-01.png",
+      "asset_sha256": "ac51d9dfa66151581f9da4eeae951fa8df62b2b73480e32499ad3c3df64c1ed3",
+      "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\mountains_03.png",
+      "screenshot_sha256": "1d69f68fb693eb0a4a00742f73897a82d34e04e8d592d18da274634dce103e30"
+    },
+    {
+      "iteration": 4,
+      "theme": "mountains",
+      "cycle": 15,
+      "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\mountains\\mountains-02.png",
+      "asset_sha256": "3ac3d9368da23890192e3e1fbc904487dd7d32bc7d510a0b60581e00a44b6565",
+      "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\mountains_04.png",
+      "screenshot_sha256": "be7c13871e9136b99308ef0028ebd308e6cd253c9332b29f233dfae17b9ef577"
+    },
+    {
+      "iteration": 5,
+      "theme": "mountains",
+      "cycle": 16,
+      "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\mountains\\mountains-03.png",
+      "asset_sha256": "869d0a879a8bdbe7aec3027329a149aa53cd6b939b675c7b659f618a87080e14",
+      "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\mountains_05.png",
+      "screenshot_sha256": "5b1c33fe21be47929930690e7be4900b2e5851af6887c6804d8dabc0034719b1"
+    }
+  ],
+  "ocean": [
+    {
+      "iteration": 1,
+      "theme": "dark_ocean",
+      "cycle": 17,
+      "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\ocean\\ocean-01.png",
+      "asset_sha256": "3fa6db6f0c0a3bb16ede1ea8d8f066747e9e10f55290f1364d039f6d418dcfa1",
+      "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\ocean_01.png",
+      "screenshot_sha256": "2a084d6edc62315a0be543c933a36ed89e9ac0621e4837f1d069d0732dfc7858"
+    },
+    {
+      "iteration": 2,
+      "theme": "dark_ocean",
+      "cycle": 18,
+      "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\ocean\\ocean-02.png",
+      "asset_sha256": "3be92b2514df3473d9e8c5783279651f48211f609a2d7cfb3fa9f881bd3dc832",
+      "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\ocean_02.png",
+      "screenshot_sha256": "4d2faf3da6aea744d0e0e75d683596224a55ed2dbc56dd1fe8afe0bdf505ad96"
+    },
+    {
+      "iteration": 3,
+      "theme": "dark_ocean",
+      "cycle": 19,
+      "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\ocean\\ocean-03.png",
+      "asset_sha256": "6e6f6d5825b56e90595b9822929505eb4aa813657914c03c711a4d641e99a22d",
+      "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\ocean_03.png",
+      "screenshot_sha256": "2059f2cdf25345bd02168772b9d5a843c6879e04df3b61c1934e7aaaedc62b0d"
+    },
+    {
+      "iteration": 4,
+      "theme": "dark_ocean",
+      "cycle": 20,
+      "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\ocean\\ocean-01.png",
+      "asset_sha256": "3fa6db6f0c0a3bb16ede1ea8d8f066747e9e10f55290f1364d039f6d418dcfa1",
+      "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\ocean_04.png",
+      "screenshot_sha256": "2a084d6edc62315a0be543c933a36ed89e9ac0621e4837f1d069d0732dfc7858"
+    },
+    {
+      "iteration": 5,
+      "theme": "dark_ocean",
+      "cycle": 21,
+      "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\ocean\\ocean-02.png",
+      "asset_sha256": "3be92b2514df3473d9e8c5783279651f48211f609a2d7cfb3fa9f881bd3dc832",
+      "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\ocean_05.png",
+      "screenshot_sha256": "4d2faf3da6aea744d0e0e75d683596224a55ed2dbc56dd1fe8afe0bdf505ad96"
+    }
+  ]
+}

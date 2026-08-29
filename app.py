@@ -10,7 +10,7 @@ import traceback
 
 from PySide6.QtCore import QLockFile, QTimer
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QDialogButtonBox
 from PySide6.QtWidgets import QMessageBox
 
 from core.management_models import AgentProfile
@@ -106,6 +106,8 @@ def _prepare_preview_smoke_settings(settings_service: SettingsService) -> None:
                 "chat_background_opacity": 18,
             }
         )
+    if os.environ.get("TEAM2050_PREVIEW_SCREEN") in {"home", "work", "iris", "team", "chat", "files", "settings", "profile"}:
+        settings["onboarding_skipped"] = True
     settings_service.save(settings)
 
 
@@ -307,11 +309,66 @@ def _run_preview_smoke(app: QApplication, window: MainWindow) -> None:
         demo_requested = os.environ.get("TEAM2050_PREVIEW_SMOKE_DEMO") == "1"
         if demo_requested:
             window._run_demo_sandbox()
+        if os.environ.get("TEAM2050_PREVIEW_SCREEN") == "iris":
+            from gui.supervisor_chat_dialog import SupervisorChatDialog
+            from core.supervisor_chat_service import SupervisorChatApplicationService
+            iris_service = SupervisorChatApplicationService(
+                supervisor_service=window.director_service,
+                universal_service=window.universal_platform_service,
+                management_service=window.management_service,
+                settings=window.settings,
+                save_settings=window.settings_service.save,
+                local_runtime=getattr(window.runtime_v3_goal_service, "local_supervisor", None),
+                strong_handler=window._run_supervisor_strong_request,
+            )
+            window._iris_dialog = SupervisorChatDialog(iris_service, window.active_organization_id, window)
+            window._iris_dialog.setModal(False)
+            window._iris_dialog.show()
+            QApplication.processEvents()
+        if os.environ.get("TEAM2050_PREVIEW_SCREEN") == "team":
+            from ui_luminifera.team import TeamBuilderDialog
+            window._team_builder_dialog = TeamBuilderDialog(window.universal_platform_service, "ru", window)
+            window._team_builder_dialog.brief.setPlainText("Создать инженерную команду продукта")
+            window._team_builder_dialog._propose_clicked(window._team_builder_dialog.propose.button(QDialogButtonBox.Apply))
+            window._team_builder_dialog.show()
+            QApplication.processEvents()
+        if os.environ.get("TEAM2050_PREVIEW_SCREEN") == "work":
+            window._luminifera_active_view = "work"
+            window.product_shell.set_active_navigation("work")
+            window._refresh_luminifera_work()
+            window._update_empty_team_state()
+            QApplication.processEvents()
+        if os.environ.get("TEAM2050_PREVIEW_SCREEN") == "chat":
+            window._luminifera_active_view = "chat"
+            window.product_shell.set_active_navigation("chat")
+            window._update_empty_team_state()
+            QApplication.processEvents()
+        if os.environ.get("TEAM2050_PREVIEW_SCREEN") == "files":
+            window._luminifera_active_view = "files"
+            window.product_shell.set_active_navigation("files")
+            window._refresh_luminifera_files()
+            window._update_empty_team_state()
+            QApplication.processEvents()
+        if os.environ.get("TEAM2050_PREVIEW_SCREEN") == "settings":
+            from ui_luminifera.settings import LuminiferaSettingsDialog
+            window._settings_dialog_preview = LuminiferaSettingsDialog(window.settings, window)
+            window._settings_dialog_preview.setModal(False)
+            window._settings_dialog_preview.show()
+            window.product_shell.set_active_navigation("settings")
+            QApplication.processEvents()
+        if os.environ.get("TEAM2050_PREVIEW_SCREEN") == "profile":
+            from ui_luminifera.profile import LuminiferaProfileDialog
+            window._profile_dialog_preview = LuminiferaProfileDialog(window.settings, window)
+            window._profile_dialog_preview.setModal(False)
+            window._profile_dialog_preview.show()
+            window.product_shell.set_active_navigation("profile")
+            QApplication.processEvents()
         rc_checks = RcChecklistService(window.paths.user_dir).run()
         rc_report = RcChecklistService(window.paths.user_dir).report_path
         demo_state = window.paths.user_dir / "demo_sandbox" / "checkpoints" / "state.json"
         screenshot_path = report_path.with_suffix(".png")
-        window.grab().save(str(screenshot_path))
+        screenshot_target = getattr(window, "_profile_dialog_preview", getattr(window, "_settings_dialog_preview", getattr(window, "_iris_dialog", getattr(window, "_team_builder_dialog", window))))
+        screenshot_target.grab().save(str(screenshot_path))
         avatar_path = str(window.settings.get("user_avatar_path") or "")
         background_path = str(window.settings.get("chat_background_remembered") or "")
         payload = {

@@ -1,0 +1,5 @@
+Подключаюсь как исследователь: соберу источники, даташиты и проверяемые факты. Нужны тема проекта и первый исследовательский вопрос.
+
+```json
+{"schema_version":"1.0","agent_id":"agent-employee-a629ea","role":"RESEARCH_ASSISTANT","task_id":"TASK-BAC9D19C5CC3","run_id":"RUN-49352FDE2601","action":"MESSAGE","participation":{"decision":"RESPOND","reason":"ROUTER_SELECTED","thread_id":"conversation-8","reply_to_message_id":null},"claims":[],"evidence":[],"skills_used":[],"proposed_state":null,"summary":"Обозначена исследовательская зона ответственности; запрошены тема проекта и первый вопрос.","files_read":[],"files_created":[],"files_modified":[],"files_deleted":[],"checks":[],"findings":[],"risks":[],"knowledge_used":[],"standards_used":[],"handoff_to_role":null,"owner_action_required":true}
+```

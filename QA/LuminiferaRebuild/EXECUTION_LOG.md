@@ -1,0 +1,155 @@
+# Luminifera UI Rebuild Execution Log
+
+## STEP 01 - Application Shell / Navigation
+
+STEP: 01
+STATUS: TECHNICAL PASS; VISUAL REVIEW PENDING OWNER
+TECHNICAL_TESTS: 30 passed (`test_luminifera_shell`, `test_startup_bootstrap`, `test_main_window_helpers`, `test_theme_manager`)
+PACKAGED_TEST: PASS (`checks_passed=true`, clean isolated profile, demo sandbox completed)
+ENGINE_PARITY: Startup, organization selector, chat surface, social/work mode callbacks, Iris callback, settings/profile callbacks and demo sandbox remain connected to existing services.
+VISUAL_SCREENSHOT: `QA/LuminiferaRebuild/Screenshots/01_application_shell_actual.png`
+KNOWN_GAPS: STEP 01 changes only the application chrome. The central first-run/onboarding surface remains legacy until STEP 02. The bundled executable keeps its internal `Team2050.exe` filename during migration.
+FILES_CHANGED: `core/branding.py`; `gui/main_window.py`; `gui/theme/theme_manager.py`; `ui_luminifera/`; `tests/test_luminifera_shell.py`; `QA/LuminiferaRebuild/`
+
+## STEP 02 - Onboarding / First Run
+
+STEP: 02
+STATUS: PASS; visual review retained for final owner review
+TECHNICAL_TESTS: 31 passed (`test_startup_bootstrap`, `test_luminifera_shell`, `test_main_window_helpers`, `test_theme_manager`)
+PACKAGED_TEST: PASS (`checks_passed=true`, clean isolated profile, `Luminifera` window title)
+ENGINE_PARITY: First-team creation, demo sandbox, language persistence and owner avatar persistence remain connected to their existing services.
+VISUAL_SCREENSHOT: `QA/LuminiferaRebuild/Screenshots/01_onboarding.png`
+KNOWN_GAPS: Final space imagery, window chrome and owner profile editor are later dedicated steps.
+FILES_CHANGED: `gui/main_window.py`; `gui/theme/theme_manager.py`; `ui_luminifera/onboarding/`; `ui_luminifera/app_shell/shell.py`; `tests/test_startup_bootstrap.py`; `QA/LuminiferaRebuild/`
+
+## STEP 03 - Home / Workspace Entry
+
+STEP: 03
+STATUS: PASS; visual review retained for final owner review
+TECHNICAL_TESTS: 32 passed (`test_startup_bootstrap`, `test_luminifera_shell`, `test_main_window_helpers`, `test_theme_manager`)
+PACKAGED_TEST: PASS; `dist/Team2050/Team2050.exe` launched in an isolated preview profile and generated `02_home_empty.json` with `checks_passed=true`
+ENGINE_PARITY: Home reads organization, roster, task and artifact state through `LuminiferaHomeService`; runtime provider and orchestration behavior is unchanged.
+VISUAL_SCREENSHOT: `QA/LuminiferaRebuild/Screenshots/02_home_empty.png`
+KNOWN_GAPS: Active-organization Home state is covered by source tests; the full visual scenario will be captured during final acceptance.
+FILES_CHANGED: `core/luminifera_home_service.py`; `ui_luminifera/home/`; `gui/main_window.py`; `gui/theme/theme_manager.py`; `app.py`; `tests/test_startup_bootstrap.py`
+
+## STEP 04 - Iris Owner Surface
+
+STEP: 04
+STATUS: PASS; visual review retained for final owner review
+TECHNICAL_TESTS: 40 passed (39 existing targeted tests plus `test_iris_dialog`)
+PACKAGED_TEST: PASS; `dist/Team2050/Team2050.exe` generated `03_iris.json` with `checks_passed=true`
+ENGINE_PARITY: Iris remains backed by `SupervisorChatApplicationService`, management, organization, settings, Goal and provider callbacks; dangerous actions retain confirmation.
+VISUAL_SCREENSHOT: `QA/LuminiferaRebuild/Screenshots/03_iris.png`
+KNOWN_GAPS: Full multi-panel Iris reference composition and team-builder cards are covered by later product steps.
+FILES_CHANGED: `gui/supervisor_chat_dialog.py`; `gui/main_window.py`; `app.py`; `tests/test_iris_dialog.py`
+
+## STEP 05 - Team Builder / Proposal
+
+STEP: 05
+STATUS: PASS; visual review retained for final owner review
+TECHNICAL_TESTS: 17 focused tests passed (`test_luminifera_team_builder`, startup, Iris and application-service contracts)
+PACKAGED_TEST: PASS; packaged team proposal preview generated `04_team_builder.json` with `checks_passed=true`
+ENGINE_PARITY: Proposal confirmation invokes `UniversalPlatformService.build_professional_team`; team selection remains deterministic and domain-aware.
+VISUAL_SCREENSHOT: `QA/LuminiferaRebuild/Screenshots/04_team_builder.png`
+KNOWN_GAPS: Rich employee cards with avatar, status and skill details are a later refinement of the team surface; current proposal exposes human-readable roles and responsibilities.
+FILES_CHANGED: `ui_luminifera/team/`; `gui/main_window.py`; `gui/theme/theme_manager.py`; `core/universal_platform_service.py`; `app.py`; `tests/test_luminifera_team_builder.py`
+
+## STEP 06 - Work / Goals
+
+STEP: 06
+STATUS: PASS; visual review retained for final owner review
+TECHNICAL_TESTS: 13 focused UI tests passed (startup, team builder, Iris and shell contracts)
+PACKAGED_TEST: PASS; packaged Work preview generated `05_work.json` with `checks_passed=true`
+ENGINE_PARITY: Work state is read through `LuminiferaWorkService` from existing organizations, tasks, artifacts and findings; task execution remains unchanged.
+VISUAL_SCREENSHOT: `QA/LuminiferaRebuild/Screenshots/05_work.png`
+KNOWN_GAPS: Goal detail, work receipt and populated active-goal screenshot are covered by later acceptance and polish steps.
+FILES_CHANGED: `core/luminifera_work_service.py`; `ui_luminifera/work/`; `gui/main_window.py`; `gui/theme/theme_manager.py`; `app.py`
+
+## STEP 07 - Product Chat
+
+STEP: 07
+STATUS: PASS; visual review retained for final owner review
+TECHNICAL_TESTS: 16 focused chat/bootstrap tests passed
+PACKAGED_TEST: PASS; packaged chat preview generated `06_chat.json` with `checks_passed=true`
+ENGINE_PARITY: Existing multi-message selection, smooth wheel scrolling, attachment flow, automatic routing and stop handling remain available; persistent routing selectors are hidden in Product Mode.
+VISUAL_SCREENSHOT: `QA/LuminiferaRebuild/Screenshots/06_chat.png`
+KNOWN_GAPS: Populated team conversation and attachment gallery are verified in later acceptance screenshots.
+FILES_CHANGED: `gui/chat_widget.py`; `gui/main_window.py`; `app.py`
+
+## STEP 08 - Files / Artifacts
+
+STEP: 08
+STATUS: PASS; visual review retained for final owner review
+TECHNICAL_TESTS: 17 focused tests passed, including `test_luminifera_files`
+PACKAGED_TEST: PASS; packaged Files preview generated `07_files.json` with `checks_passed=true`; actual screenshot reviewed
+ENGINE_PARITY: Files are read through `LuminiferaFilesService` from persisted organization artifacts; opening the workspace remains connected to the existing workspace service.
+VISUAL_SCREENSHOT: `QA/LuminiferaRebuild/Screenshots/07_files.png`
+KNOWN_GAPS: Artifact detail, preview and export actions remain bounded to the later artifact and final-acceptance steps; no absolute workspace paths are exposed in the product list.
+FILES_CHANGED: `core/luminifera_files_service.py`; `ui_luminifera/files/`; `ui_luminifera/app_shell/shell.py`; `gui/main_window.py`; `app.py`; `tests/test_luminifera_files.py`
+
+## STEP 09 - Settings / Providers
+
+STEP: 09
+STATUS: PASS; visual review retained for final owner review
+TECHNICAL_TESTS: 12 focused settings/files/team/Iris/bootstrap tests passed
+PACKAGED_TEST: PASS; packaged settings preview generated `08_settings.json` with `checks_passed=true`; actual screenshot reviewed
+ENGINE_PARITY: Theme, language, sound, response mode, local-tools policy and workspace values continue through the existing MainWindow settings application path; provider health remains owned by the existing provider services.
+VISUAL_SCREENSHOT: `QA/LuminiferaRebuild/Screenshots/08_settings.png`
+KNOWN_GAPS: Provider credential editing and advanced diagnostics remain intentionally behind the compact product settings surface; provider health is still checked by the runtime rather than fabricated by the UI.
+FILES_CHANGED: `ui_luminifera/settings/`; `gui/main_window.py`; `app.py`; `tests/test_luminifera_settings.py`
+
+## STEP 10 - Profile / Owner Avatar
+
+STEP: 10
+STATUS: PASS; visual review retained for final owner review
+TECHNICAL_TESTS: 13 focused profile/settings/files/bootstrap tests passed
+PACKAGED_TEST: PASS; source and packaged preview path generated `09_profile.json` with `checks_passed=true`; actual profile screenshot reviewed
+ENGINE_PARITY: Owner identity is persisted through the existing settings service and remains separate from employee avatar data; profile changes update the product shell immediately.
+VISUAL_SCREENSHOT: `QA/LuminiferaRebuild/Screenshots/09_profile.png`
+KNOWN_GAPS: Avatar removal and a richer preference summary can be added during final polish; upload/choose and persistence are implemented.
+FILES_CHANGED: `ui_luminifera/profile/`; `gui/main_window.py`; `app.py`; `tests/test_luminifera_profile.py`
+
+## STEP 11 - Product States
+
+STEP: 11
+STATUS: PARTIAL; existing runtime state and chat notices remain functional, but a complete unified state catalog still requires a dedicated polish pass.
+TECHNICAL_TESTS: targeted startup, provider, chat and packaged smoke checks passed
+PACKAGED_TEST: PASS for clean no-team, no-files, provider-status and profile surfaces
+KNOWN_GAPS: Some legacy runtime error paths still need conversion to the product explanation format without raw technical text.
+
+## STEP 12 - Developer Mode
+
+STEP: 12
+STATUS: PARTIAL; existing developer diagnostics remain opt-in, but a complete product-mode audit is deferred.
+KNOWN_GAPS: Legacy diagnostic controls require a final visibility audit.
+
+## STEP 13 - Visual Polish
+
+STEP: 13
+STATUS: PARTIAL; core Luminifera shell, backgrounds, transitions and readable product panels are implemented.
+KNOWN_GAPS: Final typography, hover/focus and populated-state comparison require owner visual acceptance.
+
+## STEP 14 - Window Size / Responsive
+
+STEP: 14
+STATUS: PARTIAL; product shell uses responsive layouts and stable panel sizing.
+KNOWN_GAPS: Full 1366x768, 1920x1080 and 2560x1440 screenshot matrix remains for final visual acceptance.
+
+## STEP 15 - Legacy Purge
+
+STEP: 15
+STATUS: PARTIAL; normal Product Mode now routes through Luminifera surfaces, while legacy dialogs remain available as runtime fallbacks.
+KNOWN_GAPS: A final string/import audit is required before deleting or hiding every legacy path.
+
+## STEP 16 - Final Engine Parity
+
+STEP: 16
+STATUS: PASS for automated RC baseline; manual acceptance remains pending.
+EVIDENCE: `EngineParity/FINAL.md`
+
+## STEP 17 - Final Product Acceptance Build
+
+STEP: 17
+STATUS: PARTIAL; packaged executable and isolated smoke scenarios pass, but full pytest is blocked by pre-existing hanging GUI/subprocess tests and manual visual acceptance is pending.
+EVIDENCE: `Screenshots/final_home.json`, `Screenshots/final_profile.json`, `EngineParity/FINAL.md`

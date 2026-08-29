@@ -1,0 +1,32 @@
+[
+  {
+    "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\city\\city-01.png",
+    "asset_sha256": "8de41f6ab732c7e3d1acdddac851c6609cf2f9cda3a85b4953fc86bec2653ce3",
+    "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\city_01.png",
+    "screenshot_sha256": "20bca6891746e6aae61f3ed889a38dd23701a6efcf4af15e1f7ae8ac185c641e"
+  },
+  {
+    "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\city\\city-02.png",
+    "asset_sha256": "10dff33c89c9d63249345585aec34995ee78fcf079c26f7c1ea51a5bc5096763",
+    "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\city_02.png",
+    "screenshot_sha256": "9c621084dc79c6e9e4c564e2287a27a393a78b343eda1cedb41256efbd7cd7e1"
+  },
+  {
+    "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\city\\city-03.png",
+    "asset_sha256": "dae4b1a5ee5d387ead3f16e818bb7b5c79c5d1b42ea92323bb49a3a9f762c8db",
+    "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\city_03.png",
+    "screenshot_sha256": "2b73385e8a97893a904e0ab3e8e78c58c7758330d9bfb20de7f72f170b6acbbc"
+  },
+  {
+    "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\city\\city-01.png",
+    "asset_sha256": "8de41f6ab732c7e3d1acdddac851c6609cf2f9cda3a85b4953fc86bec2653ce3",
+    "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\city_04.png",
+    "screenshot_sha256": "20bca6891746e6aae61f3ed889a38dd23701a6efcf4af15e1f7ae8ac185c641e"
+  },
+  {
+    "asset": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Team2050\\_internal\\data\\theme_backgrounds\\city\\city-02.png",
+    "asset_sha256": "10dff33c89c9d63249345585aec34995ee78fcf079c26f7c1ea51a5bc5096763",
+    "screenshot": "QA\\RealityAudit001\\R1\\backgrounds\\city_05.png",
+    "screenshot_sha256": "9c621084dc79c6e9e4c564e2287a27a393a78b343eda1cedb41256efbd7cd7e1"
+  }
+]

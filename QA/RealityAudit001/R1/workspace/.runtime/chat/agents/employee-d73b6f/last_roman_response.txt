@@ -1,0 +1,5 @@
+Начинаем. Предлагаю сначала зафиксировать цель, ожидаемый результат и критерии приёмки. После этого распределим конкретные задачи без дублирования.
+
+```json
+{"schema_version":"1.0","agent_id":"agent-employee-d73b6f","role":"CUSTOM_ENGAGEMENT_LEAD","task_id":"TASK-BAC9D19C5CC3","run_id":"RUN-DA5A706D7821","action":"MESSAGE","participation":{"decision":"RESPOND","reason":"ROUTER_SELECTED","thread_id":"conversation-8","reply_to_message_id":null},"claims":[],"evidence":[],"skills_used":[],"proposed_state":null,"summary":"Предложено начать с фиксации цели, результата и критериев приёмки, затем распределить задачи.","files_read":[],"files_created":[],"files_modified":[],"files_deleted":[],"checks":[],"findings":[],"risks":[],"knowledge_used":[],"standards_used":[],"handoff_to_role":null,"owner_action_required":false}
+```

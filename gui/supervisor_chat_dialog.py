@@ -8,7 +8,7 @@ from gui.dialog_chrome import apply_team_dialog_chrome
 
 
 class SupervisorChatDialog(QDialog):
-    """Persistent owner chat for the Team2050 Supervisor."""
+    """Dedicated owner surface for Iris, backed by application services."""
 
     def __init__(self, service: SupervisorChatApplicationService, organization_id: str | None, parent=None) -> None:
         super().__init__(parent)
@@ -16,8 +16,9 @@ class SupervisorChatDialog(QDialog):
         self.organization_id = organization_id
         self._pending_token = ""
         apply_team_dialog_chrome(self, minimum_width=720)
-        self.setWindowTitle("Supervisor Team2050")
+        self.setWindowTitle("Iris - Luminifera")
         self.resize(820, 620)
+        self.setObjectName("irisChatDialog")
 
         self.messages = QListWidget()
         self.messages.setSelectionMode(QListWidget.NoSelection)
@@ -25,11 +26,11 @@ class SupervisorChatDialog(QDialog):
         self.messages.setSpacing(6)
         self.messages.setStyleSheet("QListWidget::item { padding: 8px; }")
         self.editor = QTextEdit()
-        self.editor.setPlaceholderText("Напишите Supervisor, что нужно сделать...")
+        self.editor.setPlaceholderText("Опишите Iris, какой результат нужно получить...")
         self.editor.setMinimumHeight(80)
         self.send = QPushButton("Отправить")
         self.send.clicked.connect(self._send)
-        self.confirm = QPushButton("Подтвердить")
+        self.confirm = QPushButton("Подтвердить действие")
         self.confirm.setVisible(False)
         self.confirm.clicked.connect(self._confirm)
         close = QPushButton("Закрыть")
@@ -40,7 +41,9 @@ class SupervisorChatDialog(QDialog):
         buttons.addWidget(close)
         buttons.addWidget(self.send)
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel("Supervisor-хозяин управляет Team2050 через сервисы приложения"))
+        intro = QLabel("Iris помогает управлять командой, целями и настройками Luminifera.")
+        intro.setObjectName("irisChatIntro")
+        layout.addWidget(intro)
         layout.addWidget(self.messages, 1)
         layout.addWidget(self.editor)
         layout.addLayout(buttons)
@@ -63,7 +66,7 @@ class SupervisorChatDialog(QDialog):
         self._show_result(result)
 
     def _show_result(self, result: SupervisorChatResult) -> None:
-        self._append("Supervisor", result.message)
+        self._append("Iris", result.message)
         if result.confirmation_required:
             self._pending_token = result.confirmation_token
             self.confirm.setVisible(True)

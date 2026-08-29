@@ -7,6 +7,8 @@ import shutil
 import zipfile
 from pathlib import Path
 
+from core.beta_release_integrity import sign_manifest, verify_release_dir
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -52,6 +54,7 @@ def build(source: Path, target: Path, version: str) -> tuple[Path, Path]:
         "legacy_profile_policy": "never_import_Roman2050",
         "files": files,
     }
+    manifest["signature"] = sign_manifest(manifest)
     manifest_path = target / "team2050-release.json"
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     archive = target.parent / f"Team2050-Beta-{version}.zip"
@@ -65,13 +68,7 @@ def build(source: Path, target: Path, version: str) -> tuple[Path, Path]:
 
 
 def verify(target: Path) -> bool:
-    manifest_path = target / "team2050-release.json"
-    if not manifest_path.is_file():
-        return False
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if not (target / str(manifest.get("executable", ""))).is_file():
-        return False
-    return all((target / relative).is_file() and _sha256(target / relative) == digest for relative, digest in manifest.get("files", {}).items())
+    return verify_release_dir(target)
 
 
 def main() -> int:
