@@ -32,3 +32,8 @@
 
 - Added authenticated-in-future, organization-scoped artifact `preview` and `download` endpoints.
 - The API resolves artifact paths through `PathGuard` on the server; Product UI receives artifact identity and safe content only, never a raw workspace path.
+
+## Product Work Receipt
+
+- Added a durable `WorkReceiptView` read model and `/api/work/receipt`.
+- It projects only human-facing completion, artifacts, evidence count, findings count and review status from Runtime V3 checkpoints.

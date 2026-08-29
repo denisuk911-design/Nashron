@@ -34,6 +34,11 @@ def test_work_view_projects_durable_v3_goal_and_artifacts(tmp_path):
     assert snapshot.evidence_count
     assert snapshot.steps
 
+    receipt = LuminiferaWorkService(DatabaseStub(), tmp_path).receipt("org-1")
+    assert receipt.completed
+    assert receipt.review_status == "PASSED"
+    assert receipt.artifacts
+
 
 def test_home_view_projects_the_same_durable_v3_goal(tmp_path):
     engine = HybridWorkflowEngine(

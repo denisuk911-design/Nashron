@@ -37,6 +37,16 @@ class WorkSnapshot:
     steps: tuple[WorkStep, ...] = ()
 
 
+@dataclass(frozen=True)
+class WorkReceiptView:
+    goal_title: str = ""
+    completed: bool = False
+    artifacts: tuple[str, ...] = ()
+    evidence_count: int = 0
+    findings_count: int = 0
+    review_status: str = ""
+
+
 class LuminiferaWorkService:
     _PROGRESS = {
         "PENDING": 10,
@@ -93,6 +103,37 @@ class LuminiferaWorkService:
             evidence_count=0,
             receipt_ready=False,
             steps=steps,
+        )
+
+    def receipt(self, organization_id: str | None) -> WorkReceiptView:
+        if not organization_id or self._runtime_root is None:
+            return WorkReceiptView()
+        state_path = self._runtime_root / organization_id / "checkpoints" / "state.json"
+        if not state_path.is_file():
+            return WorkReceiptView()
+        try:
+            state = load_state(state_path)
+        except (OSError, ValueError, KeyError, TypeError):
+            return WorkReceiptView()
+        goals = sorted(state.goals.values(), key=lambda item: (item.updated_at, item.created_at), reverse=True)
+        if not goals:
+            return WorkReceiptView()
+        goal = goals[0]
+        artifacts = tuple(
+            Path(item.path).name or item.artifact_type
+            for item in state.artifacts.values()
+            if item.goal_id == goal.goal_id
+        )
+        evidence_count = sum(1 for item in state.evidence.values() if item.goal_id == goal.goal_id and item.passed)
+        findings_count = sum(1 for item in state.findings.values() if item.goal_id == goal.goal_id)
+        receipt = state.work_receipts.get(goal.work_receipt_id) if goal.work_receipt_id else None
+        return WorkReceiptView(
+            goal_title=goal.objective,
+            completed=goal.status == GoalStatus.COMPLETED,
+            artifacts=artifacts,
+            evidence_count=evidence_count,
+            findings_count=findings_count,
+            review_status="PASSED" if receipt is not None and goal.status == GoalStatus.COMPLETED else "IN_PROGRESS" if goal.status != GoalStatus.COMPLETED else "NEEDS_ATTENTION",
         )
 
     def _runtime_snapshot(self, organization_id: str, organization_name: str) -> WorkSnapshot | None:

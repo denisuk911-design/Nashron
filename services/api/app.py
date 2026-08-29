@@ -415,6 +415,11 @@ def work(x_organization_id: str | None = Header(default=None)) -> dict[str, Any]
     return _plain(core.work.snapshot(core.organization_id(x_organization_id)))
 
 
+@app.get("/api/work/receipt")
+def work_receipt(x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
+    return _plain(core.work.receipt(core.organization_id(x_organization_id)))
+
+
 @app.get("/api/files")
 def files(x_organization_id: str | None = Header(default=None)) -> list[dict[str, Any]]:
     return [_plain(item) for item in core.files.list_files(core.organization_id(x_organization_id))]
