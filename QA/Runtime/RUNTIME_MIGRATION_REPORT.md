@@ -2,7 +2,7 @@
 
 Status: `BLOCKED - external candidate gate incomplete`  
 Date: 2026-08-30  
-Latest commit: `783dfa1`
+Latest commit: `8a3fec5`
 
 ## Completed
 
