@@ -99,3 +99,4 @@
 - `WEB_RUNBOOK.md` documents prerequisites, install, run, API docs, tests, isolated smoke and troubleshooting. The static host accepts an explicit API base for non-default local ports while the default remains Web `3000` and API `8000`.
 - Full engine regression suite after Phase 16: `501 passed`, 2 non-fatal dependency/fixture warnings.
 - Packaged-style browser smoke found and fixed a modal-close regression that blocked navigation after opening settings. Recheck passed: settings closes, `Подключения` becomes active, the real provider view renders, and browser errors are empty.
+- Final local smoke rerun on 2026-08-30: `checks_passed=true`; four-member team, persisted Iris chat, real Director goal creation and WebCore restart persistence all passed.
