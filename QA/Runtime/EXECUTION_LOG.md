@@ -181,3 +181,5 @@
 - Contract/runtime targeted result: `18 passed`.
 - Full regression after contract completion: `529 passed` in `189.44s`; two
   existing non-fatal warnings.
+- Completed the required recommendation fields with evidence-based routing
+  and explicit non-promotion status for external candidates.
