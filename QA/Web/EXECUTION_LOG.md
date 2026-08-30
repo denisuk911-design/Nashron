@@ -107,3 +107,10 @@
 - Live probes returned HTTP 200 for `/`, `/runtime-config.js`, `/assets/iris_poster.png` and `/api/health`.
 - Browser landing verification: title `Luminifera | AI workforce`, API state `API подключён`, Iris portrait loaded.
 - Actual landing capture: `QA/Web/SCREENSHOTS/phase21_landing_actual.png`.
+
+## Phase 12 product-safe goal detail checkpoint - 2026-08-30
+
+- Added organization-scoped `GET /api/goals/{plan_id}` and switched goal list/create/update responses to a human-facing projection.
+- Runtime assignment identifiers (`agent_id`, `task_id`, `run_id`) are excluded from the Product API; employee, role, step status, attempt, review and result remain available for the Work view.
+- Targeted API suite: `11 passed`; API compilation and `git diff --check`: passed.
+- Live standard-stack probe after restart: Web `200`, API health `200`, OpenAPI includes `/api/goals/{plan_id}`.
