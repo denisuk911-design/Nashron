@@ -91,3 +91,10 @@
 - Browser verification on the local Web client: profile dialog opened, `97` avatar options loaded, settings sections rendered, and dark select controls reported readable colors (`#0a1025` / `#eef2ff`).
 - Actual browser capture: `QA/Web/SCREENSHOTS/phase16_profile_actual.png`.
 - Phase 16 API tests: `10 passed`; JavaScript syntax and Python compilation: passed.
+
+## Phases 17-20 - security foundation, legacy policy and local run
+
+- Confirmed organization scope is enforced in the FastAPI boundary before service reads/writes; invalid organization IDs return `404 organization_not_found`.
+- Preserved Python Core, Runtime, Application Services and PySide as the legacy fallback/test harness. No desktop UI was removed.
+- `WEB_RUNBOOK.md` documents prerequisites, install, run, API docs, tests, isolated smoke and troubleshooting. The static host accepts an explicit API base for non-default local ports while the default remains Web `3000` and API `8000`.
+- Full engine regression suite after Phase 16: `501 passed`, 2 non-fatal dependency/fixture warnings.
