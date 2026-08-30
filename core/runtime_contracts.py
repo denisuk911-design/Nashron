@@ -59,6 +59,57 @@ class RuntimeEventType(StrEnum):
     WORK_FINISHED = "work.finished"
     RUN_COMPLETED = "run.completed"
     RUN_FAILED = "run.failed"
+    AGENT_STARTED = "agent.started"
+    AGENT_PROGRESS = "agent.progressed"
+    AGENT_COMPLETED = "agent.completed"
+    AGENT_FAILED = "agent.failed"
+    TOOL_COMPLETED = "tool.completed"
+    TOOL_FAILED = "tool.failed"
+    ARTIFACT_UPDATED = "artifact.updated"
+    REVIEW_REQUESTED = "review.requested"
+    CLARIFICATION_REQUIRED = "clarification.required"
+
+
+@dataclass(frozen=True)
+class RuntimeCapabilities:
+    """Mechanics a runtime can provide behind the Product boundary."""
+
+    tool_calls: bool = False
+    multi_agent: bool = False
+    persistence: bool = False
+    recovery: bool = False
+    human_approval: bool = False
+    streaming: bool = False
+
+
+@dataclass(frozen=True)
+class RuntimeHealth:
+    runtime_id: str
+    available: bool
+    checked_at: str = ""
+    detail: str = ""
+
+
+@dataclass(frozen=True)
+class RuntimeUsage:
+    input_tokens: int = 0
+    output_tokens: int = 0
+    estimated_cost: float = 0.0
+    duration_ms: int = 0
+
+
+@dataclass(frozen=True)
+class RuntimeError:
+    code: str
+    message: str
+    retryable: bool = False
+    side_effects_committed: bool = False
+
+
+@dataclass(frozen=True)
+class RuntimeTraceReference:
+    trace_id: str = ""
+    uri: str = ""
 
 
 @dataclass(frozen=True)
@@ -87,6 +138,10 @@ class ExecutionResult:
     evidence_refs: tuple[str, ...] = ()
     events: tuple[RuntimeEvent, ...] = ()
     data: dict[str, Any] = field(default_factory=dict)
+    usage: RuntimeUsage = field(default_factory=RuntimeUsage)
+    errors: tuple[RuntimeError, ...] = ()
+    trace_reference: RuntimeTraceReference = field(default_factory=RuntimeTraceReference)
+    runtime_metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class RuntimeAdapter(Protocol):

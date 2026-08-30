@@ -53,8 +53,12 @@ Latest commit: `9860924`
   the LangGraph smoke includes a graph-native physical observation artifact.
 - External execution journal integration proves restart recovery and
   organization-scope isolation for an adapter result.
+- Runtime-neutral contracts now include capabilities, health, usage,
+  structured errors, trace references and the complete required event names.
 - Full regression after the evidence-boundary update: `528 passed` in
   `172.85s`; the two existing non-fatal warnings remain unchanged.
+- Full regression after contract completion: `529 passed` in `189.44s`; the
+  same two existing non-fatal warnings remain unchanged.
 
 ## Blocker
 

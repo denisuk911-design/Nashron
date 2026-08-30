@@ -176,3 +176,8 @@
   counted as PASS.
 - Full regression after this checkpoint: `528 passed` in `172.85s`; two
   existing non-fatal warnings.
+- Extended the runtime-neutral contract with capability/health/usage/error/
+  trace DTOs and the remaining normalized lifecycle event types.
+- Contract/runtime targeted result: `18 passed`.
+- Full regression after contract completion: `529 passed` in `189.44s`; two
+  existing non-fatal warnings.

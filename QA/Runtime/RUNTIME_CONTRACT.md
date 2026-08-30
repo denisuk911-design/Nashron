@@ -16,8 +16,15 @@ dynamic multi-agent, deterministic workflow, and long-running project.
 ## Result and events
 
 `ExecutionResult` returns success, runtime ID, summary, goal/artifact/evidence
-references and normalized `RuntimeEvent` records. Product UI must consume these
-events instead of Native checkpoint files or SDK-specific events.
+references, normalized `RuntimeEvent` records, usage, structured errors and a
+trace reference. `RuntimeCapabilities` and `RuntimeHealth` describe a runtime
+without exposing its SDK. Product UI must consume these contracts instead of
+Native checkpoint files or SDK-specific events.
+
+The normalized event vocabulary includes run/agent lifecycle, tool calls and
+completion/failure, observations, artifact create/update, review request and
+completion, replanning and clarification. The external boundary emits an
+explicit `tool.called` before observation and artifact events.
 
 ## Native baseline
 
@@ -33,8 +40,8 @@ organization scope and persistence of product records.
 
 `core.external_runtime_adapters` provides the normalization boundary for real
 SDK bridges. The bridge is injected from the isolated runtime environment;
-the adapter emits only normalized run/observation/artifact events and keeps SDK
-objects out of Product code.
+the adapter emits only normalized events and keeps SDK objects out of Product
+code.
 
 An adapter failure may set `side_effects_committed = True` on its exception.
 The selector then re-raises instead of replaying through Native, preventing

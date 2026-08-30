@@ -5,7 +5,12 @@ from core.runtime_contracts import (
     EmployeeRef,
     ExecutionPolicy,
     ExecutionRequest,
+    ExecutionResult,
+    RuntimeCapabilities,
+    RuntimeError,
     RuntimeEventType,
+    RuntimeTraceReference,
+    RuntimeUsage,
     event_type_from_native_stage,
 )
 
@@ -33,6 +38,23 @@ def test_empty_execution_request_is_rejected():
 def test_native_stage_mapping_is_normalized():
     assert event_type_from_native_stage("tool_observed") is RuntimeEventType.OBSERVATION_RECORDED
     assert event_type_from_native_stage("internal_native_stage") is None
+
+
+def test_contract_exposes_runtime_capabilities_usage_errors_and_trace():
+    capabilities = RuntimeCapabilities(tool_calls=True, recovery=True)
+    result = ExecutionResult(
+        True,
+        "org-a",
+        "native",
+        "done",
+        usage=RuntimeUsage(input_tokens=3, output_tokens=2),
+        errors=(RuntimeError("none", ""),),
+        trace_reference=RuntimeTraceReference(trace_id="trace-1"),
+    )
+    assert capabilities.tool_calls and capabilities.recovery
+    assert result.usage.output_tokens == 2
+    assert result.trace_reference.trace_id == "trace-1"
+    assert RuntimeEventType.CLARIFICATION_REQUIRED.value == "clarification.required"
 
 
 def test_native_adapter_preserves_employee_identity_and_returns_product_refs():
