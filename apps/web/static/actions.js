@@ -1,4 +1,35 @@
 (() => {
+  const escapeText = value => String(value ?? '').replace(/[&<>\"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[char]));
+  const attachFileActions = async () => {
+    const title = document.querySelector('#view-title');
+    const view = document.querySelector('#view');
+    const select = document.querySelector('#org-select');
+    if (!title || !view || !select?.value || title.textContent !== 'Файлы' || view.querySelector('.web-file-actions')) return;
+    const response = await fetch('/api/files', {headers: {'X-Organization-Id': select.value}});
+    if (!response.ok) return;
+    const files = await response.json();
+    const actionable = files.filter(file => file.artifact_id);
+    if (!actionable.length) return;
+    const panel = document.createElement('section');
+    panel.className = 'web-file-actions magic-card';
+    panel.style.marginTop = '14px';
+    panel.innerHTML = `<span class="eyebrow">Результаты работы</span><div class="list">${actionable.map(file => `<div class="list-row"><span><b>${escapeText(file.title)}</b><br><small>${escapeText(file.source_goal || file.creator || 'Артефакт')}</small></span><span style="display:flex;gap:8px"><button class="ghost" data-preview="${escapeText(file.artifact_id)}">Открыть</button><a class="ghost" href="/api/files/${encodeURIComponent(file.artifact_id)}/download" download>Скачать</a></span></div>`).join('')}</div>`;
+    view.append(panel);
+    panel.querySelectorAll('[data-preview]').forEach(button => button.addEventListener('click', async () => {
+      button.disabled = true;
+      try {
+        const result = await fetch(`/api/files/${encodeURIComponent(button.dataset.preview)}/preview`, {headers: {'X-Organization-Id': select.value}}).then(item => item.json());
+        const dialog = document.createElement('dialog');
+        dialog.innerHTML = `<form method="dialog" style="padding:24px;max-width:min(760px,80vw)"><button class="dialog-close" value="cancel" aria-label="Закрыть">×</button><span class="eyebrow">Предпросмотр артефакта</span><h2>${escapeText(result.title)}</h2><pre style="white-space:pre-wrap;max-height:60vh;overflow:auto">${escapeText(result.preview || 'Предпросмотр недоступен для бинарного файла.')}</pre><button class="primary">Закрыть</button></form>`;
+        document.body.append(dialog); dialog.showModal(); dialog.addEventListener('close', () => dialog.remove(), {once:true});
+      } finally { button.disabled = false; }
+    }));
+  };
+  new MutationObserver(() => { attachFileActions().catch(() => {}); }).observe(document.querySelector('#view'), {childList: true, subtree: true});
+  document.querySelector('[data-view="files"]')?.addEventListener('click', () => setTimeout(() => attachFileActions().catch(() => {}), 50));
+})();
+
+(() => {
   const afterLoad = () => {
     const select = document.querySelector('#org-select');
     const contentHead = document.querySelector('.content-head');

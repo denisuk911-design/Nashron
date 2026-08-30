@@ -122,3 +122,10 @@
 - Runtime file resolution is constrained to the organization runtime workspace; unknown and cross-scope files return `404`.
 - Targeted API suite: `12 passed`; compilation and `git diff --check`: passed.
 - Live API after restart: health `200`; OpenAPI contains both artifact delivery routes.
+- Browser verification: Files view opens through the real client and correctly shows its empty state when the selected organization has no artifacts; no JavaScript errors observed.
+
+## Phase 14 Web delivery controls - 2026-08-30
+
+- Added real Open/Download controls for server-backed artifacts in the Files view. Text preview is rendered in a modal; binary files remain downloadable without pretending to preview them.
+- Controls use organization-scoped artifact IDs and the new API delivery routes; no client-side file content or fake result is introduced.
+- `node --check apps/web/static/actions.js`: passed.
