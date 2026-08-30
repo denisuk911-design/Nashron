@@ -12,7 +12,10 @@ def test_alpha_product_shell_has_user_navigation_and_iris_component():
     assert 'id="org-dialog"' in html
     assert '/assets/app.js' in html
     assert 'actions.js' not in html
-    assert '/assets/alpha.js' in html
+    assert '/assets/product-v2.js' in html
+    assert '/assets/v2.css' in html
+    assert '/assets/alpha.js' not in html
+    assert '/assets/premium-rework.js' not in html
 
 
 def test_landing_is_separate_from_product_app():

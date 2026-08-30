@@ -185,7 +185,19 @@ class SupervisorChatApplicationService:
         templates = self.universal_service.list_templates()
         if not templates:
             raise RuntimeError("нет доступного шаблона команды")
-        template = next((item for item in templates if item.name.casefold() in text.casefold()), templates[0])
+        # A generic "create team" request must produce an operational team.
+        # Advisory boards intentionally have no director and cannot own Goals.
+        template = next((item for item in templates if item.name.casefold() in text.casefold()), None)
+        if template is None:
+            operational_defaults = (
+                "ENGINEERING_PRODUCT_TEAM",
+                "SOFTWARE_PRODUCT_TEAM",
+                "CROSS_FUNCTIONAL_TEAM",
+            )
+            template = next(
+                (item for preferred in operational_defaults for item in templates if item.name == preferred),
+                templates[0],
+            )
         name = text.split(":", 1)[1].strip() if ":" in text else f"{template.name} team"
         activation = self.universal_service.activate_template(template.template_id, name)
         return SupervisorChatResult(True, f"Команда «{activation.organization.name}» создана по шаблону «{template.name}».", route="STRONG", action="create_team", data={"organization_id": activation.organization.organization_id, "employee_ids": list(activation.employee_ids)})

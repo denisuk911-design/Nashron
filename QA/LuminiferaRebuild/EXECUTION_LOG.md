@@ -272,6 +272,16 @@ VISUAL_SCREENSHOT: Work rendering is covered by the existing packaged `Screensho
 KNOWN_GAPS: Packaged external provider timeouts remain an infrastructure/runtime issue requiring provider availability or timeout policy work; full legacy pytest and owner manual visual acceptance remain open.
 FILES_CHANGED: `gui/main_window.py`; `core/luminifera_work_service.py`; `tests/test_main_window_helpers.py`; `tests/test_luminifera_work_service.py`
 
+## Luminifera V2 closed-alpha completion
+
+TASK: LUMINIFERA V2 PRODUCT COMPLETION — packaged product flow and one V2 UI stack.
+STATUS: READY_FOR_OWNER_ALPHA_TEST; Final Alpha PASS not declared.
+IMPLEMENTATION: Generic Iris team creation now selects an operational template with a director instead of the non-executable advisory board. Product Mode uses the V2 Home/Iris/Team/Work/Files/Settings stack; legacy Product renderers are no longer loaded by `app.html`.
+VERIFIED: Fresh packaged launch created a workspace through the UI, Iris created a team, a real Goal was created and executed, Runtime V3 produced WorkItems/artifacts/evidence, Files displayed the resulting artifacts, Feedback was submitted in Settings and remained after reload. Targeted suite: `36 passed`; isolated Web smoke: `checks_passed=true`; packaged build: PASS; visual capture manifest: `unavailable=[]`.
+EVIDENCE: `QA/LuminiferaRebuild/V2/closed-alpha/web-smoke-0830.json`; `QA/LuminiferaRebuild/V2/closed-alpha/captures-final/manifest.json`; `QA/LuminiferaRebuild/V2/closed-alpha/captures-final/`; `dist/Luminifera.exe`.
+KNOWN_LIMITATION: The product capture runner is diagnostic-only and does not mutate application data. Final owner hands-on validation remains required; Final Alpha PASS is intentionally not declared.
+FILES_CHANGED: `apps/web/static/app.html`; `apps/web/static/product-v2.js`; `apps/web/static/v2.css`; `core/supervisor_chat_service.py`; `scripts/capture_visual_gate.py`; `tests/test_alpha_product_ui.py`
+
 ## Product UI V2 milestone
 
 TASK: Home, Iris and Work rebuilt as the first Product UI milestone over the existing Core/API; legacy Team/Files/Settings renderers remain unchanged pending review.

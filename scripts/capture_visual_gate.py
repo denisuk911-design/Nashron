@@ -115,8 +115,8 @@ def main() -> int:
         # not separate routes. Capture the real Settings render without
         # clicking arbitrary text, and make that fact explicit in the manifest.
         section_selectors = {
-            "byok": '.settings-grid .settings-panel:nth-child(2)',
-            "feedback": '.settings-grid .settings-panel:nth-child(3)',
+            "byok": '.v2-settings-grid .v2-panel:nth-child(2)',
+            "feedback": '.v2-settings-grid .v2-panel:nth-child(3)',
         }
         section_labels = {"byok": "AI providers", "feedback": "Iris feedback"}
         for name, selector in section_selectors.items():
