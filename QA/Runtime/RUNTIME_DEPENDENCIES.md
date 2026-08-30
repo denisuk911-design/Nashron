@@ -10,7 +10,7 @@ under `.runtime_envs` and ignored by Git.
 | --- | --- | ---: | --- | --- |
 | OpenAI Agents SDK | `.runtime_envs/openai-agents` | `openai-agents 0.22.0` | PASS | pending credentials |
 | LangGraph | `.runtime_envs/langgraph` | `langgraph 1.2.11` | PASS | pending model adapter |
-| Google ADK | `.runtime_envs/google-adk` | `google-adk 2.8.0` | PASS | pending Google credentials |
+| Google ADK | `.runtime_envs/google-adk` | `google-adk 2.8.0` | PASS | PASS: bounded `gemini-3.6-flash` classification |
 | AutoGen | `.runtime_envs/autogen` | `autogen-agentchat 0.7.5`, `autogen-ext 0.7.5` | PASS | pending provider credentials |
 
 ## Installation policy

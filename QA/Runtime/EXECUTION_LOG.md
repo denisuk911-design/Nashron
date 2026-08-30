@@ -65,3 +65,12 @@
   entry warning in the tampered-backup fixture.
 - No database migration performed; the four pre-existing untracked review
   artifacts remain intentionally unstaged.
+
+## Real candidate smoke - 2026-08-30
+
+- Google ADK real bounded model path passed through `InMemoryRunner` using the
+  configured environment credential; result was `WORK` for a work prompt.
+- The probe used `gemini-3.6-flash` after the provider rejected the older
+  model name. No credential value was printed or persisted.
+- OpenAI Agents and AutoGen remain pending model-backed runs; LangGraph remains
+  a local graph execution candidate pending model/tool bake-off evidence.
