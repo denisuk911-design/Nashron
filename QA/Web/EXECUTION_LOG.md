@@ -247,3 +247,7 @@
 - Web validates that source and review runs belong to the selected organization; Core still requires successful evidence and an independent accepted review before verification.
 - Added regression coverage for rejection of missing source runs; typed knowledge/competence events are emitted on successful operations.
 - Targeted checks: `tests/test_web_api.py` = `19 passed`; API compile, JavaScript syntax and `git diff --check` passed.
+
+## Final report accuracy checkpoint - 2026-08-30
+
+- Updated `FINAL_WEB_REPORT.md` to reflect the current targeted Web/API count (`19 passed`) and distinguish historical smoke evidence from current checks.

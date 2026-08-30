@@ -15,7 +15,7 @@ REALTIME: WebSocket `/api/events` publishes organization, Iris and goal lifecycl
 ORG_ISOLATION: Server validates organization IDs and scopes product reads and WebSocket event delivery; auth/membership enforcement is the next deployment layer
 LOCALIZATION: Initial product copy is Russian; settings API accepts RU/UA/EN and persists the selected language; provider, skill, memory and competence labels are human-facing
 EXISTING_ENGINE_TESTS: `python -m pytest -q` completed with 501 passed in 161.39 seconds after Web service extraction
-WEB_TESTS: targeted Web/API, settings, profile, localization, theme, assets and identity coverage: 31 passed; isolated service-backed smoke passed
+WEB_TESTS: targeted Web/API coverage: `19 passed`; JavaScript syntax, API compile and scoped realtime/skill/knowledge contracts passed; historical isolated service-backed smoke remains recorded in QA artifacts
 SERVICE_SMOKE: `scripts/web_smoke.py` proves team creation, persisted Iris chat, Director plan creation, real `/start` execution with 3 work items, physical artifacts, evidence, Work Receipt and WebCore restart persistence in a clean profile
 KNOWN_GAPS: Explicit review/rework command API, provider authentication flow and complete RU/UA/EN catalogs still need extraction and coverage; profile restore remains an explicit local recovery operation; final visual acceptance remains manual; full final commercial demo still needs end-to-end packaged evidence
 LEGACY_PYSIDE_STATUS: Preserved unchanged as legacy fallback/test harness
