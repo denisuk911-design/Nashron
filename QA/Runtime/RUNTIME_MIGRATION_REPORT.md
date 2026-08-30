@@ -23,19 +23,18 @@ Latest commit: `27a1079`
 
 ## Not complete
 
-- OpenAI Agents and AutoGen have package/object smoke only; no model-backed
-  run is claimed.
-- LangGraph still needs model/tool/artifact/restart bake-off evidence.
+- OpenAI Agents and AutoGen now have real bounded model-backed classification
+  runs through their official SDK paths.
+- LangGraph has real local graph execution, but its direct model node returned
+  no usable text and remains pending model/tool/artifact/restart evidence.
 - Normalized external adapters are not promoted into production routing.
 - No final runtime recommendation can be made from the current evidence.
 
 ## Blocker
 
-The required model-backed bake-off for OpenAI Agents and AutoGen cannot be
-completed in this environment because their provider credentials are absent.
-Google ADK can run with the configured credential and proved its real path, but
-that does not substitute for the missing candidates. Production routing stays
-on Native until the remaining bounded runs and artifact/evidence checks pass.
+The remaining LangGraph model/tool evidence and complete artifact/restart
+bake-off are not complete. Production routing stays on Native until every
+promoted candidate passes the complete normalized execution gate.
 
 ## Evidence files
 

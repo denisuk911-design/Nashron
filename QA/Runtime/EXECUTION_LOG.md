@@ -72,8 +72,10 @@
   configured environment credential; result was `WORK` for a work prompt.
 - The probe used `gemini-3.6-flash` after the provider rejected the older
   model name. No credential value was printed or persisted.
-- OpenAI Agents and AutoGen remain pending model-backed runs; LangGraph remains
-  a local graph execution candidate pending model/tool bake-off evidence.
+- OpenAI Agents and AutoGen real bounded SDK model paths passed classification
+  `WORK` through the OpenAI-compatible Gemini endpoint.
+- LangGraph local graph execution passed, but its attempted direct model node
+  returned no usable text and remains pending model/tool bake-off evidence.
 
 ## Migration report checkpoint - 2026-08-30
 
