@@ -36,4 +36,10 @@
 - Final packaged readiness check: `/app` opened, API health PASS, controlled stop PASS.
 - Packaged browser capture produced six populated product views plus landing and live provider/profile views. `LUMINIFERA_VISUAL_REVIEW.zip` contains exactly eight captures, the E2E report, source snapshot and known limitations for human review.
 
+## 2026-08-30 - Isolated visual capture gate
+
+- Added `scripts/capture_visual_gate.py`, a standalone Python Playwright runner using local Chromium and an isolated profile; it does not use the browser extension or mutate product data.
+- Ran it against packaged `dist/Luminifera.exe`: all six product views, landing, Settings and the real Feedback section captured; manifest reported `unavailable=[]`.
+- Created `LUMINIFERA_VISUAL_REVIEW_STANDALONE.zip` with captures, manifest, runner and current evidence. BYOK/Feedback remain documented as Settings sections because the product has no separate routes for them.
+
 
