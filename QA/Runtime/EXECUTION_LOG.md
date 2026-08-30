@@ -204,4 +204,7 @@
   available for bake-off only and cannot be selected by Product routing.
 - Added external payload organization-scope validation and regression coverage.
 - Targeted external/runtime isolation result after scope validation: `17 passed`.
+- Added server-side permission resolver propagation into external execution
+  requests; targeted runtime result: `16 passed`.
+- Full regression after permission propagation: `536 passed` in `185.74s`.
 - Full regression after promotion gating: `534 passed` in `173.13s`.

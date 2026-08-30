@@ -5,6 +5,8 @@ Date: 2026-08-30
 The Product/Core boundary uses `core.runtime_contracts` for runtime-neutral
 execution. `EmployeeRef` carries stable product identity and permissions; it
 is not an SDK agent and is never persisted as an external runtime object.
+Permissions are populated by the server-side Product resolver before routing;
+external adapters never receive authority to infer or grant permissions.
 
 ## Request
 

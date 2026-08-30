@@ -82,6 +82,10 @@ Latest commit: `b7303a5`
   registering an unvalidated candidate can no longer route Product work to it.
 - External adapter results now reject a returned organization scope that does
   not match the Product request before accepting artifacts or evidence.
+- RuntimeExecutionService now carries server-resolved permissions into each
+  neutral EmployeeRef; external adapters cannot bypass Product authorization.
+- Full regression after permission propagation: `536 passed` in `185.74s`;
+  the same two existing non-fatal warnings remain unchanged.
 - Full regression after promotion gating: `534 passed` in `173.13s`; the same
   two existing non-fatal warnings remain unchanged.
 

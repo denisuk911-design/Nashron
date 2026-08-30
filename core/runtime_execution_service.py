@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from contextvars import ContextVar
-from typing import Iterable
+from typing import Callable, Iterable
 
 from .agent_directory import ChatAgent
 from .native_runtime_adapter import NativeRuntimeAdapter
@@ -21,8 +21,10 @@ class RuntimeExecutionService:
         external_adapters=None,
         journal: RuntimeExecutionJournal | None = None,
         promoted_runtime_ids: set[str] | None = None,
+        permission_resolver: Callable[[str], Iterable[str]] | None = None,
     ) -> None:
         self._employee_scope: ContextVar[dict[str, ChatAgent]] = ContextVar("runtime_employee_scope", default={})
+        self._permission_resolver = permission_resolver or (lambda _agent_id: ())
         self.journal = journal
         native = NativeRuntimeAdapter(native_service, lambda employee: self._employee_scope.get().get(employee.employee_id))
         self.selector = RuntimeSelector(
@@ -53,6 +55,7 @@ class RuntimeExecutionService:
                     role=agent.primary_role,
                     provider_binding_id=agent.provider_id,
                     competencies=tupled([agent.primary_role, *agent.roles, agent.engine_name]),
+                    permissions=tupled(self._permission_resolver(agent.agent_id)),
                 )
                 for agent in agents
             ),

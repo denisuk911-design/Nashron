@@ -202,6 +202,7 @@ class WebCore:
         self.runtime_execution = RuntimeExecutionService(
             self.runtime_v3,
             journal=RuntimeExecutionJournal(self.workspace_root / "runtime_execution"),
+            permission_resolver=lambda agent_id: effective_permissions_for_agent(self.database, agent_id),
         )
         self.iris_orchestration = IrisOrchestrationService(self.runtime_execution)
         self.supervisor = SupervisorApplicationService(self.database)
