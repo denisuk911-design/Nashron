@@ -169,3 +169,9 @@
 - Full repository suite after Web timeline and checkpoint-stream changes: `504 passed` in `184.35s`.
 - Remaining output: 2 non-fatal warnings (Starlette/httpx deprecation and an existing duplicate backup archive entry warning).
 - No test failures or collection errors.
+
+## Web localization persistence checkpoint - 2026-08-30
+
+- Fixed the settings form to apply the selected RU/UA/EN locale after a successful API save; the previous handler left the page language unchanged and could throw on `aria-label` restoration.
+- Browser verification: switched to English and back to Russian through the real settings dialog; `document.documentElement.lang` and the persisted `/api/settings` value both changed correctly, with no browser error.
+- `node --check apps/web/static/localization.js`: passed; Web API suite: `13 passed`.
