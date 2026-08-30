@@ -101,6 +101,18 @@ class SkillStatusRequest(BaseModel):
     reason: str = Field(default="", max_length=2_000)
 
 
+class KnowledgeProposalRequest(BaseModel):
+    source_run_id: str = Field(min_length=1, max_length=120)
+    competence: str = Field(min_length=1, max_length=160)
+    title: str = Field(min_length=1, max_length=200)
+    content: str = Field(min_length=1, max_length=20_000)
+    outcome: str = Field(default="PASS", max_length=20)
+
+
+class KnowledgeVerifyRequest(BaseModel):
+    review_run_id: str = Field(min_length=1, max_length=120)
+
+
 class TeamRequest(BaseModel):
     brief: str = Field(min_length=3, max_length=5_000)
     organization_name: str = Field(min_length=1, max_length=160)
@@ -835,6 +847,58 @@ def knowledge(x_organization_id: str | None = Header(default=None)) -> list[dict
         }
         for item in core.competence.list_memory(organization_id)
     ]
+
+
+def _memory_for_scope(entry_id: str, organization_id: str | None) -> Any:
+    if not organization_id:
+        raise HTTPException(status_code=400, detail="organization_required")
+    memory = next((item for item in core.competence.list_memory(organization_id) if item.entry_id == entry_id), None)
+    if memory is None:
+        raise HTTPException(status_code=404, detail="knowledge_not_found")
+    return memory
+
+
+def _run_belongs_to_scope(run_id: str, organization_id: str | None) -> None:
+    if not organization_id:
+        raise HTTPException(status_code=400, detail="organization_required")
+    run = core.database.get_agent_run(run_id)
+    if run is None or str(run["agent_id"] or "") not in core.database.list_organization_agent_ids(organization_id):
+        raise HTTPException(status_code=404, detail="run_not_found")
+
+
+@app.post("/api/knowledge")
+async def propose_knowledge(request: KnowledgeProposalRequest, x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
+    organization_id = core.organization_id(x_organization_id)
+    _run_belongs_to_scope(request.source_run_id, organization_id)
+    try:
+        memory = core.competence.propose_knowledge(
+            organization_id=organization_id,
+            source_run_id=request.source_run_id,
+            competence=request.competence,
+            title=request.title,
+            content=request.content,
+            outcome=request.outcome,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    payload = {"id": memory.entry_id, "title": memory.title, "summary": memory.content, "status": memory.lifecycle_state, "source": memory.source_employee_name, "verified": memory.lifecycle_state == "VERIFIED"}
+    await core.events.publish({"type": "knowledge.updated", "data": {"organization_id": organization_id, **payload}})
+    return payload
+
+
+@app.post("/api/knowledge/{entry_id}/verify")
+async def verify_knowledge(entry_id: str, request: KnowledgeVerifyRequest, x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
+    organization_id = core.organization_id(x_organization_id)
+    _memory_for_scope(entry_id, organization_id)
+    _run_belongs_to_scope(request.review_run_id, organization_id)
+    try:
+        memory, node = core.competence.verify_knowledge(entry_id, request.review_run_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    payload = {"id": memory.entry_id, "title": memory.title, "summary": memory.content, "status": memory.lifecycle_state, "source": memory.source_employee_name, "verified": memory.lifecycle_state == "VERIFIED", "competence": {"id": node.node_id, "name": node.competence, "growth_points": node.growth_points}}
+    await core.events.publish({"type": "knowledge.updated", "data": {"organization_id": organization_id, **payload}})
+    await core.events.publish({"type": "competence.updated", "data": {"organization_id": organization_id, "id": node.node_id, "growth_points": node.growth_points}})
+    return payload
 
 
 @app.get("/api/competence")

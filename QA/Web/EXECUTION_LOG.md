@@ -240,3 +240,10 @@
 - Added typed `skill.updated`, `knowledge.updated` and `competence.updated` event types; skill creation now publishes a valid realtime envelope.
 - Regression coverage proves create/list/status behavior and cross-organization isolation.
 - Targeted checks: `tests/test_web_api.py` = `18 passed`; API compile, JavaScript syntax and `git diff --check` passed.
+
+## Web Knowledge lifecycle checkpoint - 2026-08-30
+
+- Added scoped `POST /api/knowledge` promotion and `POST /api/knowledge/{entry_id}/verify` routes over `CompetenceGraphService`.
+- Web validates that source and review runs belong to the selected organization; Core still requires successful evidence and an independent accepted review before verification.
+- Added regression coverage for rejection of missing source runs; typed knowledge/competence events are emitted on successful operations.
+- Targeted checks: `tests/test_web_api.py` = `19 passed`; API compile, JavaScript syntax and `git diff --check` passed.

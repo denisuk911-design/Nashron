@@ -232,6 +232,27 @@ def test_web_skill_creation_and_lifecycle_are_organization_scoped(tmp_path, monk
     assert client.patch(f"/api/skills/{skill_id}/status", headers=headers_a, json={"status": "PRACTICED"}).status_code == 200
 
 
+def test_web_knowledge_promotion_requires_scoped_real_run(tmp_path, monkeypatch):
+    monkeypatch.setenv("TEAM2050_HOME", str(tmp_path / "profile"))
+    import services.api.app as app_module
+
+    isolated = app_module.WebCore()
+    monkeypatch.setattr(app_module, "core", isolated)
+    organization = isolated.universal.create_organization("Knowledge API")
+    response = TestClient(app_module.app).post(
+        "/api/knowledge",
+        headers={"X-Organization-Id": organization.organization_id},
+        json={
+            "source_run_id": "RUN-MISSING",
+            "competence": "Evidence review",
+            "title": "Review rule",
+            "content": "Only verified evidence becomes reusable knowledge.",
+        },
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"] == "run_not_found"
+
+
 def test_web_owner_profile_and_avatar_are_persisted_and_validated(tmp_path, monkeypatch):
     monkeypatch.setenv("TEAM2050_HOME", str(tmp_path / "profile"))
     import services.api.app as app_module
