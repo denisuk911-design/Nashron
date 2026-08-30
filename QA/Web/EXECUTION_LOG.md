@@ -130,3 +130,9 @@
 - Controls use organization-scoped artifact IDs and the new API delivery routes; no client-side file content or fake result is introduced.
 - `node --check apps/web/static/actions.js`: passed.
 - Isolated Web smoke after delivery changes: `checks_passed=true`; team size `4`, Iris chat `true`, real goal plan created, persistence after WebCore restart `true`. Evidence: `QA/Web/web_smoke_phase14.json`.
+
+## Intermediate reviewer entry point - 2026-08-30
+
+- Added `QA/Web/REVIEW_PACKAGE/README.md` with the review workflow and the current visual evidence path.
+- Added `scripts/run_luminifera_review.ps1`, a wrapper that starts the same real Web/API stack and supports alternate ports for an isolated review.
+- Review launcher probe on Web `3011` / API `8011`: both returned HTTP `200`; the temporary stack was stopped after verification.
