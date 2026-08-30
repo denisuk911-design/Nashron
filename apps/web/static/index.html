@@ -3,55 +3,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Luminifera | AI workforce</title>
+  <title>Luminifera</title>
   <link rel="stylesheet" href="/assets/app.css">
   <link rel="stylesheet" href="/assets/iris.css">
-  <link rel="stylesheet" href="/assets/connections.css">
-  <link rel="stylesheet" href="/assets/profile.css">
-  <link rel="stylesheet" href="/assets/landing.css">
 </head>
 <body>
-  <div class="aurora aurora-a"></div><div class="aurora aurora-b"></div>
   <header class="topbar">
-    <a class="brand" href="/"><span class="brand-mark">L</span><span><strong>Luminifera</strong><small>AI workforce</small></span></a>
-    <nav><a href="#home">Рабочее место</a><a href="#team">Команда</a><a href="#files">Файлы</a></nav>
-    <div class="top-actions"><span id="api-state" class="status"><i></i> проверяем связь</span><button class="icon-button" aria-label="Профиль">◌</button></div>
+    <a class="brand" href="#home" aria-label="Luminifera"><span class="brand-mark">L</span><span><strong>Luminifera</strong><small>рабочее пространство</small></span></a>
+    <nav class="main-nav" aria-label="Основная навигация">
+      <button class="nav-link active" data-view="home">Главная</button><button class="nav-link" data-view="iris">Iris</button><button class="nav-link" data-view="team">Команда</button><button class="nav-link" data-view="work">Работа</button><button class="nav-link" data-view="files">Файлы</button><button class="nav-link" data-view="settings">Настройки</button>
+    </nav>
+    <div class="top-actions"><span class="presence-dot" aria-hidden="true"></span><span class="presence-label">Iris рядом</span><button class="profile-button" aria-label="Профиль владельца">В</button></div>
   </header>
-  <main class="shell">
-    <section class="hero" id="home">
-      <div class="hero-copy"><span class="eyebrow">Ваша цифровая организация</span><h1>Опишите результат.<br><em>Iris соберёт работу.</em></h1><p>Одна рабочая среда для команды AI-сотрудников, целей, артефактов и проверенного результата.</p><div class="hero-actions"><button class="primary" id="ask-iris">Начать с Iris <span>↗</span></button><a class="secondary" href="#workspace">Открыть рабочее место</a></div><div class="trust-row"><span>✦ Реальная работа</span><span>◈ Память организации</span><span>⌁ Локально и приватно</span></div></div>
-      <div class="iris-stage"><div class="iris-orbit"></div><img src="/assets/iris_poster.png" alt="Iris" class="iris-portrait"><video class="iris-video" muted playsinline preload="metadata"><source src="/assets/iris_animation.mp4" type="video/mp4"></video><div class="iris-caption"><span class="presence-dot"></span><span><b>Iris</b><small>Supervisor вашей организации</small></span><span class="iris-state" id="iris-state">Рядом</span></div></div>
-    </section>
-    <section class="value-section" aria-labelledby="value-title">
-      <div class="section-intro"><span class="eyebrow">Рабочая система</span><h2 id="value-title">От намерения к проверенному результату</h2><p>Luminifera соединяет людей, AI-сотрудников и знания организации в одном рабочем контуре. Iris держит контекст, а команда выполняет работу с понятными следами.</p></div>
-      <div class="value-grid"><article><span class="feature-index">01</span><h3>Контекст организации</h3><p>Команды, роли, знания и решения остаются частью общего рабочего пространства.</p></article><article><span class="feature-index">02</span><h3>Реальная работа</h3><p>Цели проходят через план, рабочие элементы, инструменты и наблюдаемые результаты.</p></article><article><span class="feature-index">03</span><h3>Проверяемый итог</h3><p>Артефакты, источники и ревью помогают отличить выполненную работу от обещания.</p></article></div>
-    </section>
-    <section class="process-section" aria-labelledby="process-title">
-      <div class="section-intro"><span class="eyebrow">Как это работает</span><h2 id="process-title">Один запрос. Понятный рабочий путь.</h2></div>
-      <div class="process-line"><div><b>01</b><strong>Опишите цель</strong><span>Iris уточняет результат и ограничения.</span></div><i></i><div><b>02</b><strong>Соберите команду</strong><span>Роли и компетенции подбираются под задачу.</span></div><i></i><div><b>03</b><strong>Следите за ходом</strong><span>Работа, статусы и решения видны в реальном времени.</span></div><i></i><div><b>04</b><strong>Примите результат</strong><span>Артефакты проходят проверку и сохраняются.</span></div></div>
-    </section>
-    <section class="capability-section" aria-labelledby="capability-title">
-      <div class="section-intro"><span class="eyebrow">Внутри рабочего места</span><h2 id="capability-title">Всё, что нужно для движения проекта</h2></div>
-      <div class="capability-grid"><article class="capability-card capability-wide"><span>Команда</span><h3>Люди и AI-сотрудники работают в одной организации</h3><p>Назначайте роли, подключайте провайдеров и сохраняйте рабочие привычки команды.</p><a href="#workspace" data-view-link="team">Открыть команду <span>↗</span></a></article><article class="capability-card"><span>Цели</span><h3>От запроса до рабочего плана</h3><p>Цели, этапы и исполнители собраны в одном месте.</p><a href="#workspace" data-view-link="work">Посмотреть работу <span>↗</span></a></article><article class="capability-card"><span>Артефакты</span><h3>Результаты, которые можно открыть и проверить</h3><p>Файлы и evidence доступны после выполнения.</p><a href="#workspace" data-view-link="files">Открыть файлы <span>↗</span></a></article></div>
-    </section>
-    <section class="trust-section" aria-labelledby="trust-title">
-      <div class="trust-copy"><span class="eyebrow">Спокойный контроль</span><h2 id="trust-title">Ваши данные остаются частью вашей организации</h2><p>Локальный режим использует существующий Luminifera Core. Границы организаций, роли и разрешения проверяются на стороне сервиса, а не в интерфейсе.</p></div>
-      <div class="trust-points"><div><b>Локально</b><span>Рабочее пространство запускается на вашей машине.</span></div><div><b>Прозрачно</b><span>Статус Iris и ход работы видны без лишнего шума.</span></div><div><b>Готово к росту</b><span>API и сервисные границы подготовлены для будущего cloud-режима.</span></div></div>
-    </section>
-    <section class="pricing-section" aria-labelledby="pricing-title">
-      <div class="section-intro"><span class="eyebrow">Формат продукта</span><h2 id="pricing-title">Начните локально. Масштабируйте, когда будете готовы.</h2><p>Локальный режим уже доступен для проверки. Облачные варианты остаются направлением развития и не подменяются неподтверждёнными обещаниями.</p></div>
-      <div class="pricing-grid"><article class="pricing-card featured"><span class="pricing-label">Сейчас</span><h3>Local workspace</h3><p>Рабочее место Luminifera на вашей машине с реальными Core-сервисами и данными организации.</p><a class="secondary" href="#workspace">Открыть рабочее место <span>↗</span></a></article><article class="pricing-card"><span class="pricing-label">Дальше</span><h3>Cloud workspace</h3><p>Будущий формат для распределённых команд, когда облачная инфраструктура будет готова.</p><span class="pricing-note">В разработке</span></article></div>
-    </section>
-    <section class="cta-section" aria-labelledby="cta-title"><span class="eyebrow">Начните с результата</span><h2 id="cta-title">Дайте Iris задачу, а не ещё один список инструментов.</h2><p>Откройте рабочее место и продолжите с реальными данными вашей организации.</p><a class="primary" href="#workspace">Открыть Luminifera <span>↗</span></a></section>
-    <section class="workspace" id="workspace">
-      <aside class="sidebar"><div class="section-label">Организация</div><select id="org-select"><option value="">Выберите организацию</option></select><button class="new-org" id="new-org">+ Новая организация</button><div class="side-nav"><button class="active" data-view="overview">Обзор</button><button data-view="chat">Iris чат</button><button data-view="team">Команда</button><button data-view="work">Цели и работа</button><button data-view="files">Файлы</button><button data-view="connections">Подключения</button></div><div class="sidebar-foot"><span class="avatar">В</span><span><b>Владелец</b><small>Личная организация</small></span></div></aside>
-      <section class="content"><div class="content-head"><div><span class="eyebrow">Сегодня</span><h2 id="view-title">Рабочее место</h2></div><button class="ghost" id="refresh">Обновить ↻</button></div><div id="view"></div></section>
-    </section>
+  <main id="workspace" class="workspace">
+    <aside class="workspace-sidebar"><label class="field-label" for="org-select">Рабочее пространство</label><select id="org-select"><option value="">Выберите организацию</option></select><button class="new-org" id="new-org">+ Новая организация</button><div class="side-nav" aria-label="Разделы"><button class="side-link active" data-view="home">Главная</button><button class="side-link" data-view="iris">Iris</button><button class="side-link" data-view="team">Команда</button><button class="side-link" data-view="work">Работа</button><button class="side-link" data-view="files">Файлы</button><button class="side-link" data-view="settings">Настройки</button></div><div class="sidebar-foot"><span class="owner-avatar">В</span><span><b>Владелец</b><small>личное пространство</small></span></div></aside>
+    <section class="content" aria-live="polite"><div class="content-head"><div><span class="section-kicker">LUMINIFERA</span><h1 id="view-title">Главная</h1></div><button class="quiet-button" id="refresh">Обновить</button></div><div id="view"></div></section>
   </main>
-  <dialog id="org-dialog"><form method="dialog" id="org-form"><button class="dialog-close" value="cancel" aria-label="Закрыть">×</button><span class="eyebrow">Новая организация</span><h2>С чего начнём?</h2><p>Назовите пространство, где Iris будет собирать команду и работу.</p><label>Название<input id="org-name" required maxlength="160" placeholder="Например, Nova Lab"></label><label>Направление<textarea id="org-purpose" maxlength="2000" placeholder="Что вы хотите создавать?"></textarea></label><button class="primary" value="default">Создать организацию</button></form></dialog>
-  <script src="/runtime-config.js"></script>
-  <script src="/assets/localization.js"></script>
-  <script src="/assets/app.js" defer></script>
-  <script src="/assets/actions.js" defer></script>
+  <dialog id="org-dialog"><form method="dialog" id="org-form"><button class="dialog-close" value="cancel" aria-label="Закрыть">×</button><span class="section-kicker">Новое пространство</span><h2>С чего начнём?</h2><p>Создайте организацию, чтобы Iris могла собрать рабочую команду.</p><label>Название<input id="org-name" required maxlength="160" placeholder="Например, Nova Lab"></label><label>Направление<textarea id="org-purpose" maxlength="2000" placeholder="Какой результат нужно получить?"></textarea></label><button class="primary" value="default">Создать пространство</button></form></dialog>
+  <script src="/runtime-config.js"></script><script src="/assets/app.js" defer></script>
 </body>
 </html>

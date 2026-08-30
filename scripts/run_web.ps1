@@ -15,6 +15,19 @@ if ($ApiOnly) {
 
 $api = Start-Process -FilePath $python -ArgumentList @("-m", "uvicorn", "services.api.app:app", "--host", "127.0.0.1", "--port", $ApiPort) -PassThru -WindowStyle Hidden
 try {
+  $healthUrl = "http://127.0.0.1:$ApiPort/api/health"
+  $ready = $false
+  1..30 | ForEach-Object {
+    if ($ready) { return }
+    Start-Sleep -Milliseconds 500
+    try {
+      $health = Invoke-RestMethod -Uri $healthUrl -TimeoutSec 2
+      if ($health.status -eq "ready") { $ready = $true }
+    } catch {
+      if ($api.HasExited) { throw "Luminifera API завершил запуск с кодом $($api.ExitCode)." }
+    }
+  }
+  if (-not $ready) { throw "Luminifera API не ответил за 15 секунд: $healthUrl" }
   Write-Host "Luminifera Web: http://127.0.0.1:$WebPort"
   Write-Host "Luminifera API: http://127.0.0.1:$ApiPort/api/docs"
   & $python -m services.web_dev_server --host 127.0.0.1 --port $WebPort --api-base "http://127.0.0.1:$ApiPort"
