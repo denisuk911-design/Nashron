@@ -204,6 +204,9 @@
   available for bake-off only and cannot be selected by Product routing.
 - Added optional runtime health gating; unavailable external candidates are
   skipped before execution and fall back to Native.
+- Added explicit capability profiles to Native and external adapters without
+  coupling Product code to SDK names.
+- Capability/adapter targeted result: `22 passed`.
 - Full regression after health-aware routing: `538 passed` in `208.72s`.
 - Added external payload organization-scope validation and regression coverage.
 - Targeted external/runtime isolation result after scope validation: `17 passed`.

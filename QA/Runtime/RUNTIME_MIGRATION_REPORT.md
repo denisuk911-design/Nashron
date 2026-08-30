@@ -82,6 +82,8 @@ Latest commit: `4fc9f88`
   registering an unvalidated candidate can no longer route Product work to it.
 - RuntimeSelector now also honors supplied external runtime health and skips an
   unavailable promoted candidate before execution.
+- Native and external adapters now expose explicit `RuntimeCapabilities` for
+  diagnostics and future capability-aware routing.
 - Full regression after health-aware routing: `538 passed` in `208.72s`; the
   same two existing non-fatal warnings remain unchanged.
 - External adapter results now reject a returned organization scope that does

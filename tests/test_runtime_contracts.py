@@ -102,3 +102,5 @@ def test_native_adapter_preserves_employee_identity_and_returns_product_refs():
     assert result.artifact_refs == ("artifact-1",)
     assert result.evidence_refs == ("evidence-1",)
     assert result.events[0].event_type is RuntimeEventType.OBSERVATION_RECORDED
+    assert adapter.capabilities.tool_calls is True
+    assert adapter.capabilities.persistence is True

@@ -39,6 +39,7 @@ def test_each_external_adapter_has_distinct_runtime_identity():
         AutoGenRuntimeAdapter(lambda _: ExternalExecutionPayload(True, "ok")),
     ]
     assert {adapter.runtime_id for adapter in adapters} == {"langgraph", "google-adk", "autogen"}
+    assert all(adapter.capabilities.tool_calls for adapter in adapters)
 
 
 def test_subprocess_bridge_maps_json_ipc_to_normalized_payload():

@@ -74,6 +74,8 @@ unpromoted candidates remain available for diagnostics and bake-off only and
 cannot enter Product routing by registration alone.
 When health is supplied, an unavailable external candidate is skipped before
 execution and Native remains the safe baseline.
+Adapters expose `RuntimeCapabilities` for diagnostics and future capability-
+aware selection; capability metadata does not grant permissions.
 
 Web Product API exposes `POST /api/executions` through
 `IrisOrchestrationService`; it accepts semantic policy and returns only

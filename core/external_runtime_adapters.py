@@ -8,7 +8,15 @@ import subprocess
 import sys
 from typing import Any, Callable, Mapping, Sequence
 
-from .runtime_contracts import ExecutionRequest, ExecutionResult, RuntimeAdapter, RuntimeEvent, RuntimeEventType, tupled
+from .runtime_contracts import (
+    ExecutionRequest,
+    ExecutionResult,
+    RuntimeAdapter,
+    RuntimeCapabilities,
+    RuntimeEvent,
+    RuntimeEventType,
+    tupled,
+)
 
 
 @dataclass(frozen=True)
@@ -85,6 +93,7 @@ class CallbackRuntimeAdapter(RuntimeAdapter):
     def __init__(self, runtime_id: str, executor: Callable[[ExecutionRequest], ExternalExecutionPayload]) -> None:
         self.runtime_id = runtime_id
         self._executor = executor
+        self.capabilities = RuntimeCapabilities(tool_calls=True, multi_agent=True)
 
     def execute(self, request: ExecutionRequest) -> ExecutionResult:
         payload = self._executor(request)

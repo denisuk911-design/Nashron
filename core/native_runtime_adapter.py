@@ -11,12 +11,17 @@ from .runtime_contracts import (
     ExecutionResult,
     RuntimeAdapter,
     RuntimeEvent,
+    RuntimeCapabilities,
     event_type_from_native_stage,
 )
 
 
 class NativeRuntimeAdapter(RuntimeAdapter):
     runtime_id = "native"
+    capabilities = RuntimeCapabilities(
+        tool_calls=True, multi_agent=True, persistence=True, recovery=True,
+        human_approval=True, streaming=False,
+    )
 
     def __init__(self, service, employee_resolver: Callable[[EmployeeRef], ChatAgent | None]) -> None:
         self.service = service
