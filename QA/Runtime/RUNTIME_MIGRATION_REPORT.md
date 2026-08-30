@@ -33,7 +33,8 @@ Latest commit: `10b2435`
 - LangGraph has real model-backed graph execution; normalized
   tool/artifact/restart evidence remains pending for all candidates.
 - Normalized external adapters are not promoted into production routing.
-- No final runtime recommendation can be made from the current evidence.
+- A policy-oriented candidate recommendation is recorded, but no candidate is
+  production-promoted before the parity gate.
 
 ## Blocker
 
