@@ -65,3 +65,7 @@ concurrent execution cannot replace another execution's product employee map.
 `RuntimeExecutionJournal` persists normalized run status atomically by
 organization and correlation ID. It supports restart recovery of completed
 results without exposing or depending on SDK checkpoints.
+
+`RuntimeSelector` requires explicit promotion for every non-Native adapter;
+unpromoted candidates remain available for diagnostics and bake-off only and
+cannot enter Product routing by registration alone.

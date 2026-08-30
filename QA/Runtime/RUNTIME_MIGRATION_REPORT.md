@@ -78,6 +78,10 @@ Latest commit: `e3f910c`
   LangGraph and Google ADK are explicitly excluded from promotion, while
   OpenAI Agents and AutoGen remain KEEP_FOR_FUTURE until same-environment
   subprocess adapter evidence is collected.
+- RuntimeSelector now requires explicit promotion for external adapters;
+  registering an unvalidated candidate can no longer route Product work to it.
+- Full regression after promotion gating: `534 passed` in `173.13s`; the same
+  two existing non-fatal warnings remain unchanged.
 
 ## Blocker
 

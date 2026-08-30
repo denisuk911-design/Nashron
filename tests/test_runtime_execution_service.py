@@ -57,7 +57,7 @@ def test_external_runtime_completes_direct_action_without_native_scheduler():
             True, "external action complete", artifact_refs=("artifact-1",), observations=("tool observed",)
         )
     )
-    service = RuntimeExecutionService(NativeService(), {"langgraph": external})
+    service = RuntimeExecutionService(NativeService(), {"langgraph": external}, promoted_runtime_ids={"langgraph"})
     result = service.execute("org-a", "create one artifact", [employee], ExecutionPolicy.DIRECT_ACTION)
     assert result.runtime_id == "langgraph"
     assert result.artifact_refs == ("artifact-1",)
@@ -75,7 +75,12 @@ def test_external_result_is_durable_and_recoverable_without_native_checkpoint(tm
             tool_calls=("write_artifact",),
         )
     )
-    service = RuntimeExecutionService(lambda: None, {"langgraph": external}, journal=journal)
+    service = RuntimeExecutionService(
+        lambda: None,
+        {"langgraph": external},
+        journal=journal,
+        promoted_runtime_ids={"langgraph"},
+    )
     result = service.execute(
         "org-a", "produce artifact", [], ExecutionPolicy.DIRECT_ACTION,
         correlation_id="external-run-1", preferred_runtime="langgraph",

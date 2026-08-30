@@ -200,3 +200,6 @@
   LangGraph `1.2.11`, Google ADK `2.8.0`, AutoGen `0.7.5` all PASS.
 - Recorded owner-directed skip of the quota-blocked live candidate stage;
   blocked candidates are excluded from promotion rather than marked PASS.
+- Added explicit external-runtime promotion gating; unpromoted adapters are
+  available for bake-off only and cannot be selected by Product routing.
+- Full regression after promotion gating: `534 passed` in `173.13s`.

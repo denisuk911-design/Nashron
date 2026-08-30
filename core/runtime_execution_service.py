@@ -15,11 +15,20 @@ from .runtime_journal import RuntimeExecutionJournal
 class RuntimeExecutionService:
     """Translate Product identities into a selected runtime request."""
 
-    def __init__(self, native_service, external_adapters=None, journal: RuntimeExecutionJournal | None = None) -> None:
+    def __init__(
+        self,
+        native_service,
+        external_adapters=None,
+        journal: RuntimeExecutionJournal | None = None,
+        promoted_runtime_ids: set[str] | None = None,
+    ) -> None:
         self._employee_scope: ContextVar[dict[str, ChatAgent]] = ContextVar("runtime_employee_scope", default={})
         self.journal = journal
         native = NativeRuntimeAdapter(native_service, lambda employee: self._employee_scope.get().get(employee.employee_id))
-        self.selector = RuntimeSelector({"native": native, **dict(external_adapters or {})})
+        self.selector = RuntimeSelector(
+            {"native": native, **dict(external_adapters or {})},
+            promoted_runtime_ids=promoted_runtime_ids,
+        )
 
     def execute(
         self,
