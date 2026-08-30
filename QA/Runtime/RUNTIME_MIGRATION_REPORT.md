@@ -1,8 +1,17 @@
 # Runtime Migration Report
 
-Status: `BLOCKED - external candidate gate incomplete`  
+Status: `CHECKPOINT ACCEPTED - external candidate live bake-off deferred by provider quota`  
 Date: 2026-08-30  
-Latest commit: `c57d861`
+Latest commit: `c75fb7b`
+
+## Resolution
+
+The external live Tool/Artifact gate for LangGraph and Google ADK is deferred
+because the provider returned `429 RESOURCE_EXHAUSTED`. This is recorded as an
+external quota blocker, not as an architectural failure. Native Runtime remains
+the production baseline; OpenAI Agents remains a validated external candidate;
+LangGraph and Google ADK remain `KEEP_FOR_FUTURE` until the live evidence gate
+can be repeated with available quota. No unverified run is counted as PASS.
 
 ## Completed
 
@@ -135,3 +144,12 @@ limitation, not a local adapter or test failure.
 - `QA/Runtime/RUNTIME_RECOMMENDATION.md`
 - `scripts/runtime_candidate_smoke.py`
 - `scripts/runtime_google_adk_real_smoke.py`
+
+## Final checkpoint
+
+The migration checkpoint is accepted under the supervisor resolution. Native
+Runtime remains the only production baseline; no external candidate is
+promoted. The latest full regression was `538 passed` with two pre-existing
+non-fatal warnings. The remaining live evidence requires provider quota and is
+explicitly deferred for a later bake-off; it must not be represented as PASS.
+Checkpoint commit: `c75fb7b`.
