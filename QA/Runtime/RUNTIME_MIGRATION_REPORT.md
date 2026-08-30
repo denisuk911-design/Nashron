@@ -159,3 +159,27 @@ promoted. The latest full regression was `538 passed` with two pre-existing
 non-fatal warnings. The remaining live evidence requires provider quota and is
 explicitly deferred for a later bake-off; it must not be represented as PASS.
 Checkpoint commit: `c75fb7b`.
+
+## Final checkpoint resolution
+
+The migration is complete up to the externally blocked candidate gate. Native
+Runtime is the only production-promoted runtime. No external candidate is
+represented as PASS without complete live tool/artifact/restart evidence.
+
+BEST_CONVERSATIONAL_RUNTIME: OpenAI Agents SDK candidate, not promoted.
+BEST_MANAGER_RUNTIME: OpenAI Agents SDK candidate, not promoted.
+BEST_DYNAMIC_MULTI_AGENT_RUNTIME: LangGraph candidate, not promoted.
+BEST_LONG_RUNNING_RUNTIME: LangGraph candidate, not promoted.
+BEST_DETERMINISTIC_RUNTIME: Native Runtime.
+BEST_LOCAL_PRIVATE_PATH: Native Runtime.
+RECOMMENDED_DEFAULT: Native Runtime until the parity gate passes.
+
+BLOCKER: the only available credential is Gemini and its provider quota returns
+429 RESOURCE_EXHAUSTED for the remaining live probes. The supervisor approved
+this explicit `BLOCKED_BY_EXTERNAL_QUOTA` resolution. To resume, provide an
+alternative credential through the environment and rerun the bounded matrix;
+do not reuse or print the existing secret.
+
+FINAL_EVIDENCE: `QA/Runtime/BAKEOFF_MATRIX.json`,
+`QA/Runtime/BAKEOFF_RESULTS.md`, isolated environment records,
+`QA/Runtime/EXECUTION_LOG.md`, and commit `3abd5b8` pushed to `origin/main`.

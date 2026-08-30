@@ -1,6 +1,6 @@
 # Runtime Recommendation
 
-Status: `CANDIDATE RECOMMENDATION - promotion pending parity gate`
+Status: `BLOCKED_BY_EXTERNAL_QUOTA - Native baseline retained`
 
 Native Runtime remains the production baseline and fallback. External runtime
 selection must wait for the model-backed bake-off in
@@ -49,4 +49,7 @@ NEXT_ACTION: rerun blocked provider-backed tool/recovery smokes with valid
 ```
 
 This is an evidence-based candidate recommendation, not a claim that the
-external adapters have already passed the production gate.
+external adapters have already passed the production gate. The next permitted
+step is to rerun the blocked provider-backed probes with a valid alternative
+credential, then repeat the same normalized parity scenarios before any
+promotion.
