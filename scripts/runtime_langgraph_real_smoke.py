@@ -22,9 +22,9 @@ def main() -> None:
 
     def infer(state: State) -> dict[str, str]:
         response = client.models.generate_content(
-            model="gemini-3.6-flash",
+            model=os.environ.get("RUNTIME_MODEL", "gemini-3.6-flash"),
             contents=state["prompt"],
-            config={"max_output_tokens": 8},
+            config={"max_output_tokens": 64},
         )
         value = str(response.text or "").strip().upper()
         if not value and response.candidates and response.candidates[0].content:
