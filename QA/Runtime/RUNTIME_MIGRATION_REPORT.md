@@ -80,6 +80,10 @@ Latest commit: `b59c5d0`
   subprocess adapter evidence is collected.
 - RuntimeSelector now requires explicit promotion for external adapters;
   registering an unvalidated candidate can no longer route Product work to it.
+- RuntimeSelector now also honors supplied external runtime health and skips an
+  unavailable promoted candidate before execution.
+- Full regression after health-aware routing: `538 passed` in `208.72s`; the
+  same two existing non-fatal warnings remain unchanged.
 - External adapter results now reject a returned organization scope that does
   not match the Product request before accepting artifacts or evidence.
 - RuntimeExecutionService now carries server-resolved permissions into each

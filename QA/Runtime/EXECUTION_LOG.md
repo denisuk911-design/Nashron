@@ -202,6 +202,9 @@
   blocked candidates are excluded from promotion rather than marked PASS.
 - Added explicit external-runtime promotion gating; unpromoted adapters are
   available for bake-off only and cannot be selected by Product routing.
+- Added optional runtime health gating; unavailable external candidates are
+  skipped before execution and fall back to Native.
+- Full regression after health-aware routing: `538 passed` in `208.72s`.
 - Added external payload organization-scope validation and regression coverage.
 - Targeted external/runtime isolation result after scope validation: `17 passed`.
 - Added server-side permission resolver propagation into external execution

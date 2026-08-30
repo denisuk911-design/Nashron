@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .runtime_contracts import ExecutionRequest, ExecutionResult, RuntimeAdapter
+from .runtime_contracts import ExecutionRequest, ExecutionResult, RuntimeAdapter, RuntimeHealth
 
 
 @dataclass(frozen=True)
@@ -22,25 +22,39 @@ class RuntimeSelector:
         adapters: dict[str, RuntimeAdapter],
         native_id: str = "native",
         promoted_runtime_ids: set[str] | None = None,
+        runtime_health: dict[str, RuntimeHealth] | None = None,
     ) -> None:
         if native_id not in adapters:
             raise ValueError("Native baseline adapter is required")
         self.adapters = dict(adapters)
         self.native_id = native_id
         self.promoted_runtime_ids = set(promoted_runtime_ids or ()) | {native_id}
+        self.runtime_health = dict(runtime_health or {})
+
+    def _is_available(self, runtime_id: str) -> bool:
+        health = self.runtime_health.get(runtime_id)
+        return health is None or health.available or runtime_id == self.native_id
 
     def select(self, request: ExecutionRequest) -> RuntimeSelection:
         preferred = str(request.metadata.get("preferred_runtime") or "").strip()
-        if preferred in self.adapters and preferred in self.promoted_runtime_ids:
+        if preferred in self.adapters and preferred in self.promoted_runtime_ids and self._is_available(preferred):
             return RuntimeSelection(preferred, "explicit runtime preference")
         if request.policy.value == "deterministic_workflow":
             return RuntimeSelection(self.native_id, "deterministic workflow remains Native baseline")
         if request.policy.value in {"conversational", "direct_action"}:
-            if "openai-agents" in self.adapters and "openai-agents" in self.promoted_runtime_ids:
+            if (
+                "openai-agents" in self.adapters
+                and "openai-agents" in self.promoted_runtime_ids
+                and self._is_available("openai-agents")
+            ):
                 return RuntimeSelection("openai-agents", "short policy selected the registered candidate")
             external_ids = [
                 runtime_id for runtime_id in self.adapters
-                if runtime_id != self.native_id and runtime_id in self.promoted_runtime_ids
+                if (
+                    runtime_id != self.native_id
+                    and runtime_id in self.promoted_runtime_ids
+                    and self._is_available(runtime_id)
+                )
             ]
             if external_ids:
                 return RuntimeSelection(external_ids[0], "short policy selected the available candidate")
@@ -48,6 +62,7 @@ class RuntimeSelector:
             request.policy.value in {"dynamic_multi_agent", "long_running_project"}
             and "langgraph" in self.adapters
             and "langgraph" in self.promoted_runtime_ids
+            and self._is_available("langgraph")
         ):
             return RuntimeSelection("langgraph", "durable policy selected the registered candidate")
         return RuntimeSelection(self.native_id, "no promoted candidate is registered")

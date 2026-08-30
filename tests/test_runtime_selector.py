@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from core.runtime_contracts import ExecutionPolicy, ExecutionRequest, ExecutionResult
+from core.runtime_contracts import ExecutionPolicy, ExecutionRequest, ExecutionResult, RuntimeHealth
 from core.runtime_selector import RuntimeSelector
 
 
@@ -72,6 +72,20 @@ def test_unpromoted_external_candidate_never_enters_product_routing():
     native = Adapter("native")
     candidate = Adapter("langgraph")
     selector = RuntimeSelector({"native": native, "langgraph": candidate})
+    result = selector.execute(request(ExecutionPolicy.DYNAMIC_MULTI_AGENT))
+    assert result.runtime_id == "native"
+    assert candidate.calls == 0
+    assert native.calls == 1
+
+
+def test_unhealthy_promoted_candidate_uses_native_without_calling_candidate():
+    native = Adapter("native")
+    candidate = Adapter("langgraph")
+    selector = RuntimeSelector(
+        {"native": native, "langgraph": candidate},
+        promoted_runtime_ids={"langgraph"},
+        runtime_health={"langgraph": RuntimeHealth("langgraph", available=False, detail="quota")},
+    )
     result = selector.execute(request(ExecutionPolicy.DYNAMIC_MULTI_AGENT))
     assert result.runtime_id == "native"
     assert candidate.calls == 0
