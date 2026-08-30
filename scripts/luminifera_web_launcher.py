@@ -8,6 +8,7 @@ import threading
 import time
 import urllib.request
 import webbrowser
+import json
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
@@ -46,10 +47,16 @@ def main() -> int:
     web_thread = threading.Thread(target=web.serve_forever, name="luminifera-web", daemon=True)
     web_thread.start()
     url = f"http://127.0.0.1:{web_port}/app"
+    report_path = os.environ.get("LUMINIFERA_LAUNCHER_REPORT")
+    stop_path = os.environ.get("LUMINIFERA_LAUNCHER_STOP")
+    if report_path:
+        Path(report_path).write_text(json.dumps({"url": url, "api": health, "status": "ready"}), encoding="utf-8")
     print(f"Luminifera Alpha: {url}", flush=True)
     webbrowser.open(url)
     try:
         while api_thread.is_alive():
+            if stop_path and Path(stop_path).exists():
+                break
             time.sleep(0.5)
     except KeyboardInterrupt:
         pass
@@ -61,4 +68,12 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except Exception as exc:
+        try:
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(0, "Luminifera не удалось запустить. Проверьте журнал запуска.", "Luminifera", 0x10)
+        except Exception:
+            pass
+        raise SystemExit(1) from exc

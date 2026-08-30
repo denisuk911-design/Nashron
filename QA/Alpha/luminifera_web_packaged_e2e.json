@@ -1,0 +1,17 @@
+{
+  "product": "Luminifera",
+  "executable": "dist/Luminifera.exe",
+  "launch": "PASS",
+  "health_gate": "PASS",
+  "app_route": "PASS",
+  "assets": "PASS",
+  "organization_create": "PASS",
+  "chat_response": "PASS",
+  "feedback_inbox": "PASS",
+  "diagnostics": "PASS",
+  "restart_persistence": "PASS",
+  "goal_artifact": "PENDING_TEAM_SETUP",
+  "provider_byok": "NOT_VERIFIED_WITH_LIVE_CREDENTIAL",
+  "shutdown": "PASS",
+  "notes": "Packaged executable starts API and Web on dynamic loopback ports and opens /app. Fresh profile has no employees, so a real work goal cannot be started without creating a team first."
+}
