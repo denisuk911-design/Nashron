@@ -46,3 +46,10 @@
 - Added `QA/Runtime/BAKEOFF_PLAN.md` with promotion gate, scenarios and
   measurements. Import/version output is explicitly insufficient for PASS.
 - Targeted selector/runtime result: `66 passed`.
+
+## Candidate bake-off checkpoint - 2026-08-30
+
+- Recorded partial results in `QA/Runtime/BAKEOFF_RESULTS.md`.
+- Recorded conservative recommendation in
+  `QA/Runtime/RUNTIME_RECOMMENDATION.md`: Native remains baseline; no external
+  candidate is promoted from import-only evidence.
