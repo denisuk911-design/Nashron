@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-08-30T18:21:43.758475+00:00",
+  "captured_at": "2026-08-30T18:48:22.505335+00:00",
   "app_url": "http://127.0.0.1:63384/app",
   "screens": [
     {
@@ -40,14 +40,16 @@
     {
       "name": "byok",
       "status": "captured",
-      "section": "AI-провайдеры",
-      "route": "#settings"
+      "section": "AI providers",
+      "route": "#settings",
+      "capture_mode": "element"
     },
     {
       "name": "feedback",
       "status": "captured",
-      "section": "Feedback Inbox",
-      "route": "#settings"
+      "section": "Iris feedback",
+      "route": "#settings",
+      "capture_mode": "element"
     }
   ]
 }

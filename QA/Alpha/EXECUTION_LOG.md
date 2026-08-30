@@ -52,6 +52,13 @@
 - Refreshed `QA/Alpha/LUMINIFERA_VISUAL_REVIEW_STANDALONE.zip` and manifest.
 - Status: `READY_FOR_HUMAN_VISUAL_REVIEW`; Final Alpha PASS intentionally not declared.
 
+## 2026-08-30 - Visual Rework Round 4
+
+- Human review found that the previous Settings/BYOK/Feedback captures were identical full-page screenshots.
+- Hardened `scripts/capture_visual_gate.py` to capture the real Settings page plus separate provider and feedback DOM sections.
+- Round 4 capture: all 8 screens available (`unavailable=[]`); Settings/BYOK/Feedback SHA-256 values are distinct.
+- Refreshed current PNGs, manifest and `LUMINIFERA_VISUAL_REVIEW_STANDALONE.zip`; no backend/API/runtime changes.
+
 ## 2026-08-30 - Visual Rework Round 2
 
 - Rebuilt client composition in `apps/web/static/premium-rework.js`: Home is organized around current focus and Iris, Iris is a dedicated work center, Team is a role/status workspace, Work is a Goal-to-execution flow, and Files is a results library.

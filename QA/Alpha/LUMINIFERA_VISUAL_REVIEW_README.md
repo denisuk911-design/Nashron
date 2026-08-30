@@ -47,3 +47,8 @@ This package contains the current Web Alpha evidence captured from the packaged 
 
 - Added the final art-direction pass for this round: layered light and depth, clearer focus states, stronger rhythm and distinct visual treatments for Iris, Team, Work and Files.
 - Fresh packaged captures, manifest and ZIP are included. Status: `READY_FOR_HUMAN_VISUAL_REVIEW`.
+
+## Visual Rework Round 4
+
+- Settings remains the full control surface; BYOK and Feedback are now captured from their actual Settings sections rather than duplicated full-page images.
+- The current evidence manifest reports 8 captured screens and distinct SHA-256 output for Settings, BYOK and Feedback.

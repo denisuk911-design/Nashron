@@ -101,22 +101,28 @@ def main() -> int:
         # BYOK and Feedback are sections of Settings in the current product,
         # not separate routes. Capture the real Settings render without
         # clicking arbitrary text, and make that fact explicit in the manifest.
-        for name, patterns in {
+        section_selectors = {
+            "byok": '.settings-grid .settings-panel:nth-child(2)',
+            "feedback": '.settings-grid .settings-panel:nth-child(3)',
+        }
+        section_labels = {"byok": "AI providers", "feedback": "Iris feedback"}
+        for name, selector in section_selectors.items():
+            """legacy pattern table removed
             "byok": ("AI-провайдеры", "Подключения Iris", "BYOK"),
             "feedback": ("Feedback Inbox", "Обратная связь Iris", "Feedback"),
         }.items():
+            """
             record = {"name": name, "status": "unavailable", "reason": "No real Settings section found"}
-            for pattern in patterns:
-                locator = page.get_by_text(pattern, exact=False).first
-                if locator.count() and locator.is_visible():
-                    page.screenshot(path=str(args.output_dir / f"{name}.png"), full_page=True)
-                    record = {
-                        "name": name,
-                        "status": "captured",
-                        "section": pattern,
-                        "route": "#settings",
-                    }
-                    break
+            section = page.locator(selector)
+            if section.count() and section.is_visible():
+                section.screenshot(path=str(args.output_dir / f"{name}.png"))
+                record = {
+                    "name": name,
+                    "status": "captured",
+                    "section": section_labels[name],
+                    "route": "#settings",
+                    "capture_mode": "element",
+                }
             manifest["screens"].append(record)
 
         context.close()
