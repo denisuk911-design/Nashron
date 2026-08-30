@@ -198,3 +198,5 @@
   timeout; external runtime hangs are not treated as successful work.
 - Revalidated offline isolated candidate smoke: OpenAI Agents `0.22.0`,
   LangGraph `1.2.11`, Google ADK `2.8.0`, AutoGen `0.7.5` all PASS.
+- Recorded owner-directed skip of the quota-blocked live candidate stage;
+  blocked candidates are excluded from promotion rather than marked PASS.

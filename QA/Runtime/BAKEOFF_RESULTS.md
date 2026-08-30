@@ -1,6 +1,6 @@
 # Runtime Bake-off Results
 
-Status: `PARTIAL - candidate gate not passed`  
+Status: `PARTIAL - blocked candidates explicitly excluded from promotion`  
 Date: 2026-08-30
 
 ## Evidence collected
@@ -8,10 +8,10 @@ Date: 2026-08-30
 | Candidate | Package evidence | Local execution evidence | Model-backed result | Gate |
 | --- | --- | --- | --- | --- |
 | Native | Existing `RuntimeV3GoalService` and 63 targeted runtime tests | Existing Native goal/tool/artifact/review tests | PASS for baseline | BASELINE |
-| OpenAI Agents | `openai-agents 0.22.0` | Real `Runner.run` through SDK | PASS: real model classification `WORK` | CANDIDATE |
+| OpenAI Agents | `openai-agents 0.22.0` | Real `Runner.run` through SDK | PASS: real model classification `WORK`; tool/artifact PASS recorded | KEEP_FOR_FUTURE |
 | LangGraph | `langgraph 1.2.11` + `langchain-google-genai 4.3.7` | Real compiled graph node with model | PASS: real model classification `WORK` | CANDIDATE |
 | Google ADK | `google-adk 2.8.0` | Real `InMemoryRunner` model run; tool retry hit provider quota | Model PASS; tool/artifact smoke BLOCKED by `429 RESOURCE_EXHAUSTED` | PARTIAL |
-| AutoGen | `autogen-agentchat/autogen-ext 0.7.5` | Real `OpenAIChatCompletionClient.create` | PASS: real model classification `WORK` | CANDIDATE |
+| AutoGen | `autogen-agentchat/autogen-ext 0.7.5` | Real `OpenAIChatCompletionClient.create` | PASS: real model classification `WORK`; tool/artifact PASS recorded | KEEP_FOR_FUTURE |
 
 ## Interpretation
 
@@ -23,6 +23,12 @@ evidence is blocked by the provider free-tier quota, and all candidates still
 need normalized tool/artifact/restart evidence. The migration must not route
 production Product work to an external candidate solely because its import
 succeeds.
+
+Per the owner instruction to skip the quota-blocked live stage, LangGraph and
+Google ADK are explicitly excluded from promotion. OpenAI Agents and AutoGen
+remain installed, evidenced candidates, but are also kept for future promotion
+until the real SDK subprocess bridge is exercised in the same environment as
+the normalized adapter.
 
 ## Next evidence required
 

@@ -2,7 +2,7 @@
 
 Status: `BLOCKED - external candidate gate incomplete`  
 Date: 2026-08-30  
-Latest commit: `cab2dbb`
+Latest commit: `6a9f150`
 
 ## Completed
 
@@ -74,6 +74,10 @@ Latest commit: `cab2dbb`
   warnings.
 - Offline isolated package/object smoke revalidated for all four candidates;
   all installed environments remain usable.
+- Owner-directed continuation skips the quota-blocked live candidate stage;
+  LangGraph and Google ADK are explicitly excluded from promotion, while
+  OpenAI Agents and AutoGen remain KEEP_FOR_FUTURE until same-environment
+  subprocess adapter evidence is collected.
 
 ## Blocker
 
