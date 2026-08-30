@@ -53,3 +53,7 @@
 - Recorded conservative recommendation in
   `QA/Runtime/RUNTIME_RECOMMENDATION.md`: Native remains baseline; no external
   candidate is promoted from import-only evidence.
+- Added `core/runtime_execution_service.py` as the Product-facing facade that
+  translates `ChatAgent` records to `EmployeeRef` and delegates by semantic
+  policy through `RuntimeSelector`.
+- Targeted facade/runtime result: `67 passed`.
