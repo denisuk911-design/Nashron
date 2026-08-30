@@ -149,3 +149,4 @@
 - Goal start now derives WebSocket `work.*`, `artifact.created` and `review.*` events from persisted Runtime V3 trace records before publishing the final goal state.
 - Event payloads include the organization scope and durable trace references; no animation-only event is generated.
 - API suite remains green at `12 passed`; per-step delivery is intentionally still documented as a burst after synchronous runtime completion, not claimed as live streaming.
+- Event projection smoke evidence: `QA/Web/web_smoke_events.json` also passed the real goal execution and receipt checks.
