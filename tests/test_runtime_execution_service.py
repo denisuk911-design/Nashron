@@ -3,6 +3,8 @@ from core.runtime_contracts import ExecutionPolicy
 from core.external_runtime_adapters import ExternalExecutionPayload, LangGraphRuntimeAdapter
 from core.runtime_execution_service import RuntimeExecutionService
 from core.runtime_journal import RuntimeExecutionJournal
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 
 
 def test_product_execution_service_keeps_employee_identity_outside_native_adapter():
@@ -84,3 +86,42 @@ def test_external_result_is_durable_and_recoverable_without_native_checkpoint(tm
     assert recovered.status == "COMPLETED"
     assert recovered.artifact_refs == ("artifact-org-a",)
     assert RuntimeExecutionJournal(tmp_path / "journal").recover("org-b", "external-run-1") is None
+
+
+def test_native_employee_scope_is_isolated_for_parallel_executions():
+    barrier = Barrier(2)
+    seen = {}
+
+    class NativeResult:
+        ok = True
+        summary = "done"
+        workspace_root = "."
+
+        class State:
+            goals = {"goal-1": object()}
+            artifacts = {}
+            evidence = {}
+            trace_events = {}
+
+        state = State()
+
+    class NativeService:
+        def run_goal(self, organization_id, objective, agents):
+            barrier.wait(timeout=2)
+            seen[organization_id] = [agent.agent_id for agent in agents]
+            return NativeResult()
+
+    def employee(agent_id):
+        return ChatAgent(
+            key=agent_id, agent_id=agent_id, display_name=agent_id, provider_id="CODEX_CLI",
+            roles=["ENGINEER"], persona_id=None, description="", avatar_path=None,
+        )
+
+    service = RuntimeExecutionService(NativeService())
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [
+            pool.submit(service.execute, "org-a", "task-a", [employee("employee-a")], ExecutionPolicy.DETERMINISTIC_WORKFLOW),
+            pool.submit(service.execute, "org-b", "task-b", [employee("employee-b")], ExecutionPolicy.DETERMINISTIC_WORKFLOW),
+        ]
+        [future.result() for future in futures]
+    assert seen == {"org-a": ["employee-a"], "org-b": ["employee-b"]}

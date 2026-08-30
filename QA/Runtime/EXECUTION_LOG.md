@@ -186,3 +186,6 @@
 - Aligned lifecycle event values with the canonical `execution.*` vocabulary,
   retaining enum aliases for existing Native callers.
 - Full regression after event alignment: `529 passed` in `188.11s`.
+- Replaced shared mutable employee resolution state with context-local scope;
+  added parallel organization/employee isolation regression.
+- Full regression after concurrency isolation: `530 passed` in `186.65s`.

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextvars import ContextVar
 from typing import Iterable
 
 from .agent_directory import ChatAgent
@@ -15,9 +16,9 @@ class RuntimeExecutionService:
     """Translate Product identities into a selected runtime request."""
 
     def __init__(self, native_service, external_adapters=None, journal: RuntimeExecutionJournal | None = None) -> None:
-        self._agents: dict[str, ChatAgent] = {}
+        self._employee_scope: ContextVar[dict[str, ChatAgent]] = ContextVar("runtime_employee_scope", default={})
         self.journal = journal
-        native = NativeRuntimeAdapter(native_service, lambda employee: self._agents.get(employee.employee_id))
+        native = NativeRuntimeAdapter(native_service, lambda employee: self._employee_scope.get().get(employee.employee_id))
         self.selector = RuntimeSelector({"native": native, **dict(external_adapters or {})})
 
     def execute(
@@ -31,7 +32,7 @@ class RuntimeExecutionService:
         preferred_runtime: str = "",
     ) -> ExecutionResult:
         agents = list(employees)
-        self._agents = {agent.agent_id: agent for agent in agents}
+        scope_token = self._employee_scope.set({agent.agent_id: agent for agent in agents})
         request = ExecutionRequest(
             organization_id=organization_id,
             objective=objective,
@@ -49,14 +50,17 @@ class RuntimeExecutionService:
             correlation_id=correlation_id,
             metadata={"preferred_runtime": preferred_runtime} if preferred_runtime else {},
         )
-        if self.journal is not None:
-            self.journal.begin(request)
         try:
-            result = self.selector.execute(request)
-        except Exception as error:
             if self.journal is not None:
-                self.journal.fail(request, error)
-            raise
-        if self.journal is not None:
-            self.journal.complete(request, result)
-        return result
+                self.journal.begin(request)
+            try:
+                result = self.selector.execute(request)
+            except Exception as error:
+                if self.journal is not None:
+                    self.journal.fail(request, error)
+                raise
+            if self.journal is not None:
+                self.journal.complete(request, result)
+            return result
+        finally:
+            self._employee_scope.reset(scope_token)

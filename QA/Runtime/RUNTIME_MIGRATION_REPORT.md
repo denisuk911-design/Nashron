@@ -63,6 +63,10 @@ Latest commit: `cab2dbb`
   retaining source-compatible `run.*` enum names.
 - Full regression after event contract alignment: `529 passed` in `188.11s`;
   the same two existing non-fatal warnings remain unchanged.
+- RuntimeExecutionService employee resolution is now context-local, preventing
+  concurrent executions from cross-contaminating product employee identity.
+- Full regression after concurrency isolation: `530 passed` in `186.65s`;
+  the same two existing non-fatal warnings remain unchanged.
 
 ## Blocker
 
