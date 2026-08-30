@@ -197,6 +197,32 @@
 })();
 
 (() => {
+  const stateLabels = {
+    idle: 'Рядом', listening: 'Слушает', planning: 'Планирует', thinking: 'Обдумывает',
+    working: 'В работе', waiting_for_user: 'Ждёт решения', attention: 'Нужно внимание',
+    warning: 'Есть предупреждение', complete: 'Готово', offline: 'Недоступна',
+  };
+  const refreshIrisPresence = async () => {
+    const select = document.querySelector('#org-select');
+    const target = document.querySelector('#iris-state');
+    if (!select?.value || !target) return;
+    try {
+      const response = await fetch('/api/iris', {headers: {'X-Organization-Id': select.value}});
+      if (!response.ok) return;
+      const value = await response.json();
+      target.textContent = stateLabels[value.state] || stateLabels.idle;
+      target.dataset.state = value.state || 'idle';
+    } catch (_) {
+      target.textContent = stateLabels.offline;
+      target.dataset.state = 'offline';
+    }
+  };
+  window.setInterval(refreshIrisPresence, 3000);
+  document.querySelector('#org-select')?.addEventListener('change', refreshIrisPresence);
+  refreshIrisPresence();
+})();
+
+(() => {
   const attachWorkTimeline = async () => {
     const title = document.querySelector('#view-title');
     const view = document.querySelector('#view');

@@ -199,3 +199,9 @@
 - `/api/iris` now derives the product-facing Iris state from the selected organization and its current persisted plan; it no longer returns an unconditional `idle` state.
 - Chat processing publishes `iris.state_changed` for `thinking`, `complete`, and failure `warning` around the real Supervisor application service call.
 - Targeted Web API tests: `16 passed`; live Web/API probes after restart returned `200`; browser client loaded with API connected.
+
+## Iris presence binding checkpoint - 2026-08-30
+
+- Bound the landing presence label to the real scoped `/api/iris` state and added product-safe labels for planning, working, waiting, warning and completion.
+- The UI no longer presents a permanent static presence state while a selected organization has active work.
+- `node --check apps/web/static/actions.js`: passed.
