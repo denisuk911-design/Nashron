@@ -228,3 +228,13 @@
 - Fixed Web-to-runtime correlation ID typing; targeted endpoint/journal result:
   `8 passed`.
 - Full regression after promotion gating: `534 passed` in `173.13s`.
+
+## 2026-08-30 - post-Alpha quota recheck
+
+- Re-ran `scripts/runtime_bakeoff_matrix.py` from the current product
+  checkpoint.
+- OpenAI Agents real tool/artifact probe: PASS.
+- LangGraph, Google ADK and AutoGen: no new live PASS; provider-backed runs
+  remained unavailable under the current Gemini quota. Results are recorded in
+  `QA/Runtime/BAKEOFF_MATRIX.json` and are not promoted.
+- No runtime or database code was changed by this recheck.

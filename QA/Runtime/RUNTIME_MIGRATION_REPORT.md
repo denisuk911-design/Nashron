@@ -1,8 +1,8 @@
 # Runtime Migration Report
 
-Status: `CHECKPOINT ACCEPTED - external candidate live bake-off deferred by provider quota`  
+Status: `HARD BLOCKER - external candidate live parity deferred by provider quota`  
 Date: 2026-08-30  
-Latest commit: `c75fb7b`
+Latest migration evidence commit: `f68c5d2` (Alpha Productization checkpoint)
 
 ## Resolution
 
@@ -12,6 +12,12 @@ external quota blocker, not as an architectural failure. Native Runtime remains
 the production baseline; OpenAI Agents remains a validated external candidate;
 LangGraph and Google ADK remain `KEEP_FOR_FUTURE` until the live evidence gate
 can be repeated with available quota. No unverified run is counted as PASS.
+
+The bounded rerun from the current Alpha checkpoint reproduced the external
+blocker: OpenAI Agents passed its real tool/artifact probe; LangGraph, Google
+ADK and AutoGen could not complete their provider-backed probes under the
+available Gemini quota. The exact matrix is preserved in
+`QA/Runtime/BAKEOFF_MATRIX.json`.
 
 ## Completed
 
