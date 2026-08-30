@@ -33,6 +33,9 @@ from core.gemini_client import GeminiClient
 from core.provider_credentials import ProviderCredentialService
 from core.provider_service import CodexProviderAdapter, GeminiProviderAdapter, ProviderHealthService, ProviderRegistry
 from core.runtime_v3_service import RuntimeV3GoalService
+from core.runtime_execution_service import RuntimeExecutionService
+from core.runtime_journal import RuntimeExecutionJournal
+from core.iris_orchestration_service import IrisOrchestrationService
 from core.settings_service import SettingsService
 from core.supervisor_application_service import SupervisorApplicationService
 from core.supervisor_chat_service import SupervisorChatApplicationService
@@ -196,6 +199,11 @@ class WebCore:
             provider_adapters=self.provider_adapters,
             permission_resolver=lambda agent_id: effective_permissions_for_agent(self.database, agent_id),
         )
+        self.runtime_execution = RuntimeExecutionService(
+            self.runtime_v3,
+            journal=RuntimeExecutionJournal(self.workspace_root / "runtime_execution"),
+        )
+        self.iris_orchestration = IrisOrchestrationService(self.runtime_execution)
         self.supervisor = SupervisorApplicationService(self.database)
         self.chat = SupervisorChatApplicationService(
             supervisor_service=self.supervisor,

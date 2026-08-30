@@ -89,6 +89,14 @@
   changing Product DB or Native checkpoints.
 - Targeted journal/adapter/runtime result: `9 passed`.
 
+## Core composition integration - 2026-08-30
+
+- Registered `RuntimeExecutionService`, `RuntimeExecutionJournal` and
+  `IrisOrchestrationService` in the FastAPI Core composition root.
+- Existing goal route remains unchanged on the validated Native path; the new
+  neutral services are available for migration routing without a UI/DB bypass.
+- Web/API/Iris/journal targeted result: `23 passed`.
+
 ## Regression after Iris boundary - 2026-08-30
 
 - Full suite: `524 passed` in `180.01s`.
