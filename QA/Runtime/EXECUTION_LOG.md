@@ -174,3 +174,5 @@
 - Targeted result: `11 passed`.
 - Live LangGraph rerun: blocked by provider `429 RESOURCE_EXHAUSTED`; not
   counted as PASS.
+- Full regression after this checkpoint: `528 passed` in `172.85s`; two
+  existing non-fatal warnings.

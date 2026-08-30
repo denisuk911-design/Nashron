@@ -2,7 +2,7 @@
 
 Status: `BLOCKED - external candidate gate incomplete`  
 Date: 2026-08-30  
-Latest commit: `e973429`
+Latest commit: `9860924`
 
 ## Completed
 
@@ -53,6 +53,8 @@ Latest commit: `e973429`
   the LangGraph smoke includes a graph-native physical observation artifact.
 - External execution journal integration proves restart recovery and
   organization-scope isolation for an adapter result.
+- Full regression after the evidence-boundary update: `528 passed` in
+  `172.85s`; the two existing non-fatal warnings remain unchanged.
 
 ## Blocker
 
