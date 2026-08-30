@@ -49,7 +49,7 @@ class ProfileBackupService:
             staging = Path(directory)
             try:
                 with zipfile.ZipFile(backup_path) as archive:
-                    archive.extractall(staging)
+                    self._extract_allowed(archive, staging)
                 manifest = json.loads((staging / "backup-manifest.json").read_text(encoding="utf-8"))
             except (OSError, KeyError, json.JSONDecodeError, zipfile.BadZipFile) as exc:
                 raise ProfileBackupError("backup_invalid") from exc
@@ -75,3 +75,16 @@ class ProfileBackupService:
                 destination = profile / name
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(staging / name, destination)
+
+    def _extract_allowed(self, archive: zipfile.ZipFile, staging: Path) -> None:
+        """Extract only manifest and allow-listed files inside the staging root."""
+        allowed = {"backup-manifest.json", *self.ALLOWED_FILES}
+        for member in archive.infolist():
+            name = member.filename.replace("\\", "/")
+            path = Path(name)
+            if member.is_dir() or name not in allowed or path.is_absolute() or ".." in path.parts:
+                raise ProfileBackupError("backup_file_not_allowed")
+            destination = staging / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            with archive.open(member, "r") as source, destination.open("wb") as target:
+                shutil.copyfileobj(source, target)

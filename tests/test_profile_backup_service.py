@@ -44,3 +44,11 @@ def test_restore_rejects_tampered_backup_without_touching_profile(tmp_path):
     with pytest.raises(ProfileBackupError, match="backup_integrity_failed"):
         ProfileBackupService().restore(backup, target)
     assert (target / "marker.txt").read_text(encoding="utf-8") == "untouched"
+
+
+def test_restore_rejects_zip_path_traversal(tmp_path):
+    backup = tmp_path / "malicious.zip"
+    with zipfile.ZipFile(backup, "w") as archive:
+        archive.writestr("../outside.txt", "must not escape staging")
+    with pytest.raises(ProfileBackupError, match="backup_file_not_allowed"):
+        ProfileBackupService().restore(backup, tmp_path / "target")

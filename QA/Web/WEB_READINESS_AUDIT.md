@@ -20,7 +20,7 @@ The audit is based on the current Python Core/Application Services and the web b
 | Skills and Knowledge | SERVICE EXTRACTION NEEDED | services exist; product read/write routes remain |
 | Persistence/restart | READY | same `SettingsService` profile and SQLite database |
 | Organization isolation | READY | server validates organization and all product reads are scoped |
-| Backup/recovery | SERVICE EXTRACTION NEEDED | existing recovery services are not yet exposed |
+| Backup/recovery | READY | Web exposes a secret-free profile backup through `ProfileBackupService`; restore remains an explicit local recovery operation |
 | Settings/profile/localization | SERVICE EXTRACTION NEEDED | settings service exists; web preference routes remain |
 
 ## Phase 01 conclusion

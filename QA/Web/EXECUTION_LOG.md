@@ -181,3 +181,15 @@
 - Made employee lifecycle controls idempotent under the existing DOM observer. Re-rendering the Team view now leaves one action group per employee instead of duplicating controls.
 - Browser verification on the live client: `3` employee rows, `3` action groups, `3` delete controls, no duplicate controls or load errors.
 - `node --check apps/web/static/actions.js`: passed; Web API suite: `14 passed`.
+
+## Web profile backup checkpoint - 2026-08-30
+
+- Exposed the existing secret-free `ProfileBackupService` through `GET /api/profile/backup` and added a Settings action to download the portable profile.
+- Hardened restore extraction against path traversal; backup integrity and foreign-key validation remain in the Core service.
+- Targeted backup/API tests: `18 passed`; JavaScript syntax and `git diff --check`: passed.
+
+## Web live-access and backup restart checkpoint - 2026-08-30
+
+- Restarted the standard stack after the API change; live probes returned `200` for Web, health, and `/api/profile/backup` (`application/zip`, non-empty payload).
+- Browser verification: `Luminifera | AI workforce` loads at `http://127.0.0.1:3000/`, API state is connected, and the Settings dialog exposes the backup action.
+- The local Web server remains running for review on port `3000`; API docs remain available on port `8000`.

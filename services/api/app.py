@@ -27,6 +27,7 @@ from core.luminifera_work_service import LuminiferaWorkService
 from core.management_service import ManagementService
 from core.management_models import AgentProfile, OWNER_ROLE, ROLE_DEFAULT_PERMISSIONS
 from core.path_guard import PathGuard, PathGuardError
+from core.profile_backup_service import ProfileBackupError, ProfileBackupService
 from core.codex_client import CodexClient
 from core.gemini_client import GeminiClient
 from core.provider_credentials import ProviderCredentialService
@@ -182,6 +183,7 @@ class WebCore:
         self.knowledge = KnowledgeService(self.database)
         self.competence = CompetenceGraphService(self.database)
         self.attachments = ChatAttachmentService(self.database, self.workspace_root)
+        self.backups = ProfileBackupService()
         self.events = ConnectionHub()
 
     def _save_settings(self, values: dict[str, Any]) -> None:
@@ -832,6 +834,17 @@ def update_profile(request: ProfileRequest) -> dict[str, Any]:
     core.settings["user_avatar_path"] = str(core.paths.avatar_dir / avatar) if avatar else ""
     core._save_settings(core.settings)
     return profile()
+
+
+@app.get("/api/profile/backup")
+def download_profile_backup() -> FileResponse:
+    """Create a secret-free portable profile backup through the Core service."""
+    output = core.paths.data_dir / "web-backups" / "luminifera-profile.zip"
+    try:
+        core.backups.backup(core.paths.user_dir, output)
+    except (OSError, ProfileBackupError, ValueError) as exc:
+        raise HTTPException(status_code=500, detail="backup_failed") from exc
+    return FileResponse(output, filename="luminifera-profile.zip", media_type="application/zip")
 
 
 @app.get("/api/iris")

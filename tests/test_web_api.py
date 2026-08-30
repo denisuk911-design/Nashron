@@ -192,6 +192,18 @@ def test_web_owner_profile_and_avatar_are_persisted_and_validated(tmp_path, monk
     assert restarted.settings["user_avatar_path"].endswith(selected)
 
 
+def test_web_profile_backup_is_generated_by_core_service(tmp_path, monkeypatch):
+    monkeypatch.setenv("TEAM2050_HOME", str(tmp_path / "profile"))
+    import services.api.app as app_module
+
+    isolated = app_module.WebCore()
+    monkeypatch.setattr(app_module, "core", isolated)
+    response = TestClient(app_module.app).get("/api/profile/backup")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/zip")
+    assert response.content.startswith(b"PK")
+
+
 def test_web_team_controls_are_idempotent_after_dom_rerenders():
     from pathlib import Path
 
