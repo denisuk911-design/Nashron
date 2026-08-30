@@ -2,7 +2,7 @@
 
 Status: `BLOCKED - external candidate gate incomplete`  
 Date: 2026-08-30  
-Latest commit: `38377e6`
+Latest commit: `e973429`
 
 ## Completed
 
@@ -47,6 +47,8 @@ Latest commit: `38377e6`
 - `QA/Runtime/BAKEOFF_MATRIX.json` records the latest bounded matrix run;
   provider quota failures are explicit and do not overwrite prior successful
   SDK evidence.
+- External direct-action regression passes without entering the Native
+  Goal/WorkItem scheduler; selector chooses an available external candidate.
 
 ## Blocker
 
