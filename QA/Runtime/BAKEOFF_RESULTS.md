@@ -1,6 +1,6 @@
 # Runtime Bake-off Results
 
-Status: `PARTIAL - blocked candidates explicitly excluded from promotion`  
+Status: `PARTIAL - blocked candidates explicitly excluded from promotion`
 Date: 2026-08-30
 
 ## Evidence collected
