@@ -72,6 +72,8 @@ Latest commit: `cab2dbb`
   rejection.
 - Full regression after subprocess bridge: `532 passed` in `173.41s`; no new
   warnings.
+- Offline isolated package/object smoke revalidated for all four candidates;
+  all installed environments remain usable.
 
 ## Blocker
 
