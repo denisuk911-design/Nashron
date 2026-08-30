@@ -80,6 +80,25 @@ def test_web_goal_requires_an_assigned_director_without_server_error():
     assert response.json()["detail"] == "director_not_assigned"
 
 
+def test_web_goal_detail_is_scoped_and_hides_runtime_assignment_ids(tmp_path, monkeypatch):
+    monkeypatch.setenv("TEAM2050_HOME", str(tmp_path / "profile"))
+    import services.api.app as app_module
+
+    isolated = app_module.WebCore()
+    monkeypatch.setattr(app_module, "core", isolated)
+    client = TestClient(app_module.app)
+    template = next(item for item in isolated.universal.list_templates() if item.name == "PCB_ENGINEERING_TEAM")
+    organization = isolated.universal.activate_template(template.template_id, "Goal detail", team_size="STANDARD").organization
+    plan = isolated.supervisor.director(organization.organization_id, "Expose a safe goal view")
+    plan_id = plan.plan_id
+    headers = {"X-Organization-Id": organization.organization_id}
+    response = client.get(f"/api/goals/{plan_id}", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["plan_id"] == plan_id
+    assert "director_agent_id" not in response.json()
+    assert client.get(f"/api/goals/{plan_id}", headers={"X-Organization-Id": "missing"}).status_code == 404
+
+
 def test_web_organization_memory_and_competence_are_server_scoped(tmp_path, monkeypatch):
     monkeypatch.setenv("TEAM2050_HOME", str(tmp_path / "profile"))
     import services.api.app as app_module

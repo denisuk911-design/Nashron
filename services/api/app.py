@@ -214,6 +214,29 @@ def _row(row: Any) -> dict[str, Any]:
     return {key: row[key] for key in row.keys()}
 
 
+def _public_plan(plan: Any) -> dict[str, Any]:
+    """Expose a product-safe goal view without runtime or database internals."""
+    payload = _plain(plan)
+    payload.pop("director_agent_id", None)
+    payload.pop("owner_message_id", None)
+    public_assignments = []
+    for assignment in payload.pop("assignments", []):
+        public_assignments.append({
+            "employee_name": assignment.get("employee_name", ""),
+            "role": assignment.get("role_id", ""),
+            "position": assignment.get("position", ""),
+            "type": assignment.get("assignment_type", ""),
+            "status": assignment.get("status", ""),
+            "sequence": assignment.get("sequence_no", 0),
+            "attempt": assignment.get("attempt_no", 0),
+            "review": assignment.get("review_decision", ""),
+            "summary": assignment.get("result_summary", ""),
+            "failure": assignment.get("failure_reason", ""),
+        })
+    payload["assignments"] = public_assignments
+    return payload
+
+
 core = WebCore()
 app = FastAPI(title="Luminifera API", version="0.1.0", docs_url="/api/docs", redoc_url="/api/redoc")
 app.add_middleware(
@@ -439,7 +462,7 @@ def download_chat_attachment(attachment_id: str, x_organization_id: str | None =
 @app.get("/api/goals")
 def goals(x_organization_id: str | None = Header(default=None)) -> list[dict[str, Any]]:
     organization_id = core.organization_id(x_organization_id)
-    return [_plain(plan) for plan in core.supervisor.list_plans(organization_id)]
+    return [_public_plan(plan) for plan in core.supervisor.list_plans(organization_id)]
 
 
 @app.post("/api/goals")
@@ -451,7 +474,7 @@ async def create_goal(request: GoalRequest, x_organization_id: str | None = Head
         plan = core.supervisor.director(organization_id, request.objective)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
-    result = _plain(plan)
+    result = _public_plan(plan)
     await core.events.publish({"type": "goal.created", "data": result})
     return result
 
@@ -465,11 +488,17 @@ def _goal_for_scope(plan_id: str, organization_id: str | None) -> Any:
     return plan
 
 
+@app.get("/api/goals/{plan_id}")
+def goal_detail(plan_id: str, x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
+    """Return one organization-scoped goal for the Work product view."""
+    return _public_plan(_goal_for_scope(plan_id, core.organization_id(x_organization_id)))
+
+
 @app.post("/api/goals/{plan_id}/approve")
 async def approve_goal(plan_id: str, x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
     organization_id = core.organization_id(x_organization_id)
     _goal_for_scope(plan_id, organization_id)
-    result = _plain(core.supervisor.approve(plan_id))
+    result = _public_plan(core.supervisor.approve(plan_id))
     await core.events.publish({"type": "goal.started", "data": result})
     return result
 
@@ -478,7 +507,7 @@ async def approve_goal(plan_id: str, x_organization_id: str | None = Header(defa
 async def replan_goal(plan_id: str, x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
     organization_id = core.organization_id(x_organization_id)
     _goal_for_scope(plan_id, organization_id)
-    result = _plain(core.supervisor.replan(plan_id))
+    result = _public_plan(core.supervisor.replan(plan_id))
     await core.events.publish({"type": "goal.progressed", "data": result})
     return result
 
@@ -487,7 +516,7 @@ async def replan_goal(plan_id: str, x_organization_id: str | None = Header(defau
 async def cancel_goal(plan_id: str, x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
     organization_id = core.organization_id(x_organization_id)
     _goal_for_scope(plan_id, organization_id)
-    result = _plain(core.supervisor.cancel(plan_id))
+    result = _public_plan(core.supervisor.cancel(plan_id))
     await core.events.publish({"type": "goal.blocked", "data": result})
     return result
 
