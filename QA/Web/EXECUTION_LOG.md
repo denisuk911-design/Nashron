@@ -251,3 +251,8 @@
 ## Final report accuracy checkpoint - 2026-08-30
 
 - Updated `FINAL_WEB_REPORT.md` to reflect the current targeted Web/API count (`19 passed`) and distinguish historical smoke evidence from current checks.
+
+## Fresh Web service smoke checkpoint - 2026-08-30
+
+- Ran `scripts/web_smoke.py --profile .tmp_web_smoke_current --report QA/Web/web_smoke_current.json` against an isolated profile.
+- Passed with `checks_passed=true`: 4 team members, persisted Iris chat, real goal start, 3 work items, 2 physical artifacts, 4 evidence records, Work Receipt and restart persistence.

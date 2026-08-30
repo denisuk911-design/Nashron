@@ -7,6 +7,7 @@
 - WebSocket organization isolation is covered by a two-client regression test; scoped events are delivered only to the subscribed organization.
 - Skills can be created and advanced through the scoped Web API using the Core `SkillPackageService`; cross-organization reads and lifecycle mutations are rejected.
 - Knowledge promotion and verification are exposed only through scoped real run IDs; missing or cross-organization runs are rejected before persistence.
+- Fresh isolated smoke: `scripts/web_smoke.py --profile .tmp_web_smoke_current --report QA/Web/web_smoke_current.json` passed with `checks_passed=true`, 3 work items, 2 physical artifacts, 4 evidence records, Work Receipt and restart persistence.
 - Browser verification on `http://127.0.0.1:3000/`: Luminifera landing renders the product sections, workspace is present, API status is connected, and Iris poster loads at its natural `1123x1400` resolution.
 
 The full browser regression suite remains a hardening item after the remaining lifecycle routes are extracted. Existing Python engine tests remain the compatibility gate.
