@@ -74,8 +74,8 @@
   model name. No credential value was printed or persisted.
 - OpenAI Agents and AutoGen real bounded SDK model paths passed classification
   `WORK` through the OpenAI-compatible Gemini endpoint.
-- LangGraph local graph execution passed, but its attempted direct model node
-  returned no usable text and remains pending model/tool bake-off evidence.
+- LangGraph bounded graph model execution passed with classification `WORK`
+  using `ChatGoogleGenerativeAI` inside a compiled graph node.
 
 ## Migration report checkpoint - 2026-08-30
 

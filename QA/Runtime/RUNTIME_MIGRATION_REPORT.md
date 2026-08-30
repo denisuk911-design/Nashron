@@ -16,7 +16,8 @@ Latest commit: `10b2435`
 - Isolated environments created and official candidates installed:
   OpenAI Agents `0.22.0`, LangGraph `1.2.11`, Google ADK `2.8.0`, AutoGen
   `0.7.5`.
-- Real local LangGraph graph execution passed.
+- Real bounded LangGraph graph model execution passed with classification
+  `WORK`.
 - Real bounded Google ADK model execution passed with classification `WORK`.
 - Real bounded OpenAI Agents SDK execution passed with classification `WORK`
   through its `Runner` path.
@@ -29,15 +30,15 @@ Latest commit: `10b2435`
 
 - OpenAI Agents and AutoGen now have real bounded model-backed classification
   runs through their official SDK paths.
-- LangGraph has real local graph execution, but its direct model node returned
-  no usable text and remains pending model/tool/artifact/restart evidence.
+- LangGraph has real model-backed graph execution; normalized
+  tool/artifact/restart evidence remains pending for all candidates.
 - Normalized external adapters are not promoted into production routing.
 - No final runtime recommendation can be made from the current evidence.
 
 ## Blocker
 
-The remaining LangGraph model/tool evidence and complete artifact/restart
-bake-off are not complete. Production routing stays on Native until every
+The complete normalized artifact/restart bake-off is not complete. Production
+routing stays on Native until every
 promoted candidate passes the complete normalized execution gate.
 
 ## Evidence files

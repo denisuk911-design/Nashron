@@ -9,7 +9,7 @@ under `.runtime_envs` and ignored by Git.
 | Candidate | Environment | Installed version | Import/object smoke | Model-backed smoke |
 | --- | --- | ---: | --- | --- |
 | OpenAI Agents SDK | `.runtime_envs/openai-agents` | `openai-agents 0.22.0` | PASS | PASS: bounded `Runner.run` classification |
-| LangGraph | `.runtime_envs/langgraph` | `langgraph 1.2.11`, `google-genai 2.20.0` | PASS | local graph PASS; model node pending usable output |
+| LangGraph | `.runtime_envs/langgraph` | `langgraph 1.2.11`, `langchain-google-genai 4.3.7` | PASS | PASS: bounded graph model classification |
 | Google ADK | `.runtime_envs/google-adk` | `google-adk 2.8.0` | PASS | PASS: bounded `gemini-3.6-flash` classification |
 | AutoGen | `.runtime_envs/autogen` | `autogen-agentchat 0.7.5`, `autogen-ext 0.7.5` | PASS | PASS: bounded client classification |
 
