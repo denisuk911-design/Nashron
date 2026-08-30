@@ -20,7 +20,7 @@ This package contains the current Web Alpha evidence captured from the packaged 
 - `standalone/capture_visual_gate.py` - isolated local Chromium capture helper
 - `EXECUTION_LOG.md` - implementation and verification log
 - `LUMINIFERA_ALPHA_REVIEW.zip` - previous Alpha evidence package
-- `apps/web/static/app.html`, `apps/web/static/app.css`, `apps/web/static/alpha.js` - current UI source snapshot
+- `apps/web/static/app.html`, `apps/web/static/app.css`, `apps/web/static/premium.css`, `apps/web/static/alpha.js` - current UI source snapshot
 - `dist/Luminifera.exe` - locally built executable; binary is intentionally not committed to Git
 
 ## Known limitations
@@ -28,3 +28,11 @@ This package contains the current Web Alpha evidence captured from the packaged 
 - Live BYOK credentials were not included in the test environment.
 - Provider connections, Feedback and Diagnostics are implemented and API-tested. The current product exposes them as sections of one Settings screen, so `byok`/`feedback` evidence is intentionally not presented as a separate route.
 - This package is evidence for human visual review, not a claim of final visual acceptance.
+
+## Visual Rework Round 1
+
+- Reworked the Product workspace shell across Home, Iris, Team, Work, Files and Settings.
+- Added a shared premium dark workspace language: stronger hierarchy, compact status rail, consistent controls, responsive spacing and clearer active navigation.
+- Kept Iris portrait, presence, conversation and composer as one focused interaction surface.
+- Provider, BYOK, Feedback and Diagnostics remain real Settings sections and keep their existing service-backed behavior.
+- Fresh packaged captures and manifest are included in this ZIP. Status: `READY_FOR_HUMAN_VISUAL_REVIEW`.

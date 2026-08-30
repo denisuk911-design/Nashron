@@ -42,4 +42,14 @@
 - Ran it against packaged `dist/Luminifera.exe`: all six product views, landing, Settings and the real Feedback section captured; manifest reported `unavailable=[]`.
 - Created `LUMINIFERA_VISUAL_REVIEW_STANDALONE.zip` with captures, manifest, runner and current evidence. BYOK/Feedback remain documented as Settings sections because the product has no separate routes for them.
 
+## 2026-08-30 - Visual Rework Round 1
+
+- Added `apps/web/static/premium.css` as the shared Product UI layer for Home, Iris, Team, Work, Files and Settings/BYOK/Feedback.
+- Rebalanced the workspace around a persistent sidebar, clearer typography and spacing, compact status rail, unified controls and Iris as the visual center.
+- Rebuilt packaged captures through the hardened standalone runner: landing, Home, Iris, Team, Work, Files, Settings, BYOK and Feedback all captured with `unavailable=[]`.
+- Targeted regression: 25 passed. Full pytest: 549 passed, 2 existing warnings.
+- Rebuilt `dist/Luminifera.exe` and verified the packaged `/app` screen plus real API-backed Product views.
+- Refreshed `QA/Alpha/LUMINIFERA_VISUAL_REVIEW_STANDALONE.zip` and manifest.
+- Status: `READY_FOR_HUMAN_VISUAL_REVIEW`; Final Alpha PASS intentionally not declared.
+
 
