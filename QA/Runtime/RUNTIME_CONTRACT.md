@@ -35,3 +35,8 @@ organization scope and persistence of product records.
 SDK bridges. The bridge is injected from the isolated runtime environment;
 the adapter emits only normalized run/observation/artifact events and keeps SDK
 objects out of Product code.
+
+An adapter failure may set `side_effects_committed = True` on its exception.
+The selector then re-raises instead of replaying through Native, preventing
+duplicate external writes. Failures without committed effects may use the
+recorded Native fallback.

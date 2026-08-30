@@ -42,6 +42,10 @@ class RuntimeSelector:
         except Exception as error:
             if selection.runtime_id == self.native_id:
                 raise
+            # A failed adapter may have committed an external side effect.
+            # Never replay the request through Native when that is explicit.
+            if bool(getattr(error, "side_effects_committed", False)):
+                raise
             fallback = self.adapters[self.native_id].execute(request)
             return ExecutionResult(
                 ok=fallback.ok,

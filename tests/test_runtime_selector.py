@@ -40,3 +40,26 @@ def test_selector_falls_back_without_duplicate_native_call():
     assert result.data["fallback_from"] == "langgraph"
     assert native.calls == 1
     assert candidate.calls == 1
+
+
+def test_selector_does_not_replay_after_external_side_effect():
+    native = Adapter("native")
+
+    class CommittedFailure(RuntimeError):
+        side_effects_committed = True
+
+    class Candidate(Adapter):
+        def execute(self, request):
+            self.calls += 1
+            raise CommittedFailure("artifact was committed before transport failure")
+
+    candidate = Candidate("langgraph")
+    selector = RuntimeSelector({"native": native, "langgraph": candidate})
+    try:
+        selector.execute(request(ExecutionPolicy.DYNAMIC_MULTI_AGENT))
+    except CommittedFailure:
+        pass
+    else:
+        raise AssertionError("committed external failure must not be replayed")
+    assert candidate.calls == 1
+    assert native.calls == 0
