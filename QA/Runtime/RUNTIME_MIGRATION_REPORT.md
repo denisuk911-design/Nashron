@@ -2,7 +2,7 @@
 
 Status: `BLOCKED - external candidate gate incomplete`  
 Date: 2026-08-30  
-Latest commit: `9b8fb76`
+Latest commit: `35c5186`
 
 ## Completed
 
@@ -27,6 +27,8 @@ Latest commit: `9b8fb76`
   artifacts; Google ADK tool retry was blocked by provider `429` quota.
 - Full regression after fallback protection: `522 passed`, two existing
   non-fatal warnings.
+- Full regression after Iris boundary: `524 passed` in `180.01s`, with the
+  same two non-fatal warnings.
 - Commits were pushed to `origin/main` after each completed milestone.
 
 ## Not complete

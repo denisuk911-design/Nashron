@@ -81,6 +81,12 @@
   mechanics and do not create separate Iris identities.
 - Targeted Iris/runtime result: `9 passed`.
 
+## Regression after Iris boundary - 2026-08-30
+
+- Full suite: `524 passed` in `180.01s`.
+- Warnings unchanged and non-fatal: Starlette/httpx deprecation and the
+  existing duplicate zip entry warning in the tampered-backup fixture.
+
 ## Final regression checkpoint - 2026-08-30
 
 - Full suite after normalized adapters and fallback protection: `522 passed` in
