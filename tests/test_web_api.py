@@ -39,6 +39,21 @@ def test_web_event_contract_stamps_real_event_time():
     assert event.occurred_at.endswith("+00:00")
 
 
+def test_web_iris_state_is_scoped_and_product_safe(tmp_path, monkeypatch):
+    monkeypatch.setenv("TEAM2050_HOME", str(tmp_path / "profile"))
+    import services.api.app as app_module
+
+    isolated = app_module.WebCore()
+    monkeypatch.setattr(app_module, "core", isolated)
+    organization = isolated.universal.create_organization("Iris state")
+    response = TestClient(app_module.app).get(
+        "/api/iris", headers={"X-Organization-Id": organization.organization_id}
+    )
+    assert response.status_code == 200
+    assert response.json()["state"] in {"idle", "listening", "planning", "working", "waiting_for_user", "attention", "warning", "complete"}
+    assert "agent_id" not in response.json()
+
+
 def test_unknown_provider_check_is_rejected():
     from services.api.app import app
 

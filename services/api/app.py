@@ -425,12 +425,18 @@ async def send_chat(request: ChatRequest, x_organization_id: str | None = Header
     if request.attachment_ids:
         core.database.bind_chat_attachments(request.attachment_ids, message_id)
     await core.events.publish({"type": "iris.message", "data": {"id": message_id, "role": "owner", "content": request.content.strip()}})
-    result = core.chat.handle(request.content, organization_id)
+    await core.events.publish({"type": "iris.state_changed", "data": {"state": "thinking", "organization_id": organization_id}})
+    try:
+        result = core.chat.handle(request.content, organization_id)
+    except Exception:
+        await core.events.publish({"type": "iris.state_changed", "data": {"state": "warning", "organization_id": organization_id}})
+        raise
     response_message_id = None
     if result.message:
         response_message_id = core.database.add_message(conversation_id, "assistant", result.message)
         await core.events.publish({"type": "iris.message", "data": {"id": response_message_id, "role": "assistant", "content": result.message}})
     response = {"message_id": message_id, "response_message_id": response_message_id, "result": _plain(result)}
+    await core.events.publish({"type": "iris.state_changed", "data": {"state": "complete", "organization_id": organization_id, "route": result.route}})
     await core.events.publish({"type": "organization.updated", "data": {"organization_id": organization_id, "action": result.action}})
     return response
 
@@ -848,7 +854,23 @@ def download_profile_backup() -> FileResponse:
 
 
 @app.get("/api/iris")
-def iris() -> dict[str, str]:
+def iris(x_organization_id: str | None = Header(default=None)) -> dict[str, str]:
+    organization_id = core.organization_id(x_organization_id)
+    state = "idle"
+    message = "Опишите результат, и Iris поможет превратить его в реальную работу."
+    if organization_id:
+        plans = core.supervisor.list_plans(organization_id)
+        active = next((plan for plan in reversed(plans) if plan.status not in {"COMPLETED", "CANCELLED"}), None)
+        if active is not None:
+            state = {
+                "AWAITING_OWNER_APPROVAL": "waiting_for_user",
+                "IN_PROGRESS": "working",
+                "NEEDS_STAFFING": "attention",
+                "BLOCKED": "warning",
+                "READY": "planning",
+            }.get(active.status, "listening")
+            message = active.summary or f"Текущая цель: {active.goal}"
+    return {"name": "Iris", "state": state, "message": message}
     return {"name": "Iris", "state": "idle", "message": "Опишите результат, и я помогу превратить его в реальную работу."}
 
 

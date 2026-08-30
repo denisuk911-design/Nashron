@@ -6,7 +6,7 @@ API_PATH: `services/api/app.py`
 RUN_COMMAND: `powershell -ExecutionPolicy Bypass -File .\scripts\run_web.ps1`
 LANDING_STATUS: Implemented using supplied Iris poster and animation assets; responsive commercial art direction
 APP_STATUS: Implemented local Product shell with organization, chat, team, work, files and connections/knowledge views; separate local Web (`3000`) and engine (`8000`) hosts
-IRIS_REAL_CORE: Connected to `SupervisorChatApplicationService`; owner chat is persisted and responses are persisted
+IRIS_REAL_CORE: Connected to `SupervisorChatApplicationService`; owner chat and responses are persisted, and Iris state is derived from real organization/goal context
 TEAM_REAL_CORE: Real organization-scoped employee read model
 GOAL_REAL_CORE: Real Director service create/approve/replan/cancel routes with scope checks
 ARTIFACT_REAL_CORE: Real artifact and file read models, server-side text preview and safe download endpoints

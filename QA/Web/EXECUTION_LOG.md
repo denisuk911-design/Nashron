@@ -193,3 +193,9 @@
 - Restarted the standard stack after the API change; live probes returned `200` for Web, health, and `/api/profile/backup` (`application/zip`, non-empty payload).
 - Browser verification: `Luminifera | AI workforce` loads at `http://127.0.0.1:3000/`, API state is connected, and the Settings dialog exposes the backup action.
 - The local Web server remains running for review on port `3000`; API docs remain available on port `8000`.
+
+## Iris live state checkpoint - 2026-08-30
+
+- `/api/iris` now derives the product-facing Iris state from the selected organization and its current persisted plan; it no longer returns an unconditional `idle` state.
+- Chat processing publishes `iris.state_changed` for `thinking`, `complete`, and failure `warning` around the real Supervisor application service call.
+- Targeted Web API tests: `16 passed`; live Web/API probes after restart returned `200`; browser client loaded with API connected.
