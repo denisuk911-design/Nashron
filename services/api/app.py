@@ -35,7 +35,8 @@ from core.provider_service import CodexProviderAdapter, GeminiProviderAdapter, P
 from core.runtime_v3_service import RuntimeV3GoalService
 from core.runtime_execution_service import RuntimeExecutionService
 from core.runtime_journal import RuntimeExecutionJournal
-from core.iris_orchestration_service import IrisOrchestrationService
+from core.iris_orchestration_service import IrisExecutionContext, IrisOrchestrationService
+from core.runtime_contracts import ExecutionPolicy
 from core.settings_service import SettingsService
 from core.supervisor_application_service import SupervisorApplicationService
 from core.supervisor_chat_service import SupervisorChatApplicationService
@@ -62,6 +63,12 @@ class OrganizationRequest(BaseModel):
 
 class GoalRequest(BaseModel):
     objective: str = Field(min_length=1, max_length=10_000)
+
+
+class ExecutionApiRequest(BaseModel):
+    objective: str = Field(min_length=1, max_length=20_000)
+    policy: ExecutionPolicy = ExecutionPolicy.CONVERSATIONAL
+    preferred_runtime: str = Field(default="", max_length=80)
 
 
 class SettingsRequest(BaseModel):
@@ -299,6 +306,37 @@ def health() -> dict[str, Any]:
 def session(x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
     organization_id = core.organization_id(x_organization_id)
     return {"organization_id": organization_id, "language": core.settings.get("interface_language", "ru")}
+
+
+@app.post("/api/executions")
+async def execute_runtime_neutral(
+    request: ExecutionApiRequest,
+    x_organization_id: str | None = Header(default=None),
+) -> dict[str, Any]:
+    """Execute an Iris request through the runtime-neutral Product boundary."""
+    organization_id = core.organization_id(x_organization_id)
+    if not organization_id:
+        raise HTTPException(status_code=400, detail="organization_required")
+    agents = list_chat_agents(core.database, organization_id=organization_id)
+    if not agents:
+        raise HTTPException(status_code=409, detail="team_required_before_execution")
+    result = await asyncio.to_thread(
+        core.iris_orchestration.execute,
+        IrisExecutionContext(organization_id=organization_id, conversation_id=core.conversation_id(organization_id)),
+        request.objective,
+        agents,
+        request.policy,
+        preferred_runtime=request.preferred_runtime,
+    )
+    return {
+        "ok": result.ok,
+        "summary": result.summary,
+        "organization_id": result.organization_id,
+        "correlation_id": result.correlation_id,
+        "artifacts": list(result.artifact_refs),
+        "evidence": list(result.evidence_refs),
+        "events": [_plain(event) for event in result.events],
+    }
 
 
 @app.get("/api/organizations")

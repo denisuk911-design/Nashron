@@ -86,6 +86,11 @@ Latest commit: `476db35`
   neutral EmployeeRef; external adapters cannot bypass Product authorization.
 - Full regression after permission propagation: `536 passed` in `185.74s`;
   the same two existing non-fatal warnings remain unchanged.
+- Added runtime-neutral `POST /api/executions` through Iris/Application
+  Services; Product responses hide runtime-specific identifiers and expose
+  normalized execution data.
+- Full regression after Web execution endpoint: `537 passed` in `176.24s`;
+  the same two existing non-fatal warnings remain unchanged.
 - Full regression after promotion gating: `534 passed` in `173.13s`; the same
   two existing non-fatal warnings remain unchanged.
 

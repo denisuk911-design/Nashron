@@ -14,6 +14,42 @@ def test_web_health_and_openapi():
     assert client.get("/api/docs").status_code == 200
     schema = client.get("/openapi.json").json()
     assert "/api/organizations" in schema["paths"]
+    assert "/api/executions" in schema["paths"]
+
+
+def test_runtime_neutral_execution_endpoint_uses_iris_boundary(tmp_path, monkeypatch):
+    monkeypatch.setenv("TEAM2050_HOME", str(tmp_path / "profile"))
+    import services.api.app as app_module
+    from core.agent_directory import ChatAgent
+    from core.runtime_contracts import ExecutionResult, RuntimeEvent, RuntimeEventType
+
+    isolated = app_module.WebCore()
+    monkeypatch.setattr(app_module, "core", isolated)
+    organization = isolated.universal.create_organization("Execution API")
+    employee = ChatAgent(
+        key="worker", agent_id="employee-1", display_name="Worker", provider_id="CODEX_CLI",
+        roles=["DESIGN_ENGINEER"], persona_id=None, description="", avatar_path=None,
+    )
+    monkeypatch.setattr(app_module, "list_chat_agents", lambda database, organization_id: [employee])
+    seen = {}
+
+    def fake_execute(context, objective, employees, policy, *, preferred_runtime=""):
+        seen.update({"organization_id": context.organization_id, "objective": objective, "policy": policy})
+        return ExecutionResult(
+            True, context.organization_id, "native", "done", context.conversation_id,
+            events=(RuntimeEvent(RuntimeEventType.EXECUTION_COMPLETED, context.organization_id),),
+        )
+
+    monkeypatch.setattr(isolated.iris_orchestration, "execute", fake_execute)
+    response = TestClient(app_module.app).post(
+        "/api/executions",
+        headers={"X-Organization-Id": organization.organization_id},
+        json={"objective": "Say hello", "policy": "conversational"},
+    )
+    assert response.status_code == 200
+    assert response.json()["summary"] == "done"
+    assert "runtime_id" not in response.json()
+    assert seen == {"organization_id": organization.organization_id, "objective": "Say hello", "policy": "conversational"}
 
 
 def test_web_unknown_organization_is_rejected():

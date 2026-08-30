@@ -207,4 +207,7 @@
 - Added server-side permission resolver propagation into external execution
   requests; targeted runtime result: `16 passed`.
 - Full regression after permission propagation: `536 passed` in `185.74s`.
+- Added and tested runtime-neutral Web `POST /api/executions` through Iris;
+  API targeted result: `30 passed`.
+- Full regression after Web execution endpoint: `537 passed` in `176.24s`.
 - Full regression after promotion gating: `534 passed` in `173.13s`.

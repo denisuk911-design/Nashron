@@ -72,3 +72,8 @@ results without exposing or depending on SDK checkpoints.
 `RuntimeSelector` requires explicit promotion for every non-Native adapter;
 unpromoted candidates remain available for diagnostics and bake-off only and
 cannot enter Product routing by registration alone.
+
+Web Product API exposes `POST /api/executions` through
+`IrisOrchestrationService`; it accepts semantic policy and returns only
+Product-owned execution fields, normalized events, artifacts and evidence.
+The legacy Goal endpoints remain available as compatibility paths.
