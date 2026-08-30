@@ -44,6 +44,9 @@ bounded rerun recorded OpenAI Agents tool/artifact PASS and quota failures for
 the other three provider-backed probes; earlier successful model smokes are
 preserved above and are not overwritten by transient availability.
 
+The matrix runner now records a candidate as `TIMEOUT` with a bounded
+diagnostic instead of aborting the entire bake-off when one subprocess hangs.
+
 ## Normalized execution checkpoint - 2026-08-30
 
 - `ExternalExecutionPayload` now carries explicit `tool_calls`; adapters emit

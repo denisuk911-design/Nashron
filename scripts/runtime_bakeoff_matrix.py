@@ -33,10 +33,20 @@ def main() -> None:
             environment["GOOGLE_API_KEY"] = environment["GEMINI_API_KEY"]
         if environment.get("GEMINI_API_KEY") and not environment.get("OPENAI_API_KEY"):
             environment["OPENAI_API_KEY"] = environment["GEMINI_API_KEY"]
-        completed = subprocess.run(
-            [str(part) for part in command], cwd=ROOT, env=environment,
-            capture_output=True, text=True, timeout=45,
-        )
+        try:
+            completed = subprocess.run(
+                [str(part) for part in command], cwd=ROOT, env=environment,
+                capture_output=True, text=True, timeout=45,
+            )
+        except subprocess.TimeoutExpired as error:
+            results.append({
+                "candidate": candidate,
+                "status": "TIMEOUT",
+                "exit_code": None,
+                "evidence": [],
+                "diagnostic": f"timeout_after_{error.timeout}s",
+            })
+            continue
         output = (completed.stdout or "") + (completed.stderr or "")
         results.append({
             "candidate": candidate,

@@ -210,4 +210,6 @@
 - Added and tested runtime-neutral Web `POST /api/executions` through Iris;
   API targeted result: `30 passed`.
 - Full regression after Web execution endpoint: `537 passed` in `176.24s`.
+- Hardened bake-off matrix subprocess timeout handling and syntax-checked the
+  runner without issuing provider calls.
 - Full regression after promotion gating: `534 passed` in `173.13s`.

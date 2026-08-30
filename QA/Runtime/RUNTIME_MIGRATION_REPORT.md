@@ -91,6 +91,8 @@ Latest commit: `c591527`
   normalized execution data.
 - Full regression after Web execution endpoint: `537 passed` in `176.24s`;
   the same two existing non-fatal warnings remain unchanged.
+- Hardened bake-off matrix timeout handling; a hung candidate is recorded as
+  `TIMEOUT` without aborting results for other candidates.
 - Full regression after promotion gating: `534 passed` in `173.13s`; the same
   two existing non-fatal warnings remain unchanged.
 
