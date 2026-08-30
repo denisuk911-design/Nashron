@@ -42,6 +42,7 @@ from core.knowledge_service import KnowledgeService
 from core.chat_attachment_service import ChatAttachmentService
 from core.competence_graph_service import CompetenceGraphService
 from core.avatar_catalog import list_avatar_files
+from runtime_v3.models import load_state
 from services.api.events import EventEnvelope
 
 
@@ -521,28 +522,24 @@ async def cancel_goal(plan_id: str, x_organization_id: str | None = Header(defau
     return result
 
 
-@app.post("/api/goals/{plan_id}/start")
-async def start_goal(plan_id: str, x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
-    organization_id = core.organization_id(x_organization_id)
-    plan = _goal_for_scope(plan_id, organization_id)
-    agents = list_chat_agents(core.database, organization_id=organization_id)
-    if not agents:
-        raise HTTPException(status_code=409, detail="team_required_before_goal_start")
-    await core.events.publish({"type": "goal.started", "data": {"plan_id": plan_id, "goal": plan.goal}})
-    result = core.runtime_v3.run_goal(organization_id, plan.goal, agents)
-    trace_events = sorted(result.state.trace_events.values(), key=lambda item: item.created_at)
-    trace_event_types = {
-        "work_item_running": "work.started",
-        "tool_observed": "work.progressed",
-        "artifact_created": "artifact.created",
-        "review_requested": "review.started",
-        "review_rework_requested": "review.rework_requested",
-        "review_passed": "review.passed",
-        "work_item_finished": "work.completed",
-    }
-    for trace in trace_events:
+_TRACE_EVENT_TYPES = {
+    "work_item_running": "work.started",
+    "tool_observed": "work.progressed",
+    "artifact_created": "artifact.created",
+    "review_requested": "review.started",
+    "review_rework_requested": "review.rework_requested",
+    "review_passed": "review.passed",
+    "work_item_finished": "work.completed",
+}
+
+
+async def _publish_runtime_trace(organization_id: str, plan_id: str, state: Any, seen: set[str]) -> None:
+    for trace in sorted(state.trace_events.values(), key=lambda item: item.created_at):
+        if trace.event_id in seen:
+            continue
+        seen.add(trace.event_id)
         event_type = next(
-            (mapped for stage, mapped in trace_event_types.items() if trace.stage.startswith(stage)),
+            (mapped for stage, mapped in _TRACE_EVENT_TYPES.items() if trace.stage.startswith(stage)),
             None,
         )
         if event_type is None:
@@ -560,6 +557,34 @@ async def start_goal(plan_id: str, x_organization_id: str | None = Header(defaul
                 "detail": trace.detail,
             },
         })
+
+
+async def _run_goal_with_events(organization_id: str, plan_id: str, goal: str, agents: list[Any]) -> Any:
+    """Run Core work off the event loop while forwarding durable checkpoint traces."""
+    run = asyncio.create_task(asyncio.to_thread(core.runtime_v3.run_goal, organization_id, goal, agents))
+    checkpoint = core.workspace_root / "runtime_v3_goals" / organization_id / "checkpoints" / "state.json"
+    seen: set[str] = set()
+    while not run.done():
+        try:
+            if checkpoint.is_file():
+                await _publish_runtime_trace(organization_id, plan_id, load_state(checkpoint), seen)
+        except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
+            pass
+        await asyncio.sleep(0.1)
+    result = await run
+    await _publish_runtime_trace(organization_id, plan_id, result.state, seen)
+    return result
+
+
+@app.post("/api/goals/{plan_id}/start")
+async def start_goal(plan_id: str, x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
+    organization_id = core.organization_id(x_organization_id)
+    plan = _goal_for_scope(plan_id, organization_id)
+    agents = list_chat_agents(core.database, organization_id=organization_id)
+    if not agents:
+        raise HTTPException(status_code=409, detail="team_required_before_goal_start")
+    await core.events.publish({"type": "goal.started", "data": {"plan_id": plan_id, "goal": plan.goal}})
+    result = await _run_goal_with_events(organization_id, plan_id, plan.goal, agents)
     payload = {
         "ok": result.ok,
         "summary": result.summary,

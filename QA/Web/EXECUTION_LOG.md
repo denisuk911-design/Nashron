@@ -150,3 +150,10 @@
 - Event payloads include the organization scope and durable trace references; no animation-only event is generated.
 - API suite remains green at `12 passed`; per-step delivery is intentionally still documented as a burst after synchronous runtime completion, not claimed as live streaming.
 - Event projection smoke evidence: `QA/Web/web_smoke_events.json` also passed the real goal execution and receipt checks.
+
+## Phase 04 checkpoint-streamed goal execution - 2026-08-30
+
+- Runtime V3 execution now runs off the FastAPI event loop while the API watches the durable checkpoint and forwards new trace records to WebSocket subscribers.
+- Trace-derived work, artifact and review events are emitted from actual Core state; the final response still contains the durable receipt.
+- Isolated smoke after the change: `checks_passed=true`; 3 work items, 2 artifacts, 4 evidence records and restart persistence. Evidence: `QA/Web/web_smoke_streaming.json`.
+- API suite: `12 passed`; compile and `git diff --check`: passed.
