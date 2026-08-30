@@ -2,7 +2,7 @@
 
 Status: `BLOCKED - external candidate gate incomplete`  
 Date: 2026-08-30  
-Latest commit: `35c5186`
+Latest commit: `38377e6`
 
 ## Completed
 
@@ -42,6 +42,8 @@ Latest commit: `35c5186`
   production-promoted before the parity gate.
 - Normalized adapters now reject replay fallback when an external failure
   reports a committed side effect.
+- Runtime-neutral services and durable journal are registered in the FastAPI
+  Core composition root; the existing Native goal route remains unchanged.
 
 ## Blocker
 
