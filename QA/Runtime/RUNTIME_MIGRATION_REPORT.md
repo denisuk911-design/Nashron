@@ -2,7 +2,7 @@
 
 Status: `BLOCKED - external candidate gate incomplete`  
 Date: 2026-08-30  
-Latest commit: `27a1079`
+Latest commit: `2cdb062`
 
 ## Completed
 
@@ -18,6 +18,10 @@ Latest commit: `27a1079`
   `0.7.5`.
 - Real local LangGraph graph execution passed.
 - Real bounded Google ADK model execution passed with classification `WORK`.
+- Real bounded OpenAI Agents SDK execution passed with classification `WORK`
+  through its `Runner` path.
+- Real bounded AutoGen model-client execution passed with classification
+  `WORK` through `OpenAIChatCompletionClient`.
 - Full regression: `519 passed`, two existing non-fatal warnings.
 - Commits were pushed to `origin/main` after each completed milestone.
 

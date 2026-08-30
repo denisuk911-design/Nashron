@@ -30,3 +30,6 @@ succeeds.
 - normalized tool/observation events and artifact references;
 - failure/restart and duplicate-side-effect checks;
 - actual adapter execution through `RuntimeSelector`.
+
+The real SDK probe scripts are `runtime_google_adk_real_smoke.py`,
+`runtime_openai_agents_real_smoke.py`, and `runtime_autogen_real_smoke.py`.
