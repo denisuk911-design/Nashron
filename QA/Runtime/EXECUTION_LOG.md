@@ -203,4 +203,5 @@
 - Added explicit external-runtime promotion gating; unpromoted adapters are
   available for bake-off only and cannot be selected by Product routing.
 - Added external payload organization-scope validation and regression coverage.
+- Targeted external/runtime isolation result after scope validation: `17 passed`.
 - Full regression after promotion gating: `534 passed` in `173.13s`.
