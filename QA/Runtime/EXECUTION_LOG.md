@@ -58,6 +58,14 @@
   policy through `RuntimeSelector`.
 - Targeted facade/runtime result: `67 passed`.
 
+## Phase 8-11 - external adapter normalization - 2026-08-30
+
+- Added normalized callback adapters for OpenAI Agents, LangGraph, Google ADK
+  and AutoGen in `core/external_runtime_adapters.py`.
+- Adapters emit normalized run, observation and artifact events and preserve
+  organization/correlation scope; SDK clients remain outside Product code.
+- Targeted adapter/contract/selector result: `10 passed`.
+
 ## Regression checkpoint - 2026-08-30
 
 - Full suite after migration scaffolding: `519 passed` in `184.45s`.

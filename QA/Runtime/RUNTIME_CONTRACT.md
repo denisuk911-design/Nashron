@@ -30,3 +30,8 @@ Goal/Plan/WorkItem/Review behavior. It does not change the Native scheduler.
 External runtimes implement the same adapter boundary and must not invoke the
 legacy Native scheduler merely to appear compatible. Application Services own
 organization scope and persistence of product records.
+
+`core.external_runtime_adapters` provides the normalization boundary for real
+SDK bridges. The bridge is injected from the isolated runtime environment;
+the adapter emits only normalized run/observation/artifact events and keeps SDK
+objects out of Product code.
