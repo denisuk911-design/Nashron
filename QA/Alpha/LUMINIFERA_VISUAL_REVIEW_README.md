@@ -42,3 +42,8 @@ This package contains the current Web Alpha evidence captured from the packaged 
 - Structural composition is implemented in `apps/web/static/premium-rework.js` and `premium.css`.
 - Home, Iris, Team, Work and Files now use distinct product scenes rather than one shared card-grid pattern.
 - The capture runner now targets visible sidebar controls and the refreshed packaged capture set reports `unavailable=[]`.
+
+## Visual Rework Round 3
+
+- Added the final art-direction pass for this round: layered light and depth, clearer focus states, stronger rhythm and distinct visual treatments for Iris, Team, Work and Files.
+- Fresh packaged captures, manifest and ZIP are included. Status: `READY_FOR_HUMAN_VISUAL_REVIEW`.

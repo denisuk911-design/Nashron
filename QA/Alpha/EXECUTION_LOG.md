@@ -62,4 +62,12 @@
 - Targeted regression: 25 passed. Fresh full pytest: 549 passed, 2 existing warnings.
 - Round 2 evidence is ready for human visual review; Final Alpha PASS intentionally not declared.
 
+## 2026-08-30 - Visual Rework Round 3
+
+- Preserved the Round 2 composition and added the art direction pass in `premium.css`: layered light/depth, focus glow, clearer rhythm, focus states and differentiated visual treatment for Iris, Team, Work and Files.
+- Packaged `dist/Luminifera.exe` rebuilt and checked. Standalone capture completed with `unavailable=[]`; Home capture visually inspected.
+- Fresh targeted regression: 25 passed. Fresh full pytest: 549 passed, 2 existing warnings.
+- Refreshed current PNG set, manifest and `LUMINIFERA_VISUAL_REVIEW_STANDALONE.zip`.
+- Status: `READY_FOR_HUMAN_VISUAL_REVIEW`; Final Alpha PASS intentionally not declared.
+
 
