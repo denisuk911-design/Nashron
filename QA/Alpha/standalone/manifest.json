@@ -1,10 +1,10 @@
 {
-  "captured_at": "2026-08-30T17:13:26.872869+00:00",
-  "app_url": "http://127.0.0.1:60578/app",
+  "captured_at": "2026-08-30T17:25:47.154931+00:00",
+  "app_url": "http://127.0.0.1:61042/app",
   "screens": [
     {
       "name": "landing",
-      "url": "http://127.0.0.1:60578",
+      "url": "http://127.0.0.1:61042",
       "status": "captured"
     },
     {
@@ -40,12 +40,14 @@
     {
       "name": "byok",
       "status": "captured",
-      "control": "Подключения"
+      "section": "AI-провайдеры",
+      "route": "#settings"
     },
     {
       "name": "feedback",
       "status": "captured",
-      "control": "Feedback"
+      "section": "Feedback Inbox",
+      "route": "#settings"
     }
   ]
 }

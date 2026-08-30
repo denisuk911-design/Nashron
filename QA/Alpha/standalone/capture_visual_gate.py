@@ -98,21 +98,24 @@ def main() -> int:
                 record.update({"status": "unavailable", "reason": str(error)})
             manifest["screens"].append(record)
 
-        # BYOK and Feedback are only captured when the real UI exposes them.
-        # Missing controls are evidence of an incomplete gate, never a reason
-        # to fabricate a screenshot.
+        # BYOK and Feedback are sections of Settings in the current product,
+        # not separate routes. Capture the real Settings render without
+        # clicking arbitrary text, and make that fact explicit in the manifest.
         for name, patterns in {
-            "byok": ("BYOK", "Подключения", "AI connections"),
-            "feedback": ("Feedback", "Обратная связь"),
+            "byok": ("AI-провайдеры", "Подключения Iris", "BYOK"),
+            "feedback": ("Feedback Inbox", "Обратная связь Iris", "Feedback"),
         }.items():
-            record = {"name": name, "status": "unavailable", "reason": "No real user-facing control found"}
+            record = {"name": name, "status": "unavailable", "reason": "No real Settings section found"}
             for pattern in patterns:
                 locator = page.get_by_text(pattern, exact=False).first
                 if locator.count() and locator.is_visible():
-                    locator.click()
-                    page.wait_for_timeout(500)
                     page.screenshot(path=str(args.output_dir / f"{name}.png"), full_page=True)
-                    record = {"name": name, "status": "captured", "control": pattern}
+                    record = {
+                        "name": name,
+                        "status": "captured",
+                        "section": pattern,
+                        "route": "#settings",
+                    }
                     break
             manifest["screens"].append(record)
 
