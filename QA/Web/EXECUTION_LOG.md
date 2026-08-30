@@ -175,3 +175,9 @@
 - Fixed the settings form to apply the selected RU/UA/EN locale after a successful API save; the previous handler left the page language unchanged and could throw on `aria-label` restoration.
 - Browser verification: switched to English and back to Russian through the real settings dialog; `document.documentElement.lang` and the persisted `/api/settings` value both changed correctly, with no browser error.
 - `node --check apps/web/static/localization.js`: passed; Web API suite: `13 passed`.
+
+## Web team controls checkpoint - 2026-08-30
+
+- Made employee lifecycle controls idempotent under the existing DOM observer. Re-rendering the Team view now leaves one action group per employee instead of duplicating controls.
+- Browser verification on the live client: `3` employee rows, `3` action groups, `3` delete controls, no duplicate controls or load errors.
+- `node --check apps/web/static/actions.js`: passed; Web API suite: `14 passed`.

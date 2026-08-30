@@ -190,3 +190,11 @@ def test_web_owner_profile_and_avatar_are_persisted_and_validated(tmp_path, monk
     restarted = app_module.WebCore()
     assert restarted.settings["owner_display_name"] == "Василий"
     assert restarted.settings["user_avatar_path"].endswith(selected)
+
+
+def test_web_team_controls_are_idempotent_after_dom_rerenders():
+    from pathlib import Path
+
+    source = (Path(__file__).parents[1] / "apps" / "web" / "static" / "actions.js").read_text(encoding="utf-8")
+    assert "data-employee-actions" in source
+    assert "if (row.querySelector('[data-employee-actions]')) return;" in source

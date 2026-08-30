@@ -321,8 +321,10 @@
     const rows = view.querySelectorAll('.list-row');
     if (rows.length !== employees.length) return;
     rows.forEach((row, index) => {
+      if (row.querySelector('[data-employee-actions]')) return;
       const employee = employees[index];
       const controls = document.createElement('span');
+      controls.dataset.employeeActions = employee.agent_id;
       controls.style.cssText = 'display:flex;gap:6px;align-items:center';
       controls.innerHTML = `<select aria-label="Role for ${employee.display_name}" data-role="${employee.agent_id}"><option value="CUSTOM_ROLE">Specialist</option><option value="PROJECT_MANAGER">Project manager</option><option value="DESIGN_ENGINEER">Design engineer</option><option value="QA_ENGINEER">QA engineer</option><option value="DOCUMENT_CONTROL_OFFICER">Document control</option></select><button class="ghost" data-reassign="${employee.agent_id}">Apply</button><button class="ghost" data-archive="${employee.agent_id}">Archive</button><button class="ghost" data-delete="${employee.agent_id}">Delete</button>`;
       controls.querySelector('[data-role]').value = employee.primary_role || 'CUSTOM_ROLE';
