@@ -37,3 +37,15 @@ The reproducible latest matrix is `QA/Runtime/BAKEOFF_MATRIX.json`. Its
 bounded rerun recorded OpenAI Agents tool/artifact PASS and quota failures for
 the other three provider-backed probes; earlier successful model smokes are
 preserved above and are not overwritten by transient availability.
+
+## Normalized execution checkpoint - 2026-08-30
+
+- `ExternalExecutionPayload` now carries explicit `tool_calls`; adapters emit
+  `tool.called` before observations and artifact events.
+- An external LangGraph result is persisted through `RuntimeExecutionJournal`
+  and recovered after constructing a fresh journal instance. Cross-organization
+  recovery remains denied.
+- The LangGraph real smoke now executes a graph-native observation/artifact
+  node after the model node. The current rerun reached the real model path but
+  was rejected by the documented Gemini `429 RESOURCE_EXHAUSTED` quota; no
+  artifact was counted as a live provider PASS for that run.

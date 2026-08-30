@@ -164,3 +164,13 @@
 - Added `QA/Runtime/RUNTIME_MIGRATION_REPORT.md` with the completed work,
   evidence and explicit blocker. Native remains the only production-promoted
   runtime until the remaining candidate runs are available.
+
+## 2026-08-30 - normalized tool events and external recovery
+
+- Added explicit `tool_calls` to the external payload normalization boundary;
+  emitted events now include `tool.called` before observation/artifact events.
+- Added external adapter journal recovery and organization-isolation tests.
+- Extended LangGraph smoke with a graph-native physical observation artifact.
+- Targeted result: `11 passed`.
+- Live LangGraph rerun: blocked by provider `429 RESOURCE_EXHAUSTED`; not
+  counted as PASS.

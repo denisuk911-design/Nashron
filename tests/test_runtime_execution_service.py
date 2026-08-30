@@ -2,6 +2,7 @@ from core.agent_directory import ChatAgent
 from core.runtime_contracts import ExecutionPolicy
 from core.external_runtime_adapters import ExternalExecutionPayload, LangGraphRuntimeAdapter
 from core.runtime_execution_service import RuntimeExecutionService
+from core.runtime_journal import RuntimeExecutionJournal
 
 
 def test_product_execution_service_keeps_employee_identity_outside_native_adapter():
@@ -59,3 +60,27 @@ def test_external_runtime_completes_direct_action_without_native_scheduler():
     assert result.runtime_id == "langgraph"
     assert result.artifact_refs == ("artifact-1",)
     assert native_calls == []
+
+
+def test_external_result_is_durable_and_recoverable_without_native_checkpoint(tmp_path):
+    journal = RuntimeExecutionJournal(tmp_path / "journal")
+    external = LangGraphRuntimeAdapter(
+        lambda request: ExternalExecutionPayload(
+            True,
+            "artifact produced",
+            artifact_refs=("artifact-org-a",),
+            observations=("artifact verified",),
+            tool_calls=("write_artifact",),
+        )
+    )
+    service = RuntimeExecutionService(lambda: None, {"langgraph": external}, journal=journal)
+    result = service.execute(
+        "org-a", "produce artifact", [], ExecutionPolicy.DIRECT_ACTION,
+        correlation_id="external-run-1", preferred_runtime="langgraph",
+    )
+    recovered = RuntimeExecutionJournal(tmp_path / "journal").recover("org-a", "external-run-1")
+    assert result.runtime_id == "langgraph"
+    assert recovered is not None
+    assert recovered.status == "COMPLETED"
+    assert recovered.artifact_refs == ("artifact-org-a",)
+    assert RuntimeExecutionJournal(tmp_path / "journal").recover("org-b", "external-run-1") is None

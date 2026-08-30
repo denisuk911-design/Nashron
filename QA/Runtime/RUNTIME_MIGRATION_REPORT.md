@@ -49,6 +49,10 @@ Latest commit: `e973429`
   SDK evidence.
 - External direct-action regression passes without entering the Native
   Goal/WorkItem scheduler; selector chooses an available external candidate.
+- External adapter payloads now normalize explicit `tool.called` events, and
+  the LangGraph smoke includes a graph-native physical observation artifact.
+- External execution journal integration proves restart recovery and
+  organization-scope isolation for an adapter result.
 
 ## Blocker
 
@@ -57,6 +61,10 @@ tool evidence is additionally blocked until provider quota is available.
 Production
 routing stays on Native until every
 promoted candidate passes the complete normalized execution gate.
+
+The latest LangGraph tool/artifact smoke also reached the model node but was
+blocked by the same provider quota. This is an external credential/quota
+limitation, not a local adapter or test failure.
 
 ## Evidence files
 

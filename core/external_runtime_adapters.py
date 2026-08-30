@@ -17,6 +17,7 @@ class ExternalExecutionPayload:
     artifact_refs: tuple[str, ...] = ()
     evidence_refs: tuple[str, ...] = ()
     observations: tuple[str, ...] = ()
+    tool_calls: tuple[str, ...] = ()
     data: Mapping[str, Any] | None = None
 
 
@@ -34,6 +35,15 @@ class CallbackRuntimeAdapter(RuntimeAdapter):
     def execute(self, request: ExecutionRequest) -> ExecutionResult:
         payload = self._executor(request)
         events = [RuntimeEvent(RuntimeEventType.RUN_STARTED, request.organization_id, request.correlation_id)]
+        events.extend(
+            RuntimeEvent(
+                RuntimeEventType.TOOL_CALLED,
+                request.organization_id,
+                request.correlation_id,
+                detail=tool_call,
+            )
+            for tool_call in payload.tool_calls
+        )
         events.extend(
             RuntimeEvent(
                 RuntimeEventType.OBSERVATION_RECORDED,
