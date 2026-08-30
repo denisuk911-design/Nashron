@@ -228,3 +228,8 @@
 - ConnectionHub filters organization-scoped events before delivery, preventing another organization's goal, employee or Iris events from reaching the current workspace.
 - Added a two-client isolation regression test.
 - Targeted checks: `tests/test_web_api.py` = `17 passed`; JavaScript syntax and `git diff --check` passed.
+
+## Web evidence synchronization checkpoint - 2026-08-30
+
+- Synchronized `API_TEST_REPORT.md` and `FINAL_WEB_REPORT.md` with current verified state instead of stale historical counts.
+- Recorded the organization-scoped WebSocket contract, live landing/Iris checks, and the remaining non-final gaps explicitly.
