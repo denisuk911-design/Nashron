@@ -10,7 +10,7 @@ Date: 2026-08-30
 | Native | Existing `RuntimeV3GoalService` and 63 targeted runtime tests | Existing Native goal/tool/artifact/review tests | PASS for baseline | BASELINE |
 | OpenAI Agents | `openai-agents 0.22.0` | Real `Runner.run` through SDK | PASS: real model classification `WORK` | CANDIDATE |
 | LangGraph | `langgraph 1.2.11` + `langchain-google-genai 4.3.7` | Real compiled graph node with model | PASS: real model classification `WORK` | CANDIDATE |
-| Google ADK | `google-adk 2.8.0`, object construction PASS | Real `InMemoryRunner` execution | PASS: real model classification `WORK` with bounded run | CANDIDATE |
+| Google ADK | `google-adk 2.8.0` | Real `InMemoryRunner` model run; tool retry hit provider quota | Model PASS; tool/artifact smoke BLOCKED by `429 RESOURCE_EXHAUSTED` | PARTIAL |
 | AutoGen | `autogen-agentchat/autogen-ext 0.7.5` | Real `OpenAIChatCompletionClient.create` | PASS: real model classification `WORK` | CANDIDATE |
 
 ## Interpretation
@@ -18,7 +18,8 @@ Date: 2026-08-30
 The four external packages are real installed candidates in isolated
 environments. LangGraph, Google ADK, OpenAI Agents and AutoGen each have one
 bounded real model-backed execution.
-This is candidate evidence, not a production promotion: all candidates still
+This is candidate evidence, not a production promotion: Google ADK tool
+evidence is blocked by the provider free-tier quota, and all candidates still
 need normalized tool/artifact/restart evidence. The migration must not route
 production Product work to an external candidate solely because its import
 succeeds.

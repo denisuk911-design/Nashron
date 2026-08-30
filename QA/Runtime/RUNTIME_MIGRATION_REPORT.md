@@ -23,6 +23,8 @@ Latest commit: `9b8fb76`
   through its `Runner` path.
 - Real bounded AutoGen model-client execution passed with classification
   `WORK` through `OpenAIChatCompletionClient`.
+- OpenAI Agents and AutoGen tool smokes also created physical observation
+  artifacts; Google ADK tool retry was blocked by provider `429` quota.
 - Full regression after fallback protection: `522 passed`, two existing
   non-fatal warnings.
 - Commits were pushed to `origin/main` after each completed milestone.
@@ -41,7 +43,9 @@ Latest commit: `9b8fb76`
 
 ## Blocker
 
-The complete normalized artifact/restart bake-off is not complete. Production
+The complete normalized artifact/restart bake-off is not complete. Google ADK
+tool evidence is additionally blocked until provider quota is available.
+Production
 routing stays on Native until every
 promoted candidate passes the complete normalized execution gate.
 

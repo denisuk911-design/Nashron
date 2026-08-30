@@ -28,6 +28,7 @@ commands above.
 ## Current smoke boundary
 
 `scripts/runtime_candidate_smoke.py` proves real package import and minimal
-object/graph construction without network access or credentials. It does not
-claim a model-backed PASS. Phase 6 must add bounded model-backed runs, record
-provider/auth results and reject candidates that only import successfully.
+object/graph construction without network access or credentials. The three
+model probes use bounded real calls; OpenAI Agents and AutoGen tool probes also
+write physical temporary artifacts. Google ADK's tool retry currently receives
+provider quota `429`, so it is recorded as `PARTIAL`, not PASS.

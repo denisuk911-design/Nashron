@@ -99,6 +99,13 @@
 - LangGraph bounded graph model execution passed with classification `WORK`
   using `ChatGoogleGenerativeAI` inside a compiled graph node.
 
+## Tool observation bake-off - 2026-08-30
+
+- OpenAI Agents and AutoGen real SDK runs invoked their write tools and
+  verified physical temporary artifacts.
+- Google ADK tool run was rejected by provider `429 RESOURCE_EXHAUSTED` quota;
+  candidate remains `PARTIAL` until quota is available.
+
 ## Migration report checkpoint - 2026-08-30
 
 - Added `QA/Runtime/RUNTIME_MIGRATION_REPORT.md` with the completed work,
