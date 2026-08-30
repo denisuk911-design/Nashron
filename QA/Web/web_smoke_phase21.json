@@ -1,0 +1,17 @@
+{
+  "organization_id": "ORG-10D51D7F7FCB",
+  "team_member_count": 4,
+  "chat_result": true,
+  "goal_id": "PLAN-DE0941F45F25",
+  "goal_start_result": {
+    "ok": true,
+    "summary": "Цель выполнена.\nПлан: 3 рабочих пункта.\nАртефакты: 2.\nИсточники/доказательства: 1.\nПроверка: замечаний нет.\nРезультаты:\n- work_product.md, ревизия 1\n- research.md, ревизия 1",
+    "work_items": 3,
+    "artifacts": 2,
+    "evidence": 4,
+    "findings": 0,
+    "receipt_ready": true
+  },
+  "persistence_after_webcore_restart": true,
+  "checks_passed": true
+}

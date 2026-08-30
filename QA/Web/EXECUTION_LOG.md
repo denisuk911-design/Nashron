@@ -136,3 +136,10 @@
 - Added `QA/Web/REVIEW_PACKAGE/README.md` with the review workflow and the current visual evidence path.
 - Added `scripts/run_luminifera_review.ps1`, a wrapper that starts the same real Web/API stack and supports alternate ports for an isolated review.
 - Review launcher probe on Web `3011` / API `8011`: both returned HTTP `200`; the temporary stack was stopped after verification.
+
+## Phase 21 real Web goal execution checkpoint - 2026-08-30
+
+- Extended `scripts/web_smoke.py` to start the created goal through the FastAPI route.
+- Isolated run passed: `3` work items, `2` physical artifacts, `4` evidence records, a ready Work Receipt and restart persistence; `checks_passed=true`.
+- Evidence: `QA/Web/web_smoke_phase21.json`.
+- This proves the real Core/Runtime V3 path through Web API; it does not claim per-step WebSocket streaming or a separate review/rework command API.
