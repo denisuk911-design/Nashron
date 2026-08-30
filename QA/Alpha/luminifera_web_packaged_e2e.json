@@ -10,8 +10,8 @@
   "feedback_inbox": "PASS",
   "diagnostics": "PASS",
   "restart_persistence": "PASS",
-  "goal_artifact": "PENDING_TEAM_SETUP",
+  "goal_artifact": "BLOCKED_MISSING_PROVIDER",
   "provider_byok": "NOT_VERIFIED_WITH_LIVE_CREDENTIAL",
   "shutdown": "PASS",
-  "notes": "Packaged executable starts API and Web on dynamic loopback ports and opens /app. Fresh profile has no employees, so a real work goal cannot be started without creating a team first."
+  "notes": "Packaged executable starts API and Web on dynamic loopback ports and opens /app. Team creation through the API created four employees, but the real goal run remained blocked because the fresh team has no configured provider. No artifact was fabricated."
 }
