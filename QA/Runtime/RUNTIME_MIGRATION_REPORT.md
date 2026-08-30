@@ -67,6 +67,11 @@ Latest commit: `cab2dbb`
   concurrent executions from cross-contaminating product employee identity.
 - Full regression after concurrency isolation: `530 passed` in `186.65s`;
   the same two existing non-fatal warnings remain unchanged.
+- Added bounded JSON IPC via `SubprocessRuntimeBridge` so external SDK
+  adapters can run outside Product/Core with timeout and malformed-payload
+  rejection.
+- Full regression after subprocess bridge: `532 passed` in `173.41s`; no new
+  warnings.
 
 ## Blocker
 

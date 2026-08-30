@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable, Mapping
+import json
+import subprocess
+import sys
+from typing import Any, Callable, Mapping, Sequence
 
 from .runtime_contracts import ExecutionRequest, ExecutionResult, RuntimeAdapter, RuntimeEvent, RuntimeEventType, tupled
 
@@ -19,6 +22,55 @@ class ExternalExecutionPayload:
     observations: tuple[str, ...] = ()
     tool_calls: tuple[str, ...] = ()
     data: Mapping[str, Any] | None = None
+
+    @classmethod
+    def from_mapping(cls, value: Mapping[str, Any]) -> "ExternalExecutionPayload":
+        return cls(
+            ok=bool(value.get("ok")),
+            summary=str(value.get("summary") or ""),
+            artifact_refs=tupled(value.get("artifact_refs")),
+            evidence_refs=tupled(value.get("evidence_refs")),
+            observations=tupled(value.get("observations")),
+            tool_calls=tupled(value.get("tool_calls")),
+            data=value.get("data") if isinstance(value.get("data"), Mapping) else {},
+        )
+
+
+class SubprocessRuntimeBridge:
+    """Bounded JSON IPC bridge for an SDK running outside Product/Core."""
+
+    def __init__(self, command: Sequence[str], timeout_seconds: float = 45.0) -> None:
+        if not command or timeout_seconds <= 0:
+            raise ValueError("command and positive timeout are required")
+        self.command = tuple(str(part) for part in command)
+        self.timeout_seconds = timeout_seconds
+
+    def __call__(self, request: ExecutionRequest) -> ExternalExecutionPayload:
+        completed = subprocess.run(
+            self.command,
+            input=json.dumps({
+                "organization_id": request.organization_id,
+                "objective": request.objective,
+                "policy": request.policy.value,
+                "correlation_id": request.correlation_id,
+                "employees": [employee.employee_id for employee in request.employees],
+            }),
+            capture_output=True,
+            text=True,
+            timeout=self.timeout_seconds,
+            check=False,
+        )
+        if completed.returncode != 0:
+            error = RuntimeError(f"external runtime exited with code {completed.returncode}")
+            setattr(error, "side_effects_committed", False)
+            raise error
+        try:
+            value = json.loads(completed.stdout)
+        except (json.JSONDecodeError, TypeError) as error:
+            raise ValueError("external runtime returned invalid JSON payload") from error
+        if not isinstance(value, Mapping):
+            raise ValueError("external runtime payload must be a JSON object")
+        return ExternalExecutionPayload.from_mapping(value)
 
 
 class CallbackRuntimeAdapter(RuntimeAdapter):

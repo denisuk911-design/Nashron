@@ -6,6 +6,9 @@ from core.external_runtime_adapters import (
     OpenAIAgentsRuntimeAdapter,
 )
 from core.runtime_contracts import ExecutionPolicy, ExecutionRequest, RuntimeEventType
+from core.external_runtime_adapters import SubprocessRuntimeBridge
+import json
+import sys
 
 
 def test_external_adapter_normalizes_observations_and_artifacts():
@@ -36,3 +39,27 @@ def test_each_external_adapter_has_distinct_runtime_identity():
         AutoGenRuntimeAdapter(lambda _: ExternalExecutionPayload(True, "ok")),
     ]
     assert {adapter.runtime_id for adapter in adapters} == {"langgraph", "google-adk", "autogen"}
+
+
+def test_subprocess_bridge_maps_json_ipc_to_normalized_payload():
+    script = (
+        "import json,sys; request=json.load(sys.stdin); "
+        "print(json.dumps({'ok': True, 'summary': request['objective'], "
+        "'tool_calls':['write'], 'observations':['verified'], "
+        "'artifact_refs':['artifact-a']}))"
+    )
+    bridge = SubprocessRuntimeBridge([sys.executable, "-c", script], timeout_seconds=2)
+    payload = bridge(ExecutionRequest("org-a", "task", ExecutionPolicy.DIRECT_ACTION))
+    assert payload.ok is True
+    assert payload.tool_calls == ("write",)
+    assert payload.artifact_refs == ("artifact-a",)
+
+
+def test_subprocess_bridge_rejects_invalid_json():
+    bridge = SubprocessRuntimeBridge([sys.executable, "-c", "print('not-json')"], timeout_seconds=2)
+    try:
+        bridge(ExecutionRequest("org-a", "task", ExecutionPolicy.DIRECT_ACTION))
+    except ValueError as error:
+        assert "invalid JSON" in str(error)
+    else:
+        raise AssertionError("invalid subprocess payload must be rejected")

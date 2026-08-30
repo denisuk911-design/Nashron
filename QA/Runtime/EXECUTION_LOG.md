@@ -189,3 +189,8 @@
 - Replaced shared mutable employee resolution state with context-local scope;
   added parallel organization/employee isolation regression.
 - Full regression after concurrency isolation: `530 passed` in `186.65s`.
+- Added and tested the bounded subprocess JSON bridge for isolated external
+  runtime execution and payload normalization.
+- External bridge targeted result: `14 passed`.
+- Full regression after subprocess bridge: `532 passed` in `173.41s`; no new
+  warnings.
