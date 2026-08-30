@@ -83,7 +83,12 @@
 
     const settingsForm = Array.from(document.querySelectorAll('dialog form')).find(form => form.querySelector('.settings-result'));
     if (!settingsForm || settingsForm.dataset.phase16Ready) return;
-    settingsForm.closest('dialog')?.classList.add('web-settings-dialog');
+    const settingsDialog = settingsForm.closest('dialog');
+    settingsDialog?.classList.add('web-settings-dialog');
+    settingsDialog?.querySelector('.dialog-close')?.addEventListener('click', event => {
+      event.preventDefault();
+      settingsDialog.close();
+    });
     settingsForm.dataset.phase16Ready = 'true';
     settingsForm.insertAdjacentHTML('beforeend', '<hr><span class="eyebrow">Интерфейс</span><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="reduce_motion"> Уменьшить анимацию</label><span class="eyebrow">AI-подключения</span><p class="settings-note">Провайдеры настраиваются в разделе «Подключения». Web показывает только реальные состояния Core.</p><span class="eyebrow">Данные</span><p class="settings-note">История, настройки и рабочие результаты хранятся локально в профиле Team2050.</p><span class="eyebrow">Дополнительно</span><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="developer_mode"> Режим разработчика</label>');
     settingsForm.addEventListener('submit', async () => {
