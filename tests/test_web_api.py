@@ -131,3 +131,27 @@ def test_web_organization_memory_and_competence_are_server_scoped(tmp_path, monk
     assert client.get("/api/competence", headers=headers_b).json() == []
     with isolated.database.connect() as connection:
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+
+
+def test_web_owner_profile_and_avatar_are_persisted_and_validated(tmp_path, monkeypatch):
+    monkeypatch.setenv("TEAM2050_HOME", str(tmp_path / "profile"))
+    import services.api.app as app_module
+
+    isolated = app_module.WebCore()
+    monkeypatch.setattr(app_module, "core", isolated)
+    client = TestClient(app_module.app)
+    avatars = client.get("/api/profile/avatars")
+    assert avatars.status_code == 200
+    assert avatars.json()
+    selected = avatars.json()[0]["name"]
+
+    response = client.patch("/api/profile", json={"display_name": "Василий", "avatar": selected})
+    assert response.status_code == 200
+    assert response.json() == {"display_name": "Василий", "avatar": selected}
+    assert client.get("/api/profile").json() == {"display_name": "Василий", "avatar": selected}
+    assert client.get(f"/api/profile/avatars/{selected}").status_code == 200
+    assert client.patch("/api/profile", json={"display_name": "Василий", "avatar": "missing.png"}).status_code == 422
+
+    restarted = app_module.WebCore()
+    assert restarted.settings["owner_display_name"] == "Василий"
+    assert restarted.settings["user_avatar_path"].endswith(selected)

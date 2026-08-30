@@ -82,3 +82,12 @@
 - Actual browser capture: `QA/Web/SCREENSHOTS/phase15_connections_actual.png`.
 - Phase 15 targeted tests: `14 passed`; deterministic Web smoke: `checks_passed=true`; JavaScript syntax, Python compilation and `git diff --check`: passed.
 - Restored the supplied canonical Iris poster and animation in the static bundle. Browser verification reported portrait width `1123` and video ready state `4`; direct asset probes returned HTTP 200.
+
+## Phase 16 - owner profile and settings surface
+
+- Added server-backed owner profile read/update endpoints and a validated avatar catalog. The Web profile dialog exposes manual owner name editing and avatar selection without mixing employee identities.
+- Added persisted settings fields for owner display name, avatar, reduced motion and developer mode. Existing language, theme and sound settings remain service-backed.
+- The settings surface now exposes language choices RU/UA/EN, theme, sound, animation, AI connection guidance, local data policy and developer mode.
+- Browser verification on the local Web client: profile dialog opened, `97` avatar options loaded, settings sections rendered, and dark select controls reported readable colors (`#0a1025` / `#eef2ff`).
+- Actual browser capture: `QA/Web/SCREENSHOTS/phase16_profile_actual.png`.
+- Phase 16 API tests: `10 passed`; JavaScript syntax and Python compilation: passed.

@@ -41,6 +41,7 @@ from core.skill_package_service import SkillPackageService
 from core.knowledge_service import KnowledgeService
 from core.chat_attachment_service import ChatAttachmentService
 from core.competence_graph_service import CompetenceGraphService
+from core.avatar_catalog import list_avatar_files
 from services.api.events import EventEnvelope
 
 
@@ -62,6 +63,15 @@ class SettingsRequest(BaseModel):
     interface_language: str | None = None
     theme: str | None = None
     message_sounds_enabled: bool | None = None
+    reduce_motion: bool | None = None
+    developer_mode: bool | None = None
+    owner_display_name: str | None = Field(default=None, max_length=120)
+    user_avatar_path: str | None = Field(default=None, max_length=240)
+
+
+class ProfileRequest(BaseModel):
+    display_name: str = Field(min_length=1, max_length=120)
+    avatar: str = Field(default="", max_length=240)
 
 
 class EmployeeRequest(BaseModel):
@@ -656,7 +666,10 @@ def competence(x_organization_id: str | None = Header(default=None)) -> list[dic
 
 @app.get("/api/settings")
 def settings() -> dict[str, Any]:
-    return {key: core.settings.get(key) for key in ("interface_language", "theme", "message_sounds_enabled", "reduce_motion")}
+    return {key: core.settings.get(key) for key in (
+        "interface_language", "theme", "message_sounds_enabled", "reduce_motion",
+        "developer_mode", "owner_display_name", "user_avatar_path",
+    )}
 
 
 @app.patch("/api/settings")
@@ -667,6 +680,39 @@ def update_settings(request: SettingsRequest) -> dict[str, Any]:
     core.settings.update(values)
     core._save_settings(core.settings)
     return settings()
+
+
+@app.get("/api/profile")
+def profile() -> dict[str, Any]:
+    avatar = str(core.settings.get("user_avatar_path", "") or "")
+    return {
+        "display_name": str(core.settings.get("owner_display_name", "Владелец") or "Владелец"),
+        "avatar": Path(avatar).name if avatar else "",
+    }
+
+
+@app.get("/api/profile/avatars")
+def profile_avatars() -> list[dict[str, str]]:
+    return [{"name": path.name, "url": f"/api/profile/avatars/{path.name}"} for path in list_avatar_files(core.paths.avatar_dir)]
+
+
+@app.get("/api/profile/avatars/{avatar_name}")
+def profile_avatar(avatar_name: str) -> FileResponse:
+    candidates = [path for path in list_avatar_files(core.paths.avatar_dir) if path.name == avatar_name]
+    if not candidates:
+        raise HTTPException(status_code=404, detail="avatar_not_found")
+    return FileResponse(candidates[0])
+
+
+@app.patch("/api/profile")
+def update_profile(request: ProfileRequest) -> dict[str, Any]:
+    avatar = request.avatar.strip()
+    if avatar and not any(path.name == avatar for path in list_avatar_files(core.paths.avatar_dir)):
+        raise HTTPException(status_code=422, detail="avatar_not_found")
+    core.settings["owner_display_name"] = " ".join(request.display_name.split())
+    core.settings["user_avatar_path"] = str(core.paths.avatar_dir / avatar) if avatar else ""
+    core._save_settings(core.settings)
+    return profile()
 
 
 @app.get("/api/iris")

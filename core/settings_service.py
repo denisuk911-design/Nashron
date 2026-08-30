@@ -23,6 +23,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "workspace_root": "",
     "reduce_motion": False,
     "interface_language": "ru",
+    "owner_display_name": "Владелец",
     "user_avatar_path": "",
     "chat_background_path": "",
     "chat_background_opacity": 18,

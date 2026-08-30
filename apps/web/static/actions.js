@@ -30,6 +30,76 @@
 })();
 
 (() => {
+  const initProfileAndSettings = () => {
+    const topActions = document.querySelector('.top-actions');
+    const profileButton = topActions?.querySelector('.icon-button:not(.web-settings)');
+    const settingsButton = document.querySelector('.web-settings');
+    if (!topActions || !profileButton || !settingsButton || document.querySelector('.web-profile-dialog')) {
+      if (!document.querySelector('.web-profile-dialog')) window.setTimeout(initProfileAndSettings, 100);
+      return;
+    }
+
+    const profileDialog = document.createElement('dialog');
+    profileDialog.className = 'web-profile-dialog';
+    profileDialog.innerHTML = `<form method="dialog" class="web-profile-form"><button class="dialog-close" value="cancel" aria-label="Закрыть">×</button><span class="eyebrow">Профиль владельца</span><h2>Ваш профиль</h2><p class="settings-note">Эти данные относятся только к владельцу и не смешиваются с профилями сотрудников.</p><label>Имя<input name="display_name" required maxlength="120" placeholder="Как к вам обращаться"></label><label>Аватар<select name="avatar"><option value="">Без аватара</option></select></label><div class="profile-preview"><span class="avatar profile-avatar">В</span><span class="profile-avatar-name">Владелец</span></div><button class="primary" value="default">Сохранить профиль</button><small class="profile-result"></small></form>`;
+    document.body.append(profileDialog);
+    const profileForm = profileDialog.querySelector('form');
+    const avatarSelect = profileForm.querySelector('[name="avatar"]');
+    const preview = profileForm.querySelector('.profile-avatar');
+    const previewName = profileForm.querySelector('.profile-avatar-name');
+    const result = profileForm.querySelector('.profile-result');
+    const avatarUrl = name => name ? `${window.LUMINIFERA_API_BASE || ''}/api/profile/avatars/${encodeURIComponent(name)}` : '';
+    const refreshPreview = () => {
+      const name = profileForm.display_name.value.trim() || 'Владелец';
+      previewName.textContent = name;
+      const src = avatarUrl(avatarSelect.value);
+      preview.style.backgroundImage = src ? `url("${src}")` : '';
+      preview.textContent = src ? '' : name.slice(0, 1).toUpperCase();
+    };
+    avatarSelect.addEventListener('change', refreshPreview);
+    profileForm.display_name.addEventListener('input', refreshPreview);
+    profileButton.onclick = async () => {
+      result.textContent = 'Загружаем профиль...';
+      try {
+        const [current, avatars] = await Promise.all([fetch('/api/profile').then(response => response.json()), fetch('/api/profile/avatars').then(response => response.json())]);
+        profileForm.display_name.value = current.display_name || 'Владелец';
+        avatarSelect.innerHTML = '<option value="">Без аватара</option>' + avatars.map(item => `<option value="${String(item.name).replace(/[&<>"']/g, '')}">${String(item.name).replace(/[&<>"']/g, '')}</option>`).join('');
+        avatarSelect.value = current.avatar || '';
+        result.textContent = '';
+        refreshPreview();
+        profileDialog.showModal();
+      } catch (error) { result.textContent = `Не удалось загрузить профиль: ${error.message}`; profileDialog.showModal(); }
+    };
+    profileForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      result.textContent = 'Сохраняем...';
+      try {
+        const response = await fetch('/api/profile', {method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({display_name: profileForm.display_name.value.trim(), avatar: avatarSelect.value})});
+        if (!response.ok) throw new Error(await response.text());
+        result.textContent = 'Профиль сохранён.';
+        document.querySelector('.sidebar-foot b').textContent = profileForm.display_name.value.trim();
+      } catch (error) { result.textContent = `Не удалось сохранить профиль: ${error.message}`; }
+    });
+
+    const settingsForm = Array.from(document.querySelectorAll('dialog form')).find(form => form.querySelector('.settings-result'));
+    if (!settingsForm || settingsForm.dataset.phase16Ready) return;
+    settingsForm.closest('dialog')?.classList.add('web-settings-dialog');
+    settingsForm.dataset.phase16Ready = 'true';
+    settingsForm.insertAdjacentHTML('beforeend', '<hr><span class="eyebrow">Интерфейс</span><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="reduce_motion"> Уменьшить анимацию</label><span class="eyebrow">AI-подключения</span><p class="settings-note">Провайдеры настраиваются в разделе «Подключения». Web показывает только реальные состояния Core.</p><span class="eyebrow">Данные</span><p class="settings-note">История, настройки и рабочие результаты хранятся локально в профиле Team2050.</p><span class="eyebrow">Дополнительно</span><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="developer_mode"> Режим разработчика</label>');
+    settingsForm.addEventListener('submit', async () => {
+      const payload = {interface_language: settingsForm.interface_language.value, theme: settingsForm.theme.value, message_sounds_enabled: settingsForm.sound.checked, reduce_motion: settingsForm.reduce_motion.checked, developer_mode: settingsForm.developer_mode.checked};
+      await fetch('/api/settings', {method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)}).catch(() => {});
+    });
+    settingsButton.addEventListener('click', async () => {
+      const current = await fetch('/api/settings').then(response => response.json()).catch(() => ({}));
+      settingsForm.reduce_motion.checked = Boolean(current.reduce_motion);
+      settingsForm.developer_mode.checked = Boolean(current.developer_mode);
+    });
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initProfileAndSettings); else initProfileAndSettings();
+})();
+
+(() => {
   const renderAttachmentLinks = async () => {
     const list = document.querySelector('.chat-list'); const select = document.querySelector('#org-select');
     if (!list || list.dataset.attachmentsReady || !select?.value) return;

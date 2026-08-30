@@ -1,0 +1,57 @@
+.web-profile-form {
+  display: grid;
+  gap: 14px;
+  padding: 28px;
+  min-width: min(360px, calc(100vw - 60px));
+}
+
+.web-profile-dialog select,
+.web-settings-dialog select {
+  background: #0a1025;
+  color: #eef2ff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 11px;
+}
+
+.web-profile-dialog option,
+.web-settings-dialog option {
+  background: #0a1025;
+  color: #eef2ff;
+}
+
+.web-profile-form h2 {
+  margin: 0;
+}
+
+.settings-note {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.profile-preview {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.profile-avatar {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.web-settings-dialog form hr {
+  width: 100%;
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 4px 0;
+}
+
+.web-settings-dialog form .eyebrow {
+  margin-top: 4px;
+}
