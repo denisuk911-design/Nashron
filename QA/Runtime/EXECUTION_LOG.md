@@ -143,6 +143,14 @@
   matrix. Provider/quota failures are classified explicitly, never as PASS.
 - Script syntax check: PASS.
 
+## Latest bake-off matrix - 2026-08-30
+
+- Ran the four candidate probes through bounded subprocesses and saved
+  `QA/Runtime/BAKEOFF_MATRIX.json`.
+- OpenAI Agents tool/artifact probe passed; LangGraph, Google ADK and AutoGen
+  were rejected by provider quota during this rerun. Prior successful model
+  smokes remain recorded as separate evidence.
+
 ## Migration report checkpoint - 2026-08-30
 
 - Added `QA/Runtime/RUNTIME_MIGRATION_REPORT.md` with the completed work,

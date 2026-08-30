@@ -32,3 +32,8 @@ succeeds.
 
 The real SDK probe scripts are `runtime_google_adk_real_smoke.py`,
 `runtime_openai_agents_real_smoke.py`, and `runtime_autogen_real_smoke.py`.
+
+The reproducible latest matrix is `QA/Runtime/BAKEOFF_MATRIX.json`. Its
+bounded rerun recorded OpenAI Agents tool/artifact PASS and quota failures for
+the other three provider-backed probes; earlier successful model smokes are
+preserved above and are not overwritten by transient availability.

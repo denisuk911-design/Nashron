@@ -1,0 +1,35 @@
+{
+  "matrix_version": "1",
+  "results": [
+    {
+      "candidate": "openai-agents",
+      "status": "PASS",
+      "exit_code": 0,
+      "evidence": [
+        "PASS openai-agents real model tool observation=WORK"
+      ],
+      "diagnostic": ""
+    },
+    {
+      "candidate": "langgraph",
+      "status": "FAILED",
+      "exit_code": 1,
+      "evidence": [],
+      "diagnostic": "quota_or_provider_error"
+    },
+    {
+      "candidate": "google-adk",
+      "status": "FAILED",
+      "exit_code": 1,
+      "evidence": [],
+      "diagnostic": "quota_or_provider_error"
+    },
+    {
+      "candidate": "autogen",
+      "status": "FAILED",
+      "exit_code": 1,
+      "evidence": [],
+      "diagnostic": "quota_or_provider_error"
+    }
+  ]
+}

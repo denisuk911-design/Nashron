@@ -44,6 +44,9 @@ Latest commit: `38377e6`
   reports a committed side effect.
 - Runtime-neutral services and durable journal are registered in the FastAPI
   Core composition root; the existing Native goal route remains unchanged.
+- `QA/Runtime/BAKEOFF_MATRIX.json` records the latest bounded matrix run;
+  provider quota failures are explicit and do not overwrite prior successful
+  SDK evidence.
 
 ## Blocker
 
