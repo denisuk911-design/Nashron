@@ -157,3 +157,9 @@
 - Trace-derived work, artifact and review events are emitted from actual Core state; the final response still contains the durable receipt.
 - Isolated smoke after the change: `checks_passed=true`; 3 work items, 2 artifacts, 4 evidence records and restart persistence. Evidence: `QA/Web/web_smoke_streaming.json`.
 - API suite: `12 passed`; compile and `git diff --check`: passed.
+
+## Phase 19 reconnectable Work timeline - 2026-08-30
+
+- Added `GET /api/work/timeline`, a scoped human-facing replay of Runtime V3 checkpoint traces.
+- The Work view renders the latest persisted execution steps and marks saved artifacts, so a reload does not erase the visible history.
+- API suite: `13 passed`; JavaScript syntax, compilation and `git diff --check`: passed. Browser verified the Work view and empty-state behavior with no errors.

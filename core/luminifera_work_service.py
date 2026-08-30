@@ -65,6 +65,14 @@ class ReviewFindingView:
     reviewer: str
 
 
+@dataclass(frozen=True)
+class WorkTimelineEvent:
+    message: str
+    status: str
+    occurred_at: str
+    artifact_created: bool = False
+
+
 class LuminiferaWorkService:
     _PROGRESS = {
         "PENDING": 10,
@@ -208,6 +216,49 @@ class LuminiferaWorkService:
             for finding in state.findings.values()
             if finding.goal_id == goals[0].goal_id
         )
+
+    def timeline(self, organization_id: str | None) -> tuple[WorkTimelineEvent, ...]:
+        """Return a human-facing replay of durable Runtime V3 progress."""
+        state = self._load_runtime_state(organization_id)
+        if state is None:
+            return ()
+        goals = sorted(state.goals.values(), key=lambda item: (item.updated_at, item.created_at), reverse=True)
+        if not goals:
+            return ()
+        goal_id = goals[0].goal_id
+        messages = {
+            "goal_created": ("Цель создана", "planned", False),
+            "plan_created": ("План подготовлен", "planned", False),
+            "goal_started": ("Работа начата", "working", False),
+            "work_item_running": ("Рабочий шаг начат", "working", False),
+            "tool_observed": ("Инструмент выполнил действие", "working", False),
+            "artifact_created": ("Артефакт сохранён", "working", True),
+            "review_requested": ("Результат передан на проверку", "review", False),
+            "review_rework_requested": ("Проверка запросила доработку", "rework", False),
+            "review_passed": ("Проверка пройдена", "complete", False),
+            "work_item_finished": ("Рабочий шаг завершён", "complete", False),
+        }
+        events = []
+        for item in sorted(state.trace_events.values(), key=lambda value: value.created_at):
+            if item.goal_id != goal_id:
+                continue
+            key = next((candidate for candidate in messages if item.stage.startswith(candidate)), None)
+            if key is None:
+                continue
+            message, status, artifact_created = messages[key]
+            events.append(WorkTimelineEvent(message, status, item.created_at, artifact_created))
+        return tuple(events)
+
+    def _load_runtime_state(self, organization_id: str | None):
+        if not organization_id or self._runtime_root is None:
+            return None
+        state_path = self._runtime_root / organization_id / "checkpoints" / "state.json"
+        if not state_path.is_file():
+            return None
+        try:
+            return load_state(state_path)
+        except (OSError, ValueError, KeyError, TypeError):
+            return None
 
     def _runtime_snapshot(self, organization_id: str, organization_name: str) -> WorkSnapshot | None:
         """Project the durable V3 checkpoint into the product Work view."""

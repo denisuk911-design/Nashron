@@ -63,6 +63,14 @@ def test_web_review_is_a_safe_product_read_model():
     assert isinstance(response.json(), list)
 
 
+def test_web_timeline_is_a_safe_product_read_model():
+    from services.api.app import app
+
+    response = TestClient(app).get("/api/work/timeline")
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+
+
 def test_web_file_preview_and_download_are_scoped():
     from services.api.app import app
 

@@ -191,6 +191,26 @@
 })();
 
 (() => {
+  const attachWorkTimeline = async () => {
+    const title = document.querySelector('#view-title');
+    const view = document.querySelector('#view');
+    const select = document.querySelector('#org-select');
+    if (!title || !view || !select?.value || title.textContent !== 'Цели и работа' || view.querySelector('.web-work-timeline')) return;
+    const response = await fetch('/api/work/timeline', {headers: {'X-Organization-Id': select.value}});
+    if (!response.ok) return;
+    const timeline = await response.json();
+    if (!timeline.length) return;
+    const panel = document.createElement('section');
+    panel.className = 'web-work-timeline magic-card';
+    panel.style.marginTop = '14px';
+    panel.innerHTML = `<span class="eyebrow">История выполнения</span><div class="list">${timeline.slice(-12).map(item => `<div class="list-row"><span><b>${String(item.message || '').replace(/[&<>]/g, '')}</b>${item.artifact_created ? '<br><small>Артефакт сохранён</small>' : ''}</span><span class="tag">${String(item.status || '').replace(/[&<>]/g, '')}</span></div>`).join('')}</div>`;
+    view.append(panel);
+  };
+  new MutationObserver(() => { attachWorkTimeline().catch(() => {}); }).observe(document.querySelector('#view'), {childList: true, subtree: true});
+  document.querySelector('[data-view="work"]')?.addEventListener('click', () => setTimeout(() => attachWorkTimeline().catch(() => {}), 40));
+})();
+
+(() => {
   const attachWorkControls = async () => {
     const title = document.querySelector('#view-title');
     const view = document.querySelector('#view');
