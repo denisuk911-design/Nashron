@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -29,6 +30,29 @@ def test_websocket_event_contract_is_available():
     client = TestClient(app)
     with client.websocket_connect("/api/events") as socket:
         socket.send_text("ping")
+
+
+def test_websocket_events_are_scoped_to_the_subscribed_organization():
+    from services.api.app import ConnectionHub
+
+    class FakeSocket:
+        def __init__(self):
+            self.payloads = []
+
+        async def accept(self):
+            return None
+
+        async def send_text(self, payload):
+            self.payloads.append(payload)
+
+    hub = ConnectionHub()
+    first, second = FakeSocket(), FakeSocket()
+    asyncio.run(hub.add(first, "org-a"))
+    asyncio.run(hub.add(second, "org-b"))
+    asyncio.run(hub.publish({"type": "goal.created", "data": {"organization_id": "org-a"}}))
+
+    assert len(first.payloads) == 1
+    assert second.payloads == []
 
 
 def test_web_event_contract_stamps_real_event_time():

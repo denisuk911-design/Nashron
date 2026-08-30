@@ -221,3 +221,10 @@
 - Targeted checks: `tests/test_web_api.py` = `16 passed`; JavaScript syntax checks and `git diff --check` passed.
 - Added a transparent pricing-direction section: Local workspace is the current runnable mode; Cloud workspace is explicitly marked as future work without fabricated pricing or usage claims.
 - Follow-up targeted checks: `tests/test_web_api.py` = `16 passed`; JavaScript syntax and `git diff --check` passed.
+
+## WebSocket organization isolation checkpoint - 2026-08-30
+
+- Scoped WebSocket subscriptions by `organization_id`; the browser now reconnects after organization selection and sends that scope in the event URL.
+- ConnectionHub filters organization-scoped events before delivery, preventing another organization's goal, employee or Iris events from reaching the current workspace.
+- Added a two-client isolation regression test.
+- Targeted checks: `tests/test_web_api.py` = `17 passed`; JavaScript syntax and `git diff --check` passed.

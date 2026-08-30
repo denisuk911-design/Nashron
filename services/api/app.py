@@ -96,20 +96,23 @@ class TeamRequest(BaseModel):
 
 class ConnectionHub:
     def __init__(self) -> None:
-        self._clients: set[WebSocket] = set()
+        self._clients: dict[WebSocket, str | None] = {}
 
-    async def add(self, socket: WebSocket) -> None:
+    async def add(self, socket: WebSocket, organization_id: str | None = None) -> None:
         await socket.accept()
-        self._clients.add(socket)
+        self._clients[socket] = organization_id
 
     def remove(self, socket: WebSocket) -> None:
-        self._clients.discard(socket)
+        self._clients.pop(socket, None)
 
     async def publish(self, event: dict[str, Any]) -> None:
         envelope = EventEnvelope.model_validate(event) if "occurred_at" in event else EventEnvelope.create(event["type"], event["data"])
         payload = envelope.model_dump_json()
         stale: list[WebSocket] = []
-        for socket in tuple(self._clients):
+        event_organization_id = event.get("data", {}).get("organization_id")
+        for socket, organization_id in tuple(self._clients.items()):
+            if event_organization_id and organization_id != event_organization_id:
+                continue
             try:
                 await socket.send_text(payload)
             except Exception:
@@ -875,8 +878,9 @@ def iris(x_organization_id: str | None = Header(default=None)) -> dict[str, str]
 
 
 @app.websocket("/api/events")
-async def events(socket: WebSocket) -> None:
-    await core.events.add(socket)
+async def events(socket: WebSocket, organization_id: str | None = None) -> None:
+    scoped_organization_id = core.organization_id(organization_id)
+    await core.events.add(socket, scoped_organization_id)
     try:
         while True:
             await socket.receive_text()
