@@ -256,3 +256,9 @@
 
 - Ran `scripts/web_smoke.py --profile .tmp_web_smoke_current --report QA/Web/web_smoke_current.json` against an isolated profile.
 - Passed with `checks_passed=true`: 4 team members, persisted Iris chat, real goal start, 3 work items, 2 physical artifacts, 4 evidence records, Work Receipt and restart persistence.
+
+## Web working baseline checkpoint - 2026-08-30
+
+- Completed the already-running full repository regression: `511 passed` in `175.67s`; two non-fatal warnings only.
+- Captured current Web state in `QA/Web/WORKING_BASELINE.md`.
+- No further Web feature or polish work started after the strategic priority change; next work belongs to the separately requested Runtime Decoupling task.
