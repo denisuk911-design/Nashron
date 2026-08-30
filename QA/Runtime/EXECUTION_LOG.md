@@ -209,6 +209,7 @@
 - Added explicit capability profiles to Native and external adapters without
   coupling Product code to SDK names.
 - Capability/adapter targeted result: `22 passed`.
+- Latest full regression at current checkpoint: `538 passed` in `179.33s`.
 - Full regression after health-aware routing: `538 passed` in `208.72s`.
 - Added external payload organization-scope validation and regression coverage.
 - Targeted external/runtime isolation result after scope validation: `17 passed`.

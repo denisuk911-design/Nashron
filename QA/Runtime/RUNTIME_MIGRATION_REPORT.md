@@ -74,6 +74,8 @@ Latest commit: `6ae5e96`
   warnings.
 - Offline isolated package/object smoke revalidated for all four candidates;
   all installed environments remain usable.
+- Latest full regression at current checkpoint: `538 passed` in `179.33s`;
+  the same two existing non-fatal warnings remain unchanged.
 - Owner-directed continuation skips the quota-blocked live candidate stage;
   LangGraph and Google ADK are explicitly excluded from promotion, while
   OpenAI Agents and AutoGen remain KEEP_FOR_FUTURE until same-environment
