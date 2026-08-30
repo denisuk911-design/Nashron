@@ -49,6 +49,10 @@ class ExecutionRequest:
 
 
 class RuntimeEventType(StrEnum):
+    CAPABILITY_REQUESTED = "capability.requested"
+    TOOL_SELECTED = "tool.selected"
+    TOOL_STARTED = "tool.started"
+    CAPABILITY_FALLBACK = "capability.fallback"
     EXECUTION_STARTED = "execution.started"
     RUN_STARTED = EXECUTION_STARTED
     EXECUTION_PROGRESSED = "execution.progressed"

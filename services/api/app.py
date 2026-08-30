@@ -46,6 +46,9 @@ from core.skill_package_service import SkillPackageService
 from core.knowledge_service import KnowledgeService
 from core.chat_attachment_service import ChatAttachmentService
 from core.competence_graph_service import CompetenceGraphService
+from core.capability_registry import CapabilityRegistry
+from core.capability_router import CapabilityRouter
+from core.capability_service import CapabilityExecutionService
 from core.avatar_catalog import list_avatar_files
 from runtime_v3.models import load_state
 from services.api.events import EventEnvelope
@@ -211,7 +214,18 @@ class WebCore:
             journal=RuntimeExecutionJournal(self.workspace_root / "runtime_execution"),
             permission_resolver=lambda agent_id: effective_permissions_for_agent(self.database, agent_id),
         )
-        self.iris_orchestration = IrisOrchestrationService(self.runtime_execution)
+        # Capability implementations are registered by dedicated tool services;
+        # an empty registry honestly reports unavailable capabilities in Beta.
+        self.capability_registry = CapabilityRegistry()
+        self.capability_service = CapabilityExecutionService(
+            CapabilityRouter(self.capability_registry),
+            permission_resolver=lambda _organization_id, agent_id: (
+                effective_permissions_for_agent(self.database, agent_id) if agent_id else ()
+            ),
+        )
+        self.iris_orchestration = IrisOrchestrationService(
+            self.runtime_execution, self.capability_service
+        )
         self.supervisor = SupervisorApplicationService(self.database)
         self.chat = SupervisorChatApplicationService(
             supervisor_service=self.supervisor,

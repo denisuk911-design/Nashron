@@ -12,6 +12,7 @@ from typing import Iterable
 from .agent_directory import ChatAgent
 from .runtime_contracts import ExecutionPolicy, ExecutionResult
 from .runtime_execution_service import RuntimeExecutionService
+from .capability_contracts import CapabilityExecutionResult
 
 
 @dataclass(frozen=True)
@@ -26,8 +27,9 @@ class IrisOrchestrationService:
 
     product_name = "Iris"
 
-    def __init__(self, execution_service: RuntimeExecutionService) -> None:
+    def __init__(self, execution_service: RuntimeExecutionService, capability_service=None) -> None:
         self.execution_service = execution_service
+        self.capability_service = capability_service
 
     def execute(
         self,
@@ -47,4 +49,28 @@ class IrisOrchestrationService:
             policy,
             correlation_id=context.conversation_id,
             preferred_runtime=preferred_runtime,
+        )
+
+    def request_capability(
+        self,
+        context: IrisExecutionContext,
+        capability_id: str,
+        input: dict[str, object] | None = None,
+        *,
+        employee_id: str = "",
+        permissions: tuple[str, ...] | None = None,
+        constraints: dict[str, object] | None = None,
+    ) -> CapabilityExecutionResult:
+        if not self.capability_service:
+            raise RuntimeError("capability service is not configured")
+        if not context.organization_id.strip():
+            raise ValueError("Iris capability request requires an organization scope")
+        return self.capability_service.request(
+            context.organization_id,
+            capability_id,
+            input,
+            employee_id=employee_id,
+            permissions=permissions,
+            correlation_id=context.conversation_id,
+            constraints=constraints,
         )
