@@ -74,3 +74,9 @@
   model name. No credential value was printed or persisted.
 - OpenAI Agents and AutoGen remain pending model-backed runs; LangGraph remains
   a local graph execution candidate pending model/tool bake-off evidence.
+
+## Migration report checkpoint - 2026-08-30
+
+- Added `QA/Runtime/RUNTIME_MIGRATION_REPORT.md` with the completed work,
+  evidence and explicit blocker. Native remains the only production-promoted
+  runtime until the remaining candidate runs are available.
