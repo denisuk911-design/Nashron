@@ -322,7 +322,10 @@ async def execute_runtime_neutral(
         raise HTTPException(status_code=409, detail="team_required_before_execution")
     result = await asyncio.to_thread(
         core.iris_orchestration.execute,
-        IrisExecutionContext(organization_id=organization_id, conversation_id=core.conversation_id(organization_id)),
+        IrisExecutionContext(
+            organization_id=organization_id,
+            conversation_id=str(core.conversation_id(organization_id)),
+        ),
         request.objective,
         agents,
         request.policy,

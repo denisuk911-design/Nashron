@@ -218,4 +218,6 @@
 - Full regression after Web execution endpoint: `537 passed` in `176.24s`.
 - Hardened bake-off matrix subprocess timeout handling and syntax-checked the
   runner without issuing provider calls.
+- Fixed Web-to-runtime correlation ID typing; targeted endpoint/journal result:
+  `8 passed`.
 - Full regression after promotion gating: `534 passed` in `173.13s`.

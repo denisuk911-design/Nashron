@@ -99,6 +99,8 @@ Latest commit: `8bce18d`
   the same two existing non-fatal warnings remain unchanged.
 - Hardened bake-off matrix timeout handling; a hung candidate is recorded as
   `TIMEOUT` without aborting results for other candidates.
+- Fixed Web neutral execution to convert the numeric conversation identifier
+  to the string correlation contract required by durable journal recovery.
 - Full regression after promotion gating: `534 passed` in `173.13s`; the same
   two existing non-fatal warnings remain unchanged.
 

@@ -49,6 +49,7 @@ def test_runtime_neutral_execution_endpoint_uses_iris_boundary(tmp_path, monkeyp
     assert response.status_code == 200
     assert response.json()["summary"] == "done"
     assert "runtime_id" not in response.json()
+    assert isinstance(seen["organization_id"], str)
     assert seen == {"organization_id": organization.organization_id, "objective": "Say hello", "policy": "conversational"}
 
 
