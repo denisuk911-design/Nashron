@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+import os
+import signal
 import subprocess
 import sys
 from typing import Any, Callable, Mapping, Sequence
@@ -56,26 +58,45 @@ class SubprocessRuntimeBridge:
         self.timeout_seconds = timeout_seconds
 
     def __call__(self, request: ExecutionRequest) -> ExternalExecutionPayload:
-        completed = subprocess.run(
+        creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
+        process = subprocess.Popen(
             self.command,
-            input=json.dumps({
-                "organization_id": request.organization_id,
-                "objective": request.objective,
-                "policy": request.policy.value,
-                "correlation_id": request.correlation_id,
-                "employees": [employee.employee_id for employee in request.employees],
-            }),
-            capture_output=True,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
-            timeout=self.timeout_seconds,
-            check=False,
+            creationflags=creationflags,
+            start_new_session=os.name != "nt",
         )
-        if completed.returncode != 0:
-            error = RuntimeError(f"external runtime exited with code {completed.returncode}")
+        request_payload = json.dumps({
+            "organization_id": request.organization_id,
+            "objective": request.objective,
+            "policy": request.policy.value,
+            "correlation_id": request.correlation_id,
+            "employees": [employee.employee_id for employee in request.employees],
+        })
+        try:
+            stdout, stderr = process.communicate(request_payload, timeout=self.timeout_seconds)
+        except subprocess.TimeoutExpired as error:
+            if os.name == "nt":
+                subprocess.run(
+                    ["taskkill", "/F", "/T", "/PID", str(process.pid)],
+                    capture_output=True,
+                    check=False,
+                )
+            else:
+                os.killpg(process.pid, signal.SIGKILL)
+            process.kill()
+            process.communicate()
+            timeout_error = TimeoutError(f"external runtime timed out after {self.timeout_seconds}s")
+            setattr(timeout_error, "side_effects_committed", False)
+            raise timeout_error from error
+        if process.returncode != 0:
+            error = RuntimeError(f"external runtime exited with code {process.returncode}")
             setattr(error, "side_effects_committed", False)
             raise error
         try:
-            value = json.loads(completed.stdout)
+            value = json.loads(stdout)
         except (json.JSONDecodeError, TypeError) as error:
             raise ValueError("external runtime returned invalid JSON payload") from error
         if not isinstance(value, Mapping):

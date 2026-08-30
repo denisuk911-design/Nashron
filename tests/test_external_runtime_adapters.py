@@ -84,9 +84,7 @@ def test_subprocess_bridge_enforces_hard_timeout():
     bridge = SubprocessRuntimeBridge([sys.executable, "-c", script], timeout_seconds=0.1)
     try:
         bridge(ExecutionRequest("org-a", "task", ExecutionPolicy.DIRECT_ACTION))
-    except TimeoutError:
-        raise AssertionError("subprocess timeout must be translated to a bounded failure")
-    except __import__("subprocess").TimeoutExpired:
-        pass
+    except TimeoutError as error:
+        assert "timed out" in str(error)
     else:
         raise AssertionError("hung external runtime must time out")

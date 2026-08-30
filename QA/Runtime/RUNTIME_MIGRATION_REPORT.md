@@ -76,6 +76,10 @@ Latest commit: `783dfa1`
   all installed environments remain usable.
 - Latest full regression at current checkpoint: `538 passed` in `179.33s`;
   the same two existing non-fatal warnings remain unchanged.
+- SubprocessRuntimeBridge now starts an isolated process group and terminates
+  the complete process tree on timeout, returning a bounded error to selector.
+- Full regression after process-tree timeout hardening: `538 passed` in
+  `175.34s`; the same two existing non-fatal warnings remain unchanged.
 - Owner-directed continuation skips the quota-blocked live candidate stage;
   LangGraph and Google ADK are explicitly excluded from promotion, while
   OpenAI Agents and AutoGen remain KEEP_FOR_FUTURE until same-environment
