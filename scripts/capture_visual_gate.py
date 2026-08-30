@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -57,12 +58,24 @@ def main() -> int:
     }
 
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(headless=not args.headed)
+        executable_path = os.environ.get("LUMINIFERA_CHROME_PATH")
+        if not executable_path:
+            candidates = (
+                Path(os.environ.get("PROGRAMFILES", "")) / "Google/Chrome/Application/chrome.exe",
+                Path(os.environ.get("PROGRAMFILES(X86)", "")) / "Google/Chrome/Application/chrome.exe",
+                Path(os.environ.get("LOCALAPPDATA", "")) / "Google/Chrome/Application/chrome.exe",
+            )
+            executable_path = next((str(path) for path in candidates if path.is_file()), None)
+        launch_kwargs = {"headless": not args.headed}
+        if executable_path:
+            launch_kwargs["executable_path"] = executable_path
+        browser = playwright.chromium.launch(**launch_kwargs)
         context_kwargs = {"viewport": {"width": 1440, "height": 900}}
         if args.profile_dir:
-            context = playwright.chromium.launch_persistent_context(
-                str(args.profile_dir), headless=not args.headed, **context_kwargs
-            )
+            persistent_kwargs = {"headless": not args.headed, **context_kwargs}
+            if executable_path:
+                persistent_kwargs["executable_path"] = executable_path
+            context = playwright.chromium.launch_persistent_context(str(args.profile_dir), **persistent_kwargs)
             browser = None
         else:
             context = browser.new_context(**context_kwargs)

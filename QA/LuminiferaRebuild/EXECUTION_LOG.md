@@ -271,3 +271,13 @@ ENGINE_PARITY: After V3 execution, Home/Work/Files projections are refreshed in 
 VISUAL_SCREENSHOT: Work rendering is covered by the existing packaged `Screenshots/work_v3_checkpoint_recheck.png`; the latest failed provider run is intentionally not promoted as PASS evidence.
 KNOWN_GAPS: Packaged external provider timeouts remain an infrastructure/runtime issue requiring provider availability or timeout policy work; full legacy pytest and owner manual visual acceptance remain open.
 FILES_CHANGED: `gui/main_window.py`; `core/luminifera_work_service.py`; `tests/test_main_window_helpers.py`; `tests/test_luminifera_work_service.py`
+
+## Product UI V2 milestone
+
+TASK: Home, Iris and Work rebuilt as the first Product UI milestone over the existing Core/API; legacy Team/Files/Settings renderers remain unchanged pending review.
+STATUS: READY_FOR_HUMAN_VISUAL_REVIEW pending V2 acceptance; Final Alpha PASS not declared.
+IMPLEMENTATION: Added real-data Product UI V2 composition and styling for Home/Iris/Work. Iris keeps the existing chat composer and API history; Work renders durable goals and starts them through `/api/goals/{plan_id}/start`; no database or runtime rewrite.
+VERIFIED: Packaged `dist/Luminifera.exe` launched and served the V2 UI. Browser smoke confirmed Home, Iris and Work render; Iris sent `Привет` and received a persisted Iris reply. Isolated `scripts/web_smoke.py` passed with team creation, goal creation/start, 3 WorkItems, 2 artifacts, 4 evidence and restart persistence. `scripts/capture_visual_gate.py` captured all screens with `unavailable=[]`.
+EVIDENCE: `QA/LuminiferaRebuild/V2/LUMINIFERA_PRODUCT_V2_CAPTURES.zip`, `QA/LuminiferaRebuild/V2/captures/manifest.json`, `QA/LuminiferaRebuild/v2_web_smoke.json`.
+KNOWN_LIMITATION: Existing legacy profile contains organizations without assigned directors; those records are rejected by the existing goal service. The isolated clean-profile flow passes. Full pytest and final commit/push follow after targeted regression verification.
+FILES_CHANGED: `apps/web/static/app.html`; `apps/web/static/product-v2.js`; `apps/web/static/v2.css`; `scripts/capture_visual_gate.py`
