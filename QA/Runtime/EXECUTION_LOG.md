@@ -183,3 +183,6 @@
   existing non-fatal warnings.
 - Completed the required recommendation fields with evidence-based routing
   and explicit non-promotion status for external candidates.
+- Aligned lifecycle event values with the canonical `execution.*` vocabulary,
+  retaining enum aliases for existing Native callers.
+- Full regression after event alignment: `529 passed` in `188.11s`.

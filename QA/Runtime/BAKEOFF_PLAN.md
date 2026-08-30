@@ -29,7 +29,9 @@ employee identity. Import success or CLI version output is insufficient.
 
 ## Current status
 
-All four official candidates pass isolated package/object smoke. No candidate
-has a model-backed promotion yet. Model-backed runs must be bounded and must
-record the actual provider path; missing credentials are a candidate blocker,
-not a reason to mark PASS.
+All four official candidates pass isolated package/object smoke. Bounded
+model-backed evidence exists for OpenAI Agents, LangGraph, Google ADK and
+AutoGen; Google ADK tool evidence is currently blocked by the provider quota.
+No candidate has a production promotion yet. Model-backed runs must record
+the actual provider path; missing credentials or quota are candidate blockers,
+not reasons to mark PASS.

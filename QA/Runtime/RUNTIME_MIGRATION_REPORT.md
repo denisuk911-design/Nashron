@@ -59,6 +59,10 @@ Latest commit: `9860924`
   `172.85s`; the two existing non-fatal warnings remain unchanged.
 - Full regression after contract completion: `529 passed` in `189.44s`; the
   same two existing non-fatal warnings remain unchanged.
+- Normalized lifecycle names now expose canonical `execution.*` values while
+  retaining source-compatible `run.*` enum names.
+- Full regression after event contract alignment: `529 passed` in `188.11s`;
+  the same two existing non-fatal warnings remain unchanged.
 
 ## Blocker
 

@@ -49,7 +49,11 @@ class ExecutionRequest:
 
 
 class RuntimeEventType(StrEnum):
-    RUN_STARTED = "run.started"
+    EXECUTION_STARTED = "execution.started"
+    RUN_STARTED = EXECUTION_STARTED
+    EXECUTION_PROGRESSED = "execution.progressed"
+    EXECUTION_REPLANNED = "execution.replanned"
+    EXECUTION_WAITING_FOR_USER = "execution.waiting_for_user"
     PLAN_CREATED = "plan.created"
     WORK_STARTED = "work.started"
     TOOL_CALLED = "tool.called"
@@ -57,8 +61,10 @@ class RuntimeEventType(StrEnum):
     ARTIFACT_CREATED = "artifact.created"
     REVIEW_COMPLETED = "review.completed"
     WORK_FINISHED = "work.finished"
-    RUN_COMPLETED = "run.completed"
-    RUN_FAILED = "run.failed"
+    EXECUTION_COMPLETED = "execution.completed"
+    RUN_COMPLETED = EXECUTION_COMPLETED
+    EXECUTION_FAILED = "execution.failed"
+    RUN_FAILED = EXECUTION_FAILED
     AGENT_STARTED = "agent.started"
     AGENT_PROGRESS = "agent.progressed"
     AGENT_COMPLETED = "agent.completed"

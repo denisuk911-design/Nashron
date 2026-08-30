@@ -21,7 +21,7 @@ trace reference. `RuntimeCapabilities` and `RuntimeHealth` describe a runtime
 without exposing its SDK. Product UI must consume these contracts instead of
 Native checkpoint files or SDK-specific events.
 
-The normalized event vocabulary includes run/agent lifecycle, tool calls and
+The normalized event vocabulary includes execution/run aliases, agent lifecycle, tool calls and
 completion/failure, observations, artifact create/update, review request and
 completion, replanning and clarification. The external boundary emits an
 explicit `tool.called` before observation and artifact events.

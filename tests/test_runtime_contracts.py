@@ -55,6 +55,8 @@ def test_contract_exposes_runtime_capabilities_usage_errors_and_trace():
     assert result.usage.output_tokens == 2
     assert result.trace_reference.trace_id == "trace-1"
     assert RuntimeEventType.CLARIFICATION_REQUIRED.value == "clarification.required"
+    assert RuntimeEventType.RUN_STARTED is RuntimeEventType.EXECUTION_STARTED
+    assert RuntimeEventType.RUN_COMPLETED.value == "execution.completed"
 
 
 def test_native_adapter_preserves_employee_identity_and_returns_product_refs():
