@@ -16,7 +16,6 @@ from pathlib import Path
 
 VIEWS = (
     ("home", "Главная"),
-    ("iris", "Iris"),
     ("team", "Команда"),
     ("work", "Работа"),
     ("files", "Файлы"),
@@ -99,9 +98,9 @@ def main() -> int:
         for name, label in VIEWS:
             record: dict[str, object] = {"name": name, "label": label}
             try:
-                button = page.locator(f'button[data-view="{name}"]:visible').first
+                button = page.locator(f'button[data-route="{name}"]:visible').first
                 button.wait_for(state="visible", timeout=args.timeout_ms)
-                button.click()
+                button.click(force=True)
                 page.wait_for_timeout(500)
                 page.screenshot(path=str(args.output_dir / f"{name}.png"), full_page=True)
                 record["status"] = "captured"
@@ -115,10 +114,10 @@ def main() -> int:
         # not separate routes. Capture the real Settings render without
         # clicking arbitrary text, and make that fact explicit in the manifest.
         section_selectors = {
-            "byok": '.v2-settings-grid .v2-panel:nth-child(2)',
-            "feedback": '.v2-settings-grid .v2-panel:nth-child(3)',
+            "byok": '#settings-stage .settings-card:nth-child(2)',
+            "feedback": '#settings-stage .settings-card:nth-child(3)',
         }
-        section_labels = {"byok": "AI providers", "feedback": "Iris feedback"}
+        section_labels = {"byok": "Состояние движка", "feedback": "Обратная связь Iris"}
         for name, selector in section_selectors.items():
             """legacy pattern table removed
             "byok": ("AI-провайдеры", "Подключения Iris", "BYOK"),

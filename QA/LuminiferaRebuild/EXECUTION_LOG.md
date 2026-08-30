@@ -291,3 +291,13 @@ VERIFIED: Packaged `dist/Luminifera.exe` launched and served the V2 UI. Browser 
 EVIDENCE: `QA/LuminiferaRebuild/V2/LUMINIFERA_PRODUCT_V2_CAPTURES.zip`, `QA/LuminiferaRebuild/V2/captures/manifest.json`, `QA/LuminiferaRebuild/v2_web_smoke.json`.
 KNOWN_LIMITATION: Existing legacy profile contains organizations without assigned directors; those records are rejected by the existing goal service. The isolated clean-profile flow passes. Full pytest and final commit/push follow after targeted regression verification.
 FILES_CHANGED: `apps/web/static/app.html`; `apps/web/static/product-v2.js`; `apps/web/static/v2.css`; `scripts/capture_visual_gate.py`
+
+## Luminifera UI Shell V3 integration
+
+TASK: INTEGRATE LUMINIFERA UI SHELL V3.
+STATUS: READY_FOR_OWNER_HANDS_ON_TEST.
+IMPLEMENTATION: Imported the supplied V3 shell as the sole Product UI and connected Home, Team, Work, Files and Settings to the real Application API through `window.LuminiferaBridge`. Iris remains inline on Home; workspace selection, social chat, action intent, goal start, artifacts, feedback and media configuration are service-backed. No fake data or raw runtime/provider plumbing is rendered.
+VERIFIED: Packaged `dist/Luminifera.exe` launched in an isolated profile. UI E2E created a workspace, received an Iris social reply without a Goal, created a real operational team, created and started a Goal, displayed real artifacts in Files, and submitted Feedback. V3 capture runner produced `unavailable=[]`. Node syntax checks passed for V3 scripts; targeted UI/shell tests passed.
+EVIDENCE: `QA/LuminiferaRebuild/V3/captures/manifest.json`; `QA/LuminiferaRebuild/V3/captures/`; `dist/Luminifera.exe`.
+KNOWN_LIMITATION: Final owner hands-on visual acceptance remains required; capture runner uses an isolated read-only browser profile and does not mutate product data.
+FILES_CHANGED: `apps/web/static/app.html`; `apps/web/static/v3/`; `scripts/capture_visual_gate.py`; `tests/test_alpha_product_ui.py`

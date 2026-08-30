@@ -1,0 +1,35 @@
+(function () {
+  const apiBase = window.LUMINIFERA_API_BASE || "";
+  let organizationId = null;
+  const request = async (path, options = {}) => {
+    const response = await fetch(`${apiBase}${path}`, {
+      ...options,
+      headers: { "Content-Type": "application/json", ...(organizationId ? { "X-Organization-Id": organizationId } : {}), ...(options.headers || {}) },
+    });
+    if (!response.ok) throw new Error((await response.text()) || `HTTP ${response.status}`);
+    return response.json();
+  };
+  const unwrap = value => value && Array.isArray(value.value) ? value.value : value;
+  window.LuminiferaBridge = {
+    connected: true,
+    setOrganization(id) { organizationId = id || null; },
+    async getOrganizations() { return unwrap(await request("/api/organizations")); },
+    async createOrganization(name, purpose) { return request("/api/organizations", { method: "POST", body: JSON.stringify({ name, purpose }) }); },
+    async getHomeState() {
+      if (!organizationId) return { organization: null, team: null, work: null, files: null, message: "Создайте рабочее пространство" };
+      const [home, filesPayload, messagesPayload] = await Promise.all([request(`/api/organizations/${encodeURIComponent(organizationId)}/home`), request("/api/files"), request("/api/chat")]);
+      const files = unwrap(filesPayload) || [], messages = unwrap(messagesPayload) || [];
+      return { organization: { name: home.organization_name }, team: { count: home.team_size || 0 }, work: { activeGoal: home.goal_title || null, state: home.goal_state, progress: home.goal_progress || 0 }, files: { count: files.length }, messages };
+    },
+    async getTeamState() { return { members: organizationId ? (unwrap(await request(`/api/organizations/${encodeURIComponent(organizationId)}/employees`)) || []) : [] }; },
+    async getWorkState() { return { work: organizationId ? await request("/api/work") : null, goals: organizationId ? (unwrap(await request("/api/goals")) || []) : [] }; },
+    async getFilesState() { return { artifacts: organizationId ? (unwrap(await request("/api/files")) || []) : [] }; },
+    async getSettingsState() { return { settings: await request("/api/settings"), providers: unwrap(await request("/api/providers")) || [], feedback: unwrap(await request("/api/feedback")) || [] }; },
+    async chat(message) { const payload = await request("/api/chat", { method: "POST", body: JSON.stringify({ content: message }) }); return { ...payload.result, text: payload.result?.message || payload.result?.text || "Ответ от Iris не получен." }; },
+    async createGoal(objective) { return request("/api/goals", { method: "POST", body: JSON.stringify({ objective }) }); },
+    async startGoal(planId) { return request(`/api/goals/${encodeURIComponent(planId)}/start`, { method: "POST" }); },
+    async saveSettings(settings) { return request("/api/settings", { method: "PATCH", body: JSON.stringify(settings) }); },
+    async submitFeedback(category, description) { return request("/api/feedback", { method: "POST", body: JSON.stringify({ category, description }) }); },
+    async refresh() { return this.getHomeState(); },
+  };
+})();
