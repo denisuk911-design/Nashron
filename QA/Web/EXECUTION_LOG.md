@@ -100,3 +100,10 @@
 - Full engine regression suite after Phase 16: `501 passed`, 2 non-fatal dependency/fixture warnings.
 - Packaged-style browser smoke found and fixed a modal-close regression that blocked navigation after opening settings. Recheck passed: settings closes, `Подключения` becomes active, the real provider view renders, and browser errors are empty.
 - Final local smoke rerun on 2026-08-30: `checks_passed=true`; four-member team, persisted Iris chat, real Director goal creation and WebCore restart persistence all passed.
+
+## Local Web launch checkpoint - 2026-08-30
+
+- Standard stack is running from `scripts/run_web.ps1`: Web `http://127.0.0.1:3000`, API `http://127.0.0.1:8000`.
+- Live probes returned HTTP 200 for `/`, `/runtime-config.js`, `/assets/iris_poster.png` and `/api/health`.
+- Browser landing verification: title `Luminifera | AI workforce`, API state `API подключён`, Iris portrait loaded.
+- Actual landing capture: `QA/Web/SCREENSHOTS/phase21_landing_actual.png`.
