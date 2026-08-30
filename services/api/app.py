@@ -530,6 +530,36 @@ async def start_goal(plan_id: str, x_organization_id: str | None = Header(defaul
         raise HTTPException(status_code=409, detail="team_required_before_goal_start")
     await core.events.publish({"type": "goal.started", "data": {"plan_id": plan_id, "goal": plan.goal}})
     result = core.runtime_v3.run_goal(organization_id, plan.goal, agents)
+    trace_events = sorted(result.state.trace_events.values(), key=lambda item: item.created_at)
+    trace_event_types = {
+        "work_item_running": "work.started",
+        "tool_observed": "work.progressed",
+        "artifact_created": "artifact.created",
+        "review_requested": "review.started",
+        "review_rework_requested": "review.rework_requested",
+        "review_passed": "review.passed",
+        "work_item_finished": "work.completed",
+    }
+    for trace in trace_events:
+        event_type = next(
+            (mapped for stage, mapped in trace_event_types.items() if trace.stage.startswith(stage)),
+            None,
+        )
+        if event_type is None:
+            continue
+        await core.events.publish({
+            "type": event_type,
+            "data": {
+                "organization_id": organization_id,
+                "plan_id": plan_id,
+                "goal_id": trace.goal_id,
+                "work_item_id": trace.work_item_id,
+                "action_id": trace.action_id,
+                "observation_id": trace.observation_id,
+                "artifact_id": trace.artifact_id,
+                "detail": trace.detail,
+            },
+        })
     payload = {
         "ok": result.ok,
         "summary": result.summary,

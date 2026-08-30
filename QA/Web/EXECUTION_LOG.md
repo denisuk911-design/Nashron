@@ -143,3 +143,9 @@
 - Isolated run passed: `3` work items, `2` physical artifacts, `4` evidence records, a ready Work Receipt and restart persistence; `checks_passed=true`.
 - Evidence: `QA/Web/web_smoke_phase21.json`.
 - This proves the real Core/Runtime V3 path through Web API; it does not claim per-step WebSocket streaming or a separate review/rework command API.
+
+## Phase 04 runtime event projection - 2026-08-30
+
+- Goal start now derives WebSocket `work.*`, `artifact.created` and `review.*` events from persisted Runtime V3 trace records before publishing the final goal state.
+- Event payloads include the organization scope and durable trace references; no animation-only event is generated.
+- API suite remains green at `12 passed`; per-step delivery is intentionally still documented as a burst after synchronous runtime completion, not claimed as live streaming.
