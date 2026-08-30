@@ -57,3 +57,11 @@
   translates `ChatAgent` records to `EmployeeRef` and delegates by semantic
   policy through `RuntimeSelector`.
 - Targeted facade/runtime result: `67 passed`.
+
+## Regression checkpoint - 2026-08-30
+
+- Full suite after migration scaffolding: `519 passed` in `184.45s`.
+- Warnings only: Starlette/httpx deprecation and the existing duplicate zip
+  entry warning in the tampered-backup fixture.
+- No database migration performed; the four pre-existing untracked review
+  artifacts remain intentionally unstaged.
