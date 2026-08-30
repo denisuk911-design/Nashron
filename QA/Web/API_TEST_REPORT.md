@@ -1,10 +1,11 @@
 # Web API Test Report
 
-- `.venv\Scripts\python.exe -m pytest -q tests/test_web_api.py`: **17 passed**.
+- `.venv\Scripts\python.exe -m pytest -q tests/test_web_api.py`: **18 passed**.
 - Uvicorn started on `127.0.0.1:8000`.
 - `/`, `/api/docs`, and `/assets/iris_poster.png` returned HTTP 200.
 - `/api/health` returned `status=ready`, product `Luminifera`, engine `Python Core / Runtime V3`.
 - WebSocket organization isolation is covered by a two-client regression test; scoped events are delivered only to the subscribed organization.
+- Skills can be created and advanced through the scoped Web API using the Core `SkillPackageService`; cross-organization reads and lifecycle mutations are rejected.
 - Browser verification on `http://127.0.0.1:3000/`: Luminifera landing renders the product sections, workspace is present, API status is connected, and Iris poster loads at its natural `1123x1400` resolution.
 
 The full browser regression suite remains a hardening item after the remaining lifecycle routes are extracted. Existing Python engine tests remain the compatibility gate.

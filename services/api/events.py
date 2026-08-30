@@ -11,7 +11,7 @@ EventType = Literal[
     "goal.created", "goal.started", "goal.progressed", "goal.blocked", "goal.completed",
     "work.started", "work.progressed", "work.completed", "artifact.created", "artifact.updated",
     "review.started", "review.rework_requested", "review.passed", "iris.state_changed",
-    "iris.message", "provider.updated",
+    "iris.message", "provider.updated", "skill.updated", "knowledge.updated", "competence.updated",
 ]
 
 

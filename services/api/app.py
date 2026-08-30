@@ -87,6 +87,20 @@ class EmployeeRoleRequest(BaseModel):
     role_id: str = Field(min_length=1, max_length=80)
 
 
+class SkillPackageRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=160)
+    purpose: str = Field(default="", max_length=2_000)
+    supported_roles: list[str] = Field(default_factory=list, max_length=20)
+    instructions: str = Field(default="", max_length=10_000)
+    tools: list[str] = Field(default_factory=list, max_length=40)
+    version: str = Field(default="0.1.0", max_length=40)
+
+
+class SkillStatusRequest(BaseModel):
+    status: str = Field(min_length=1, max_length=40)
+    reason: str = Field(default="", max_length=2_000)
+
+
 class TeamRequest(BaseModel):
     brief: str = Field(min_length=3, max_length=5_000)
     organization_name: str = Field(min_length=1, max_length=160)
@@ -757,6 +771,52 @@ def skills(x_organization_id: str | None = Header(default=None)) -> list[dict[st
         {"id": item.skill_id, "name": item.name, "purpose": item.purpose, "status": item.status, "version": item.version, "roles": item.supported_roles}
         for item in core.skills.list_packages(organization_id)
     ]
+
+
+def _skill_for_scope(skill_id: str, organization_id: str | None) -> Any:
+    if not organization_id:
+        raise HTTPException(status_code=400, detail="organization_required")
+    skill = next((item for item in core.skills.list_packages(organization_id) if item.skill_id == skill_id), None)
+    if skill is None:
+        raise HTTPException(status_code=404, detail="skill_not_found")
+    return skill
+
+
+@app.post("/api/skills")
+async def create_skill(request: SkillPackageRequest, x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
+    organization_id = core.organization_id(x_organization_id)
+    if not organization_id:
+        raise HTTPException(status_code=400, detail="organization_required")
+    try:
+        skill_id = core.skills.create_package(
+            name=request.name,
+            purpose=request.purpose,
+            supported_roles=[role.upper() for role in request.supported_roles],
+            instructions=request.instructions,
+            tools=request.tools,
+            version=request.version,
+            organization_id=organization_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    skill = _skill_for_scope(skill_id, organization_id)
+    payload = {"id": skill.skill_id, "name": skill.name, "purpose": skill.purpose, "status": skill.status, "version": skill.version, "roles": skill.supported_roles}
+    await core.events.publish({"type": "skill.updated", "data": {"organization_id": organization_id, **payload}})
+    return payload
+
+
+@app.patch("/api/skills/{skill_id}/status")
+async def update_skill_status(skill_id: str, request: SkillStatusRequest, x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
+    organization_id = core.organization_id(x_organization_id)
+    _skill_for_scope(skill_id, organization_id)
+    try:
+        core.skills.update_status(skill_id, request.status.upper(), reason=request.reason, organization_id=organization_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    skill = _skill_for_scope(skill_id, organization_id)
+    payload = {"id": skill.skill_id, "name": skill.name, "purpose": skill.purpose, "status": skill.status, "version": skill.version, "roles": skill.supported_roles}
+    await core.events.publish({"type": "skill.updated", "data": {"organization_id": organization_id, **payload}})
+    return payload
 
 
 @app.get("/api/knowledge")

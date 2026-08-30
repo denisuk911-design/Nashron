@@ -233,3 +233,10 @@
 
 - Synchronized `API_TEST_REPORT.md` and `FINAL_WEB_REPORT.md` with current verified state instead of stale historical counts.
 - Recorded the organization-scoped WebSocket contract, live landing/Iris checks, and the remaining non-final gaps explicitly.
+
+## Web skills lifecycle checkpoint - 2026-08-30
+
+- Added scoped `POST /api/skills` and `PATCH /api/skills/{skill_id}/status` over `SkillPackageService` with organization visibility checks.
+- Added typed `skill.updated`, `knowledge.updated` and `competence.updated` event types; skill creation now publishes a valid realtime envelope.
+- Regression coverage proves create/list/status behavior and cross-organization isolation.
+- Targeted checks: `tests/test_web_api.py` = `18 passed`; API compile, JavaScript syntax and `git diff --check` passed.

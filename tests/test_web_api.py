@@ -207,6 +207,31 @@ def test_web_organization_memory_and_competence_are_server_scoped(tmp_path, monk
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
 
 
+def test_web_skill_creation_and_lifecycle_are_organization_scoped(tmp_path, monkeypatch):
+    monkeypatch.setenv("TEAM2050_HOME", str(tmp_path / "profile"))
+    import services.api.app as app_module
+
+    isolated = app_module.WebCore()
+    monkeypatch.setattr(app_module, "core", isolated)
+    organization_a = isolated.universal.create_organization("Skills A")
+    organization_b = isolated.universal.create_organization("Skills B")
+    client = TestClient(app_module.app)
+    headers_a = {"X-Organization-Id": organization_a.organization_id}
+    headers_b = {"X-Organization-Id": organization_b.organization_id}
+
+    response = client.post(
+        "/api/skills",
+        headers=headers_a,
+        json={"name": "PCB review", "purpose": "Review a board", "supported_roles": ["QA_ENGINEER"]},
+    )
+    assert response.status_code == 200
+    skill_id = response.json()["id"]
+    assert any(item["id"] == skill_id for item in client.get("/api/skills", headers=headers_a).json())
+    assert all(item["id"] != skill_id for item in client.get("/api/skills", headers=headers_b).json())
+    assert client.patch(f"/api/skills/{skill_id}/status", headers=headers_b, json={"status": "ACTIVE"}).status_code == 404
+    assert client.patch(f"/api/skills/{skill_id}/status", headers=headers_a, json={"status": "PRACTICED"}).status_code == 200
+
+
 def test_web_owner_profile_and_avatar_are_persisted_and_validated(tmp_path, monkeypatch):
     monkeypatch.setenv("TEAM2050_HOME", str(tmp_path / "profile"))
     import services.api.app as app_module
