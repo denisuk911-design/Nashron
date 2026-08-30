@@ -129,3 +129,4 @@
 - Added real Open/Download controls for server-backed artifacts in the Files view. Text preview is rendered in a modal; binary files remain downloadable without pretending to preview them.
 - Controls use organization-scoped artifact IDs and the new API delivery routes; no client-side file content or fake result is introduced.
 - `node --check apps/web/static/actions.js`: passed.
+- Isolated Web smoke after delivery changes: `checks_passed=true`; team size `4`, Iris chat `true`, real goal plan created, persistence after WebCore restart `true`. Evidence: `QA/Web/web_smoke_phase14.json`.
