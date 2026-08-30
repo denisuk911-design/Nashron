@@ -20,4 +20,10 @@
 - Full regression: 548 passed, 2 existing warnings. Packaged Team2050.exe build and packaged preview smoke passed.
 - Remaining Alpha review item: full packaged Web E2E and complete review screenshot set require a Web-enabled distribution path; current PySide package build does not embed the Web launcher.
 
+## 2026-08-30 — Web Alpha package checkpoint
+
+- Added `LuminiferaWeb.spec` and `scripts/luminifera_web_launcher.py`: one-file executable starts API and Web, waits for health, opens `/app`, and shuts down both services together.
+- Built `dist/Luminifera.exe`; direct packaged smoke reached `/app`, loaded all Product assets and returned HTTP 200.
+- Added `QA/Alpha/Luminifera-Web-Alpha.zip` and `WEB_ALPHA_QUICK_START.md`.
+
 

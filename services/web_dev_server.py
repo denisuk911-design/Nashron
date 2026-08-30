@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(os.environ.get("TEAM2050_PROJECT_ROOT", Path(__file__).resolve().parents[1])).resolve()
 WEB_STATIC = ROOT / "apps" / "web" / "static"
 API_BASE = "http://127.0.0.1:8000"
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import sys
 import uuid
 from dataclasses import asdict, is_dataclass
@@ -16,6 +17,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 ROOT = Path(__file__).resolve().parents[2]
+if os.environ.get("TEAM2050_PROJECT_ROOT"):
+    ROOT = Path(os.environ["TEAM2050_PROJECT_ROOT"]).resolve()
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 

@@ -35,3 +35,10 @@ def test_alpha_launcher_checks_api_before_serving_web():
     assert "Luminifera API" in launcher
     assert "Start-Process" in launcher
     assert "/app" in launcher
+
+
+def test_standalone_web_launcher_and_package_spec_exist():
+    launcher = (ROOT / "scripts" / "luminifera_web_launcher.py").read_text(encoding="utf-8")
+    spec = (ROOT / "LuminiferaWeb.spec").read_text(encoding="utf-8")
+    assert "health" in launcher and "webbrowser.open" in launcher
+    assert "apps/web/static" in spec and 'name="Luminifera"' in spec
