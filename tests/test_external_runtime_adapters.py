@@ -55,6 +55,19 @@ def test_subprocess_bridge_maps_json_ipc_to_normalized_payload():
     assert payload.artifact_refs == ("artifact-a",)
 
 
+def test_external_adapter_rejects_cross_organization_payload():
+    request = ExecutionRequest("org-a", "task", ExecutionPolicy.DIRECT_ACTION)
+    adapter = OpenAIAgentsRuntimeAdapter(
+        lambda _: ExternalExecutionPayload(True, "bad scope", organization_id="org-b")
+    )
+    try:
+        adapter.execute(request)
+    except ValueError as error:
+        assert "organization scope" in str(error)
+    else:
+        raise AssertionError("cross-organization payload must be rejected")
+
+
 def test_subprocess_bridge_rejects_invalid_json():
     bridge = SubprocessRuntimeBridge([sys.executable, "-c", "print('not-json')"], timeout_seconds=2)
     try:

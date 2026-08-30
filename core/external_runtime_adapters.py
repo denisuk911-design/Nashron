@@ -22,12 +22,14 @@ class ExternalExecutionPayload:
     observations: tuple[str, ...] = ()
     tool_calls: tuple[str, ...] = ()
     data: Mapping[str, Any] | None = None
+    organization_id: str = ""
 
     @classmethod
     def from_mapping(cls, value: Mapping[str, Any]) -> "ExternalExecutionPayload":
         return cls(
             ok=bool(value.get("ok")),
             summary=str(value.get("summary") or ""),
+            organization_id=str(value.get("organization_id") or ""),
             artifact_refs=tupled(value.get("artifact_refs")),
             evidence_refs=tupled(value.get("evidence_refs")),
             observations=tupled(value.get("observations")),
@@ -86,6 +88,8 @@ class CallbackRuntimeAdapter(RuntimeAdapter):
 
     def execute(self, request: ExecutionRequest) -> ExecutionResult:
         payload = self._executor(request)
+        if payload.organization_id and payload.organization_id != request.organization_id:
+            raise ValueError("external runtime organization scope mismatch")
         events = [RuntimeEvent(RuntimeEventType.RUN_STARTED, request.organization_id, request.correlation_id)]
         events.extend(
             RuntimeEvent(

@@ -80,6 +80,8 @@ Latest commit: `e3f910c`
   subprocess adapter evidence is collected.
 - RuntimeSelector now requires explicit promotion for external adapters;
   registering an unvalidated candidate can no longer route Product work to it.
+- External adapter results now reject a returned organization scope that does
+  not match the Product request before accepting artifacts or evidence.
 - Full regression after promotion gating: `534 passed` in `173.13s`; the same
   two existing non-fatal warnings remain unchanged.
 

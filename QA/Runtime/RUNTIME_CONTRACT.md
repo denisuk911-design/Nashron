@@ -47,7 +47,8 @@ code.
 JSON execution request to an isolated SDK process, enforces a hard subprocess
 timeout (terminating the bounded child process), rejects non-JSON responses,
 and maps the response into the neutral payload before any Product-facing event
-is emitted.
+is emitted. A returned organization scope, when supplied by the bridge, must
+match the request scope before any artifact/evidence refs are accepted.
 
 An adapter failure may set `side_effects_committed = True` on its exception.
 The selector then re-raises instead of replaying through Native, preventing
