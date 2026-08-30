@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import sys
+import uuid
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any
@@ -57,6 +58,15 @@ from services.api.events import EventEnvelope
 class ChatRequest(BaseModel):
     content: str = Field(min_length=1, max_length=20_000)
     attachment_ids: list[str] = Field(default_factory=list, max_length=8)
+
+
+class ProviderConnectionRequest(BaseModel):
+    credential: str = Field(min_length=1, max_length=20_000)
+
+
+class FeedbackRequest(BaseModel):
+    category: str = Field(min_length=1, max_length=40)
+    description: str = Field(min_length=1, max_length=10_000)
 
 
 class OrganizationRequest(BaseModel):
@@ -823,6 +833,7 @@ def providers() -> list[dict[str, Any]]:
             "name": profile.display_name,
             "state": labels.get(raw_state, "Unavailable"),
             "available": raw_state == "READY",
+            "configured": core.provider_credentials.is_configured(profile.provider_id),
         })
     return result
 
@@ -836,6 +847,67 @@ async def check_provider(provider_id: str) -> dict[str, Any]:
     payload = {"id": provider_id, "state": state, "available": health.health_status == "READY"}
     await core.events.publish({"type": "provider.updated", "data": payload})
     return payload
+
+
+@app.post("/api/providers/{provider_id}/connect")
+def connect_provider(provider_id: str, request: ProviderConnectionRequest) -> dict[str, Any]:
+    profile = core.provider_registry.get(provider_id)
+    if profile is None:
+        raise HTTPException(status_code=404, detail="provider_not_found")
+    try:
+        core.provider_credentials.save(provider_id, request.credential)
+        health = core.provider_health.check_provider(provider_id)
+    except (ValueError, OSError) as exc:
+        raise HTTPException(status_code=422, detail="provider_connection_failed") from exc
+    ready = health.health_status == "READY"
+    payload = {"id": provider_id, "name": profile.display_name, "state": "Ready" if ready else "Connected, verification required", "available": ready, "configured": True}
+    return payload
+
+
+@app.post("/api/providers/{provider_id}/disconnect")
+def disconnect_provider(provider_id: str) -> dict[str, Any]:
+    profile = core.provider_registry.get(provider_id)
+    if profile is None:
+        raise HTTPException(status_code=404, detail="provider_not_found")
+    core.provider_credentials.remove(provider_id)
+    health = core.provider_health.check_provider(provider_id)
+    return {"id": provider_id, "name": profile.display_name, "state": "Login required", "available": False, "configured": False}
+
+
+@app.post("/api/feedback")
+def create_feedback(request: FeedbackRequest, x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
+    organization_id = core.organization_id(x_organization_id)
+    if not organization_id:
+        raise HTTPException(status_code=400, detail="organization_required")
+    category = request.category.strip().lower()
+    if category not in {"bug", "ux", "feature", "confusion", "performance", "praise", "other"}:
+        raise HTTPException(status_code=422, detail="unsupported_feedback_category")
+    feedback_id = f"feedback-{uuid.uuid4().hex[:12]}"
+    core.database.create_feedback(feedback_id, organization_id, category, request.description.strip())
+    core.database.log_event("feedback_created", f"{feedback_id}:{category}")
+    return {"id": feedback_id, "category": category, "status": "NEW", "created_at": "now"}
+
+
+@app.get("/api/feedback")
+def feedback(x_organization_id: str | None = Header(default=None)) -> list[dict[str, Any]]:
+    organization_id = core.organization_id(x_organization_id)
+    if not organization_id:
+        return []
+    return [_row(row) for row in core.database.list_feedback(organization_id)]
+
+
+@app.get("/api/diagnostics")
+def diagnostics(x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
+    organization_id = core.organization_id(x_organization_id)
+    return {
+        "product": "Luminifera",
+        "version": app.version,
+        "organization_id": organization_id,
+        "services": {"api": "ready", "database": "ready", "runtime": "available"},
+        "providers": providers(),
+        "known_limitations": ["Состояние провайдера зависит от установленного CLI и доступной авторизации."],
+        "privacy": "Секреты, cookies и содержимое чата в диагностический ответ не включаются.",
+    }
 
 
 @app.get("/api/skills")

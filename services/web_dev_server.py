@@ -30,6 +30,8 @@ class WebHandler(SimpleHTTPRequestHandler):
 
     def translate_path(self, path: str) -> str:
         request_path = urlparse(path).path
+        if request_path in {"/app", "/app/", "/app/index.html"}:
+            return str(WEB_STATIC / "app.html")
         if request_path in {"", "/", "/index.html"}:
             return str(WEB_STATIC / "index.html")
         if request_path.startswith("/assets/"):

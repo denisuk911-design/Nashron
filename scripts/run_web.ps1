@@ -28,8 +28,9 @@ try {
     }
   }
   if (-not $ready) { throw "Luminifera API не ответил за 15 секунд: $healthUrl" }
-  Write-Host "Luminifera Web: http://127.0.0.1:$WebPort"
+  Write-Host "Luminifera Web: http://127.0.0.1:$WebPort/app"
   Write-Host "Luminifera API: http://127.0.0.1:$ApiPort/api/docs"
+  Start-Process "http://127.0.0.1:$WebPort/app"
   & $python -m services.web_dev_server --host 127.0.0.1 --port $WebPort --api-base "http://127.0.0.1:$ApiPort"
 }
 finally {

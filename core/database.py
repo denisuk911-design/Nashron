@@ -60,6 +60,17 @@ class Database:
                     detail TEXT,
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
                 );
+
+                CREATE TABLE IF NOT EXISTS feedback_items (
+                    id TEXT PRIMARY KEY,
+                    organization_id TEXT NOT NULL,
+                    category TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    source TEXT NOT NULL DEFAULT 'iris',
+                    status TEXT NOT NULL DEFAULT 'NEW',
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
+                );
                 """
             )
             self._ensure_dynamic_message_roles(conn)
@@ -1832,6 +1843,20 @@ class Database:
                 "INSERT INTO app_events (event_type, detail) VALUES (?, ?)",
                 (event_type, detail),
             )
+
+    def create_feedback(self, feedback_id: str, organization_id: str, category: str, description: str, source: str = "iris") -> None:
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO feedback_items (id, organization_id, category, description, source) VALUES (?, ?, ?, ?, ?)",
+                (feedback_id, organization_id, category, description, source),
+            )
+
+    def list_feedback(self, organization_id: str, limit: int = 100) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT id, organization_id, category, description, source, status, created_at FROM feedback_items WHERE organization_id = ? ORDER BY created_at DESC, id DESC LIMIT ?",
+                (organization_id, limit),
+            ).fetchall()
 
     def upsert_artifact(
         self,
