@@ -86,7 +86,7 @@ def main() -> int:
         for name, label in VIEWS:
             record: dict[str, object] = {"name": name, "label": label}
             try:
-                button = page.locator(f'button[data-view="{name}"]').first
+                button = page.locator(f'button[data-view="{name}"]:visible').first
                 button.wait_for(state="visible", timeout=args.timeout_ms)
                 button.click()
                 page.wait_for_timeout(500)

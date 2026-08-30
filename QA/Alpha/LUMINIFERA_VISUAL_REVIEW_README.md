@@ -36,3 +36,9 @@ This package contains the current Web Alpha evidence captured from the packaged 
 - Kept Iris portrait, presence, conversation and composer as one focused interaction surface.
 - Provider, BYOK, Feedback and Diagnostics remain real Settings sections and keep their existing service-backed behavior.
 - Fresh packaged captures and manifest are included in this ZIP. Status: `READY_FOR_HUMAN_VISUAL_REVIEW`.
+
+## Visual Rework Round 2
+
+- Structural composition is implemented in `apps/web/static/premium-rework.js` and `premium.css`.
+- Home, Iris, Team, Work and Files now use distinct product scenes rather than one shared card-grid pattern.
+- The capture runner now targets visible sidebar controls and the refreshed packaged capture set reports `unavailable=[]`.

@@ -52,4 +52,14 @@
 - Refreshed `QA/Alpha/LUMINIFERA_VISUAL_REVIEW_STANDALONE.zip` and manifest.
 - Status: `READY_FOR_HUMAN_VISUAL_REVIEW`; Final Alpha PASS intentionally not declared.
 
+## 2026-08-30 - Visual Rework Round 2
+
+- Rebuilt client composition in `apps/web/static/premium-rework.js`: Home is organized around current focus and Iris, Iris is a dedicated work center, Team is a role/status workspace, Work is a Goal-to-execution flow, and Files is a results library.
+- Removed duplicate visible top navigation while preserving the existing sidebar navigation and all API-backed actions.
+- Added matching structural styles for focus, flow, team members, artifact library and Iris chat composition.
+- Hardened `scripts/capture_visual_gate.py` to select the visible sidebar navigation after the duplicate top-nav control was removed.
+- Packaged capture completed with `unavailable=[]`; Iris and Home visual inspection passed.
+- Targeted regression: 25 passed. Fresh full pytest: 549 passed, 2 existing warnings.
+- Round 2 evidence is ready for human visual review; Final Alpha PASS intentionally not declared.
+
 
