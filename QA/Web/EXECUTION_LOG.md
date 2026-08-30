@@ -163,3 +163,9 @@
 - Added `GET /api/work/timeline`, a scoped human-facing replay of Runtime V3 checkpoint traces.
 - The Work view renders the latest persisted execution steps and marks saved artifacts, so a reload does not erase the visible history.
 - API suite: `13 passed`; JavaScript syntax, compilation and `git diff --check`: passed. Browser verified the Work view and empty-state behavior with no errors.
+
+## Full engine regression checkpoint - 2026-08-30
+
+- Full repository suite after Web timeline and checkpoint-stream changes: `504 passed` in `184.35s`.
+- Remaining output: 2 non-fatal warnings (Starlette/httpx deprecation and an existing duplicate backup archive entry warning).
+- No test failures or collection errors.
