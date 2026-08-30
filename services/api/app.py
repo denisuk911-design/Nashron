@@ -407,11 +407,17 @@ def team_templates() -> list[dict[str, Any]]:
 
 @app.post("/api/teams")
 async def build_team(request: TeamRequest) -> dict[str, Any]:
+    ready_provider = next(
+        (profile.provider_id for profile in core.provider_registry.profiles()
+         if core.provider_health.check_provider(profile.provider_id).health_status == "READY"),
+        None,
+    )
     result = core.universal.build_professional_team(
         request.brief,
         request.organization_name,
         template_id=request.template_id,
         team_size=request.team_size,
+        provider_assignments={"*": ready_provider} if ready_provider else {},
     )
     payload = _plain(result)
     await core.events.publish({"type": "team.updated", "data": payload})

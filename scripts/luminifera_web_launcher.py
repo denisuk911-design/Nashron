@@ -15,6 +15,13 @@ from pathlib import Path
 BASE = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[1])).resolve()
 os.environ["TEAM2050_PROJECT_ROOT"] = str(BASE)
 
+# PyInstaller's windowed bootloader exposes no standard streams. Uvicorn's
+# logging configuration expects writable streams even when the UI is silent.
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w", encoding="utf-8")
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w", encoding="utf-8")
+
 from services.api.app import app
 import services.web_dev_server as web_server
 from uvicorn import Config, Server

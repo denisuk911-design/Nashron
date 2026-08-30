@@ -311,7 +311,7 @@ class UniversalPlatformService:
                     department_ids[department_name] = department_id
             position = str(role.get("position") or role.get("role") or f"Специалист {index}").strip()
             role_id = self._ensure_role_profile(role)
-            provider = str(provider_assignments.get(position) or provider_assignments.get(str(role.get("role") or "")) or role.get("provider_id") or "UNAVAILABLE")
+            provider = str(provider_assignments.get(position) or provider_assignments.get(str(role.get("role") or "")) or provider_assignments.get("*") or role.get("provider_id") or "UNAVAILABLE")
             existing_agent_id = use_existing_agents.get(position) or use_existing_agents.get(str(role.get("role") or ""))
             assignment_mode = "USE_EXISTING" if existing_agent_id else "AUTO_CREATE"
             agent_id = existing_agent_id

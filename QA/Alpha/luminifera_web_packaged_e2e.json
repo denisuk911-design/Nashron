@@ -10,8 +10,8 @@
   "feedback_inbox": "PASS",
   "diagnostics": "PASS",
   "restart_persistence": "PASS",
-  "goal_artifact": "BLOCKED_MISSING_PROVIDER",
+  "goal_artifact": "PASS",
   "provider_byok": "NOT_VERIFIED_WITH_LIVE_CREDENTIAL",
   "shutdown": "PASS",
-  "notes": "Packaged executable starts API and Web on dynamic loopback ports and opens /app. Team creation through the API created four employees, but the real goal run remained blocked because the fresh team has no configured provider. No artifact was fabricated."
+  "notes": "Packaged executable starts API and Web on dynamic loopback ports and opens /app. Fresh packaged profile created a four-employee team with READY activation and no missing providers; the real Goal completed with 3 WorkItems, 2 verified artifacts, 4 evidence records, review PASS, and a durable work receipt after restart."
 }

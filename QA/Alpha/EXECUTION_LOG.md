@@ -26,4 +26,13 @@
 - Built `dist/Luminifera.exe`; direct packaged smoke reached `/app`, loaded all Product assets and returned HTTP 200.
 - Added `QA/Alpha/Luminifera-Web-Alpha.zip` and `WEB_ALPHA_QUICK_START.md`.
 
+## 2026-08-30 - Packaged E2E and startup stabilization
+
+- Fixed packaged windowed startup by providing silent writable standard streams for Uvicorn logging.
+- New team creation now assigns the first genuinely READY provider as a wildcard fallback; unconfigured teams remain honest and report missing providers.
+- Packaged `dist/Luminifera.exe` fresh-profile E2E: readiness, organization, team, Goal, restart and shutdown PASS.
+- Goal result: 3 WorkItems, 2 verified artifacts, 4 evidence records, review PASS, 0 findings, durable receipt.
+- Targeted tests: 29 passed. Full pytest: 549 passed, 2 warnings.
+- Final packaged readiness check: `/app` opened, API health PASS, controlled stop PASS.
+
 
