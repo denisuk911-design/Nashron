@@ -219,3 +219,5 @@
 - Hardened Iris media behavior: the supplied portrait remains visible until the MP4 has real `loadeddata`; video failure or play rejection restores the portrait instead of leaving an empty stage.
 - Playwright verification: landing sections render, API remains connected, Iris poster is loaded (`1123x1400`, visible), and full-page screenshot is stored at `QA/Web/SCREENSHOTS/landing-current-fixed.png`.
 - Targeted checks: `tests/test_web_api.py` = `16 passed`; JavaScript syntax checks and `git diff --check` passed.
+- Added a transparent pricing-direction section: Local workspace is the current runnable mode; Cloud workspace is explicitly marked as future work without fabricated pricing or usage claims.
+- Follow-up targeted checks: `tests/test_web_api.py` = `16 passed`; JavaScript syntax and `git diff --check` passed.
