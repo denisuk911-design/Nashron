@@ -29,8 +29,12 @@ class RuntimeSelector:
             return RuntimeSelection(preferred, "explicit runtime preference")
         if request.policy.value == "deterministic_workflow":
             return RuntimeSelection(self.native_id, "deterministic workflow remains Native baseline")
-        if request.policy.value in {"conversational", "direct_action"} and "openai-agents" in self.adapters:
-            return RuntimeSelection("openai-agents", "short policy selected the registered candidate")
+        if request.policy.value in {"conversational", "direct_action"}:
+            if "openai-agents" in self.adapters:
+                return RuntimeSelection("openai-agents", "short policy selected the registered candidate")
+            external_ids = [runtime_id for runtime_id in self.adapters if runtime_id != self.native_id]
+            if external_ids:
+                return RuntimeSelection(external_ids[0], "short policy selected the available candidate")
         if request.policy.value in {"dynamic_multi_agent", "long_running_project"} and "langgraph" in self.adapters:
             return RuntimeSelection("langgraph", "durable policy selected the registered candidate")
         return RuntimeSelection(self.native_id, "no promoted candidate is registered")

@@ -143,6 +143,14 @@
   matrix. Provider/quota failures are classified explicitly, never as PASS.
 - Script syntax check: PASS.
 
+## External direct-action policy regression - 2026-08-30
+
+- Added a regression proving an external runtime can complete a direct action
+  without entering the Native Goal/WorkItem scheduler.
+- Fixed selector fallback so direct/conversational policy uses an available
+  external candidate when the preferred OpenAI adapter is absent.
+- Targeted execution/selector/adapter/journal result: `10 passed`.
+
 ## Latest bake-off matrix - 2026-08-30
 
 - Ran the four candidate probes through bounded subprocesses and saved
