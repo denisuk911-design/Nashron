@@ -45,3 +45,7 @@ recorded Native fallback.
 It receives an explicit semantic policy and organization-scoped employee
 records, then delegates to `RuntimeExecutionService`; no external SDK defines
 an Iris implementation.
+
+`RuntimeExecutionJournal` persists normalized run status atomically by
+organization and correlation ID. It supports restart recovery of completed
+results without exposing or depending on SDK checkpoints.

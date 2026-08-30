@@ -8,13 +8,15 @@ from .agent_directory import ChatAgent
 from .native_runtime_adapter import NativeRuntimeAdapter
 from .runtime_contracts import EmployeeRef, ExecutionPolicy, ExecutionRequest, ExecutionResult, tupled
 from .runtime_selector import RuntimeSelector
+from .runtime_journal import RuntimeExecutionJournal
 
 
 class RuntimeExecutionService:
     """Translate Product identities into a selected runtime request."""
 
-    def __init__(self, native_service, external_adapters=None) -> None:
+    def __init__(self, native_service, external_adapters=None, journal: RuntimeExecutionJournal | None = None) -> None:
         self._agents: dict[str, ChatAgent] = {}
+        self.journal = journal
         native = NativeRuntimeAdapter(native_service, lambda employee: self._agents.get(employee.employee_id))
         self.selector = RuntimeSelector({"native": native, **dict(external_adapters or {})})
 
@@ -47,4 +49,14 @@ class RuntimeExecutionService:
             correlation_id=correlation_id,
             metadata={"preferred_runtime": preferred_runtime} if preferred_runtime else {},
         )
-        return self.selector.execute(request)
+        if self.journal is not None:
+            self.journal.begin(request)
+        try:
+            result = self.selector.execute(request)
+        except Exception as error:
+            if self.journal is not None:
+                self.journal.fail(request, error)
+            raise
+        if self.journal is not None:
+            self.journal.complete(request, result)
+        return result

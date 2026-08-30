@@ -81,6 +81,14 @@
   mechanics and do not create separate Iris identities.
 - Targeted Iris/runtime result: `9 passed`.
 
+## Durable runtime-neutral journal - 2026-08-30
+
+- Added `core/runtime_journal.py` with atomic organization-scoped run records,
+  completion recovery and scope mismatch protection.
+- `RuntimeExecutionService` can persist selected runtime results without
+  changing Product DB or Native checkpoints.
+- Targeted journal/adapter/runtime result: `9 passed`.
+
 ## Regression after Iris boundary - 2026-08-30
 
 - Full suite: `524 passed` in `180.01s`.
