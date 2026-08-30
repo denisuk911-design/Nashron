@@ -37,3 +37,12 @@
 - These are installation/framework smokes only; no model-backed PASS is
   claimed yet. Full candidate bake-off must use bounded real provider runs and
   record authentication/network availability explicitly.
+
+## Phase 7 - candidate gate and selector - 2026-08-30
+
+- Added `core/runtime_selector.py` with semantic policy selection, mandatory
+  Native baseline and exception fallback that executes Native once and records
+  the fallback reason.
+- Added `QA/Runtime/BAKEOFF_PLAN.md` with promotion gate, scenarios and
+  measurements. Import/version output is explicitly insufficient for PASS.
+- Targeted selector/runtime result: `66 passed`.
