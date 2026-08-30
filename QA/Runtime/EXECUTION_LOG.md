@@ -66,6 +66,20 @@
   organization/correlation scope; SDK clients remain outside Product code.
 - Targeted adapter/contract/selector result: `10 passed`.
 
+## Phase 13-14 - fallback side-effect guard - 2026-08-30
+
+- Runtime selector now refuses Native replay when a failed external adapter
+  reports `side_effects_committed = True`.
+- Clean failures may still use Native fallback with the reason recorded.
+- Targeted result: `11 passed`.
+
+## Final regression checkpoint - 2026-08-30
+
+- Full suite after normalized adapters and fallback protection: `522 passed` in
+  `179.30s`.
+- Warnings unchanged and non-fatal: Starlette/httpx deprecation plus the
+  existing duplicate zip entry warning in the tampered-backup fixture.
+
 ## Regression checkpoint - 2026-08-30
 
 - Full suite after migration scaffolding: `519 passed` in `184.45s`.

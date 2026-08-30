@@ -2,7 +2,7 @@
 
 Status: `BLOCKED - external candidate gate incomplete`  
 Date: 2026-08-30  
-Latest commit: `10b2435`
+Latest commit: `9b8fb76`
 
 ## Completed
 
@@ -23,7 +23,8 @@ Latest commit: `10b2435`
   through its `Runner` path.
 - Real bounded AutoGen model-client execution passed with classification
   `WORK` through `OpenAIChatCompletionClient`.
-- Full regression: `519 passed`, two existing non-fatal warnings.
+- Full regression after fallback protection: `522 passed`, two existing
+  non-fatal warnings.
 - Commits were pushed to `origin/main` after each completed milestone.
 
 ## Not complete
@@ -35,6 +36,8 @@ Latest commit: `10b2435`
 - Normalized external adapters are not promoted into production routing.
 - A policy-oriented candidate recommendation is recorded, but no candidate is
   production-promoted before the parity gate.
+- Normalized adapters now reject replay fallback when an external failure
+  reports a committed side effect.
 
 ## Blocker
 
