@@ -136,6 +136,13 @@
 - Google ADK tool run was rejected by provider `429 RESOURCE_EXHAUSTED` quota;
   candidate remains `PARTIAL` until quota is available.
 
+## Bake-off matrix automation - 2026-08-30
+
+- Added `scripts/runtime_bakeoff_matrix.py` to run the four isolated candidate
+  probes with bounded subprocess timeouts and write a compact JSON evidence
+  matrix. Provider/quota failures are classified explicitly, never as PASS.
+- Script syntax check: PASS.
+
 ## Migration report checkpoint - 2026-08-30
 
 - Added `QA/Runtime/RUNTIME_MIGRATION_REPORT.md` with the completed work,
