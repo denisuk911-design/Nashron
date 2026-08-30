@@ -25,3 +25,15 @@
 - Added `QA/Runtime/RUNTIME_CONTRACT.md` and targeted tests in
   `tests/test_runtime_contracts.py`.
 - Targeted contract result: `4 passed`.
+
+## Phase 5-6 - isolated candidate installation and smoke - 2026-08-30
+
+- Created isolated, Git-ignored environments under `.runtime_envs` for all
+  four required candidates; the application `.venv` was unchanged.
+- Installed and imported: OpenAI Agents `0.22.0`, LangGraph `1.2.11`, Google
+  ADK `2.8.0`, AutoGen AgentChat/Ext `0.7.5`.
+- Ran `scripts/runtime_candidate_smoke.py` in each environment. All four
+  package/object or local graph smokes passed.
+- These are installation/framework smokes only; no model-backed PASS is
+  claimed yet. Full candidate bake-off must use bounded real provider runs and
+  record authentication/network availability explicitly.
