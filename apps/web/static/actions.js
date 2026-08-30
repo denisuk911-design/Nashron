@@ -29,6 +29,14 @@
   document.querySelector('[data-view="files"]')?.addEventListener('click', () => setTimeout(() => attachFileActions().catch(() => {}), 50));
 })();
 
+// Landing links reuse the authenticated workspace navigation.
+document.querySelectorAll('[data-view-link]').forEach(link => {
+  link.addEventListener('click', () => {
+    const target = document.querySelector(`[data-view="${link.dataset.viewLink}"]`);
+    if (target) window.setTimeout(() => target.click(), 0);
+  });
+});
+
 (() => {
   const afterLoad = () => {
     const select = document.querySelector('#org-select');

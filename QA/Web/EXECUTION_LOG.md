@@ -212,3 +212,10 @@
 - Localization now also observes text updates on existing DOM nodes, covering dynamic view titles and content rendered after navigation.
 - Live browser verification: EN and UA switched successfully; key workspace copy had no remaining Russian strings in either locale; RU restored and persisted.
 - `node --check apps/web/static/localization.js`: passed; Web API suite remains `16 passed`.
+
+## Luminifera landing and Iris fallback checkpoint - 2026-08-30
+
+- Added the remaining public product sections: value, workflow, team/work/artifacts, trust and CTA, while keeping links connected to the existing workspace views.
+- Hardened Iris media behavior: the supplied portrait remains visible until the MP4 has real `loadeddata`; video failure or play rejection restores the portrait instead of leaving an empty stage.
+- Playwright verification: landing sections render, API remains connected, Iris poster is loaded (`1123x1400`, visible), and full-page screenshot is stored at `QA/Web/SCREENSHOTS/landing-current-fixed.png`.
+- Targeted checks: `tests/test_web_api.py` = `16 passed`; JavaScript syntax checks and `git diff --check` passed.

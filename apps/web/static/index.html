@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/assets/iris.css">
   <link rel="stylesheet" href="/assets/connections.css">
   <link rel="stylesheet" href="/assets/profile.css">
+  <link rel="stylesheet" href="/assets/landing.css">
 </head>
 <body>
   <div class="aurora aurora-a"></div><div class="aurora aurora-b"></div>
@@ -21,6 +22,23 @@
       <div class="hero-copy"><span class="eyebrow">Ваша цифровая организация</span><h1>Опишите результат.<br><em>Iris соберёт работу.</em></h1><p>Одна рабочая среда для команды AI-сотрудников, целей, артефактов и проверенного результата.</p><div class="hero-actions"><button class="primary" id="ask-iris">Начать с Iris <span>↗</span></button><a class="secondary" href="#workspace">Открыть рабочее место</a></div><div class="trust-row"><span>✦ Реальная работа</span><span>◈ Память организации</span><span>⌁ Локально и приватно</span></div></div>
       <div class="iris-stage"><div class="iris-orbit"></div><img src="/assets/iris_poster.png" alt="Iris" class="iris-portrait"><video class="iris-video" muted playsinline preload="metadata"><source src="/assets/iris_animation.mp4" type="video/mp4"></video><div class="iris-caption"><span class="presence-dot"></span><span><b>Iris</b><small>Supervisor вашей организации</small></span><span class="iris-state" id="iris-state">Рядом</span></div></div>
     </section>
+    <section class="value-section" aria-labelledby="value-title">
+      <div class="section-intro"><span class="eyebrow">Рабочая система</span><h2 id="value-title">От намерения к проверенному результату</h2><p>Luminifera соединяет людей, AI-сотрудников и знания организации в одном рабочем контуре. Iris держит контекст, а команда выполняет работу с понятными следами.</p></div>
+      <div class="value-grid"><article><span class="feature-index">01</span><h3>Контекст организации</h3><p>Команды, роли, знания и решения остаются частью общего рабочего пространства.</p></article><article><span class="feature-index">02</span><h3>Реальная работа</h3><p>Цели проходят через план, рабочие элементы, инструменты и наблюдаемые результаты.</p></article><article><span class="feature-index">03</span><h3>Проверяемый итог</h3><p>Артефакты, источники и ревью помогают отличить выполненную работу от обещания.</p></article></div>
+    </section>
+    <section class="process-section" aria-labelledby="process-title">
+      <div class="section-intro"><span class="eyebrow">Как это работает</span><h2 id="process-title">Один запрос. Понятный рабочий путь.</h2></div>
+      <div class="process-line"><div><b>01</b><strong>Опишите цель</strong><span>Iris уточняет результат и ограничения.</span></div><i></i><div><b>02</b><strong>Соберите команду</strong><span>Роли и компетенции подбираются под задачу.</span></div><i></i><div><b>03</b><strong>Следите за ходом</strong><span>Работа, статусы и решения видны в реальном времени.</span></div><i></i><div><b>04</b><strong>Примите результат</strong><span>Артефакты проходят проверку и сохраняются.</span></div></div>
+    </section>
+    <section class="capability-section" aria-labelledby="capability-title">
+      <div class="section-intro"><span class="eyebrow">Внутри рабочего места</span><h2 id="capability-title">Всё, что нужно для движения проекта</h2></div>
+      <div class="capability-grid"><article class="capability-card capability-wide"><span>Команда</span><h3>Люди и AI-сотрудники работают в одной организации</h3><p>Назначайте роли, подключайте провайдеров и сохраняйте рабочие привычки команды.</p><a href="#workspace" data-view-link="team">Открыть команду <span>↗</span></a></article><article class="capability-card"><span>Цели</span><h3>От запроса до рабочего плана</h3><p>Цели, этапы и исполнители собраны в одном месте.</p><a href="#workspace" data-view-link="work">Посмотреть работу <span>↗</span></a></article><article class="capability-card"><span>Артефакты</span><h3>Результаты, которые можно открыть и проверить</h3><p>Файлы и evidence доступны после выполнения.</p><a href="#workspace" data-view-link="files">Открыть файлы <span>↗</span></a></article></div>
+    </section>
+    <section class="trust-section" aria-labelledby="trust-title">
+      <div class="trust-copy"><span class="eyebrow">Спокойный контроль</span><h2 id="trust-title">Ваши данные остаются частью вашей организации</h2><p>Локальный режим использует существующий Luminifera Core. Границы организаций, роли и разрешения проверяются на стороне сервиса, а не в интерфейсе.</p></div>
+      <div class="trust-points"><div><b>Локально</b><span>Рабочее пространство запускается на вашей машине.</span></div><div><b>Прозрачно</b><span>Статус Iris и ход работы видны без лишнего шума.</span></div><div><b>Готово к росту</b><span>API и сервисные границы подготовлены для будущего cloud-режима.</span></div></div>
+    </section>
+    <section class="cta-section" aria-labelledby="cta-title"><span class="eyebrow">Начните с результата</span><h2 id="cta-title">Дайте Iris задачу, а не ещё один список инструментов.</h2><p>Откройте рабочее место и продолжите с реальными данными вашей организации.</p><a class="primary" href="#workspace">Открыть Luminifera <span>↗</span></a></section>
     <section class="workspace" id="workspace">
       <aside class="sidebar"><div class="section-label">Организация</div><select id="org-select"><option value="">Выберите организацию</option></select><button class="new-org" id="new-org">+ Новая организация</button><div class="side-nav"><button class="active" data-view="overview">Обзор</button><button data-view="chat">Iris чат</button><button data-view="team">Команда</button><button data-view="work">Цели и работа</button><button data-view="files">Файлы</button><button data-view="connections">Подключения</button></div><div class="sidebar-foot"><span class="avatar">В</span><span><b>Владелец</b><small>Личная организация</small></span></div></aside>
       <section class="content"><div class="content-head"><div><span class="eyebrow">Сегодня</span><h2 id="view-title">Рабочее место</h2></div><button class="ghost" id="refresh">Обновить ↻</button></div><div id="view"></div></section>

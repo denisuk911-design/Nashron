@@ -1,0 +1,19 @@
+.value-section,.process-section,.capability-section,.trust-section{padding:76px 0;border-top:1px solid var(--line)}
+.section-intro{max-width:650px}
+.section-intro h2,.trust-copy h2{font-size:clamp(28px,4vw,46px);line-height:1.08;margin:14px 0}
+.section-intro p,.trust-copy p{color:var(--muted);font-size:15px;line-height:1.7;max-width:650px}
+.value-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;margin-top:42px;background:var(--line);border:1px solid var(--line)}
+.value-grid article{background:rgba(9,14,32,.82);padding:26px;min-height:190px}
+.feature-index{color:var(--cyan);font-size:12px}
+.value-grid h3{font-size:18px;margin:30px 0 10px}
+.value-grid p,.capability-card p,.process-line span,.trust-points span{color:var(--muted);font-size:13px;line-height:1.55;margin:0}
+.process-line{display:grid;grid-template-columns:1fr 40px 1fr 40px 1fr 40px 1fr;align-items:center;gap:12px;margin-top:42px}
+.process-line div{display:grid;gap:9px}.process-line b{color:var(--violet);font-size:12px}.process-line strong{font-size:15px}.process-line i{height:1px;background:linear-gradient(90deg,var(--cyan),var(--violet))}
+.capability-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:12px;margin-top:40px}
+.capability-card{border:1px solid var(--line);background:linear-gradient(145deg,rgba(21,31,67,.82),rgba(10,16,36,.82));padding:28px;min-height:180px}
+.capability-card.capability-wide{grid-row:span 2;min-height:372px}.capability-card>span{color:var(--cyan);font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+.capability-card h3{font-size:21px;line-height:1.25;max-width:390px;margin:18px 0 10px}.capability-card a{display:inline-flex;gap:10px;color:#dbe7ff;font-size:12px;margin-top:24px}
+.trust-section{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:start}
+.trust-points{display:grid;gap:1px;background:var(--line);border:1px solid var(--line)}.trust-points div{background:rgba(9,14,32,.82);padding:19px 22px;display:grid;gap:6px}.trust-points b{font-size:15px}
+.cta-section{text-align:center;padding:100px 20px 120px}.cta-section h2{font-size:clamp(30px,4vw,52px);max-width:720px;margin:14px auto;line-height:1.08}.cta-section p{color:var(--muted);margin:0 auto 28px}.cta-section .primary{display:inline-flex}
+@media(max-width:800px){.value-grid,.trust-section{grid-template-columns:1fr}.process-line{grid-template-columns:1fr;gap:20px}.process-line i{width:36px;margin-left:6px}.capability-grid{grid-template-columns:1fr}.capability-card.capability-wide{grid-row:auto;min-height:220px}}
