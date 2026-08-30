@@ -40,3 +40,8 @@ An adapter failure may set `side_effects_committed = True` on its exception.
 The selector then re-raises instead of replaying through Native, preventing
 duplicate external writes. Failures without committed effects may use the
 recorded Native fallback.
+
+`IrisOrchestrationService` is the single Product-facing supervisor boundary.
+It receives an explicit semantic policy and organization-scoped employee
+records, then delegates to `RuntimeExecutionService`; no external SDK defines
+an Iris implementation.

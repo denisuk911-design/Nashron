@@ -73,6 +73,14 @@
 - Clean failures may still use Native fallback with the reason recorded.
 - Targeted result: `11 passed`.
 
+## Phase 12 - Iris product boundary - 2026-08-30
+
+- Added `core/iris_orchestration_service.py` as the single Iris Product
+  supervisor boundary with explicit policy and organization scope.
+- Iris delegates through `RuntimeExecutionService`; adapters remain runtime
+  mechanics and do not create separate Iris identities.
+- Targeted Iris/runtime result: `9 passed`.
+
 ## Final regression checkpoint - 2026-08-30
 
 - Full suite after normalized adapters and fallback protection: `522 passed` in
