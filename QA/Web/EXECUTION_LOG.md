@@ -114,3 +114,11 @@
 - Runtime assignment identifiers (`agent_id`, `task_id`, `run_id`) are excluded from the Product API; employee, role, step status, attempt, review and result remain available for the Work view.
 - Targeted API suite: `11 passed`; API compilation and `git diff --check`: passed.
 - Live standard-stack probe after restart: Web `200`, API health `200`, OpenAPI includes `/api/goals/{plan_id}`.
+
+## Phase 14 artifact delivery checkpoint - 2026-08-30
+
+- Product artifact view now carries durable artifact identity, source goal, creator and review status.
+- Added scoped `/api/files/{file_id}/preview` and `/api/files/{file_id}/download` routes for both database artifacts and Runtime V3 checkpoint artifacts.
+- Runtime file resolution is constrained to the organization runtime workspace; unknown and cross-scope files return `404`.
+- Targeted API suite: `12 passed`; compilation and `git diff --check`: passed.
+- Live API after restart: health `200`; OpenAPI contains both artifact delivery routes.

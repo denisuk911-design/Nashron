@@ -568,6 +568,36 @@ def files(x_organization_id: str | None = Header(default=None)) -> list[dict[str
     return [_plain(item) for item in core.files.list_files(core.organization_id(x_organization_id))]
 
 
+def _file_path_for_scope(file_id: str, organization_id: str | None) -> Path:
+    """Resolve a product file from either the durable DB or Runtime V3 state."""
+    if not organization_id:
+        raise HTTPException(status_code=404, detail="file_not_found")
+    try:
+        artifact = _artifact_for_scope(file_id, organization_id)
+    except HTTPException:
+        artifact = None
+    if artifact is not None:
+        return _artifact_path(artifact)
+    path = core.files.runtime_artifact_path(organization_id, file_id)
+    if path is None:
+        raise HTTPException(status_code=404, detail="file_not_found")
+    return path
+
+
+@app.get("/api/files/{file_id}/preview")
+def file_preview(file_id: str, x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
+    path = _file_path_for_scope(file_id, core.organization_id(x_organization_id))
+    if path.suffix.lower() not in {".txt", ".md", ".json", ".csv", ".log"}:
+        return {"kind": "binary", "title": path.name, "preview": ""}
+    return {"kind": "text", "title": path.name, "preview": path.read_text(encoding="utf-8", errors="replace")[:50_000]}
+
+
+@app.get("/api/files/{file_id}/download")
+def file_download(file_id: str, x_organization_id: str | None = Header(default=None)) -> FileResponse:
+    path = _file_path_for_scope(file_id, core.organization_id(x_organization_id))
+    return FileResponse(path, filename=path.name)
+
+
 @app.get("/api/artifacts")
 def artifacts(x_organization_id: str | None = Header(default=None)) -> list[dict[str, Any]]:
     organization_id = core.organization_id(x_organization_id)

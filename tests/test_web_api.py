@@ -63,6 +63,14 @@ def test_web_review_is_a_safe_product_read_model():
     assert isinstance(response.json(), list)
 
 
+def test_web_file_preview_and_download_are_scoped():
+    from services.api.app import app
+
+    client = TestClient(app)
+    assert client.get("/api/files/not-real/preview").status_code == 404
+    assert client.get("/api/files/not-real/download").status_code == 404
+
+
 def test_web_goal_requires_an_assigned_director_without_server_error():
     from services.api.app import app
 
