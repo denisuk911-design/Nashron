@@ -78,6 +78,8 @@ Latest commit: `fb41e69`
   LangGraph and Google ADK are explicitly excluded from promotion, while
   OpenAI Agents and AutoGen remain KEEP_FOR_FUTURE until same-environment
   subprocess adapter evidence is collected.
+- Bake-off table classifications are now consistent: every external candidate
+  is `KEEP_FOR_FUTURE`, and Native is the only production baseline.
 - RuntimeSelector now requires explicit promotion for external adapters;
   registering an unvalidated candidate can no longer route Product work to it.
 - RuntimeSelector now also honors supplied external runtime health and skips an

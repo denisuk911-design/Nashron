@@ -9,8 +9,8 @@ Date: 2026-08-30
 | --- | --- | --- | --- | --- |
 | Native | Existing `RuntimeV3GoalService` and 63 targeted runtime tests | Existing Native goal/tool/artifact/review tests | PASS for baseline | BASELINE |
 | OpenAI Agents | `openai-agents 0.22.0` | Real `Runner.run` through SDK | PASS: real model classification `WORK`; tool/artifact PASS recorded | KEEP_FOR_FUTURE |
-| LangGraph | `langgraph 1.2.11` + `langchain-google-genai 4.3.7` | Real compiled graph node with model | PASS: real model classification `WORK` | CANDIDATE |
-| Google ADK | `google-adk 2.8.0` | Real `InMemoryRunner` model run; tool retry hit provider quota | Model PASS; tool/artifact smoke BLOCKED by `429 RESOURCE_EXHAUSTED` | PARTIAL |
+| LangGraph | `langgraph 1.2.11` + `langchain-google-genai 4.3.7` | Real compiled graph node with model | Model PASS; graph tool/artifact rerun BLOCKED by `429 RESOURCE_EXHAUSTED` | KEEP_FOR_FUTURE |
+| Google ADK | `google-adk 2.8.0` | Real `InMemoryRunner` model run; tool retry hit provider quota | Model PASS; tool/artifact smoke BLOCKED by `429 RESOURCE_EXHAUSTED` | KEEP_FOR_FUTURE |
 | AutoGen | `autogen-agentchat/autogen-ext 0.7.5` | Real `OpenAIChatCompletionClient.create` | PASS: real model classification `WORK`; tool/artifact PASS recorded | KEEP_FOR_FUTURE |
 
 ## Interpretation
@@ -18,9 +18,10 @@ Date: 2026-08-30
 The four external packages are real installed candidates in isolated
 environments. LangGraph, Google ADK, OpenAI Agents and AutoGen each have one
 bounded real model-backed execution.
-This is candidate evidence, not a production promotion: Google ADK tool
-evidence is blocked by the provider free-tier quota, and all candidates still
-need normalized tool/artifact/restart evidence. The migration must not route
+This is candidate evidence, not a production promotion: LangGraph and Google
+ADK tool evidence is blocked by the provider free-tier quota, and all external
+candidates still need same-environment normalized tool/artifact/restart
+evidence. The migration must not route
 production Product work to an external candidate solely because its import
 succeeds.
 

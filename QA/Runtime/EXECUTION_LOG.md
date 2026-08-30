@@ -200,6 +200,8 @@
   LangGraph `1.2.11`, Google ADK `2.8.0`, AutoGen `0.7.5` all PASS.
 - Recorded owner-directed skip of the quota-blocked live candidate stage;
   blocked candidates are excluded from promotion rather than marked PASS.
+- Normalized all external candidate gate labels to `KEEP_FOR_FUTURE` pending
+  complete same-environment evidence.
 - Added explicit external-runtime promotion gating; unpromoted adapters are
   available for bake-off only and cannot be selected by Product routing.
 - Added optional runtime health gating; unavailable external candidates are
