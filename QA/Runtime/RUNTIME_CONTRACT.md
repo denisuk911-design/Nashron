@@ -45,8 +45,9 @@ code.
 
 `SubprocessRuntimeBridge` is the bounded IPC implementation: it sends only a
 JSON execution request to an isolated SDK process, enforces a hard subprocess
-timeout, rejects non-JSON responses, and maps the response into the neutral
-payload before any Product-facing event is emitted.
+timeout (terminating the bounded child process), rejects non-JSON responses,
+and maps the response into the neutral payload before any Product-facing event
+is emitted.
 
 An adapter failure may set `side_effects_committed = True` on its exception.
 The selector then re-raises instead of replaying through Native, preventing

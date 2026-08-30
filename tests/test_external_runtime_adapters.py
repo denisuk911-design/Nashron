@@ -63,3 +63,16 @@ def test_subprocess_bridge_rejects_invalid_json():
         assert "invalid JSON" in str(error)
     else:
         raise AssertionError("invalid subprocess payload must be rejected")
+
+
+def test_subprocess_bridge_enforces_hard_timeout():
+    script = "import time; time.sleep(5)"
+    bridge = SubprocessRuntimeBridge([sys.executable, "-c", script], timeout_seconds=0.1)
+    try:
+        bridge(ExecutionRequest("org-a", "task", ExecutionPolicy.DIRECT_ACTION))
+    except TimeoutError:
+        raise AssertionError("subprocess timeout must be translated to a bounded failure")
+    except __import__("subprocess").TimeoutExpired:
+        pass
+    else:
+        raise AssertionError("hung external runtime must time out")

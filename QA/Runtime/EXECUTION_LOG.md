@@ -194,3 +194,5 @@
 - External bridge targeted result: `14 passed`.
 - Full regression after subprocess bridge: `532 passed` in `173.41s`; no new
   warnings.
+- Added a subprocess hang regression proving the bridge enforces its hard
+  timeout; external runtime hangs are not treated as successful work.
