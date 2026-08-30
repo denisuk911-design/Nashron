@@ -205,3 +205,10 @@
 - Bound the landing presence label to the real scoped `/api/iris` state and added product-safe labels for planning, working, waiting, warning and completion.
 - The UI no longer presents a permanent static presence state while a selected organization has active work.
 - `node --check apps/web/static/actions.js`: passed.
+
+## Web locale coverage checkpoint - 2026-08-30
+
+- Expanded the product locale catalog for common workspace, team, goal, settings and status copy in RU/UA/EN.
+- Localization now also observes text updates on existing DOM nodes, covering dynamic view titles and content rendered after navigation.
+- Live browser verification: EN and UA switched successfully; key workspace copy had no remaining Russian strings in either locale; RU restored and persisted.
+- `node --check apps/web/static/localization.js`: passed; Web API suite remains `16 passed`.
