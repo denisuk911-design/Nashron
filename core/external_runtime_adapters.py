@@ -113,7 +113,10 @@ class SubprocessRuntimeBridge:
         if process.returncode != 0:
             diagnostic = (stderr or "").strip().splitlines()[-8:]
             self.last_diagnostic = {"runtime_id": self.runtime_id, "status": "EXITED", "exit_code": process.returncode, "diagnostic": diagnostic}
-            error = RuntimeError(f"external runtime exited with code {process.returncode}: {diagnostic[-1] if diagnostic else 'no diagnostic'}")
+            diagnostic_text = "\n".join(diagnostic)
+            provider_error = "429" in diagnostic_text or "RESOURCE_EXHAUSTED" in diagnostic_text or "RateLimitError" in diagnostic_text
+            prefix = "provider_error" if provider_error else "framework_error"
+            error = RuntimeError(f"{prefix}: external runtime exited with code {process.returncode}: {diagnostic_text or 'no diagnostic'}")
             setattr(error, "side_effects_committed", False)
             raise error
         try:

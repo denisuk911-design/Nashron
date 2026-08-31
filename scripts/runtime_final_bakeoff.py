@@ -68,7 +68,8 @@ def main() -> int:
                 rows.append(result)
             except Exception as error:
                 message = str(error)
-                rows.append({"runtime": runtime, "run": run, "status": "BLOCKED" if "429" in message or "RESOURCE_EXHAUSTED" in message else "FAIL", "ok": False, "latency_ms": round((time.perf_counter() - started) * 1000), "quality_score": 0.0, "autonomy": True, "recovery": False, "artifacts": 0, "evidence": 0, "physical_artifacts": False, "cost": "not reported by adapter", "complexity": "unknown", "external_429": "429" in message or "RESOURCE_EXHAUSTED" in message, "error": f"{type(error).__name__}: {message}", "workspace": str(workspace)})
+                provider_error = "provider_error" in message or "429" in message or "RESOURCE_EXHAUSTED" in message
+                rows.append({"runtime": runtime, "run": run, "status": "BLOCKED" if provider_error else "FAIL", "ok": False, "latency_ms": round((time.perf_counter() - started) * 1000), "quality_score": 0.0, "autonomy": True, "recovery": False, "artifacts": 0, "evidence": 0, "physical_artifacts": False, "cost": "not reported by adapter", "complexity": "unknown", "external_429": provider_error, "error": f"{type(error).__name__}: {message}", "workspace": str(workspace)})
     passed = [item for item in rows if item["status"] == "PASS"]
     complete_candidates = [runtime for runtime in adapters if all(item["status"] == "PASS" for item in rows if item["runtime"] == runtime)]
     matrix_blocked = any(item.get("external_429") for item in rows) or not all(route.values())

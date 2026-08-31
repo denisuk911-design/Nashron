@@ -88,3 +88,14 @@ def test_subprocess_bridge_enforces_hard_timeout():
         assert "timed out" in str(error)
     else:
         raise AssertionError("hung external runtime must time out")
+
+
+def test_subprocess_bridge_preserves_provider_quota_classification():
+    script = "import sys; print('429 RESOURCE_EXHAUSTED', file=sys.stderr); raise SystemExit(1)"
+    bridge = SubprocessRuntimeBridge([sys.executable, "-c", script], timeout_seconds=2)
+    try:
+        bridge(ExecutionRequest("org-a", "task", ExecutionPolicy.DIRECT_ACTION))
+    except RuntimeError as error:
+        assert "provider_error" in str(error)
+    else:
+        raise AssertionError("provider quota must remain distinct from framework failure")

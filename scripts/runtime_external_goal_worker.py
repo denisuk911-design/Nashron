@@ -70,19 +70,22 @@ async def _openai(request: dict[str, Any]) -> str:
 
 def _langgraph(request: dict[str, Any]) -> str:
     from typing import TypedDict
-    from langchain_google_genai import ChatGoogleGenerativeAI
+    from langchain_openai import ChatOpenAI
     from langgraph.graph import END, START, StateGraph
 
     class State(TypedDict):
         objective: str
         result: str
 
-    key = os.environ.get("RUNTIME_PROVIDER_CREDENTIAL") or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    key = os.environ.get("RUNTIME_PROVIDER_CREDENTIAL") or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or os.environ.get("OPENAI_API_KEY")
     if not key:
         raise RuntimeError("model credentials are not configured")
-    if not request.get("provider_id") or not request.get("provider_model"):
+    provider_id = str(request.get("provider_id") or "").strip()
+    base_url = str(request.get("provider_base_url") or "").strip()
+    model_id = str(request.get("provider_model") or "").strip()
+    if not provider_id or not base_url or not model_id:
         raise RuntimeError("provider route is incomplete")
-    model = ChatGoogleGenerativeAI(model=str(request["provider_model"]), google_api_key=key, max_output_tokens=16)
+    model = ChatOpenAI(model=model_id, api_key=key, base_url=base_url, max_tokens=16)
 
     def infer(state: State) -> dict[str, str]:
         return {"result": str(model.invoke(f"Reply exactly WORK. Objective: {state['objective']}").content).strip().upper()}
