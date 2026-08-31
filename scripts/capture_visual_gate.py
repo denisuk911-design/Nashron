@@ -59,14 +59,10 @@ def main() -> int:
     }
 
     with sync_playwright() as playwright:
-        executable_path = os.environ.get("LUMINIFERA_CHROME_PATH")
-        if not executable_path:
-            candidates = (
-                Path(os.environ.get("PROGRAMFILES", "")) / "Google/Chrome/Application/chrome.exe",
-                Path(os.environ.get("PROGRAMFILES(X86)", "")) / "Google/Chrome/Application/chrome.exe",
-                Path(os.environ.get("LOCALAPPDATA", "")) / "Google/Chrome/Application/chrome.exe",
-            )
-            executable_path = next((str(path) for path in candidates if path.is_file()), None)
+        # Use Playwright's bundled Chromium by default. System Chrome can be
+        # locked down by enterprise policy and reject Playwright's DevTools
+        # transport; an explicit override remains available for CI or review.
+        executable_path = os.environ.get("LUMINIFERA_CHROME_PATH") or None
         launch_kwargs = {"headless": not args.headed}
         if executable_path:
             launch_kwargs["executable_path"] = executable_path

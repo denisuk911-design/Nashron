@@ -18,8 +18,13 @@
 - Full regression: 557 passed, 2 warnings.
 - JavaScript syntax: `node --check apps/web/static/v3/app.js` passed.
 
-## Capture limitation
+## Screenshot runner fix and final evidence
 
-The connected Playwright Chrome timed out during its font-wait screenshot phase. No new screenshot is represented as evidence; existing baseline captures were not modified.
+The capture runner now uses Playwright's bundled Chromium by default. System Chrome was rejected by the machine's DevTools policy and caused false screenshot failures; `LUMINIFERA_CHROME_PATH` remains available as an explicit override.
 
-Post-capture review found that Settings was being rebuilt by the runtime controller after the initial shell render. The dynamic Settings content was corrected and the packaged build was rebuilt; a second DOM verification confirmed the corrected user-facing copy and viewport bounds.
+Final packaged captures completed with `unavailable=[]`:
+
+- `captures/v35-1920-final/manifest.json` and its Home/Team/Work/Files/Settings PNGs.
+- `captures/v35-1440-final/manifest.json` and its Home/Team/Work/Files/Settings PNGs.
+
+Post-capture review found that Settings was being rebuilt by the runtime controller after the initial shell render. The dynamic Settings content and the header workspace-select contrast were corrected, the package was rebuilt, and the final captures confirm readable user-facing copy and controls.
