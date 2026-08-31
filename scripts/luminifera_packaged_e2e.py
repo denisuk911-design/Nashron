@@ -52,8 +52,13 @@ def stop(process: subprocess.Popen[bytes], marker: Path) -> None:
     try:
         process.wait(timeout=15)
     except subprocess.TimeoutExpired:
-        process.kill()
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(process.pid)], capture_output=True, check=False)
+        else:
+            process.kill()
         process.wait(timeout=5)
+    if process.poll() is None and os.name == "nt":
+        subprocess.run(["taskkill", "/F", "/T", "/PID", str(process.pid)], capture_output=True, check=False)
 
 
 def main() -> int:
