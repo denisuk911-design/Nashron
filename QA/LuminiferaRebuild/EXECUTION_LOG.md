@@ -342,4 +342,12 @@ TASK: Verify config.js image/video media, reload/restart behavior and missing-re
 STATUS: PASS; packaged media gate and full regression completed.
 FIX: Added error handling for background/Iris image and video resources. A configured poster is used when available; otherwise the styled media container safely clears the broken element. Wired `Перечитать config.js` to a real reload.
 VERIFIED: Packaged image mode, video element creation, missing-video poster fallback, restoration after reload and no global scroll. Targeted 21 passed; full pytest `554 passed, 2 warnings`.
-EVIDENCE: `QA/LuminiferaRebuild/V3/MEDIA_GATE_2026-08-31.md`.
+   EVIDENCE: `QA/LuminiferaRebuild/V3/MEDIA_GATE_2026-08-31.md`.
+
+## Packaged V3 failure/recovery gate
+
+TASK: Verify honest recovery when API/LLM/media are temporarily unavailable.
+STATUS: PASS for the packaged API failure/retry path; full regression PASS.
+FIX: Added bounded API and diagnostics requests with AbortController timeouts and an initial-load catch that presents a user-facing unavailable-engine state. Existing chat and media fallbacks remain active.
+VERIFIED: Packaged API endpoint abort produced a responsive honest error state; restoring the endpoint and clicking Обновить rendered Home again without data loss. Targeted 9 passed; full pytest 555 passed, 2 warnings.
+EVIDENCE: `QA/LuminiferaRebuild/V3/RECOVERY_GATE_2026-08-31.md`.

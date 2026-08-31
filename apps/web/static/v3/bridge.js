@@ -2,12 +2,17 @@
   const apiBase = window.LUMINIFERA_API_BASE || "";
   let organizationId = null;
   const request = async (path, options = {}) => {
-    const response = await fetch(`${apiBase}${path}`, {
-      ...options,
-      headers: { "Content-Type": "application/json", ...(organizationId ? { "X-Organization-Id": organizationId } : {}), ...(options.headers || {}) },
-    });
-    if (!response.ok) throw new Error((await response.text()) || `HTTP ${response.status}`);
-    return response.json();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    try {
+      const response = await fetch(`${apiBase}${path}`, {
+        ...options,
+        signal: controller.signal,
+        headers: { "Content-Type": "application/json", ...(organizationId ? { "X-Organization-Id": organizationId } : {}), ...(options.headers || {}) },
+      });
+      if (!response.ok) throw new Error((await response.text()) || `HTTP ${response.status}`);
+      return response.json();
+    } finally { clearTimeout(timeout); }
   };
   const unwrap = value => value && Array.isArray(value.value) ? value.value : value;
   window.LuminiferaBridge = {
@@ -28,8 +33,12 @@
     async getDiagnostics(config = {}) {
       const probe = async path => {
         try {
-          const response = await fetch(`${apiBase}${path}`, { headers: organizationId ? { "X-Organization-Id": organizationId } : {} });
-          return { ok: response.ok, status: response.status };
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 5000);
+          try {
+            const response = await fetch(`${apiBase}${path}`, { signal: controller.signal, headers: organizationId ? { "X-Organization-Id": organizationId } : {} });
+            return { ok: response.ok, status: response.status };
+          } finally { clearTimeout(timeout); }
         } catch (error) { return { ok: false, status: 0 }; }
       };
       const organizations = unwrap(await request("/api/organizations")) || [];

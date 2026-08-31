@@ -62,6 +62,15 @@ def test_v3_media_has_missing_asset_fallback_and_config_reload_action():
     assert '$("#preview-media").onclick = () => location.reload()' in app
 
 
+def test_v3_recovery_bounds_requests_and_reports_initial_api_failure():
+    bridge = (STATIC / "v3/bridge.js").read_text(encoding="utf-8")
+    app = (STATIC / "v3/app.js").read_text(encoding="utf-8")
+    assert "AbortController" in bridge
+    assert "controller.abort(), 10000" in bridge
+    assert "controller.abort(), 5000" in bridge
+    assert 'loadOrganizations().then(renderDiagnostics).catch(() => setSystem(' in app
+
+
 def test_alpha_launcher_checks_api_before_serving_web():
     launcher = (ROOT / "scripts" / "run_web.ps1").read_text(encoding="utf-8")
     assert "/api/health" in launcher
