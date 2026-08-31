@@ -129,3 +129,17 @@ def test_v37_interaction_layer_provides_wheel_edges_iris_containment_and_theme_p
     assert 'data-theme-choice="night_city"' in script
     assert 'object-fit:contain' in css
     assert 'html[data-theme="light"]' in css
+
+
+def test_v371_hidden_provider_hub_uses_real_bridge_actions_without_secret_rendering():
+    bridge = (STATIC / "v3/bridge.js").read_text(encoding="utf-8")
+    hub = (STATIC / "v3/provider-hub.js").read_text(encoding="utf-8")
+    css = (STATIC / "v3/refinement.css").read_text(encoding="utf-8")
+    assert 'params.get("advanced") !== "providers"' in hub
+    for method in ("connectProvider", "disconnectProvider", "checkProvider"):
+        assert f"async {method}" in bridge
+    assert 'type="password"' in hub
+    assert "active_provider_id" in hub and "active_model_id" in hub
+    assert "/api/providers/" in bridge
+    assert ".provider-hub-dialog" in css
+    assert "wheelGestureUntil" in (STATIC / "v3/v37-ui.js").read_text(encoding="utf-8")

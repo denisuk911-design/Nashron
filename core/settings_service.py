@@ -41,6 +41,8 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "send_sound_enabled": True,
     "receive_sound_enabled": True,
     "message_sound_volume": 35,
+    "active_provider_id": "",
+    "active_model_id": "",
 }
 
 DEFAULT_RESOURCE_TEXTS: dict[str, str] = {

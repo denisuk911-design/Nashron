@@ -101,6 +101,8 @@ class SettingsRequest(BaseModel):
     developer_mode: bool | None = None
     owner_display_name: str | None = Field(default=None, max_length=120)
     user_avatar_path: str | None = Field(default=None, max_length=240)
+    active_provider_id: str | None = Field(default=None, max_length=80)
+    active_model_id: str | None = Field(default=None, max_length=160)
 
 
 class ProfileRequest(BaseModel):
@@ -878,6 +880,8 @@ def providers() -> list[dict[str, Any]]:
     result = []
     for profile in core.provider_registry.profiles():
         health = core.provider_health.latest_health(profile.provider_id)
+        adapter = core.provider_adapters.get(profile.provider_id)
+        capability_profile = getattr(adapter, "capability_profile", None)
         raw_state = health.health_status if health is not None else "UNAVAILABLE"
         result.append({
             "id": profile.provider_id,
@@ -885,6 +889,7 @@ def providers() -> list[dict[str, Any]]:
             "state": labels.get(raw_state, "Unavailable"),
             "available": raw_state == "READY",
             "configured": core.provider_credentials.is_configured(profile.provider_id),
+            "model_id": str(getattr(capability_profile, "model_id", "") or ""),
         })
     return result
 
@@ -1110,6 +1115,7 @@ def settings() -> dict[str, Any]:
     return {key: core.settings.get(key) for key in (
         "interface_language", "theme", "message_sounds_enabled", "reduce_motion",
         "developer_mode", "owner_display_name", "user_avatar_path",
+        "active_provider_id", "active_model_id",
     )}
 
 
@@ -1118,6 +1124,8 @@ def update_settings(request: SettingsRequest) -> dict[str, Any]:
     values = request.model_dump(exclude_none=True)
     if "interface_language" in values and values["interface_language"] not in {"ru", "uk", "en"}:
         raise HTTPException(status_code=422, detail="unsupported_language")
+    if values.get("active_provider_id") and core.provider_registry.get(values["active_provider_id"]) is None:
+        raise HTTPException(status_code=422, detail="unsupported_provider")
     core.settings.update(values)
     core._save_settings(core.settings)
     return settings()

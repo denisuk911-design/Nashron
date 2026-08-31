@@ -44,6 +44,9 @@
     },
     async getFilesState() { return { artifacts: organizationId ? (unwrap(await request("/api/files")) || []) : [] }; },
     async getSettingsState() { return { settings: await request("/api/settings"), providers: unwrap(await request("/api/providers")) || [], feedback: unwrap(await request("/api/feedback")) || [] }; },
+    async connectProvider(providerId, credential) { return request(`/api/providers/${encodeURIComponent(providerId)}/connect`, { method: "POST", body: JSON.stringify({ credential }) }); },
+    async disconnectProvider(providerId) { return request(`/api/providers/${encodeURIComponent(providerId)}/disconnect`, { method: "POST" }); },
+    async checkProvider(providerId) { return request(`/api/providers/${encodeURIComponent(providerId)}/check`, { method: "POST" }); },
     async getDiagnostics(config = {}) {
       const probe = async path => {
         try {
