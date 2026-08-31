@@ -38,6 +38,8 @@ class SupervisorChatApplicationService:
         r"\b(?:\u0441\u043e\u0437\u0434\u0430\u0439|\u043d\u0430\u0439\u043c\u0438|\u0443\u0432\u043e\u043b\u044c|\u043f\u0435\u0440\u0435\u043d\u0430\u0437\u043d\u0430\u0447|\u0440\u043e\u043b\u044c|\u0441\u043a\u0438\u043b\u043b|\u043f\u0440\u043e\u0432\u0430\u0439\u0434\u0435\u0440|\u0446\u0435\u043b\u044c|\u043f\u0435\u0440\u0435\u043f\u043b\u0430\u043d|\u0437\u0430\u043f\u0443\u0441\u0442\u0438|\u043e\u0442\u043c\u0435\u043d\u0438|\u043e\u0434\u043e\u0431\u0440\u0438)",
         re.I,
     )
+    _CANCEL_INTENT_PHRASES = ("\u043e\u0442\u043c\u0435\u043d\u0438 \u044d\u0442\u043e", "\u043e\u0442\u043c\u0435\u043d\u0430", "\u043d\u0435 \u043d\u0430\u0434\u043e", "cancel this")
+    _CONFIRM_INTENT_PHRASES = ("\u0434\u0430, \u0441\u0434\u0435\u043b\u0430\u0439 \u0442\u0430\u043a", "\u0434\u0430 \u0441\u0434\u0435\u043b\u0430\u0439 \u0442\u0430\u043a", "\u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0430\u044e", "confirm")
 
     def __init__(
         self,
@@ -65,8 +67,17 @@ class SupervisorChatApplicationService:
         text = " ".join(str(text or "").split())
         if not text:
             return SupervisorChatResult(False, "Опишите действие для Supervisor.", action="empty")
-        route = self._route(text)
         lowered = text.casefold()
+        # Generic cancel/confirm phrases continue the current context instead
+        # of being routed as a new complex provider request.
+        if lowered in self._CANCEL_INTENT_PHRASES:
+            self._pending.clear()
+            return SupervisorChatResult(True, "\u0414\u0435\u0439\u0441\u0442\u0432\u0438\u0435 \u043e\u0442\u043c\u0435\u043d\u0435\u043d\u043e. \u041d\u0438\u0447\u0435\u0433\u043e \u043d\u043e\u0432\u043e\u0433\u043e \u043d\u0435 \u0437\u0430\u043f\u0443\u0449\u0435\u043d\u043e.", action="cancel_intent")
+        if lowered in self._CONFIRM_INTENT_PHRASES:
+            if self._pending:
+                return self.confirm(next(reversed(self._pending)))
+            return SupervisorChatResult(True, "\u041d\u0435\u0442 \u043e\u0436\u0438\u0434\u0430\u044e\u0449\u0435\u0433\u043e \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044f \u0434\u043b\u044f \u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043d\u0438\u044f.", action="confirmation_missing")
+        route = self._route(text)
 
         if (self._DANGEROUS.search(text) or self._DANGEROUS_RU.search(text)) and not confirmed:
             token = f"confirm-{len(self._pending) + 1}"

@@ -87,6 +87,28 @@ def test_supervisor_changes_language_through_settings_callback():
     assert saved[-1]["interface_language"] == "uk"
 
 
+def test_context_cancel_is_safe_and_confirmation_continues_only_pending_intent():
+    service, management, _settings = make_service()
+    pending = service.handle("\u0443\u0434\u0430\u043b\u0438 \u0441\u043e\u0442\u0440\u0443\u0434\u043d\u0438\u043a\u0430 agent-old", "org-owner")
+    assert pending.confirmation_required
+
+    cancelled = service.handle("\u041e\u0442\u043c\u0435\u043d\u0438 \u044d\u0442\u043e", "org-owner")
+    assert cancelled.ok
+    assert cancelled.action == "cancel_intent"
+    assert management.deleted == []
+
+    missing = service.handle("\u0434\u0430, \u0441\u0434\u0435\u043b\u0430\u0439 \u0442\u0430\u043a", "org-owner")
+    assert missing.ok
+    assert missing.action == "confirmation_missing"
+    assert management.deleted == []
+
+    pending = service.handle("\u0443\u0434\u0430\u043b\u0438 \u0441\u043e\u0442\u0440\u0443\u0434\u043d\u0438\u043a\u0430 agent-old", "org-owner")
+    confirmed = service.handle("\u0434\u0430, \u0441\u0434\u0435\u043b\u0430\u0439 \u0442\u0430\u043a", "org-owner")
+    assert pending.confirmation_required
+    assert confirmed.ok
+    assert management.deleted == [("agent-old", "ORGANIZATION_OWNER", True)]
+
+
 def test_team_creation_uses_application_service():
     service, _management, _settings = make_service()
     result = service.handle("создай команду: PCB")

@@ -322,8 +322,8 @@ EVIDENCE: `QA/LuminiferaRebuild/V3/OWNER_PREFLIGHT_2026-08-31.md`; `QA/Luminifer
 ## Packaged Iris conversational gate
 
 TASK: Verify Iris social conversation and real action intent in packaged V3.
-STATUS: PASS; full regression and commit/push completed.
+STATUS: PASS; packaged context gate and full regression completed.
 FIX: Added `Собери мне команду`, `Собрать команду`, `assemble team` and related UI paraphrases to the existing Supervisor application boundary. Social messages remain non-operational.
 VERIFIED: Packaged `Собери мне команду` created a real operational team; `Привет` and `Как дела?` returned conversational responses and left work inactive. Targeted tests passed.
-VERIFIED: Full pytest `551 passed, 2 warnings`; packaged executable rebuilt and re-tested.
+VERIFIED: Packaged GUI tested team action, social messages, pending cancellation and no-pending confirmation. Targeted 65 passed; full pytest `552 passed, 2 warnings`.
 EVIDENCE: `QA/LuminiferaRebuild/V3/IRIS_CONVERSATIONAL_GATE_2026-08-31.md`.
