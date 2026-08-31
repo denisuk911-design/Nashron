@@ -90,6 +90,20 @@ def test_v3_visible_controls_have_product_actions():
     assert '#org-dialog button[aria-label]' in app
 
 
+def test_v3_projects_review_findings_and_rework_through_existing_goal_service():
+    app = (STATIC / "v3/app.js").read_text(encoding="utf-8")
+    assert "state.review" in app
+    assert "data-review-rework" in app
+    assert "bridge.replanGoal" in app
+
+
+def test_v3_applies_persisted_user_settings_without_backend_changes():
+    app = (STATIC / "v3/app.js").read_text(encoding="utf-8")
+    assert "applyUserSettings" in app
+    assert 'document.documentElement.dataset.theme' in app
+    assert 'document.documentElement.lang' in app
+
+
 def test_alpha_launcher_checks_api_before_serving_web():
     launcher = (ROOT / "scripts" / "run_web.ps1").read_text(encoding="utf-8")
     assert "/api/health" in launcher
