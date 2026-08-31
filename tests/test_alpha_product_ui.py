@@ -71,6 +71,15 @@ def test_v3_recovery_bounds_requests_and_reports_initial_api_failure():
     assert 'loadOrganizations().then(renderDiagnostics).catch(() => setSystem(' in app
 
 
+def test_v3_persists_selected_workspace_across_reload():
+    bridge = (STATIC / "v3/bridge.js").read_text(encoding="utf-8")
+    app = (STATIC / "v3/app.js").read_text(encoding="utf-8")
+    assert 'localStorage.getItem("luminifera.organizationId")' in bridge
+    assert 'localStorage.setItem("luminifera.organizationId", organizationId)' in bridge
+    assert "getOrganizationId" in bridge
+    assert "organizations.find(org => org.id === bridge.getOrganizationId())" in app
+
+
 def test_alpha_launcher_checks_api_before_serving_web():
     launcher = (ROOT / "scripts" / "run_web.ps1").read_text(encoding="utf-8")
     assert "/api/health" in launcher

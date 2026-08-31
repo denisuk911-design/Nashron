@@ -1,6 +1,6 @@
 (function () {
   const apiBase = window.LUMINIFERA_API_BASE || "";
-  let organizationId = null;
+  let organizationId = localStorage.getItem("luminifera.organizationId") || null;
   const request = async (path, options = {}) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
@@ -17,7 +17,8 @@
   const unwrap = value => value && Array.isArray(value.value) ? value.value : value;
   window.LuminiferaBridge = {
     connected: true,
-    setOrganization(id) { organizationId = id || null; },
+    setOrganization(id) { organizationId = id || null; if (organizationId) localStorage.setItem("luminifera.organizationId", organizationId); else localStorage.removeItem("luminifera.organizationId"); },
+    getOrganizationId() { return organizationId; },
     async getOrganizations() { return unwrap(await request("/api/organizations")); },
     async createOrganization(name, purpose) { return request("/api/organizations", { method: "POST", body: JSON.stringify({ name, purpose }) }); },
     async getHomeState() {
