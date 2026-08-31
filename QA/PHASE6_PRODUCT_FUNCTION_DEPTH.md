@@ -23,6 +23,12 @@ The V3 product shell was updated without changing Core, API contracts, runtime s
 - Full pytest: started, but the repository currently contains/had multiple long-running pytest processes and the run did not produce a completed result before the bounded execution window. No full-suite PASS is claimed.
 - `scripts/packaged_preview_smoke.py` is for the legacy Team2050 preview executable and did not produce evidence for `dist/Luminifera.exe`; no legacy smoke PASS is claimed for this V3 package.
 
+## Validation closure
+
+- Fixed a real packaged/API defect in `LuminiferaWorkService`: deserialized Runtime V3 employee snapshots are dictionaries, not dataclass objects. Review projection now survives restart and no longer returns HTTP 500.
+- Packaged E2E runner: `scripts/luminifera_packaged_e2e.py` PASS on a fresh profile. Evidence: `QA/PHASE6_LUMINIFERA_PACKAGED_E2E.json`.
+- Full pytest: `563 passed, 2 warnings` in 182.91 seconds.
+
 ## Status
 
-Targeted functional checks PASS. Full-suite and packaged end-to-end evidence remain open due the existing long-running test/smoke processes and the legacy smoke script targeting another executable.
+PHASE 6 VALIDATION CLOSURE PASS. The packaged Luminifera E2E and full regression are green. The legacy `packaged_preview_smoke.py` remains intentionally excluded because it targets the old Team2050 executable.

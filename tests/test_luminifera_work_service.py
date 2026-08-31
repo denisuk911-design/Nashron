@@ -39,6 +39,10 @@ def test_work_view_projects_durable_v3_goal_and_artifacts(tmp_path):
     assert receipt.review_status == "PASSED"
     assert receipt.artifacts
 
+    # Runtime checkpoints deserialize employee snapshots as dictionaries;
+    # the product review projection must remain readable after restart.
+    assert LuminiferaWorkService(DatabaseStub(), tmp_path).review_findings("org-1") == ()
+
 
 def test_home_view_projects_the_same_durable_v3_goal(tmp_path):
     engine = HybridWorkflowEngine(

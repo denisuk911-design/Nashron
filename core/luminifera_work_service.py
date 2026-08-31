@@ -176,7 +176,10 @@ class LuminiferaWorkService:
         if not goals:
             return ()
         goal_id = goals[0].goal_id
-        names = {item.employee_id: item.display_name for item in state.employee_snapshots.values()}
+        names = {
+            str(item.get("employee_id", key)): str(item.get("display_name", ""))
+            for key, item in state.employee_snapshots.items()
+        }
         artifacts = tuple(state.artifacts.values())
         findings = tuple(state.findings.values())
         return tuple(
@@ -205,7 +208,10 @@ class LuminiferaWorkService:
         goals = sorted(state.goals.values(), key=lambda item: (item.updated_at, item.created_at), reverse=True)
         if not goals:
             return ()
-        names = {item.employee_id: item.display_name for item in state.employee_snapshots.values()}
+        names = {
+            str(item.get("employee_id", key)): str(item.get("display_name", ""))
+            for key, item in state.employee_snapshots.items()
+        }
         return tuple(
             ReviewFindingView(
                 title=finding.description,
