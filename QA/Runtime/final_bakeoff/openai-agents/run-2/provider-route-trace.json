@@ -1,0 +1,10 @@
+﻿{
+    "runtime":  "openai-agents",
+    "run":  2,
+    "provider_route":  {
+                           "provider_id":  "GEMINI_CLI",
+                           "provider_model":  "gemini-3.6-flash",
+                           "provider_base_url":  "https://generativelanguage.googleapis.com/v1beta/openai/"
+                       },
+    "source":  "Provider Hub route supplied by benchmark environment"
+}

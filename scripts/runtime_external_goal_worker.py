@@ -37,7 +37,7 @@ def _artifacts(request: dict[str, Any], classification: str) -> dict[str, Any]:
         path.write_text(content, encoding="utf-8")
         artifact_paths.append(str(path))
     evidence = output / f"{safe}-evidence.json"
-    evidence.write_text(json.dumps({"tool": "sdk-model", "observation": classification, "artifacts": artifact_paths}, indent=2), encoding="utf-8")
+    evidence.write_text(json.dumps({"tool": "sdk-model", "observation": classification, "artifacts": artifact_paths, "provider_route": {"provider_id": request.get("provider_id", ""), "model": request.get("provider_model", ""), "base_url": request.get("provider_base_url", "")}}, indent=2), encoding="utf-8")
     review = output / f"{safe}-review.json"
     review.write_text(json.dumps({"accepted": True, "artifact_count": len(artifact_paths), "evidence": str(evidence)}), encoding="utf-8")
     receipt = output / f"{safe}-receipt.json"
@@ -52,15 +52,16 @@ async def _openai(request: dict[str, Any]) -> str:
     from openai import AsyncOpenAI
     from agents import Agent, OpenAIChatCompletionsModel, Runner
 
-    key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or os.environ.get("OPENAI_API_KEY")
+    key = os.environ.get("RUNTIME_PROVIDER_CREDENTIAL") or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or os.environ.get("OPENAI_API_KEY")
     if not key:
         raise RuntimeError("model credentials are not configured")
-    provider_id = str(request.get("provider_id") or "")
-    base_url = os.environ.get("RUNTIME_OPENAI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/")
-    if provider_id == "OPENAI_API":
-        base_url = "https://api.openai.com/v1"
+    provider_id = str(request.get("provider_id") or "").strip()
+    base_url = str(request.get("provider_base_url") or "").strip()
+    model_id = str(request.get("provider_model") or "").strip()
+    if not provider_id or not base_url or not model_id:
+        raise RuntimeError("provider route is incomplete: provider_id, provider_base_url and provider_model are required")
     client = AsyncOpenAI(api_key=key, base_url=base_url, timeout=20)
-    model = OpenAIChatCompletionsModel(model=str(request.get("provider_model") or os.environ.get("RUNTIME_MODEL", "gemini-3.6-flash")), openai_client=client)
+    model = OpenAIChatCompletionsModel(model=model_id, openai_client=client)
     agent = Agent(name="team2050_external_worker", instructions="Return exactly WORK and nothing else.", model=model)
     result = await asyncio.wait_for(Runner.run(agent, request["objective"], max_turns=2), timeout=25)
     output = str(result.final_output).strip().upper()
@@ -76,10 +77,12 @@ def _langgraph(request: dict[str, Any]) -> str:
         objective: str
         result: str
 
-    key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    key = os.environ.get("RUNTIME_PROVIDER_CREDENTIAL") or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
     if not key:
         raise RuntimeError("model credentials are not configured")
-    model = ChatGoogleGenerativeAI(model=str(request.get("provider_model") or os.environ.get("RUNTIME_MODEL", "gemini-3.6-flash")), google_api_key=key, max_output_tokens=16)
+    if not request.get("provider_id") or not request.get("provider_model"):
+        raise RuntimeError("provider route is incomplete")
+    model = ChatGoogleGenerativeAI(model=str(request["provider_model"]), google_api_key=key, max_output_tokens=16)
 
     def infer(state: State) -> dict[str, str]:
         return {"result": str(model.invoke(f"Reply exactly WORK. Objective: {state['objective']}").content).strip().upper()}
@@ -99,11 +102,15 @@ async def _autogen(request: dict[str, Any]) -> str:
     from autogen_core.models import ModelFamily
     from autogen_ext.models.openai import OpenAIChatCompletionClient
 
-    key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or os.environ.get("OPENAI_API_KEY")
+    key = os.environ.get("RUNTIME_PROVIDER_CREDENTIAL") or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or os.environ.get("OPENAI_API_KEY")
     if not key:
         raise RuntimeError("model credentials are not configured")
-    base_url = "https://api.openai.com/v1" if request.get("provider_id") == "OPENAI_API" else os.environ.get("RUNTIME_OPENAI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/")
-    client = OpenAIChatCompletionClient(model=str(request.get("provider_model") or os.environ.get("RUNTIME_MODEL", "gemini-3.6-flash")), api_key=key, base_url=base_url, model_info={"vision": False, "function_calling": False, "json_output": False, "family": ModelFamily.GPT_4O, "structured_output": False, "multiple_system_messages": True})
+    provider_id = str(request.get("provider_id") or "").strip()
+    base_url = str(request.get("provider_base_url") or "").strip()
+    model_id = str(request.get("provider_model") or "").strip()
+    if not provider_id or not base_url or not model_id:
+        raise RuntimeError("provider route is incomplete")
+    client = OpenAIChatCompletionClient(model=model_id, api_key=key, base_url=base_url, model_info={"vision": False, "function_calling": False, "json_output": False, "family": ModelFamily.GPT_4O, "structured_output": False, "multiple_system_messages": True})
     agent = AssistantAgent("team2050_external_worker", model_client=client, system_message="Return exactly WORK and nothing else.")
     try:
         result = await asyncio.wait_for(agent.on_messages([TextMessage(content=request["objective"], source="user")], CancellationToken()), timeout=25)
@@ -117,7 +124,9 @@ async def _adk(request: dict[str, Any]) -> str:
     from google.adk.agents import LlmAgent
     from google.adk.runners import InMemoryRunner
 
-    agent = LlmAgent(name="team2050_external_worker", model=str(request.get("provider_model") or os.environ.get("RUNTIME_MODEL", "gemini-3.6-flash")), instruction="Return exactly WORK and nothing else.")
+    if not request.get("provider_id") or not request.get("provider_model"):
+        raise RuntimeError("provider route is incomplete")
+    agent = LlmAgent(name="team2050_external_worker", model=str(request["provider_model"]), instruction="Return exactly WORK and nothing else.")
     runner = InMemoryRunner(agent=agent, app_name="team2050-external-runtime")
     events = await asyncio.wait_for(runner.run_debug(request["objective"]), timeout=25)
     return "WORK" if "WORK" in " ".join(str(event).upper() for event in events) else "UNKNOWN"
@@ -132,7 +141,7 @@ async def main() -> None:
         raise ValueError(f"unsupported runtime: {runtime_id}")
     classification = await runner(request) if asyncio.iscoroutinefunction(runner) else runner(request)
     files = _artifacts(request, classification)
-    print(json.dumps({"ok": classification == "WORK", "summary": f"{runtime_id} completed Core-compatible goal", "organization_id": request["organization_id"], "artifact_refs": files["artifact_paths"], "evidence_refs": [files["evidence"], files["review"], files["receipt"]], "observations": [f"{runtime_id}: model classification={classification}", "artifact write observation=OK", "review observation=accepted"], "tool_calls": ["sdk.model", "workspace.write", "artifact.review"], "data": {"classification": classification, "runtime": runtime_id}}))
+    print(json.dumps({"ok": classification == "WORK", "summary": f"{runtime_id} completed Core-compatible goal", "organization_id": request["organization_id"], "artifact_refs": files["artifact_paths"], "evidence_refs": [files["evidence"], files["review"], files["receipt"]], "observations": [f"{runtime_id}: model classification={classification}", "artifact write observation=OK", "review observation=accepted"], "tool_calls": ["sdk.model", "workspace.write", "artifact.review"], "data": {"classification": classification, "runtime": runtime_id, "provider_route": {"provider_id": request.get("provider_id", ""), "model": request.get("provider_model", ""), "base_url": request.get("provider_base_url", "")}}}))
 
 
 if __name__ == "__main__":

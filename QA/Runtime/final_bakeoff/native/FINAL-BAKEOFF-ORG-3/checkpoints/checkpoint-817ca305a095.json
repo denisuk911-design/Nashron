@@ -1,0 +1,286 @@
+{
+  "actions": {},
+  "artifacts": {},
+  "checkpoints": [
+    "checkpoint-c4ebc25fa7e9",
+    "checkpoint-50da380ab040",
+    "checkpoint-a3dfb76f4b65",
+    "checkpoint-bceb74f5e040",
+    "checkpoint-817ca305a095"
+  ],
+  "employee_snapshots": {
+    "employee-engineer": {
+      "capabilities": [
+        "DESIGN_ENGINEER",
+        "DESIGN_ENGINEER",
+        "LOCAL"
+      ],
+      "permissions": [
+        "CREATE_DOCUMENTS",
+        "READ_WORKSPACE",
+        "RUN_COMMANDS",
+        "WRITE_WORKSPACE"
+      ],
+      "provider_binding_id": "LOCAL",
+      "provider_capabilities": [],
+      "provider_contract_version": "1.0",
+      "role": "DESIGN_ENGINEER"
+    },
+    "employee-researcher": {
+      "capabilities": [
+        "RESEARCHER",
+        "RESEARCHER",
+        "LOCAL"
+      ],
+      "permissions": [
+        "CREATE_DOCUMENTS",
+        "READ_WORKSPACE",
+        "RUN_COMMANDS",
+        "WRITE_WORKSPACE"
+      ],
+      "provider_binding_id": "LOCAL",
+      "provider_capabilities": [],
+      "provider_contract_version": "1.0",
+      "role": "RESEARCHER"
+    },
+    "employee-reviewer": {
+      "capabilities": [
+        "QA_ENGINEER",
+        "QA_ENGINEER",
+        "LOCAL"
+      ],
+      "permissions": [
+        "CREATE_DOCUMENTS",
+        "READ_WORKSPACE",
+        "RUN_COMMANDS",
+        "WRITE_WORKSPACE"
+      ],
+      "provider_binding_id": "LOCAL",
+      "provider_capabilities": [],
+      "provider_contract_version": "1.0",
+      "role": "QA_ENGINEER"
+    }
+  },
+  "evidence": {},
+  "findings": {},
+  "goals": {
+    "goal-c15ed5904230": {
+      "created_at": "2026-08-31T21:41:34.408908+00:00",
+      "definition_of_done": [
+        {
+          "criterion_id": "dod-02d5362df3e5",
+          "description": "Создан проверяемый артефакт исследования и обоснованного выбора",
+          "required_artifact_type": "WORK_PRODUCT",
+          "required_evidence_type": "TOOL_OBSERVATION"
+        },
+        {
+          "criterion_id": "dod-e3ea76d173bc",
+          "description": "Исследование содержит подтвержденные источники",
+          "required_artifact_type": "SOURCE_RESEARCH",
+          "required_evidence_type": "SOURCE_RECORD"
+        },
+        {
+          "criterion_id": "dod-5e8c5f1d635c",
+          "description": "Независимая проверка артефактов завершена без открытых замечаний",
+          "required_artifact_type": "",
+          "required_evidence_type": "REVIEW_RECORD"
+        }
+      ],
+      "goal_id": "goal-c15ed5904230",
+      "intelligence_budget": {
+        "max_cost_units": 6,
+        "provider_cost_units": {},
+        "provider_spend_units": {},
+        "spent_cost_units": 0
+      },
+      "objective": "Prepare a verified technical specification for a 24 V to 12 V, 5 A converter and select a suitable controller.",
+      "plan_id": "plan-24aa5471c03d",
+      "status": "RUNNING",
+      "updated_at": "2026-08-31T21:41:34.483533+00:00",
+      "work_receipt_id": null
+    }
+  },
+  "handoffs": {},
+  "interrupts": {},
+  "observations": {},
+  "organization_id": "FINAL-BAKEOFF-ORG-3",
+  "plans": {
+    "plan-24aa5471c03d": {
+      "created_at": "2026-08-31T21:41:34.483502+00:00",
+      "goal_id": "goal-c15ed5904230",
+      "plan_id": "plan-24aa5471c03d",
+      "strategy": "HANDOFF",
+      "supervisor_employee_id": "supervisor",
+      "work_item_ids": [
+        "work-a3403a419980",
+        "work-9c65a747cb86",
+        "work-a779ccceb68a"
+      ]
+    }
+  },
+  "provider_runs": {},
+  "replans": {},
+  "supervisor_decisions": {
+    "supervisor-decision-82517917f041": {
+      "complexity": "COMPLEX",
+      "cost": "LOW",
+      "created_at": "2026-08-31T21:41:34.483525+00:00",
+      "decision_id": "supervisor-decision-82517917f041",
+      "goal_id": "goal-c15ed5904230",
+      "level": "DETERMINISTIC",
+      "reason": "adapter_unavailable_fallback",
+      "required_capabilities": [],
+      "risk": "LOW",
+      "step": "planning",
+      "work_item_id": ""
+    }
+  },
+  "trace_events": {
+    "trace-195135b325f8": {
+      "action_id": "",
+      "artifact_id": "",
+      "created_at": "2026-08-31T21:41:34.408950+00:00",
+      "detail": "",
+      "event_id": "trace-195135b325f8",
+      "goal_id": "goal-c15ed5904230",
+      "observation_id": "",
+      "stage": "goal_created",
+      "work_item_id": ""
+    },
+    "trace-22890d2f7d0d": {
+      "action_id": "",
+      "artifact_id": "",
+      "created_at": "2026-08-31T21:41:34.483547+00:00",
+      "detail": "",
+      "event_id": "trace-22890d2f7d0d",
+      "goal_id": "goal-c15ed5904230",
+      "observation_id": "",
+      "stage": "plan_created",
+      "work_item_id": ""
+    },
+    "trace-35016ebed80c": {
+      "action_id": "",
+      "artifact_id": "",
+      "created_at": "2026-08-31T21:41:34.485534+00:00",
+      "detail": "",
+      "event_id": "trace-35016ebed80c",
+      "goal_id": "goal-c15ed5904230",
+      "observation_id": "",
+      "stage": "goal_started",
+      "work_item_id": ""
+    },
+    "trace-9df63f6627f0": {
+      "action_id": "",
+      "artifact_id": "",
+      "created_at": "2026-08-31T21:41:34.486611+00:00",
+      "detail": "",
+      "event_id": "trace-9df63f6627f0",
+      "goal_id": "goal-c15ed5904230",
+      "observation_id": "",
+      "stage": "work_item_running:work-a3403a419980",
+      "work_item_id": ""
+    },
+    "trace-a359baf4f024": {
+      "action_id": "",
+      "artifact_id": "",
+      "created_at": "2026-08-31T21:41:34.487657+00:00",
+      "detail": "",
+      "event_id": "trace-a359baf4f024",
+      "goal_id": "goal-c15ed5904230",
+      "observation_id": "",
+      "stage": "work_item_running:work-9c65a747cb86",
+      "work_item_id": ""
+    }
+  },
+  "work_items": {
+    "work-9c65a747cb86": {
+      "acceptance_criteria": [
+        "contains source evidence",
+        "is relevant to the stated goal"
+      ],
+      "assigned_employee_id": "employee-researcher",
+      "attempt": 1,
+      "checkpoint_id": null,
+      "dependencies": [],
+      "evidence_requirements": [
+        "successful filesystem.write observation"
+      ],
+      "expected_artifact_types": [
+        "SOURCE_RESEARCH"
+      ],
+      "goal_id": "goal-c15ed5904230",
+      "input_artifact_ids": [],
+      "objective": "Research sources, constraints, and options relevant to: Prepare a verified technical specification for a 24 V to 12 V, 5 A converter and select a suitable controller.",
+      "required_capabilities": [
+        "research"
+      ],
+      "required_tools": [
+        "filesystem.write"
+      ],
+      "result": {},
+      "status": "RUNNING",
+      "work_item_id": "work-9c65a747cb86"
+    },
+    "work-a3403a419980": {
+      "acceptance_criteria": [
+        "addresses the stated goal",
+        "contains a usable result"
+      ],
+      "assigned_employee_id": "employee-engineer",
+      "attempt": 1,
+      "checkpoint_id": null,
+      "dependencies": [],
+      "evidence_requirements": [
+        "successful filesystem.write observation"
+      ],
+      "expected_artifact_types": [
+        "WORK_PRODUCT"
+      ],
+      "goal_id": "goal-c15ed5904230",
+      "input_artifact_ids": [],
+      "objective": "Create the primary deliverable for: Prepare a verified technical specification for a 24 V to 12 V, 5 A converter and select a suitable controller.",
+      "required_capabilities": [
+        "specification"
+      ],
+      "required_tools": [
+        "filesystem.write"
+      ],
+      "result": {},
+      "status": "RUNNING",
+      "work_item_id": "work-a3403a419980"
+    },
+    "work-a779ccceb68a": {
+      "acceptance_criteria": [
+        "all findings resolved"
+      ],
+      "assigned_employee_id": "employee-reviewer",
+      "attempt": 0,
+      "checkpoint_id": null,
+      "dependencies": [
+        "work-a3403a419980",
+        "work-9c65a747cb86"
+      ],
+      "evidence_requirements": [
+        "review observation"
+      ],
+      "expected_artifact_types": [
+        "REVIEW_RESULT"
+      ],
+      "goal_id": "goal-c15ed5904230",
+      "input_artifact_ids": [],
+      "objective": "Review artifacts and evidence",
+      "required_capabilities": [
+        "review"
+      ],
+      "required_tools": [
+        "artifact.review",
+        "filesystem.read"
+      ],
+      "result": {},
+      "status": "PENDING",
+      "work_item_id": "work-a779ccceb68a"
+    }
+  },
+  "work_receipts": {},
+  "worker_sessions": {}
+}

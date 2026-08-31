@@ -1,0 +1,123 @@
+{
+  "actions": {},
+  "artifacts": {},
+  "checkpoints": [
+    "checkpoint-cc810fb9bb30"
+  ],
+  "employee_snapshots": {
+    "employee-engineer": {
+      "capabilities": [
+        "DESIGN_ENGINEER",
+        "DESIGN_ENGINEER",
+        "LOCAL"
+      ],
+      "permissions": [
+        "CREATE_DOCUMENTS",
+        "READ_WORKSPACE",
+        "RUN_COMMANDS",
+        "WRITE_WORKSPACE"
+      ],
+      "provider_binding_id": "LOCAL",
+      "provider_capabilities": [],
+      "provider_contract_version": "1.0",
+      "role": "DESIGN_ENGINEER"
+    },
+    "employee-researcher": {
+      "capabilities": [
+        "DESIGN_ENGINEER",
+        "DESIGN_ENGINEER",
+        "LOCAL"
+      ],
+      "permissions": [
+        "CREATE_DOCUMENTS",
+        "READ_WORKSPACE",
+        "RUN_COMMANDS",
+        "WRITE_WORKSPACE"
+      ],
+      "provider_binding_id": "LOCAL",
+      "provider_capabilities": [],
+      "provider_contract_version": "1.0",
+      "role": "DESIGN_ENGINEER"
+    },
+    "employee-reviewer": {
+      "capabilities": [
+        "DESIGN_ENGINEER",
+        "DESIGN_ENGINEER",
+        "LOCAL"
+      ],
+      "permissions": [
+        "CREATE_DOCUMENTS",
+        "READ_WORKSPACE",
+        "RUN_COMMANDS",
+        "WRITE_WORKSPACE"
+      ],
+      "provider_binding_id": "LOCAL",
+      "provider_capabilities": [],
+      "provider_contract_version": "1.0",
+      "role": "DESIGN_ENGINEER"
+    }
+  },
+  "evidence": {},
+  "findings": {},
+  "goals": {
+    "goal-882302851c4e": {
+      "created_at": "2026-08-31T21:33:51.705482+00:00",
+      "definition_of_done": [
+        {
+          "criterion_id": "dod-f0d33679adf0",
+          "description": "Создан проверяемый артефакт исследования и обоснованного выбора",
+          "required_artifact_type": "WORK_PRODUCT",
+          "required_evidence_type": "TOOL_OBSERVATION"
+        },
+        {
+          "criterion_id": "dod-21a95a2dece6",
+          "description": "Исследование содержит подтвержденные источники",
+          "required_artifact_type": "SOURCE_RESEARCH",
+          "required_evidence_type": "SOURCE_RECORD"
+        },
+        {
+          "criterion_id": "dod-e20c764a3273",
+          "description": "Независимая проверка артефактов завершена без открытых замечаний",
+          "required_artifact_type": "",
+          "required_evidence_type": "REVIEW_RECORD"
+        }
+      ],
+      "goal_id": "goal-882302851c4e",
+      "intelligence_budget": {
+        "max_cost_units": 6,
+        "provider_cost_units": {},
+        "provider_spend_units": {},
+        "spent_cost_units": 0
+      },
+      "objective": "Prepare a verified technical specification for a 24 V to 12 V, 5 A converter and select a suitable controller.",
+      "plan_id": null,
+      "status": "DRAFT",
+      "updated_at": "2026-08-31T21:33:51.705495+00:00",
+      "work_receipt_id": null
+    }
+  },
+  "handoffs": {},
+  "interrupts": {},
+  "observations": {},
+  "organization_id": "FINAL-BAKEOFF-ORG",
+  "plans": {},
+  "provider_runs": {},
+  "replans": {},
+  "supervisor_decisions": {},
+  "trace_events": {
+    "trace-edc9e9c262c1": {
+      "action_id": "",
+      "artifact_id": "",
+      "created_at": "2026-08-31T21:33:51.705534+00:00",
+      "detail": "",
+      "event_id": "trace-edc9e9c262c1",
+      "goal_id": "goal-882302851c4e",
+      "observation_id": "",
+      "stage": "goal_created",
+      "work_item_id": ""
+    }
+  },
+  "work_items": {},
+  "work_receipts": {},
+  "worker_sessions": {}
+}

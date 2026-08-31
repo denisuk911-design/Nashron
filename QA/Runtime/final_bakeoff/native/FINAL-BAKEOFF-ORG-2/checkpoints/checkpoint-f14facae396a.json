@@ -1,0 +1,262 @@
+{
+  "actions": {},
+  "artifacts": {},
+  "checkpoints": [
+    "checkpoint-f449b264e56c",
+    "checkpoint-1307b3cb8f21",
+    "checkpoint-f14facae396a"
+  ],
+  "employee_snapshots": {
+    "employee-engineer": {
+      "capabilities": [
+        "DESIGN_ENGINEER",
+        "DESIGN_ENGINEER",
+        "LOCAL"
+      ],
+      "permissions": [
+        "CREATE_DOCUMENTS",
+        "READ_WORKSPACE",
+        "RUN_COMMANDS",
+        "WRITE_WORKSPACE"
+      ],
+      "provider_binding_id": "LOCAL",
+      "provider_capabilities": [],
+      "provider_contract_version": "1.0",
+      "role": "DESIGN_ENGINEER"
+    },
+    "employee-researcher": {
+      "capabilities": [
+        "RESEARCHER",
+        "RESEARCHER",
+        "LOCAL"
+      ],
+      "permissions": [
+        "CREATE_DOCUMENTS",
+        "READ_WORKSPACE",
+        "RUN_COMMANDS",
+        "WRITE_WORKSPACE"
+      ],
+      "provider_binding_id": "LOCAL",
+      "provider_capabilities": [],
+      "provider_contract_version": "1.0",
+      "role": "RESEARCHER"
+    },
+    "employee-reviewer": {
+      "capabilities": [
+        "QA_ENGINEER",
+        "QA_ENGINEER",
+        "LOCAL"
+      ],
+      "permissions": [
+        "CREATE_DOCUMENTS",
+        "READ_WORKSPACE",
+        "RUN_COMMANDS",
+        "WRITE_WORKSPACE"
+      ],
+      "provider_binding_id": "LOCAL",
+      "provider_capabilities": [],
+      "provider_contract_version": "1.0",
+      "role": "QA_ENGINEER"
+    }
+  },
+  "evidence": {},
+  "findings": {},
+  "goals": {
+    "goal-766d4f694870": {
+      "created_at": "2026-08-31T21:41:34.309014+00:00",
+      "definition_of_done": [
+        {
+          "criterion_id": "dod-e24dd8fa128a",
+          "description": "Создан проверяемый артефакт исследования и обоснованного выбора",
+          "required_artifact_type": "WORK_PRODUCT",
+          "required_evidence_type": "TOOL_OBSERVATION"
+        },
+        {
+          "criterion_id": "dod-c4e29de93d11",
+          "description": "Исследование содержит подтвержденные источники",
+          "required_artifact_type": "SOURCE_RESEARCH",
+          "required_evidence_type": "SOURCE_RECORD"
+        },
+        {
+          "criterion_id": "dod-a343b1f444f7",
+          "description": "Независимая проверка артефактов завершена без открытых замечаний",
+          "required_artifact_type": "",
+          "required_evidence_type": "REVIEW_RECORD"
+        }
+      ],
+      "goal_id": "goal-766d4f694870",
+      "intelligence_budget": {
+        "max_cost_units": 6,
+        "provider_cost_units": {},
+        "provider_spend_units": {},
+        "spent_cost_units": 0
+      },
+      "objective": "Prepare a verified technical specification for a 24 V to 12 V, 5 A converter and select a suitable controller.",
+      "plan_id": "plan-ad8cc5711ca7",
+      "status": "RUNNING",
+      "updated_at": "2026-08-31T21:41:34.391125+00:00",
+      "work_receipt_id": null
+    }
+  },
+  "handoffs": {},
+  "interrupts": {},
+  "observations": {},
+  "organization_id": "FINAL-BAKEOFF-ORG-2",
+  "plans": {
+    "plan-ad8cc5711ca7": {
+      "created_at": "2026-08-31T21:41:34.391090+00:00",
+      "goal_id": "goal-766d4f694870",
+      "plan_id": "plan-ad8cc5711ca7",
+      "strategy": "HANDOFF",
+      "supervisor_employee_id": "supervisor",
+      "work_item_ids": [
+        "work-90fc5eb882b6",
+        "work-58212a005de2",
+        "work-9a90bc800c8c"
+      ]
+    }
+  },
+  "provider_runs": {},
+  "replans": {},
+  "supervisor_decisions": {
+    "supervisor-decision-3274302b8af3": {
+      "complexity": "COMPLEX",
+      "cost": "LOW",
+      "created_at": "2026-08-31T21:41:34.391118+00:00",
+      "decision_id": "supervisor-decision-3274302b8af3",
+      "goal_id": "goal-766d4f694870",
+      "level": "DETERMINISTIC",
+      "reason": "adapter_unavailable_fallback",
+      "required_capabilities": [],
+      "risk": "LOW",
+      "step": "planning",
+      "work_item_id": ""
+    }
+  },
+  "trace_events": {
+    "trace-37a82d325d69": {
+      "action_id": "",
+      "artifact_id": "",
+      "created_at": "2026-08-31T21:41:34.392943+00:00",
+      "detail": "",
+      "event_id": "trace-37a82d325d69",
+      "goal_id": "goal-766d4f694870",
+      "observation_id": "",
+      "stage": "goal_started",
+      "work_item_id": ""
+    },
+    "trace-7def39809991": {
+      "action_id": "",
+      "artifact_id": "",
+      "created_at": "2026-08-31T21:41:34.309063+00:00",
+      "detail": "",
+      "event_id": "trace-7def39809991",
+      "goal_id": "goal-766d4f694870",
+      "observation_id": "",
+      "stage": "goal_created",
+      "work_item_id": ""
+    },
+    "trace-e0c493a9a18e": {
+      "action_id": "",
+      "artifact_id": "",
+      "created_at": "2026-08-31T21:41:34.391137+00:00",
+      "detail": "",
+      "event_id": "trace-e0c493a9a18e",
+      "goal_id": "goal-766d4f694870",
+      "observation_id": "",
+      "stage": "plan_created",
+      "work_item_id": ""
+    }
+  },
+  "work_items": {
+    "work-58212a005de2": {
+      "acceptance_criteria": [
+        "contains source evidence",
+        "is relevant to the stated goal"
+      ],
+      "assigned_employee_id": "employee-researcher",
+      "attempt": 0,
+      "checkpoint_id": null,
+      "dependencies": [],
+      "evidence_requirements": [
+        "successful filesystem.write observation"
+      ],
+      "expected_artifact_types": [
+        "SOURCE_RESEARCH"
+      ],
+      "goal_id": "goal-766d4f694870",
+      "input_artifact_ids": [],
+      "objective": "Research sources, constraints, and options relevant to: Prepare a verified technical specification for a 24 V to 12 V, 5 A converter and select a suitable controller.",
+      "required_capabilities": [
+        "research"
+      ],
+      "required_tools": [
+        "filesystem.write"
+      ],
+      "result": {},
+      "status": "READY",
+      "work_item_id": "work-58212a005de2"
+    },
+    "work-90fc5eb882b6": {
+      "acceptance_criteria": [
+        "addresses the stated goal",
+        "contains a usable result"
+      ],
+      "assigned_employee_id": "employee-engineer",
+      "attempt": 0,
+      "checkpoint_id": null,
+      "dependencies": [],
+      "evidence_requirements": [
+        "successful filesystem.write observation"
+      ],
+      "expected_artifact_types": [
+        "WORK_PRODUCT"
+      ],
+      "goal_id": "goal-766d4f694870",
+      "input_artifact_ids": [],
+      "objective": "Create the primary deliverable for: Prepare a verified technical specification for a 24 V to 12 V, 5 A converter and select a suitable controller.",
+      "required_capabilities": [
+        "specification"
+      ],
+      "required_tools": [
+        "filesystem.write"
+      ],
+      "result": {},
+      "status": "READY",
+      "work_item_id": "work-90fc5eb882b6"
+    },
+    "work-9a90bc800c8c": {
+      "acceptance_criteria": [
+        "all findings resolved"
+      ],
+      "assigned_employee_id": "employee-reviewer",
+      "attempt": 0,
+      "checkpoint_id": null,
+      "dependencies": [
+        "work-90fc5eb882b6",
+        "work-58212a005de2"
+      ],
+      "evidence_requirements": [
+        "review observation"
+      ],
+      "expected_artifact_types": [
+        "REVIEW_RESULT"
+      ],
+      "goal_id": "goal-766d4f694870",
+      "input_artifact_ids": [],
+      "objective": "Review artifacts and evidence",
+      "required_capabilities": [
+        "review"
+      ],
+      "required_tools": [
+        "artifact.review",
+        "filesystem.read"
+      ],
+      "result": {},
+      "status": "PENDING",
+      "work_item_id": "work-9a90bc800c8c"
+    }
+  },
+  "work_receipts": {},
+  "worker_sessions": {}
+}

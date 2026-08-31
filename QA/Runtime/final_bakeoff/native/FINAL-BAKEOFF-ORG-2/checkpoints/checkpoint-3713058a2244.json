@@ -1,0 +1,634 @@
+{
+  "actions": {
+    "action-135ca0846699": {
+      "action_id": "action-135ca0846699",
+      "action_type": "filesystem.write",
+      "created_at": "2026-08-31T21:41:34.396148+00:00",
+      "employee_id": "employee-researcher",
+      "payload": {
+        "content": "# Research notes\n\nObjective: Research sources, constraints, and options relevant to: Prepare a verified technical specification for a 24 V to 12 V, 5 A converter and select a suitable controller.\n\nSource evidence: research requires an authoritative source before release.\n",
+        "path": "artifacts/research.md"
+      },
+      "work_item_id": "work-58212a005de2"
+    },
+    "action-60a04a9d4e61": {
+      "action_id": "action-60a04a9d4e61",
+      "action_type": "filesystem.write",
+      "created_at": "2026-08-31T21:41:34.396065+00:00",
+      "employee_id": "employee-engineer",
+      "payload": {
+        "content": "# Work product\n\nObjective: Create the primary deliverable for: Prepare a verified technical specification for a 24 V to 12 V, 5 A converter and select a suitable controller.\n\nResult: a concise draft prepared for independent review.\n",
+        "path": "artifacts/work_product.md"
+      },
+      "work_item_id": "work-90fc5eb882b6"
+    },
+    "action-cbfc0ee6bc27": {
+      "action_id": "action-cbfc0ee6bc27",
+      "action_type": "artifact.review",
+      "created_at": "2026-08-31T21:41:34.403121+00:00",
+      "employee_id": "employee-reviewer",
+      "payload": {
+        "artifact_ids": [
+          "artifact-87ffc07c43f1",
+          "artifact-5eff8901801e"
+        ]
+      },
+      "work_item_id": "work-9a90bc800c8c"
+    }
+  },
+  "artifacts": {
+    "artifact-5eff8901801e": {
+      "artifact_id": "artifact-5eff8901801e",
+      "artifact_type": "SOURCE_RESEARCH",
+      "content_hash": "020a7ff7ac1cb5dd6f84f94ebff28f9443586ed9429af43fdd88125654d6abf1",
+      "created_at": "2026-08-31T21:41:34.398658+00:00",
+      "created_by_employee_id": "employee-researcher",
+      "created_from_action_id": "action-135ca0846699",
+      "created_from_observation_id": "obs-ac0ddd2b7d12",
+      "goal_id": "goal-766d4f694870",
+      "logical_uri": "artifact://goal-766d4f694870/work-58212a005de2/1",
+      "path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\Runtime\\final_bakeoff\\native\\FINAL-BAKEOFF-ORG-2\\workspace\\artifacts\\research.md",
+      "revision": 1,
+      "work_item_id": "work-58212a005de2"
+    },
+    "artifact-87ffc07c43f1": {
+      "artifact_id": "artifact-87ffc07c43f1",
+      "artifact_type": "WORK_PRODUCT",
+      "content_hash": "942d1e20210d57f9537062a97cd2ba07f934ef6a867cb2aac2f853129ae9f102",
+      "created_at": "2026-08-31T21:41:34.397005+00:00",
+      "created_by_employee_id": "employee-engineer",
+      "created_from_action_id": "action-60a04a9d4e61",
+      "created_from_observation_id": "obs-d79cbac5b63d",
+      "goal_id": "goal-766d4f694870",
+      "logical_uri": "artifact://goal-766d4f694870/work-90fc5eb882b6/1",
+      "path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\Runtime\\final_bakeoff\\native\\FINAL-BAKEOFF-ORG-2\\workspace\\artifacts\\work_product.md",
+      "revision": 1,
+      "work_item_id": "work-90fc5eb882b6"
+    }
+  },
+  "checkpoints": [
+    "checkpoint-f449b264e56c",
+    "checkpoint-1307b3cb8f21",
+    "checkpoint-f14facae396a",
+    "checkpoint-492fba7bd411",
+    "checkpoint-08a6707750f8",
+    "checkpoint-bd695471730a",
+    "checkpoint-892c7b5fc1d4",
+    "checkpoint-cb65f5d5cb2f",
+    "checkpoint-e5baea98beb8",
+    "checkpoint-5ead47826f05",
+    "checkpoint-3713058a2244"
+  ],
+  "employee_snapshots": {
+    "employee-engineer": {
+      "capabilities": [
+        "DESIGN_ENGINEER",
+        "DESIGN_ENGINEER",
+        "LOCAL"
+      ],
+      "permissions": [
+        "CREATE_DOCUMENTS",
+        "READ_WORKSPACE",
+        "RUN_COMMANDS",
+        "WRITE_WORKSPACE"
+      ],
+      "provider_binding_id": "LOCAL",
+      "provider_capabilities": [],
+      "provider_contract_version": "1.0",
+      "role": "DESIGN_ENGINEER"
+    },
+    "employee-researcher": {
+      "capabilities": [
+        "RESEARCHER",
+        "RESEARCHER",
+        "LOCAL"
+      ],
+      "permissions": [
+        "CREATE_DOCUMENTS",
+        "READ_WORKSPACE",
+        "RUN_COMMANDS",
+        "WRITE_WORKSPACE"
+      ],
+      "provider_binding_id": "LOCAL",
+      "provider_capabilities": [],
+      "provider_contract_version": "1.0",
+      "role": "RESEARCHER"
+    },
+    "employee-reviewer": {
+      "capabilities": [
+        "QA_ENGINEER",
+        "QA_ENGINEER",
+        "LOCAL"
+      ],
+      "permissions": [
+        "CREATE_DOCUMENTS",
+        "READ_WORKSPACE",
+        "RUN_COMMANDS",
+        "WRITE_WORKSPACE"
+      ],
+      "provider_binding_id": "LOCAL",
+      "provider_capabilities": [],
+      "provider_contract_version": "1.0",
+      "role": "QA_ENGINEER"
+    }
+  },
+  "evidence": {
+    "evidence-234f8285623b": {
+      "created_at": "2026-08-31T21:41:34.398674+00:00",
+      "evidence_id": "evidence-234f8285623b",
+      "evidence_type": "TOOL_OBSERVATION",
+      "goal_id": "goal-766d4f694870",
+      "passed": true,
+      "source_action_id": "action-135ca0846699",
+      "source_observation_id": "obs-ac0ddd2b7d12",
+      "summary": "filesystem.write succeeded",
+      "work_item_id": "work-58212a005de2"
+    },
+    "evidence-2815a92c66ea": {
+      "created_at": "2026-08-31T21:41:34.398787+00:00",
+      "evidence_id": "evidence-2815a92c66ea",
+      "evidence_type": "SOURCE_RECORD",
+      "goal_id": "goal-766d4f694870",
+      "passed": true,
+      "source_action_id": "action-135ca0846699",
+      "source_observation_id": "obs-ac0ddd2b7d12",
+      "summary": "research artifact contains source evidence section",
+      "work_item_id": "work-58212a005de2"
+    },
+    "evidence-c5faa3edba03": {
+      "created_at": "2026-08-31T21:41:34.403390+00:00",
+      "evidence_id": "evidence-c5faa3edba03",
+      "evidence_type": "REVIEW_RECORD",
+      "goal_id": "goal-766d4f694870",
+      "passed": true,
+      "source_action_id": "action-cbfc0ee6bc27",
+      "source_observation_id": "obs-60fbd1645447",
+      "summary": "independent artifact review accepted",
+      "work_item_id": "work-9a90bc800c8c"
+    },
+    "evidence-e2fc057b28da": {
+      "created_at": "2026-08-31T21:41:34.397020+00:00",
+      "evidence_id": "evidence-e2fc057b28da",
+      "evidence_type": "TOOL_OBSERVATION",
+      "goal_id": "goal-766d4f694870",
+      "passed": true,
+      "source_action_id": "action-60a04a9d4e61",
+      "source_observation_id": "obs-d79cbac5b63d",
+      "summary": "filesystem.write succeeded",
+      "work_item_id": "work-90fc5eb882b6"
+    }
+  },
+  "findings": {},
+  "goals": {
+    "goal-766d4f694870": {
+      "created_at": "2026-08-31T21:41:34.309014+00:00",
+      "definition_of_done": [
+        {
+          "criterion_id": "dod-e24dd8fa128a",
+          "description": "Создан проверяемый артефакт исследования и обоснованного выбора",
+          "required_artifact_type": "WORK_PRODUCT",
+          "required_evidence_type": "TOOL_OBSERVATION"
+        },
+        {
+          "criterion_id": "dod-c4e29de93d11",
+          "description": "Исследование содержит подтвержденные источники",
+          "required_artifact_type": "SOURCE_RESEARCH",
+          "required_evidence_type": "SOURCE_RECORD"
+        },
+        {
+          "criterion_id": "dod-a343b1f444f7",
+          "description": "Независимая проверка артефактов завершена без открытых замечаний",
+          "required_artifact_type": "",
+          "required_evidence_type": "REVIEW_RECORD"
+        }
+      ],
+      "goal_id": "goal-766d4f694870",
+      "intelligence_budget": {
+        "max_cost_units": 6,
+        "provider_cost_units": {},
+        "provider_spend_units": {},
+        "spent_cost_units": 0
+      },
+      "objective": "Prepare a verified technical specification for a 24 V to 12 V, 5 A converter and select a suitable controller.",
+      "plan_id": "plan-ad8cc5711ca7",
+      "status": "COMPLETED",
+      "updated_at": "2026-08-31T21:41:34.404789+00:00",
+      "work_receipt_id": "receipt-4db19ce0fdbe"
+    }
+  },
+  "handoffs": {
+    "handoff-0d5dc6bf67e9": {
+      "acceptance": [
+        "all findings resolved"
+      ],
+      "artifact_ids": [
+        "artifact-87ffc07c43f1"
+      ],
+      "context_refs": [
+        "work-90fc5eb882b6"
+      ],
+      "created_at": "2026-08-31T21:41:34.401824+00:00",
+      "evidence_requirements": [
+        "review observation"
+      ],
+      "expected_result": "Review artifacts and evidence",
+      "from_employee_id": "employee-engineer",
+      "handoff_id": "handoff-0d5dc6bf67e9",
+      "to_employee_id": "employee-reviewer",
+      "work_item_id": "work-9a90bc800c8c"
+    },
+    "handoff-ea97bd0c8cf5": {
+      "acceptance": [
+        "all findings resolved"
+      ],
+      "artifact_ids": [
+        "artifact-5eff8901801e"
+      ],
+      "context_refs": [
+        "work-58212a005de2"
+      ],
+      "created_at": "2026-08-31T21:41:34.401841+00:00",
+      "evidence_requirements": [
+        "review observation"
+      ],
+      "expected_result": "Review artifacts and evidence",
+      "from_employee_id": "employee-researcher",
+      "handoff_id": "handoff-ea97bd0c8cf5",
+      "to_employee_id": "employee-reviewer",
+      "work_item_id": "work-9a90bc800c8c"
+    }
+  },
+  "interrupts": {},
+  "observations": {
+    "obs-60fbd1645447": {
+      "action_id": "action-cbfc0ee6bc27",
+      "created_at": "2026-08-31T21:41:34.403362+00:00",
+      "data": {
+        "accepted": true,
+        "findings": []
+      },
+      "observation_id": "obs-60fbd1645447",
+      "status": "OK",
+      "summary": "review complete"
+    },
+    "obs-ac0ddd2b7d12": {
+      "action_id": "action-135ca0846699",
+      "created_at": "2026-08-31T21:41:34.398620+00:00",
+      "data": {
+        "bytes": 272,
+        "path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\Runtime\\final_bakeoff\\native\\FINAL-BAKEOFF-ORG-2\\workspace\\artifacts\\research.md",
+        "sha256": "020a7ff7ac1cb5dd6f84f94ebff28f9443586ed9429af43fdd88125654d6abf1"
+      },
+      "observation_id": "obs-ac0ddd2b7d12",
+      "status": "OK",
+      "summary": "wrote research.md"
+    },
+    "obs-d79cbac5b63d": {
+      "action_id": "action-60a04a9d4e61",
+      "created_at": "2026-08-31T21:41:34.396972+00:00",
+      "data": {
+        "bytes": 232,
+        "path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\Runtime\\final_bakeoff\\native\\FINAL-BAKEOFF-ORG-2\\workspace\\artifacts\\work_product.md",
+        "sha256": "942d1e20210d57f9537062a97cd2ba07f934ef6a867cb2aac2f853129ae9f102"
+      },
+      "observation_id": "obs-d79cbac5b63d",
+      "status": "OK",
+      "summary": "wrote work_product.md"
+    }
+  },
+  "organization_id": "FINAL-BAKEOFF-ORG-2",
+  "plans": {
+    "plan-ad8cc5711ca7": {
+      "created_at": "2026-08-31T21:41:34.391090+00:00",
+      "goal_id": "goal-766d4f694870",
+      "plan_id": "plan-ad8cc5711ca7",
+      "strategy": "HANDOFF",
+      "supervisor_employee_id": "supervisor",
+      "work_item_ids": [
+        "work-90fc5eb882b6",
+        "work-58212a005de2",
+        "work-9a90bc800c8c"
+      ]
+    }
+  },
+  "provider_runs": {},
+  "replans": {},
+  "supervisor_decisions": {
+    "supervisor-decision-3274302b8af3": {
+      "complexity": "COMPLEX",
+      "cost": "LOW",
+      "created_at": "2026-08-31T21:41:34.391118+00:00",
+      "decision_id": "supervisor-decision-3274302b8af3",
+      "goal_id": "goal-766d4f694870",
+      "level": "DETERMINISTIC",
+      "reason": "adapter_unavailable_fallback",
+      "required_capabilities": [],
+      "risk": "LOW",
+      "step": "planning",
+      "work_item_id": ""
+    }
+  },
+  "trace_events": {
+    "trace-017238206c47": {
+      "action_id": "",
+      "artifact_id": "",
+      "created_at": "2026-08-31T21:41:34.393956+00:00",
+      "detail": "",
+      "event_id": "trace-017238206c47",
+      "goal_id": "goal-766d4f694870",
+      "observation_id": "",
+      "stage": "work_item_running:work-90fc5eb882b6",
+      "work_item_id": ""
+    },
+    "trace-10b7eec1f3cc": {
+      "action_id": "",
+      "artifact_id": "",
+      "created_at": "2026-08-31T21:41:34.397031+00:00",
+      "detail": "",
+      "event_id": "trace-10b7eec1f3cc",
+      "goal_id": "goal-766d4f694870",
+      "observation_id": "",
+      "stage": "work_item_finished:work-90fc5eb882b6",
+      "work_item_id": ""
+    },
+    "trace-1a8b5ff87bea": {
+      "action_id": "action-cbfc0ee6bc27",
+      "artifact_id": "",
+      "created_at": "2026-08-31T21:41:34.403377+00:00",
+      "detail": "",
+      "event_id": "trace-1a8b5ff87bea",
+      "goal_id": "goal-766d4f694870",
+      "observation_id": "obs-60fbd1645447",
+      "stage": "tool_observed",
+      "work_item_id": "work-9a90bc800c8c"
+    },
+    "trace-37a82d325d69": {
+      "action_id": "",
+      "artifact_id": "",
+      "created_at": "2026-08-31T21:41:34.392943+00:00",
+      "detail": "",
+      "event_id": "trace-37a82d325d69",
+      "goal_id": "goal-766d4f694870",
+      "observation_id": "",
+      "stage": "goal_started",
+      "work_item_id": ""
+    },
+    "trace-3da655897e7e": {
+      "action_id": "action-135ca0846699",
+      "artifact_id": "",
+      "created_at": "2026-08-31T21:41:34.398638+00:00",
+      "detail": "",
+      "event_id": "trace-3da655897e7e",
+      "goal_id": "goal-766d4f694870",
+      "observation_id": "obs-ac0ddd2b7d12",
+      "stage": "tool_observed",
+      "work_item_id": "work-58212a005de2"
+    },
+    "trace-3ead7af645ca": {
+      "action_id": "",
+      "artifact_id": "",
+      "created_at": "2026-08-31T21:41:34.401861+00:00",
+      "detail": "",
+      "event_id": "trace-3ead7af645ca",
+      "goal_id": "goal-766d4f694870",
+      "observation_id": "",
+      "stage": "work_item_running:work-9a90bc800c8c",
+      "work_item_id": ""
+    },
+    "trace-441d65af71fc": {
+      "action_id": "",
+      "artifact_id": "",
+      "created_at": "2026-08-31T21:41:34.394885+00:00",
+      "detail": "",
+      "event_id": "trace-441d65af71fc",
+      "goal_id": "goal-766d4f694870",
+      "observation_id": "",
+      "stage": "work_item_running:work-58212a005de2",
+      "work_item_id": ""
+    },
+    "trace-470076898a6f": {
+      "action_id": "action-60a04a9d4e61",
+      "artifact_id": "",
+      "created_at": "2026-08-31T21:41:34.396990+00:00",
+      "detail": "",
+      "event_id": "trace-470076898a6f",
+      "goal_id": "goal-766d4f694870",
+      "observation_id": "obs-d79cbac5b63d",
+      "stage": "tool_observed",
+      "work_item_id": "work-90fc5eb882b6"
+    },
+    "trace-4ff10554dca5": {
+      "action_id": "",
+      "artifact_id": "",
+      "created_at": "2026-08-31T21:41:34.403403+00:00",
+      "detail": "",
+      "event_id": "trace-4ff10554dca5",
+      "goal_id": "goal-766d4f694870",
+      "observation_id": "",
+      "stage": "work_item_finished:work-9a90bc800c8c",
+      "work_item_id": ""
+    },
+    "trace-6d6d994fa365": {
+      "action_id": "action-135ca0846699",
+      "artifact_id": "artifact-5eff8901801e",
+      "created_at": "2026-08-31T21:41:34.398667+00:00",
+      "detail": "",
+      "event_id": "trace-6d6d994fa365",
+      "goal_id": "goal-766d4f694870",
+      "observation_id": "obs-ac0ddd2b7d12",
+      "stage": "artifact_created",
+      "work_item_id": "work-58212a005de2"
+    },
+    "trace-797e8025a2ff": {
+      "action_id": "action-60a04a9d4e61",
+      "artifact_id": "artifact-87ffc07c43f1",
+      "created_at": "2026-08-31T21:41:34.397012+00:00",
+      "detail": "",
+      "event_id": "trace-797e8025a2ff",
+      "goal_id": "goal-766d4f694870",
+      "observation_id": "obs-d79cbac5b63d",
+      "stage": "artifact_created",
+      "work_item_id": "work-90fc5eb882b6"
+    },
+    "trace-7def39809991": {
+      "action_id": "",
+      "artifact_id": "",
+      "created_at": "2026-08-31T21:41:34.309063+00:00",
+      "detail": "",
+      "event_id": "trace-7def39809991",
+      "goal_id": "goal-766d4f694870",
+      "observation_id": "",
+      "stage": "goal_created",
+      "work_item_id": ""
+    },
+    "trace-83b7e7038ca3": {
+      "action_id": "",
+      "artifact_id": "",
+      "created_at": "2026-08-31T21:41:34.404802+00:00",
+      "detail": "",
+      "event_id": "trace-83b7e7038ca3",
+      "goal_id": "goal-766d4f694870",
+      "observation_id": "",
+      "stage": "goal_status:COMPLETED",
+      "work_item_id": ""
+    },
+    "trace-c2542536426b": {
+      "action_id": "",
+      "artifact_id": "",
+      "created_at": "2026-08-31T21:41:34.398807+00:00",
+      "detail": "",
+      "event_id": "trace-c2542536426b",
+      "goal_id": "goal-766d4f694870",
+      "observation_id": "",
+      "stage": "work_item_finished:work-58212a005de2",
+      "work_item_id": ""
+    },
+    "trace-e0c493a9a18e": {
+      "action_id": "",
+      "artifact_id": "",
+      "created_at": "2026-08-31T21:41:34.391137+00:00",
+      "detail": "",
+      "event_id": "trace-e0c493a9a18e",
+      "goal_id": "goal-766d4f694870",
+      "observation_id": "",
+      "stage": "plan_created",
+      "work_item_id": ""
+    },
+    "trace-e47b214b339c": {
+      "action_id": "",
+      "artifact_id": "",
+      "created_at": "2026-08-31T21:41:34.400075+00:00",
+      "detail": "",
+      "event_id": "trace-e47b214b339c",
+      "goal_id": "goal-766d4f694870",
+      "observation_id": "",
+      "stage": "goal_status:RUNNING",
+      "work_item_id": ""
+    }
+  },
+  "work_items": {
+    "work-58212a005de2": {
+      "acceptance_criteria": [
+        "contains source evidence",
+        "is relevant to the stated goal"
+      ],
+      "assigned_employee_id": "employee-researcher",
+      "attempt": 1,
+      "checkpoint_id": null,
+      "dependencies": [],
+      "evidence_requirements": [
+        "successful filesystem.write observation"
+      ],
+      "expected_artifact_types": [
+        "SOURCE_RESEARCH"
+      ],
+      "goal_id": "goal-766d4f694870",
+      "input_artifact_ids": [],
+      "objective": "Research sources, constraints, and options relevant to: Prepare a verified technical specification for a 24 V to 12 V, 5 A converter and select a suitable controller.",
+      "required_capabilities": [
+        "research"
+      ],
+      "required_tools": [
+        "filesystem.write"
+      ],
+      "result": {
+        "artifact_ids": [
+          "artifact-5eff8901801e"
+        ]
+      },
+      "status": "COMPLETED",
+      "work_item_id": "work-58212a005de2"
+    },
+    "work-90fc5eb882b6": {
+      "acceptance_criteria": [
+        "addresses the stated goal",
+        "contains a usable result"
+      ],
+      "assigned_employee_id": "employee-engineer",
+      "attempt": 1,
+      "checkpoint_id": null,
+      "dependencies": [],
+      "evidence_requirements": [
+        "successful filesystem.write observation"
+      ],
+      "expected_artifact_types": [
+        "WORK_PRODUCT"
+      ],
+      "goal_id": "goal-766d4f694870",
+      "input_artifact_ids": [],
+      "objective": "Create the primary deliverable for: Prepare a verified technical specification for a 24 V to 12 V, 5 A converter and select a suitable controller.",
+      "required_capabilities": [
+        "specification"
+      ],
+      "required_tools": [
+        "filesystem.write"
+      ],
+      "result": {
+        "artifact_ids": [
+          "artifact-87ffc07c43f1"
+        ]
+      },
+      "status": "COMPLETED",
+      "work_item_id": "work-90fc5eb882b6"
+    },
+    "work-9a90bc800c8c": {
+      "acceptance_criteria": [
+        "all findings resolved"
+      ],
+      "assigned_employee_id": "employee-reviewer",
+      "attempt": 1,
+      "checkpoint_id": null,
+      "dependencies": [
+        "work-90fc5eb882b6",
+        "work-58212a005de2"
+      ],
+      "evidence_requirements": [
+        "review observation"
+      ],
+      "expected_artifact_types": [
+        "REVIEW_RESULT"
+      ],
+      "goal_id": "goal-766d4f694870",
+      "input_artifact_ids": [
+        "artifact-87ffc07c43f1",
+        "artifact-5eff8901801e"
+      ],
+      "objective": "Review artifacts and evidence",
+      "required_capabilities": [
+        "review"
+      ],
+      "required_tools": [
+        "artifact.review",
+        "filesystem.read"
+      ],
+      "result": {
+        "artifact_ids": []
+      },
+      "status": "COMPLETED",
+      "work_item_id": "work-9a90bc800c8c"
+    }
+  },
+  "work_receipts": {
+    "receipt-4db19ce0fdbe": {
+      "artifact_ids": [
+        "artifact-87ffc07c43f1",
+        "artifact-5eff8901801e"
+      ],
+      "criterion_ids": [
+        "dod-e24dd8fa128a",
+        "dod-c4e29de93d11",
+        "dod-a343b1f444f7"
+      ],
+      "evidence_ids": [
+        "evidence-e2fc057b28da",
+        "evidence-234f8285623b",
+        "evidence-2815a92c66ea",
+        "evidence-c5faa3edba03"
+      ],
+      "goal_id": "goal-766d4f694870",
+      "issued_at": "2026-08-31T21:41:34.404778+00:00",
+      "receipt_id": "receipt-4db19ce0fdbe"
+    }
+  },
+  "worker_sessions": {}
+}
