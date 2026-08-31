@@ -15,4 +15,4 @@
 
 ## Result
 
-PASS. Workspace selection is persisted in localStorage and restored only when the stored organization is present in the API response. The UI continues to use organization-scoped Application API requests.
+PASS. Workspace selection is persisted in localStorage and restored only when the stored organization is present in the API response. The UI continues to use organization-scoped Application API requests. Targeted UI tests: 10 passed. Full pytest: 556 passed, 2 warnings.

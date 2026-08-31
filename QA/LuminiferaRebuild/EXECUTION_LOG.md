@@ -357,5 +357,5 @@ EVIDENCE: `QA/LuminiferaRebuild/V3/RECOVERY_GATE_2026-08-31.md`.
 TASK: Verify organization isolation, workspace switching and selected-workspace persistence.
 STATUS: PASS; packaged gate completed.
 FIX: Persisted the selected workspace ID in localStorage and restored it only against the current organization list.
-VERIFIED: Two packaged workspaces returned distinct organizations, team counts, files and chat counts; switching did not leak data; reload restored the selected workspace; global scroll absent. Targeted 10 passed; full regression baseline 555 passed, 2 warnings.
+VERIFIED: Two packaged workspaces returned distinct organizations, team counts, files and chat counts; switching did not leak data; reload restored the selected workspace; global scroll absent. Targeted 10 passed; full pytest 556 passed, 2 warnings.
 EVIDENCE: `QA/LuminiferaRebuild/V3/MULTI_WORKSPACE_2026-08-31.md`; `QA/LuminiferaRebuild/V3/multi-workspace-isolation.png`.
