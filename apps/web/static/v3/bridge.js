@@ -25,6 +25,32 @@
     async getWorkState() { return { work: organizationId ? await request("/api/work") : null, goals: organizationId ? (unwrap(await request("/api/goals")) || []) : [] }; },
     async getFilesState() { return { artifacts: organizationId ? (unwrap(await request("/api/files")) || []) : [] }; },
     async getSettingsState() { return { settings: await request("/api/settings"), providers: unwrap(await request("/api/providers")) || [], feedback: unwrap(await request("/api/feedback")) || [] }; },
+    async getDiagnostics(config = {}) {
+      const probe = async path => {
+        try {
+          const response = await fetch(`${apiBase}${path}`, { headers: organizationId ? { "X-Organization-Id": organizationId } : {} });
+          return { ok: response.ok, status: response.status };
+        } catch (error) { return { ok: false, status: 0 }; }
+      };
+      const organizations = unwrap(await request("/api/organizations")) || [];
+      const current = organizations.find(item => item.id === organizationId);
+      const checks = {
+        iris: organizationId ? await probe("/api/chat") : { ok: false, status: null },
+        team: organizationId ? await probe(`/api/organizations/${encodeURIComponent(organizationId)}/employees`) : { ok: false, status: null },
+        work: organizationId ? await probe("/api/work") : { ok: false, status: null },
+        files: organizationId ? await probe("/api/files") : { ok: false, status: null },
+        feedback: organizationId ? await probe("/api/feedback") : { ok: false, status: null },
+      };
+      return {
+        api: await probe("/api/health"),
+        organization: { configured: !!current, name: current?.name || null },
+        checks,
+        media: {
+          background: { type: config.background?.type || "none", source: config.background?.src || null },
+          iris: { type: config.iris?.type || "none", source: config.iris?.src || null },
+        },
+      };
+    },
     async chat(message) { const payload = await request("/api/chat", { method: "POST", body: JSON.stringify({ content: message }) }); return { ...payload.result, text: payload.result?.message || payload.result?.text || "Ответ от Iris не получен." }; },
     async createGoal(objective) { return request("/api/goals", { method: "POST", body: JSON.stringify({ objective }) }); },
     async startGoal(planId) { return request(`/api/goals/${encodeURIComponent(planId)}/start`, { method: "POST" }); },

@@ -263,6 +263,11 @@
 
   <dialog id="org-dialog"><form method="dialog" id="org-form"><button class="ghost" value="cancel" aria-label="Закрыть">×</button><span class="eyebrow">НОВОЕ ПРОСТРАНСТВО</span><h2>С чего начнём?</h2><label>Название<input id="org-name" required maxlength="160" placeholder="Например, Nova Lab"></label><label>Направление<textarea id="org-purpose" maxlength="2000" placeholder="Какой результат нужно получить?"></textarea></label><button class="primary" value="default">Создать пространство</button></form></dialog>
   <div id="toast" class="toast"></div>
+  <aside id="diagnostic-panel" class="diagnostic-panel" hidden aria-live="polite">
+    <div class="diagnostic-head"><div><span class="eyebrow">DIAGNOSTICS</span><h2>Состояние Luminifera</h2></div><span id="diagnostic-time"></span></div>
+    <div id="diagnostic-content" class="diagnostic-content"><span class="bridge-state"><i></i><span>Проверка соединения…</span></span></div>
+  </aside>
+  <style>.diagnostic-panel[hidden]{display:none}.diagnostic-panel{position:fixed;z-index:30;right:22px;bottom:22px;width:min(560px,calc(100vw - 44px));max-height:min(720px,calc(100vh - 44px));overflow:auto;padding:22px;border:1px solid rgba(145,161,226,.3);border-radius:22px;background:rgba(5,10,25,.96);box-shadow:0 24px 80px rgba(0,0,0,.55);backdrop-filter:blur(18px)}.diagnostic-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}.diagnostic-head h2{font:28px Georgia,serif;margin:8px 0 0}.diagnostic-head>span{color:var(--muted);font-size:12px}.diagnostic-content{display:grid;gap:12px;margin-top:18px}.diagnostic-group{border:1px solid rgba(145,161,226,.15);border-radius:14px;padding:14px;background:rgba(255,255,255,.025)}.diagnostic-group h3{margin:0 0 10px;font-size:14px}.diagnostic-row{display:flex;justify-content:space-between;gap:16px;padding:7px 0;border-top:1px solid rgba(145,161,226,.1);font-size:12px}.diagnostic-row:first-of-type{border-top:0}.diagnostic-row b{color:#dbe5f8;text-align:right;overflow-wrap:anywhere}.diagnostic-row b.ok{color:var(--green)}.diagnostic-row b.bad{color:#ff9fa9}</style>
 
   <script src="/assets/v3/config.js"></script>
   <script src="/runtime-config.js"></script>

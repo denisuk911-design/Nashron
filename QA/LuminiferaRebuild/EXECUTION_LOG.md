@@ -302,6 +302,15 @@ EVIDENCE: `QA/LuminiferaRebuild/V3/captures/manifest.json`; `QA/LuminiferaRebuil
 KNOWN_LIMITATION: Final owner hands-on visual acceptance remains required; capture runner uses an isolated read-only browser profile and does not mutate product data.
 FILES_CHANGED: `apps/web/static/app.html`; `apps/web/static/v3/`; `scripts/capture_visual_gate.py`; `tests/test_alpha_product_ui.py`
 
+## Packaged V3 diagnostic mode
+
+TASK: Add hidden `?diagnostics=1` mode for packaged V3.
+STATUS: PASS; READY_FOR_OWNER_HANDS-ON_TEST_2.
+IMPLEMENTATION: Added a query-gated diagnostic panel and a read-only Bridge probe. It reports API reachability, current organization name, Iris/team/work/files/feedback endpoint status and configured media sources without secrets, raw IDs or runtime/provider plumbing. Normal `/app` remains unchanged.
+VERIFIED: Packaged diagnostic URL showed HTTP 200 for API and all product services; normal URL kept the panel hidden and global scroll absent. Full pytest: `550 passed, 2 warnings`; targeted static UI test included.
+EVIDENCE: `QA/LuminiferaRebuild/V3/DIAGNOSTIC_MODE_2026-08-31.md`.
+FILES_CHANGED: `apps/web/static/app.html`; `apps/web/static/v3/index.html`; `apps/web/static/v3/app.js`; `apps/web/static/v3/bridge.js`; `tests/test_alpha_product_ui.py`
+
 ## V3 owner-style preflight
 
 TASK: HOLD FOR OWNER HANDS-ON TEST - packaged preflight for V3 baseline.

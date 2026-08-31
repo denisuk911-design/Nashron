@@ -36,6 +36,19 @@ def test_alpha_controller_exposes_product_flows_without_runtime_plumbing():
     assert "runtime_id" not in script
 
 
+def test_v3_has_hidden_diagnostic_mode_without_exposing_identifiers():
+    html = (STATIC / "app.html").read_text(encoding="utf-8")
+    bridge = (STATIC / "v3/bridge.js").read_text(encoding="utf-8")
+    app = (STATIC / "v3/app.js").read_text(encoding="utf-8")
+    assert 'id="diagnostic-panel"' in html
+    assert 'get("diagnostics") === "1"' in app
+    for label in ("api", "organization", "iris", "team", "work", "files", "feedback", "media"):
+        assert label in bridge
+    assert "getDiagnostics" in bridge
+    assert "token" not in app.lower()
+    assert "runtime_id" not in bridge
+
+
 def test_alpha_launcher_checks_api_before_serving_web():
     launcher = (ROOT / "scripts" / "run_web.ps1").read_text(encoding="utf-8")
     assert "/api/health" in launcher
