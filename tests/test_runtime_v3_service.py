@@ -4,9 +4,38 @@ from core.runtime_v3_service import RuntimeV3GoalService
 from core.provider_execution import ContextWindowPolicy
 from runtime_v3.agent_runtime import ProviderAgentRuntime
 from runtime_v3.engine import HybridWorkflowEngine
-from runtime_v3.models import EmployeeBinding, WorkItem
+from runtime_v3.models import EmployeeBinding, Goal, RuntimeState, WorkItem, WorkItemStatus
 from runtime_v3.models import load_state
 import time
+
+
+def test_project_for_chat_distinguishes_owner_confirmation_from_unsupported_claim():
+    service = RuntimeV3GoalService(".")
+    goal = Goal("goal-summary", "Create a result")
+    state = RuntimeState("org")
+    state.goals[goal.goal_id] = goal
+    item = WorkItem("work-summary", goal.goal_id, "Create a result", "engineer", status=WorkItemStatus.BLOCKED)
+    item.result = {"hitl_interrupt_id": "hitl-1", "requires_owner": True}
+    state.work_items[item.work_item_id] = item
+
+    summary = service.project_for_chat(state, goal.goal_id)
+
+    assert "ожидается подтверждение владельца" in summary
+    assert "неподтверждённое заявление" not in summary
+
+
+def test_project_for_chat_marks_unsupported_claim_without_mislabeling_it():
+    service = RuntimeV3GoalService(".")
+    goal = Goal("goal-claim", "Create a result")
+    state = RuntimeState("org")
+    state.goals[goal.goal_id] = goal
+    item = WorkItem("work-claim", goal.goal_id, "Create a result", "engineer", status=WorkItemStatus.BLOCKED)
+    item.result = {"unsupported_claim": "I completed the work"}
+    state.work_items[item.work_item_id] = item
+
+    summary = service.project_for_chat(state, goal.goal_id)
+
+    assert "неподтверждённое заявление" in summary
 
 
 class FakeProviderAdapter:

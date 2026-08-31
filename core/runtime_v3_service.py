@@ -122,6 +122,15 @@ class RuntimeV3GoalService:
                 path = Path(artifact.path)
                 lines.append(f"- {path.name}, ревизия {artifact.revision}")
         blocked = [item for item in work_items if item.status == WorkItemStatus.BLOCKED]
-        if blocked:
-            lines.append("Есть неподтверждённые заявления, работа не закрыта без действий инструментов.")
+        unsupported = [item for item in blocked if item.result.get("unsupported_claim")]
+        interrupts = [item for item in blocked if item.result.get("hitl_interrupt_id")]
+        provider_failures = [item for item in blocked if item.result.get("failure_kind") or item.result.get("provider_failure")]
+        if unsupported:
+            lines.append("Есть неподтверждённое заявление; нужен подтверждаемый результат инструмента или доработка.")
+        elif interrupts:
+            lines.append("Работа приостановлена: ожидается подтверждение владельца для продолжения.")
+        elif provider_failures:
+            lines.append("Работа приостановлена: провайдер не подтвердил выполнение действия.")
+        elif blocked:
+            lines.append("Работа приостановлена до устранения причины блокировки.")
         return "\n".join(lines)
