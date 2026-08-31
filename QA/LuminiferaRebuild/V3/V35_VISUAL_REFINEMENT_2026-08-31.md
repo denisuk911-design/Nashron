@@ -21,3 +21,5 @@
 ## Capture limitation
 
 The connected Playwright Chrome timed out during its font-wait screenshot phase. No new screenshot is represented as evidence; existing baseline captures were not modified.
+
+Post-capture review found that Settings was being rebuilt by the runtime controller after the initial shell render. The dynamic Settings content was corrected and the packaged build was rebuilt; a second DOM verification confirmed the corrected user-facing copy and viewport bounds.
