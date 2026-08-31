@@ -374,3 +374,11 @@ STATUS: PASS; packaged E2E completed.
 FIX: Explicitly cancel and close the organization dialog close control so the form submit handler cannot intercept it.
 VERIFIED: Hero Iris, prompt, profile, workspace dialog open/close, all five routes, packaged rendering and no-global-scroll passed. Targeted 11 passed; full pytest 557 passed, 2 warnings.
 EVIDENCE: `QA/LuminiferaRebuild/V3/ALL_CONTROLS_2026-08-31.md`; `QA/LuminiferaRebuild/V3/all-controls-gate.png`.
+
+## V3 owner-ready polish gate
+
+TASK: Owner-style preflight at 1920x1080 and 1440x900; fix only concrete visual or UX defects.
+STATUS: PASS; packaged preflight completed.
+FIX: Organization dialog close interception was corrected in the all-controls gate; no additional visual defects were found.
+VERIFIED: Text fit, spacing, contrast, focus/hover, honest states, navigation and no-global-scroll checked in both packaged captures. Targeted 11 passed; full pytest 557 passed, 2 warnings.
+EVIDENCE: `QA/LuminiferaRebuild/V3/OWNER_READY_POLISH_2026-08-31.md`; `owner-polish-1920.png`; `owner-polish-1440.png`; `all-controls-gate.png`.
