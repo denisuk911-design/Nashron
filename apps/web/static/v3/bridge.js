@@ -28,7 +28,14 @@
       return { organization: { name: home.organization_name }, team: { count: home.team_size || 0 }, work: { activeGoal: home.goal_title || null, state: home.goal_state, progress: home.goal_progress || 0 }, files: { count: files.length }, messages };
     },
     async getTeamState() { return { members: organizationId ? (unwrap(await request(`/api/organizations/${encodeURIComponent(organizationId)}/employees`)) || []) : [] }; },
-    async getWorkState() { return { work: organizationId ? await request("/api/work") : null, goals: organizationId ? (unwrap(await request("/api/goals")) || []) : [] }; },
+    async getWorkState() {
+      if (!organizationId) return { work: null, goals: [], items: [], review: [], timeline: [], receipt: null };
+      const [work, goalsPayload, items, review, timeline, receipt] = await Promise.all([
+        request("/api/work"), request("/api/goals"), request("/api/work/items"),
+        request("/api/work/review"), request("/api/work/timeline"), request("/api/work/receipt"),
+      ]);
+      return { work, goals: unwrap(goalsPayload) || [], items: unwrap(items) || [], review: unwrap(review) || [], timeline: unwrap(timeline) || [], receipt };
+    },
     async getFilesState() { return { artifacts: organizationId ? (unwrap(await request("/api/files")) || []) : [] }; },
     async getSettingsState() { return { settings: await request("/api/settings"), providers: unwrap(await request("/api/providers")) || [], feedback: unwrap(await request("/api/feedback")) || [] }; },
     async getDiagnostics(config = {}) {
@@ -64,6 +71,11 @@
     async chat(message) { const payload = await request("/api/chat", { method: "POST", body: JSON.stringify({ content: message }) }); return { ...payload.result, text: payload.result?.message || payload.result?.text || "Ответ от Iris не получен." }; },
     async createGoal(objective) { return request("/api/goals", { method: "POST", body: JSON.stringify({ objective }) }); },
     async startGoal(planId) { return request(`/api/goals/${encodeURIComponent(planId)}/start`, { method: "POST" }); },
+    async approveGoal(planId) { return request(`/api/goals/${encodeURIComponent(planId)}/approve`, { method: "POST" }); },
+    async replanGoal(planId) { return request(`/api/goals/${encodeURIComponent(planId)}/replan`, { method: "POST" }); },
+    async cancelGoal(planId) { return request(`/api/goals/${encodeURIComponent(planId)}/cancel`, { method: "POST" }); },
+    async checkHealth() { return request("/api/health"); },
+    async previewFile(fileId) { return request(`/api/files/${encodeURIComponent(fileId)}/preview`); },
     async saveSettings(settings) { return request("/api/settings", { method: "PATCH", body: JSON.stringify(settings) }); },
     async submitFeedback(category, description) { return request("/api/feedback", { method: "POST", body: JSON.stringify({ category, description }) }); },
     async refresh() { return this.getHomeState(); },
