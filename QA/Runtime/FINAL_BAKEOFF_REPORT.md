@@ -23,4 +23,10 @@ The external SDKs were invoked from their isolated environments using the same e
 
 LangGraph environment package verified: `langchain-openai 1.6.0`.
 
+## Provider route recovery audit
+
+The configured Provider Hub route available to this machine is `GEMINI_CLI` with model `gemini-3.6-flash`; all three attempts for the external candidates returned `429 RESOURCE_EXHAUSTED`. No other configured API credential was available (`OPENAI_API_KEY`, `GOOGLE_API_KEY`, and `ANTHROPIC_API_KEY` are absent). The installed `codex.exe` is a local CLI and is not an SDK-compatible shared provider route, so it was not substituted.
+
+Recovery status: BLOCKED_PENDING_ANOTHER_CONFIGURED_PROVIDER_ROUTE. No bake-off rerun or default switch was performed.
+
 Checks: Native golden Goal PASS; benchmark script `py_compile` PASS. Full packaged winner E2E and final runtime switch are blocked by external provider capacity, not by a successful external runtime result.
