@@ -49,6 +49,13 @@ def test_v3_has_hidden_diagnostic_mode_without_exposing_identifiers():
     assert "runtime_id" not in bridge
 
 
+def test_v3_activates_workspace_created_through_iris():
+    app = (STATIC / "v3/app.js").read_text(encoding="utf-8")
+    assert "preferredId" in app
+    assert 'result.action === "create_organization"' in app
+    assert "loadOrganizations(result.data.organization_id)" in app
+
+
 def test_alpha_launcher_checks_api_before_serving_web():
     launcher = (ROOT / "scripts" / "run_web.ps1").read_text(encoding="utf-8")
     assert "/api/health" in launcher

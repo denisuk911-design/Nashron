@@ -327,3 +327,11 @@ FIX: Added `Собери мне команду`, `Собрать команду`
 VERIFIED: Packaged `Собери мне команду` created a real operational team; `Привет` and `Как дела?` returned conversational responses and left work inactive. Targeted tests passed.
 VERIFIED: Packaged GUI tested team action, social messages, pending cancellation and no-pending confirmation. Targeted 65 passed; full pytest `552 passed, 2 warnings`.
 EVIDENCE: `QA/LuminiferaRebuild/V3/IRIS_CONVERSATIONAL_GATE_2026-08-31.md`.
+
+## Fresh-profile onboarding V3
+
+TASK: Verify first launch, Iris workspace creation, reload persistence and honest empty states.
+STATUS: PASS; packaged onboarding and full regression completed.
+FIX: After Iris creates an organization, V3 reloads the real workspace list and activates the returned organization instead of leaving the UI in the empty state.
+VERIFIED: Empty packaged profile, `Создай организацию: Fresh Onboarding`, persisted Iris context after reload, all Product routes and no global scroll. Targeted 40 passed; full pytest `553 passed, 2 warnings`.
+EVIDENCE: `QA/LuminiferaRebuild/V3/FRESH_ONBOARDING_2026-08-31.md`.
