@@ -3976,6 +3976,12 @@ class Database:
         with self.connect() as conn:
             return conn.execute(sql, params).fetchall()
 
+    def update_organization(self, organization_id: str, name: str, purpose: str) -> None:
+        with self.connect() as conn:
+            cursor = conn.execute("UPDATE organizations SET name = ?, purpose = ? WHERE id = ?", (name, purpose, organization_id))
+            if cursor.rowcount != 1:
+                raise ValueError("organization_not_found")
+
     def create_workflow(self, values: dict[str, Any], steps: list[dict[str, Any]]) -> str:
         workflow_id = values.get("id") or f"WF-{uuid.uuid4().hex[:12].upper()}"
         with self.connect() as conn:

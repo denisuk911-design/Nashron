@@ -77,6 +77,11 @@ class OrganizationRequest(BaseModel):
     purpose: str = Field(default="", max_length=2_000)
 
 
+class OrganizationUpdateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=160)
+    purpose: str = Field(default="", max_length=2_000)
+
+
 class GoalRequest(BaseModel):
     objective: str = Field(min_length=1, max_length=10_000)
 
@@ -382,6 +387,15 @@ async def create_organization(request: OrganizationRequest) -> dict[str, Any]:
     return result
 
 
+@app.patch("/api/organizations/{organization_id}")
+async def update_organization(organization_id: str, request: OrganizationUpdateRequest) -> dict[str, Any]:
+    core.organization_id(organization_id)
+    organization = core.universal.rename_organization(organization_id, request.name, request.purpose)
+    result = _plain(organization)
+    await core.events.publish({"type": "organization.updated", "data": result})
+    return result
+
+
 @app.get("/api/organizations/{organization_id}/home")
 def home(organization_id: str) -> dict[str, Any]:
     core.organization_id(organization_id)
@@ -392,6 +406,11 @@ def home(organization_id: str) -> dict[str, Any]:
 def employees(organization_id: str) -> list[dict[str, Any]]:
     core.organization_id(organization_id)
     return [_plain(agent) for agent in list_chat_agents(core.database, organization_id=organization_id)]
+
+
+@app.get("/api/roles")
+def roles() -> list[dict[str, Any]]:
+    return [{"id": str(row["role_id"]), "name": str(row["display_name"] or row["role_id"]), "description": str(row["description"] or "")} for row in core.management.list_roles()]
 
 
 @app.get("/api/organizations/{organization_id}/teams")
@@ -626,6 +645,15 @@ async def approve_goal(plan_id: str, x_organization_id: str | None = Header(defa
 
 @app.post("/api/goals/{plan_id}/replan")
 async def replan_goal(plan_id: str, x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
+    organization_id = core.organization_id(x_organization_id)
+    _goal_for_scope(plan_id, organization_id)
+    result = _public_plan(core.supervisor.replan(plan_id))
+    await core.events.publish({"type": "goal.progressed", "data": result})
+    return result
+
+
+@app.post("/api/goals/{plan_id}/retry")
+async def retry_goal(plan_id: str, x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
     organization_id = core.organization_id(x_organization_id)
     _goal_for_scope(plan_id, organization_id)
     result = _public_plan(core.supervisor.replan(plan_id))

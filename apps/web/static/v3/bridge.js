@@ -21,6 +21,7 @@
     getOrganizationId() { return organizationId; },
     async getOrganizations() { return unwrap(await request("/api/organizations")); },
     async createOrganization(name, purpose) { return request("/api/organizations", { method: "POST", body: JSON.stringify({ name, purpose }) }); },
+    async renameOrganization(name, purpose) { return request(`/api/organizations/${encodeURIComponent(organizationId)}`, { method: "PATCH", body: JSON.stringify({ name, purpose }) }); },
     async getHomeState() {
       if (!organizationId) return { organization: null, team: null, work: null, files: null, message: "Создайте рабочее пространство" };
       const [home, filesPayload, messagesPayload] = await Promise.all([request(`/api/organizations/${encodeURIComponent(organizationId)}/home`), request("/api/files"), request("/api/chat")]);
@@ -28,6 +29,11 @@
       return { organization: { name: home.organization_name }, team: { count: home.team_size || 0 }, work: { activeGoal: home.goal_title || null, state: home.goal_state, progress: home.goal_progress || 0 }, files: { count: files.length }, messages };
     },
     async getTeamState() { return { members: organizationId ? (unwrap(await request(`/api/organizations/${encodeURIComponent(organizationId)}/employees`)) || []) : [] }; },
+    async getRoles() { return unwrap(await request("/api/roles")) || []; },
+    async createEmployee(employee) { return request(`/api/organizations/${encodeURIComponent(organizationId)}/employees`, { method: "POST", body: JSON.stringify(employee) }); },
+    async updateEmployeeRole(agentId, roleId) { return request(`/api/organizations/${encodeURIComponent(organizationId)}/employees/${encodeURIComponent(agentId)}/role`, { method: "PATCH", body: JSON.stringify({ role_id: roleId }) }); },
+    async archiveEmployee(agentId) { return request(`/api/organizations/${encodeURIComponent(organizationId)}/employees/${encodeURIComponent(agentId)}/archive`, { method: "POST" }); },
+    async deleteEmployee(agentId) { return request(`/api/organizations/${encodeURIComponent(organizationId)}/employees/${encodeURIComponent(agentId)}?confirm=true`, { method: "DELETE" }); },
     async getWorkState() {
       if (!organizationId) return { work: null, goals: [], items: [], review: [], timeline: [], receipt: null };
       const [work, goalsPayload, items, review, timeline, receipt] = await Promise.all([
@@ -73,9 +79,15 @@
     async startGoal(planId) { return request(`/api/goals/${encodeURIComponent(planId)}/start`, { method: "POST" }); },
     async approveGoal(planId) { return request(`/api/goals/${encodeURIComponent(planId)}/approve`, { method: "POST" }); },
     async replanGoal(planId) { return request(`/api/goals/${encodeURIComponent(planId)}/replan`, { method: "POST" }); },
+    async retryGoal(planId) { return request(`/api/goals/${encodeURIComponent(planId)}/retry`, { method: "POST" }); },
     async cancelGoal(planId) { return request(`/api/goals/${encodeURIComponent(planId)}/cancel`, { method: "POST" }); },
     async checkHealth() { return request("/api/health"); },
     async previewFile(fileId) { return request(`/api/files/${encodeURIComponent(fileId)}/preview`); },
+    async downloadArtifact(artifactId) {
+      const response = await fetch(`${apiBase}/api/artifacts/${encodeURIComponent(artifactId)}/download`, { headers: organizationId ? { "X-Organization-Id": organizationId } : {} });
+      if (!response.ok) throw new Error(await response.text());
+      const url = URL.createObjectURL(await response.blob()); const link = document.createElement("a"); link.href = url; link.download = "artifact"; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    },
     async saveSettings(settings) { return request("/api/settings", { method: "PATCH", body: JSON.stringify(settings) }); },
     async submitFeedback(category, description) { return request("/api/feedback", { method: "POST", body: JSON.stringify({ category, description }) }); },
     async refresh() { return this.getHomeState(); },
