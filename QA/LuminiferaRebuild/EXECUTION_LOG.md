@@ -382,3 +382,10 @@ STATUS: PASS; packaged preflight completed.
 FIX: Organization dialog close interception was corrected in the all-controls gate; no additional visual defects were found.
 VERIFIED: Text fit, spacing, contrast, focus/hover, honest states, navigation and no-global-scroll checked in both packaged captures. Targeted 11 passed; full pytest 557 passed, 2 warnings.
 EVIDENCE: `QA/LuminiferaRebuild/V3/OWNER_READY_POLISH_2026-08-31.md`; `owner-polish-1920.png`; `owner-polish-1440.png`; `all-controls-gate.png`.
+
+## V3 final Alpha acceptance gate
+
+TASK: Fresh packaged profile through workspace, social Iris chat, team creation, real Goal execution, progress, artifacts/evidence/review, Files, Settings, reload, multi-workspace isolation and temporary API recovery.
+STATUS: FINAL_ALPHA_CANDIDATE; packaged acceptance completed. One concrete defect was fixed: Iris team creation now remains in the selected workspace instead of creating a second organization.
+VERIFIED: Packaged `dist/Luminifera.exe` created a workspace, answered social chat without starting work, created six employees in that workspace, executed the converter goal to 100% with 3 work items, 2 verified artifacts, 4 evidence records and 0 findings. Reload, workspace switching, route rendering, honest API failure/recovery, no raw IDs and no global scroll passed.
+EVIDENCE: `QA/LuminiferaRebuild/V3/FINAL_ALPHA_ACCEPTANCE_2026-08-31.md`; `owner-polish-1920.png`; `owner-polish-1440.png`; `all-controls-gate.png`.

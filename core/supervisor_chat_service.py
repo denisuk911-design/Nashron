@@ -210,7 +210,20 @@ class SupervisorChatApplicationService:
                 templates[0],
             )
         name = text.split(":", 1)[1].strip() if ":" in text else f"{template.name} team"
-        activation = self.universal_service.activate_template(template.template_id, name)
+        if organization_id:
+            try:
+                activation = self.universal_service.activate_template(
+                    template.template_id,
+                    name,
+                    organization_id=organization_id,
+                )
+            except TypeError as exc:
+                if "organization_id" not in str(exc):
+                    raise
+                # Keep lightweight test doubles and older integrations compatible.
+                activation = self.universal_service.activate_template(template.template_id, name)
+        else:
+            activation = self.universal_service.activate_template(template.template_id, name)
         return SupervisorChatResult(True, f"Команда «{activation.organization.name}» создана по шаблону «{template.name}».", route="STRONG", action="create_team", data={"organization_id": activation.organization.organization_id, "employee_ids": list(activation.employee_ids)})
 
     def _delete_employee(self, text: str) -> SupervisorChatResult:

@@ -263,6 +263,7 @@ class UniversalPlatformService:
         template_id: str,
         organization_name: str,
         *,
+        organization_id: str | None = None,
         purpose: str = "",
         team_size: str = "STANDARD",
         provider_assignments: dict[str, str] | None = None,
@@ -275,16 +276,25 @@ class UniversalPlatformService:
             raise ValueError("unknown_organization_template")
         provider_assignments = provider_assignments or {}
         use_existing_agents = use_existing_agents or {}
-        organization_id = self.database.create_organization(
-            {
-                "name": organization_name.strip(),
-                "purpose": purpose.strip() or str(row["purpose"] or ""),
-                "active_template_id": template_id,
-                "management_model_id": row["management_model_id"],
-                "domain_package": str(row["domain_package"] or ""),
-                "responsibility_model_id": row["responsibility_model_id"],
-            }
-        )
+        if organization_id:
+            existing = next(
+                (item for item in self.database.list_organizations() if str(item["id"]) == str(organization_id)),
+                None,
+            )
+            if existing is None:
+                raise ValueError("unknown_organization")
+            organization_id = str(existing["id"])
+        else:
+            organization_id = self.database.create_organization(
+                {
+                    "name": organization_name.strip(),
+                    "purpose": purpose.strip() or str(row["purpose"] or ""),
+                    "active_template_id": template_id,
+                    "management_model_id": row["management_model_id"],
+                    "domain_package": str(row["domain_package"] or ""),
+                    "responsibility_model_id": row["responsibility_model_id"],
+                }
+            )
         organization_conversation_id = self.database.ensure_organization_conversation(organization_id, organization_name.strip())
         self.database.create_organization_activation_event(organization_id, "ACTIVATION_REQUESTED", "STARTED", {"template_id": template_id, "name": organization_name})
         roles = self._json_list(row["roles"])
