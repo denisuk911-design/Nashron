@@ -231,9 +231,16 @@ class WebCore:
             permission_resolver=lambda agent_id: effective_permissions_for_agent(self.database, agent_id),
         )
         runtime_root = Path(os.environ.get("TEAM2050_RUNTIME_ROOT") or ROOT).resolve()
+        active_provider = str(self.settings.get("active_provider_id") or "")
+        selected_credential = self.provider_credentials.read(active_provider) if active_provider else None
         external_runtime_adapters = build_external_runtime_adapters(
             runtime_root,
-            credential=self.provider_credentials.read("GEMINI_CLI") or "",
+            credential=(
+                selected_credential
+                or self.provider_credentials.read("OPENAI_API")
+                or self.provider_credentials.read("GEMINI_CLI")
+                or ""
+            ),
         )
         self.runtime_execution = RuntimeExecutionService(
             self.runtime_v3,
@@ -383,10 +390,12 @@ async def execute_runtime_neutral(
     return {
         "ok": result.ok,
         "summary": result.summary,
+        "runtime_id": result.runtime_id,
         "organization_id": result.organization_id,
         "correlation_id": result.correlation_id,
         "artifacts": list(result.artifact_refs),
         "evidence": list(result.evidence_refs),
+        "data": dict(result.data),
         "events": [_plain(event) for event in result.events],
     }
 

@@ -18,8 +18,8 @@
 The runtime metadata path is now wired and unit-tested: selected provider/model
 are carried into the external worker and the worker chooses the request model
 over its environment default. The final live provider inference gate remains
-unrun because this validation intentionally uses an isolated credential store;
-no paid/provider call or real credential overwrite was performed.
+covered by the separate PHASE 7.4 live-test report; this validation itself uses
+an isolated credential store and performs no paid/provider call.
 
 ## Evidence
 
