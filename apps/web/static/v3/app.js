@@ -11,10 +11,19 @@
   function media(container, value, label) {
     container.innerHTML = "";
     if (!value || value.type === "none" || !value.src) return;
+    const fallback = () => {
+      container.innerHTML = "";
+      if (!value.poster || value.poster === value.src) return;
+      const poster = document.createElement("img");
+      poster.src = value.poster; poster.alt = label;
+      poster.addEventListener("error", () => { container.innerHTML = ""; }, { once: true });
+      container.append(poster);
+    };
     if (value.type === "video") {
       const video = document.createElement("video"); video.src = value.src; video.poster = value.poster || "";
       video.autoplay = value.autoplay !== false; video.loop = value.loop !== false; video.muted = value.muted !== false; video.playsInline = true; video.setAttribute("aria-label", label); container.append(video);
-    } else { const image = document.createElement("img"); image.src = value.src; image.alt = label; container.append(image); }
+      video.addEventListener("error", fallback, { once: true });
+    } else { const image = document.createElement("img"); image.src = value.src; image.alt = label; image.addEventListener("error", fallback, { once: true }); container.append(image); }
   }
   function applyConfig() {
     const branding = cfg.branding || {};
@@ -71,7 +80,7 @@
   document.querySelectorAll("[data-route]").forEach(button => button.onclick = () => route(button.dataset.route));
   $("#focus-iris").onclick = () => { route("home"); $("#iris-input").focus(); };
   $("#iris-form").onsubmit = async event => { event.preventDefault(); const text = $("#iris-input").value.trim(); if (!text) return; $("#iris-input").value = ""; const item = { role: "owner", content: text }; messages.push(item); renderChat(); try { const result = await bridge.chat(text); messages.push({ role: "assistant", content: result.text || "Ответ от Iris не получен." }); renderChat(); if (result.action === "create_organization" && result.data?.organization_id) await loadOrganizations(result.data.organization_id); } catch (error) { messages.push({ role: "assistant", content: "Не удалось связаться с движком." }); renderChat(); } };
-  $("#refresh-home").onclick = () => renderHome(); $("#refresh-files").onclick = () => renderFiles(); $("#team-create").onclick = () => { route("home"); $("#iris-input").value = "Собери мне команду"; $("#iris-input").focus(); }; $("#new-goal").onclick = () => { route("home"); $("#iris-input").value = "Создай новую цель"; $("#iris-input").focus(); }; $("#workspace-select").onchange = async event => { bridge.setOrganization(event.target.value); await render(current); }; $("#workspace-new").onclick = () => $("#org-dialog").showModal(); $("#org-form").onsubmit = async event => { event.preventDefault(); const org = await bridge.createOrganization($("#org-name").value.trim(), $("#org-purpose").value.trim()); $("#org-dialog").close(); await loadOrganizations(); bridge.setOrganization(org.organization_id); $("#workspace-select").value = org.organization_id; await render(current); };
+  $("#refresh-home").onclick = () => renderHome(); $("#refresh-files").onclick = () => renderFiles(); $("#preview-media").onclick = () => location.reload(); $("#team-create").onclick = () => { route("home"); $("#iris-input").value = "Собери мне команду"; $("#iris-input").focus(); }; $("#new-goal").onclick = () => { route("home"); $("#iris-input").value = "Создай новую цель"; $("#iris-input").focus(); }; $("#workspace-select").onchange = async event => { bridge.setOrganization(event.target.value); await render(current); }; $("#workspace-new").onclick = () => $("#org-dialog").showModal(); $("#org-form").onsubmit = async event => { event.preventDefault(); const org = await bridge.createOrganization($("#org-name").value.trim(), $("#org-purpose").value.trim()); $("#org-dialog").close(); await loadOrganizations(); bridge.setOrganization(org.organization_id); $("#workspace-select").value = org.organization_id; await render(current); };
   applyConfig(); updateBridgeState(); loadOrganizations().then(renderDiagnostics);
   function updateBridgeState() { const dot = $("#bridge-dot"); if (dot) dot.classList.toggle("ready", !!bridge.connected); if ($("#bridge-title")) $("#bridge-title").textContent = bridge.connected ? "Bridge подключён" : "Bridge не подключён"; }
 })();

@@ -335,3 +335,11 @@ STATUS: PASS; packaged onboarding and full regression completed.
 FIX: After Iris creates an organization, V3 reloads the real workspace list and activates the returned organization instead of leaving the UI in the empty state.
 VERIFIED: Empty packaged profile, `Создай организацию: Fresh Onboarding`, persisted Iris context after reload, all Product routes and no global scroll. Targeted 40 passed; full pytest `553 passed, 2 warnings`.
 EVIDENCE: `QA/LuminiferaRebuild/V3/FRESH_ONBOARDING_2026-08-31.md`.
+
+## Packaged V3 media gate
+
+TASK: Verify config.js image/video media, reload/restart behavior and missing-resource fallback.
+STATUS: PASS; packaged media gate and full regression completed.
+FIX: Added error handling for background/Iris image and video resources. A configured poster is used when available; otherwise the styled media container safely clears the broken element. Wired `Перечитать config.js` to a real reload.
+VERIFIED: Packaged image mode, video element creation, missing-video poster fallback, restoration after reload and no global scroll. Targeted 21 passed; full pytest `554 passed, 2 warnings`.
+EVIDENCE: `QA/LuminiferaRebuild/V3/MEDIA_GATE_2026-08-31.md`.

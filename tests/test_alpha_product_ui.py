@@ -56,6 +56,12 @@ def test_v3_activates_workspace_created_through_iris():
     assert "loadOrganizations(result.data.organization_id)" in app
 
 
+def test_v3_media_has_missing_asset_fallback_and_config_reload_action():
+    app = (STATIC / "v3/app.js").read_text(encoding="utf-8")
+    assert 'addEventListener("error", fallback' in app
+    assert '$("#preview-media").onclick = () => location.reload()' in app
+
+
 def test_alpha_launcher_checks_api_before_serving_web():
     launcher = (ROOT / "scripts" / "run_web.ps1").read_text(encoding="utf-8")
     assert "/api/health" in launcher
