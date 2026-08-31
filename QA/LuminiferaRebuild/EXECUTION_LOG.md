@@ -359,3 +359,10 @@ STATUS: PASS; packaged gate completed.
 FIX: Persisted the selected workspace ID in localStorage and restored it only against the current organization list.
 VERIFIED: Two packaged workspaces returned distinct organizations, team counts, files and chat counts; switching did not leak data; reload restored the selected workspace; global scroll absent. Targeted 10 passed; full pytest 556 passed, 2 warnings.
 EVIDENCE: `QA/LuminiferaRebuild/V3/MULTI_WORKSPACE_2026-08-31.md`; `QA/LuminiferaRebuild/V3/multi-workspace-isolation.png`.
+
+## V3 permissions and role-bound gate
+
+TASK: Verify real permissions, role boundaries, denial behavior and cross-workspace restrictions.
+STATUS: PASS; no defect found and no runtime change required.
+VERIFIED: Targeted capability, runtime, management, organization-isolation and Web API tests passed; packaged UI smoke exposed no raw IDs and no global scroll. Targeted 71 passed, 1 warning.
+EVIDENCE: `QA/LuminiferaRebuild/V3/PERMISSIONS_ROLE_BOUND_2026-08-31.md`.
