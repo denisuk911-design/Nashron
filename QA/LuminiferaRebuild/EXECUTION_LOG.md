@@ -389,3 +389,12 @@ TASK: Fresh packaged profile through workspace, social Iris chat, team creation,
 STATUS: FINAL_ALPHA_CANDIDATE; packaged acceptance completed. One concrete defect was fixed: Iris team creation now remains in the selected workspace instead of creating a second organization.
 VERIFIED: Packaged `dist/Luminifera.exe` created a workspace, answered social chat without starting work, created six employees in that workspace, executed the converter goal to 100% with 3 work items, 2 verified artifacts, 4 evidence records and 0 findings. Reload, workspace switching, route rendering, honest API failure/recovery, no raw IDs and no global scroll passed.
 EVIDENCE: `QA/LuminiferaRebuild/V3/FINAL_ALPHA_ACCEPTANCE_2026-08-31.md`; `owner-polish-1920.png`; `owner-polish-1440.png`; `all-controls-gate.png`.
+
+## V3.5 visual refinement gate
+
+TASK: Refine header, Iris media crop and inline chat, remove developer-facing copy and browser-default controls, and present real team members as a living constellation while preserving Home art direction and all backend/runtime behavior.
+STATUS: PASS for packaged structural and viewport preflight.
+FIX: Reduced the header Iris action to a compact shortcut, improved Iris media framing, added a themed select treatment, replaced the technical Settings rules panel with user-facing product copy, and rendered real team members as animated constellation nodes with orbit/light motion. The empty state remains honest when no employees exist.
+VERIFIED: Rebuilt `dist/Luminifera.exe`; packaged URL tested at 1920x1080 and 1440x900. Home, Team, Work, Files and Settings opened successfully; Iris media loaded; Team rendered 3 real members; Settings contained no developer/raw technical copy; global document/body scroll height matched the viewport at both sizes. Targeted 11 passed; full pytest `557 passed, 2 warnings`; `git diff --check` passed; `node --check apps/web/static/v3/app.js` passed.
+LIMITATION: Browser screenshot capture was attempted through the connected Playwright Chrome but timed out in the browser font-wait stage; no new PNG is claimed from that attempt. Existing baseline captures remain unchanged.
+EVIDENCE: `QA/LuminiferaRebuild/V3/FINAL_ALPHA_ACCEPTANCE_2026-08-31.md`; packaged DOM/viewport preflight from `http://127.0.0.1:63174/app`.

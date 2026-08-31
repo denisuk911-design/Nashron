@@ -1,0 +1,17 @@
+.iris-shortcut{padding-inline:14px}
+.top-actions select{min-width:170px;max-width:230px}
+.iris-media img,.iris-media video{object-position:center 35%;transform:scale(1.01)}
+.settings-card select,.top-actions select{appearance:none;background-color:rgba(6,11,28,.82);background-image:linear-gradient(45deg,transparent 50%,#aebce0 50%),linear-gradient(135deg,#aebce0 50%,transparent 50%);background-position:calc(100% - 17px) 50%,calc(100% - 12px) 50%;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:34px}
+.settings-card select option,.top-actions select option{background:#0a122a;color:#fff}
+.constellation-board{position:relative;width:100%;height:100%;min-height:360px;overflow:hidden;background:radial-gradient(circle at 50% 50%,rgba(120,93,255,.12),transparent 30%)}
+.constellation-core{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:92px;height:92px;border-radius:50%;display:grid;place-items:center;align-content:center;gap:2px;color:#fff;font-size:30px;background:radial-gradient(circle,rgba(139,105,255,.48),rgba(25,28,75,.68) 62%,transparent 70%);box-shadow:0 0 38px rgba(121,94,255,.42)}
+.constellation-core small{display:block;color:var(--muted);font-size:10px;letter-spacing:.1em;text-transform:uppercase}
+.constellation-orbit{position:absolute;left:50%;top:50%;border:1px solid rgba(122,155,255,.22);border-radius:50%;transform:translate(-50%,-50%) rotate(-14deg);pointer-events:none}
+.orbit-one{width:54%;height:50%;animation:orbitPulse 5s ease-in-out infinite}.orbit-two{width:78%;height:74%;opacity:.55;transform:translate(-50%,-50%) rotate(32deg);animation:orbitPulse 7s ease-in-out infinite reverse}
+.constellation-node{position:absolute;left:var(--node-x);top:var(--node-y);transform:translate(-50%,-50%);width:min(230px,28%);min-width:150px;padding:10px 12px;display:grid;grid-template-columns:34px 1fr;gap:8px;align-items:center;border:1px solid rgba(145,161,226,.18);border-radius:16px;background:rgba(9,17,42,.76);backdrop-filter:blur(12px);box-shadow:0 12px 34px rgba(0,0,0,.24);animation:nodeIn .5s ease both;animation-delay:var(--node-delay)}
+.constellation-node:before{content:"";position:absolute;left:50%;top:50%;width:9px;height:9px;border-radius:50%;background:#fff;box-shadow:0 0 18px 5px rgba(105,218,255,.8);animation:nodeGlow 2.8s ease-in-out infinite;animation-delay:var(--node-delay)}
+.constellation-node strong,.constellation-node small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.constellation-node small{color:var(--muted);margin-top:3px;font-size:11px}.node-status{grid-column:2;color:var(--green);font-size:10px}.constellation-node .member-avatar{grid-row:1 / span 2}
+@keyframes nodeIn{from{opacity:0;transform:translate(-50%,-44%) scale(.94)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@keyframes nodeGlow{0%,100%{opacity:.3;transform:scale(.7)}50%{opacity:1;transform:scale(1.15)}}
+@keyframes orbitPulse{0%,100%{opacity:.35}50%{opacity:.85}}
+@media(max-width:700px){.top-actions .presence{display:none}.top-actions select{min-width:130px;max-width:150px}.constellation-node{min-width:125px;width:38%;padding:8px}.constellation-node small{font-size:10px}.constellation-board{min-height:320px}}

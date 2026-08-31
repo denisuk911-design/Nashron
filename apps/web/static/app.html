@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#050816">
   <title>Luminifera</title>
   <link rel="stylesheet" href="/assets/v3/styles.css">
+  <link rel="stylesheet" href="/assets/v3/refinement.css">
 </head>
 <body>
   <div id="background-media" class="background-media" aria-hidden="true"></div>
@@ -32,8 +33,8 @@
       </nav>
 
       <div class="top-actions">
-        <button class="primary" id="focus-iris">✦ Начать с Iris</button>
-        <span class="presence"><i></i>Iris рядом</span>
+        <button class="ghost iris-shortcut" id="focus-iris">✦ Iris</button>
+        <span class="presence"><i></i>на связи</span>
         <select id="workspace-select" aria-label="Рабочее пространство"><option value="">Рабочее пространство</option></select>
         <button class="ghost" id="workspace-new" aria-label="Создать рабочее пространство">+</button>
         <button class="profile" id="profile-button" aria-label="Профиль владельца">В</button>
@@ -132,7 +133,7 @@
             <div>
               <span class="eyebrow">КОМАНДА</span>
               <h2>Созвездие сотрудников</h2>
-              <p>Реальные сотрудники и роли появятся здесь из движка. Никаких демонстрационных людей.</p>
+              <p>Здесь отображаются реальные сотрудники и их роли из рабочего пространства.</p>
             </div>
             <button class="primary" id="team-create">Собрать команду через Iris</button>
           </div>
@@ -208,7 +209,7 @@
             <div>
               <span class="eyebrow">НАСТРОЙКИ</span>
               <h2>Пространство Luminifera</h2>
-              <p>Продуктовые настройки и медиаслоты. Технические provider/runtime детали должны подключаться отдельно.</p>
+              <p>Настройте рабочее пространство, внешний вид и обратную связь для Iris.</p>
             </div>
           </div>
 
@@ -216,43 +217,41 @@
             <article class="settings-card">
               <span class="eyebrow">ОБОЛОЧКА</span>
               <h3>Медиа и атмосфера</h3>
-              <p>Эти поля демонстрируют предусмотренные точки подключения, но не записывают файлы сами.</p>
+              <p>Текущие материалы интерфейса, заданные для этого рабочего пространства.</p>
               <div class="field">
                 <label>Фон</label>
-                <code>config.js → background</code>
-                <small>image / video / none</small>
+                <code>Фоновая сцена</code>
+                <small>Изображение или видео</small>
               </div>
               <div class="field">
                 <label>Iris</label>
-                <code>config.js → iris</code>
-                <small>image / mp4 / webm</small>
+                <code>Образ Iris</code>
+                <small>Портрет или видео</small>
               </div>
               <button class="ghost" id="preview-media">Перечитать config.js</button>
             </article>
 
             <article class="settings-card">
-              <span class="eyebrow">ДВИЖОК</span>
-              <h3>Состояние подключения</h3>
+              <span class="eyebrow">СИСТЕМА</span>
+              <h3>Всё готово к работе</h3>
               <div class="bridge-state">
                 <i id="bridge-dot"></i>
                 <div>
                   <strong id="bridge-title">Bridge не подключён</strong>
-                  <small id="bridge-copy">Ожидается window.LuminiferaBridge от Codex.</small>
+                    <small id="bridge-copy">Проверяем связь с рабочим пространством.</small>
                 </div>
               </div>
               <button class="ghost" id="bridge-check">Проверить подключение</button>
             </article>
 
             <article class="settings-card">
-              <span class="eyebrow">ПРАВИЛА UI</span>
-              <h3>Что нельзя ломать</h3>
+              <span class="eyebrow">ВОЗМОЖНОСТИ</span>
+              <h3>В одном пространстве</h3>
               <ul>
-                <li>Одна верхняя навигация.</li>
-                <li>Нет глобальной вертикальной прокрутки.</li>
-                <li>Iris остаётся на Home, чат под её медиа.</li>
-                <li>Нет fake data.</li>
-                <li>Employee ≠ runtime agent.</li>
-                <li>Raw IDs/provider plumbing не показываются пользователю.</li>
+                <li>Цели и текущая работа команды.</li>
+                <li>Проверенные результаты и файлы.</li>
+                <li>Разговор с Iris прямо на главном экране.</li>
+                <li>Настройки сохраняются в рабочем пространстве.</li>
               </ul>
             </article>
           </div>
