@@ -318,3 +318,12 @@ STATUS: READY_FOR_OWNER_HANDS_ON_TEST_2.
 VERIFIED: Packaged `dist/Luminifera.exe` checked at `1920x1080` and `1440x900`; Home, Team, Work, Files and Settings activated; background and Iris media loaded from `config.js`; Iris remained inline; honest empty states rendered; global vertical scroll absent; no product defect found.
 FIX: Extended the diagnostic capture runner with `--width` and `--height` arguments. No Product UI or runtime redesign changes were made.
 EVIDENCE: `QA/LuminiferaRebuild/V3/OWNER_PREFLIGHT_2026-08-31.md`; `QA/LuminiferaRebuild/V3/captures/preflight-1920/manifest.json`; `QA/LuminiferaRebuild/V3/captures/preflight-1440/manifest.json`.
+
+## Packaged Iris conversational gate
+
+TASK: Verify Iris social conversation and real action intent in packaged V3.
+STATUS: PASS; full regression and commit/push completed.
+FIX: Added `Собери мне команду`, `Собрать команду`, `assemble team` and related UI paraphrases to the existing Supervisor application boundary. Social messages remain non-operational.
+VERIFIED: Packaged `Собери мне команду` created a real operational team; `Привет` and `Как дела?` returned conversational responses and left work inactive. Targeted tests passed.
+VERIFIED: Full pytest `551 passed, 2 warnings`; packaged executable rebuilt and re-tested.
+EVIDENCE: `QA/LuminiferaRebuild/V3/IRIS_CONVERSATIONAL_GATE_2026-08-31.md`.

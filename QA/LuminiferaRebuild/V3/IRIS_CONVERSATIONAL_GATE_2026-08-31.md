@@ -1,0 +1,21 @@
+# Packaged Iris conversational gate
+
+Build under test: `dist/Luminifera.exe`, rebuilt after commit `594a164`.
+
+## Packaged observations
+
+- `Привет` returned a conversational Iris response and did not start work.
+- `Как дела?` returned a conversational Iris response; Home remained `Нет активной работы`.
+- `Собери мне команду` invoked the real `/api/chat` application boundary and returned a real team activation result.
+- The same packaged flow produced `Команда «ENGINEERING_PRODUCT_TEAM team» создана...`.
+- No fake team records were injected by the UI; the response came from the existing application service and persisted backend state.
+
+## Targeted checks
+
+- `tests/test_supervisor_chat_application_service.py`: PASS, including UI paraphrases and social guard.
+- `tests/test_web_api.py`: PASS.
+- Packaged GUI interaction at `http://127.0.0.1:55372/app`: PASS.
+
+## Scope note
+
+This gate fixes only the missing `Собери мне команду` paraphrase mapping. No Product UI redesign was performed.

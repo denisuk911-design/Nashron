@@ -88,7 +88,7 @@ class SupervisorChatApplicationService:
             # command mapping.
             if any(token in lowered for token in ("\u0441\u043e\u0437\u0434\u0430\u0439 \u043e\u0440\u0433\u0430\u043d\u0438\u0437\u0430\u0446\u0438\u044e", "create organization")):
                 return self._create_organization(text)
-            if any(token in lowered for token in ("\u0441\u043e\u0437\u0434\u0430\u0439 \u043a\u043e\u043c\u0430\u043d\u0434\u0443", "create team")):
+            if any(token in lowered for token in ("\u0441\u043e\u0437\u0434\u0430\u0439 \u043a\u043e\u043c\u0430\u043d\u0434\u0443", "\u0441\u043e\u0431\u0435\u0440\u0438 \u043a\u043e\u043c\u0430\u043d\u0434\u0443", "\u0441\u043e\u0431\u0435\u0440\u0438 \u043c\u043d\u0435 \u043a\u043e\u043c\u0430\u043d\u0434\u0443", "\u0441\u043e\u0431\u0440\u0430\u0442\u044c \u043a\u043e\u043c\u0430\u043d\u0434\u0443", "create team", "assemble team")):
                 return self._create_team(text, organization_id)
             if any(token in lowered for token in ("\u0443\u0434\u0430\u043b\u0438 \u0441\u043e\u0442\u0440\u0443\u0434\u043d\u0438\u043a\u0430", "\u0443\u0432\u043e\u043b\u044c", "delete employee", "fire")):
                 return self._delete_employee(text)
@@ -118,7 +118,7 @@ class SupervisorChatApplicationService:
                 return SupervisorChatResult(not failed, answer or "Strong provider не вернул ответ.", route="STRONG", action="strong")
             if any(token in lowered for token in ("создай организацию", "create organization")):
                 return self._create_organization(text)
-            if any(token in lowered for token in ("создай команду", "create team", "наним")):
+            if any(token in lowered for token in ("\u0441\u043e\u0437\u0434\u0430\u0439 \u043a\u043e\u043c\u0430\u043d\u0434\u0443", "\u0441\u043e\u0431\u0435\u0440\u0438 \u043a\u043e\u043c\u0430\u043d\u0434\u0443", "\u0441\u043e\u0431\u0435\u0440\u0438 \u043c\u043d\u0435 \u043a\u043e\u043c\u0430\u043d\u0434\u0443", "\u0441\u043e\u0431\u0440\u0430\u0442\u044c \u043a\u043e\u043c\u0430\u043d\u0434\u0443", "create team", "assemble team", "\u043d\u0430\u043d\u0438\u043c")):
                 return self._create_team(text, organization_id)
             if any(token in lowered for token in ("удали сотрудника", "уволь", "delete employee", "fire")):
                 return self._delete_employee(text)

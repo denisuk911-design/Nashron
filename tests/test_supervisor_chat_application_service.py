@@ -95,6 +95,18 @@ def test_team_creation_uses_application_service():
     assert result.data["employee_ids"] == ["agent-one"]
 
 
+def test_team_creation_accepts_ui_paraphrases_without_affecting_social_chat():
+    for phrase in ("\u0421\u043e\u0431\u0435\u0440\u0438 \u043c\u043d\u0435 \u043a\u043e\u043c\u0430\u043d\u0434\u0443", "\u0421\u043e\u0431\u0440\u0430\u0442\u044c \u043a\u043e\u043c\u0430\u043d\u0434\u0443", "assemble team"):
+        service, _management, _settings = make_service()
+        result = service.handle(phrase, "org-owner")
+        assert result.ok
+        assert result.action == "create_team"
+
+    service, _management, _settings = make_service()
+    social = service.handle("\u041f\u0440\u0438\u0432\u0435\u0442, Iris", "org-owner")
+    assert social.action == "help"
+
+
 def test_explicit_complex_command_is_not_diverted_to_strong():
     service, _management, _settings = make_service()
     calls = []
