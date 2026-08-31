@@ -51,11 +51,12 @@ class ExternalExecutionPayload:
 class SubprocessRuntimeBridge:
     """Bounded JSON IPC bridge for an SDK running outside Product/Core."""
 
-    def __init__(self, command: Sequence[str], timeout_seconds: float = 45.0) -> None:
+    def __init__(self, command: Sequence[str], timeout_seconds: float = 45.0, runtime_id: str = "") -> None:
         if not command or timeout_seconds <= 0:
             raise ValueError("command and positive timeout are required")
         self.command = tuple(str(part) for part in command)
         self.timeout_seconds = timeout_seconds
+        self.runtime_id = runtime_id
 
     def __call__(self, request: ExecutionRequest) -> ExternalExecutionPayload:
         creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
@@ -74,6 +75,8 @@ class SubprocessRuntimeBridge:
             "policy": request.policy.value,
             "correlation_id": request.correlation_id,
             "employees": [employee.employee_id for employee in request.employees],
+            "workspace_root": request.metadata.get("workspace_root", "."),
+            "runtime_id": self.runtime_id or request.metadata.get("runtime_id", ""),
         })
         try:
             stdout, stderr = process.communicate(request_payload, timeout=self.timeout_seconds)
@@ -97,8 +100,20 @@ class SubprocessRuntimeBridge:
             raise error
         try:
             value = json.loads(stdout)
-        except (json.JSONDecodeError, TypeError) as error:
-            raise ValueError("external runtime returned invalid JSON payload") from error
+        except (json.JSONDecodeError, TypeError):
+            # SDKs may emit informational lines on stdout; the worker contract
+            # is the final JSON object, while stderr remains diagnostic output.
+            value = None
+            for line in reversed(stdout.splitlines()):
+                try:
+                    candidate = json.loads(line)
+                except (json.JSONDecodeError, TypeError):
+                    continue
+                if isinstance(candidate, Mapping):
+                    value = candidate
+                    break
+            if value is None:
+                raise ValueError("external runtime returned invalid JSON payload")
         if not isinstance(value, Mapping):
             raise ValueError("external runtime payload must be a JSON object")
         return ExternalExecutionPayload.from_mapping(value)

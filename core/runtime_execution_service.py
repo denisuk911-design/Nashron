@@ -23,6 +23,7 @@ class RuntimeExecutionService:
         promoted_runtime_ids: set[str] | None = None,
         permission_resolver: Callable[[str], Iterable[str]] | None = None,
     ) -> None:
+        self._native_service = native_service
         self._employee_scope: ContextVar[dict[str, ChatAgent]] = ContextVar("runtime_employee_scope", default={})
         self._permission_resolver = permission_resolver or (lambda _agent_id: ())
         self.journal = journal
@@ -44,6 +45,10 @@ class RuntimeExecutionService:
     ) -> ExecutionResult:
         agents = list(employees)
         scope_token = self._employee_scope.set({agent.agent_id: agent for agent in agents})
+        metadata = {"preferred_runtime": preferred_runtime} if preferred_runtime else {}
+        workspace_root = getattr(self._native_service, "workspace_root", None)
+        if workspace_root:
+            metadata["workspace_root"] = str(workspace_root)
         request = ExecutionRequest(
             organization_id=organization_id,
             objective=objective,
@@ -60,7 +65,7 @@ class RuntimeExecutionService:
                 for agent in agents
             ),
             correlation_id=correlation_id,
-            metadata={"preferred_runtime": preferred_runtime} if preferred_runtime else {},
+            metadata=metadata,
         )
         try:
             if self.journal is not None:

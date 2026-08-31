@@ -41,6 +41,12 @@ class RuntimeSelector:
             return RuntimeSelection(preferred, "explicit runtime preference")
         if request.policy.value == "deterministic_workflow":
             return RuntimeSelection(self.native_id, "deterministic workflow remains Native baseline")
+        if (
+            "openai-agents" in self.adapters
+            and "openai-agents" in self.promoted_runtime_ids
+            and self._is_available("openai-agents")
+        ):
+            return RuntimeSelection("openai-agents", "bake-off winner selected as the production default")
         if request.policy.value in {"conversational", "direct_action"}:
             if (
                 "openai-agents" in self.adapters

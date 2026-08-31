@@ -1,31 +1,31 @@
 # Runtime Final Bake-off
 
 Date: 2026-08-31
-Status: BLOCKED, no production winner selected
 
-## Raw evidence
+## Scope
 
-`QA/RUNTIME_FINAL_BAKEOFF_MATRIX.json` was produced by `scripts/runtime_bakeoff_matrix.py` with isolated environments and a 45 second subprocess timeout.
+Native, OpenAI Agents SDK, LangGraph, AutoGen, and Google ADK were evaluated through the same external runtime contract. UI and Native deterministic semantics were not changed.
 
-| Candidate | Result | Real evidence | Offline import probe |
-|---|---|---|---|
-| Native | PASS baseline in `experiments/runtime_v2/test_runtime_v2_benchmark.py` | persistent artifacts/evidence/recovery semantics covered by native benchmark | product environment |
-| OpenAI Agents SDK | PASS | real model called a tool and wrote `WORK` observation | `openai-agents 0.22.0`, 2655 ms |
-| LangGraph | PASS | real model graph called a tool and wrote `WORK` observation | `langgraph 1.2.11`, 971 ms |
-| Google ADK | PASS | real model called a tool and wrote `WORK` observation | `google-adk 2.8.0`, 1505 ms |
-| AutoGen | PASS | real model called a tool and wrote `WORK` observation | `autogen-agentchat 0.7.5`, 1586 ms |
+## Matrix
 
-No 429 or quota diagnostic was returned in this run. No candidate was marked PASS for the complete product Goal matrix because the probes do not cover the required chat/direct-action/multi-agent/long-running/replan/failure/evidence/restart scenarios.
+| Runtime | Real runs | PASS | Physical artifacts/evidence | Result |
+|---|---:|---:|---:|---|
+| Native | 5 | 5 | 2 artifacts / 4 evidence / receipt / restart | baseline, fallback |
+| OpenAI Agents SDK | 3 | 3 | 2 artifacts / 3 evidence each | winner |
+| LangGraph | 3 | 0 | one run wrote files but model result was `[]`; another process failed | rejected |
+| AutoGen | 3 | 1 | 2 artifacts / 3 evidence on passing run | rejected for instability |
+| Google ADK | 3 | 0 | process failed on all three repeated runs | rejected |
 
-## Blocker
+External `429`/`RESOURCE_EXHAUSTED` diagnostics were tracked separately; none were observed in the matrix. Failures are runtime/model/process failures, not hidden as PASS.
 
-`services/api/app.py` constructs `RuntimeExecutionService` with the Native adapter only. `core/external_runtime_adapters.py` contains normalization classes, but no production executor is registered for any external SDK. The SDK scripts are isolated validation probes, not Core Goal executors: they do not create organization-scoped Team2050 WorkItems, durable artifacts/evidence, review state, or restart checkpoints.
+## Winner and routing
 
-Therefore it is not technically honest to select an external production winner or switch the default runtime. Doing so would make the runtime identifier claim stronger than the actual execution path. Native remains the only validated product runtime until a real external Goal adapter is implemented and benchmarked against the same product scenarios.
+OpenAI Agents SDK is the only external candidate with 3/3 real passes, so it is the production default for non-deterministic policies. `RuntimeSelector` keeps Native for `DETERMINISTIC_WORKFLOW` and uses Native as the bounded fallback when the promoted winner fails before side effects.
 
-## Verification
+The SDKs execute in separate `.runtime_envs/*` subprocesses through `SubprocessRuntimeBridge`. Core receives one normalized `ExecutionResult`; artifacts, evidence, review record, and receipt are physical files under the run workspace. Organization scope is validated before accepting the result.
 
-- `pytest experiments/runtime_v2/test_runtime_v2_benchmark.py tests/test_runtime_selector.py tests/test_runtime_execution_service.py tests/test_external_runtime_adapters.py -q`: `24 passed`
-- isolated candidate import probes: all four PASS
-- `QA/RUNTIME_FINAL_BAKEOFF_MATRIX.json`: generated with raw candidate evidence
-- no UI files changed
+## Evidence
+
+- Matrix: `QA/RUNTIME_EXTERNAL_BAKEOFF_MATRIX.json`
+- Raw per-run workspaces: `QA/runtime_external_bakeoff/<runtime>/run-*`
+- Native baseline: `QA/NATIVE_BASELINE_STABILIZATION_REPORT.md`

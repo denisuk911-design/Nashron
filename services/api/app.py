@@ -38,6 +38,7 @@ from core.provider_credentials import ProviderCredentialService
 from core.provider_service import CodexProviderAdapter, GeminiProviderAdapter, ProviderHealthService, ProviderRegistry
 from core.runtime_v3_service import RuntimeV3GoalService
 from core.runtime_execution_service import RuntimeExecutionService
+from core.external_runtime_factory import build_external_runtime_adapters
 from core.runtime_journal import RuntimeExecutionJournal
 from core.iris_orchestration_service import IrisExecutionContext, IrisOrchestrationService
 from core.runtime_contracts import ExecutionPolicy
@@ -227,9 +228,12 @@ class WebCore:
             provider_adapters=self.provider_adapters,
             permission_resolver=lambda agent_id: effective_permissions_for_agent(self.database, agent_id),
         )
+        external_runtime_adapters = build_external_runtime_adapters(ROOT)
         self.runtime_execution = RuntimeExecutionService(
             self.runtime_v3,
+            external_adapters=external_runtime_adapters,
             journal=RuntimeExecutionJournal(self.workspace_root / "runtime_execution"),
+            promoted_runtime_ids={"openai-agents"} if "openai-agents" in external_runtime_adapters else set(),
             permission_resolver=lambda agent_id: effective_permissions_for_agent(self.database, agent_id),
         )
         # Capability implementations are registered by dedicated tool services;
