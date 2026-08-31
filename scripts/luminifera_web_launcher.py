@@ -14,6 +14,10 @@ from pathlib import Path
 
 BASE = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[1])).resolve()
 os.environ["TEAM2050_PROJECT_ROOT"] = str(BASE)
+if getattr(sys, "frozen", False):
+    os.environ.setdefault("TEAM2050_RUNTIME_ROOT", str(Path(sys.executable).resolve().parent / "runtime"))
+else:
+    os.environ.setdefault("TEAM2050_RUNTIME_ROOT", str(BASE))
 
 # PyInstaller's windowed bootloader exposes no standard streams. Uvicorn's
 # logging configuration expects writable streams even when the UI is silent.

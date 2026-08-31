@@ -51,15 +51,21 @@ class ExternalExecutionPayload:
 class SubprocessRuntimeBridge:
     """Bounded JSON IPC bridge for an SDK running outside Product/Core."""
 
-    def __init__(self, command: Sequence[str], timeout_seconds: float = 45.0, runtime_id: str = "") -> None:
+    def __init__(self, command: Sequence[str], timeout_seconds: float = 45.0, runtime_id: str = "", credential: str = "") -> None:
         if not command or timeout_seconds <= 0:
             raise ValueError("command and positive timeout are required")
         self.command = tuple(str(part) for part in command)
         self.timeout_seconds = timeout_seconds
         self.runtime_id = runtime_id
+        self.credential = credential
 
     def __call__(self, request: ExecutionRequest) -> ExternalExecutionPayload:
         creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
+        environment = os.environ.copy()
+        if self.credential:
+            environment.setdefault("GEMINI_API_KEY", self.credential)
+            environment.setdefault("GOOGLE_API_KEY", self.credential)
+            environment.setdefault("OPENAI_API_KEY", self.credential)
         process = subprocess.Popen(
             self.command,
             stdin=subprocess.PIPE,
@@ -68,6 +74,7 @@ class SubprocessRuntimeBridge:
             text=True,
             creationflags=creationflags,
             start_new_session=os.name != "nt",
+            env=environment,
         )
         request_payload = json.dumps({
             "organization_id": request.organization_id,

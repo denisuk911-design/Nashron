@@ -228,7 +228,11 @@ class WebCore:
             provider_adapters=self.provider_adapters,
             permission_resolver=lambda agent_id: effective_permissions_for_agent(self.database, agent_id),
         )
-        external_runtime_adapters = build_external_runtime_adapters(ROOT)
+        runtime_root = Path(os.environ.get("TEAM2050_RUNTIME_ROOT") or ROOT).resolve()
+        external_runtime_adapters = build_external_runtime_adapters(
+            runtime_root,
+            credential=self.provider_credentials.read("GEMINI_CLI") or "",
+        )
         self.runtime_execution = RuntimeExecutionService(
             self.runtime_v3,
             external_adapters=external_runtime_adapters,
