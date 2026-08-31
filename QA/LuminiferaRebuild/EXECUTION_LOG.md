@@ -301,3 +301,11 @@ VERIFIED: Packaged `dist/Luminifera.exe` launched in an isolated profile. UI E2E
 EVIDENCE: `QA/LuminiferaRebuild/V3/captures/manifest.json`; `QA/LuminiferaRebuild/V3/captures/`; `dist/Luminifera.exe`.
 KNOWN_LIMITATION: Final owner hands-on visual acceptance remains required; capture runner uses an isolated read-only browser profile and does not mutate product data.
 FILES_CHANGED: `apps/web/static/app.html`; `apps/web/static/v3/`; `scripts/capture_visual_gate.py`; `tests/test_alpha_product_ui.py`
+
+## V3 owner-style preflight
+
+TASK: HOLD FOR OWNER HANDS-ON TEST - packaged preflight for V3 baseline.
+STATUS: READY_FOR_OWNER_HANDS_ON_TEST_2.
+VERIFIED: Packaged `dist/Luminifera.exe` checked at `1920x1080` and `1440x900`; Home, Team, Work, Files and Settings activated; background and Iris media loaded from `config.js`; Iris remained inline; honest empty states rendered; global vertical scroll absent; no product defect found.
+FIX: Extended the diagnostic capture runner with `--width` and `--height` arguments. No Product UI or runtime redesign changes were made.
+EVIDENCE: `QA/LuminiferaRebuild/V3/OWNER_PREFLIGHT_2026-08-31.md`; `QA/LuminiferaRebuild/V3/captures/preflight-1920/manifest.json`; `QA/LuminiferaRebuild/V3/captures/preflight-1440/manifest.json`.

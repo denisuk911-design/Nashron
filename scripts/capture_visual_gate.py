@@ -29,6 +29,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--profile-dir", type=Path, help="Optional isolated Chromium profile directory")
     parser.add_argument("--headed", action="store_true", help="Show Chromium while capturing")
+    parser.add_argument("--width", type=int, default=1440, help="Viewport width in CSS pixels")
+    parser.add_argument("--height", type=int, default=900, help="Viewport height in CSS pixels")
     parser.add_argument("--timeout-ms", type=int, default=20_000)
     return parser.parse_args()
 
@@ -69,7 +71,7 @@ def main() -> int:
         if executable_path:
             launch_kwargs["executable_path"] = executable_path
         browser = playwright.chromium.launch(**launch_kwargs)
-        context_kwargs = {"viewport": {"width": 1440, "height": 900}}
+        context_kwargs = {"viewport": {"width": args.width, "height": args.height}}
         if args.profile_dir:
             persistent_kwargs = {"headless": not args.headed, **context_kwargs}
             if executable_path:

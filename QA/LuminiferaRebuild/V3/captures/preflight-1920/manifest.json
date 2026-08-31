@@ -1,0 +1,50 @@
+{
+  "captured_at": "2026-08-31T06:25:21.812025+00:00",
+  "app_url": "http://127.0.0.1:49164/app",
+  "screens": [
+    {
+      "name": "landing",
+      "url": "http://127.0.0.1:49164",
+      "status": "captured"
+    },
+    {
+      "name": "home",
+      "label": "Главная",
+      "status": "captured"
+    },
+    {
+      "name": "team",
+      "label": "Команда",
+      "status": "captured"
+    },
+    {
+      "name": "work",
+      "label": "Работа",
+      "status": "captured"
+    },
+    {
+      "name": "files",
+      "label": "Файлы",
+      "status": "captured"
+    },
+    {
+      "name": "settings",
+      "label": "Настройки",
+      "status": "captured"
+    },
+    {
+      "name": "byok",
+      "status": "captured",
+      "section": "Состояние движка",
+      "route": "#settings",
+      "capture_mode": "element"
+    },
+    {
+      "name": "feedback",
+      "status": "captured",
+      "section": "Обратная связь Iris",
+      "route": "#settings",
+      "capture_mode": "element"
+    }
+  ]
+}
