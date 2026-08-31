@@ -366,3 +366,11 @@ TASK: Verify real permissions, role boundaries, denial behavior and cross-worksp
 STATUS: PASS; no defect found and no runtime change required.
 VERIFIED: Targeted capability, runtime, management, organization-isolation and Web API tests passed; packaged UI smoke exposed no raw IDs and no global scroll. Targeted 71 passed, 1 warning.
 EVIDENCE: `QA/LuminiferaRebuild/V3/PERMISSIONS_ROLE_BOUND_2026-08-31.md`.
+
+## Packaged V3 all-controls gate
+
+TASK: Verify every visible V3 control has a real action or honest state.
+STATUS: PASS; packaged E2E completed.
+FIX: Explicitly cancel and close the organization dialog close control so the form submit handler cannot intercept it.
+VERIFIED: Hero Iris, prompt, profile, workspace dialog open/close, all five routes, packaged rendering and no-global-scroll passed. Targeted 11 passed; full pytest 557 passed, 2 warnings.
+EVIDENCE: `QA/LuminiferaRebuild/V3/ALL_CONTROLS_2026-08-31.md`; `QA/LuminiferaRebuild/V3/all-controls-gate.png`.

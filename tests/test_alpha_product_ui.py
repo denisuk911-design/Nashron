@@ -80,6 +80,16 @@ def test_v3_persists_selected_workspace_across_reload():
     assert "organizations.find(org => org.id === bridge.getOrganizationId())" in app
 
 
+def test_v3_visible_controls_have_product_actions():
+    html = (STATIC / "app.html").read_text(encoding="utf-8")
+    app = (STATIC / "v3/app.js").read_text(encoding="utf-8")
+    for control in ("hero-iris", "profile-button", "data-prompt", "refresh-home", "refresh-files"):
+        assert control in html
+    for action in ("focusIris", "#hero-iris", "#profile-button", "#refresh-home", "#refresh-files"):
+        assert action in app
+    assert '#org-dialog button[aria-label]' in app
+
+
 def test_alpha_launcher_checks_api_before_serving_web():
     launcher = (ROOT / "scripts" / "run_web.ps1").read_text(encoding="utf-8")
     assert "/api/health" in launcher
