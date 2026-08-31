@@ -349,5 +349,5 @@ VERIFIED: Packaged image mode, video element creation, missing-video poster fall
 TASK: Verify honest recovery when API/LLM/media are temporarily unavailable.
 STATUS: PASS for the packaged API failure/retry path; full regression PASS.
 FIX: Added bounded API and diagnostics requests with AbortController timeouts and an initial-load catch that presents a user-facing unavailable-engine state. Existing chat and media fallbacks remain active.
-VERIFIED: Packaged API endpoint abort produced a responsive honest error state; restoring the endpoint and clicking Обновить rendered Home again without data loss. Targeted 9 passed; full pytest 555 passed, 2 warnings.
+VERIFIED: Packaged API endpoint abort produced a responsive honest error state; restoring the endpoint and clicking Обновить rendered Home again without data loss. After packaged stop/relaunch, the completed goal remained at 100% with two verified artifacts; Work and Files rendered without duplicate rows. Targeted 9 passed; full pytest 555 passed, 2 warnings.
 EVIDENCE: `QA/LuminiferaRebuild/V3/RECOVERY_GATE_2026-08-31.md`.

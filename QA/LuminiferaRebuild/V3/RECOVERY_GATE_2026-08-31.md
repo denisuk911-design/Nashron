@@ -13,6 +13,8 @@
 - Requests now have bounded timeouts: 10 seconds for normal API calls and 5 seconds for diagnostics probes.
 - Media failure fallback remains covered by the existing packaged media gate.
 - No design changes or fake data were introduced.
+- After stopping and relaunching the packaged executable, the same completed goal remained at 100% with two verified artifacts. The Work and Files product views rendered the persisted state without duplicate rows.
+- Captures: `restart-resume-work.png` and `restart-resume-files.png`.
 
 ## Result
 
