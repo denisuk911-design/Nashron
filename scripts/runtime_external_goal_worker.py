@@ -46,6 +46,9 @@ def _artifacts(request: dict[str, Any], classification: str) -> dict[str, Any]:
 
 
 async def _openai(request: dict[str, Any]) -> str:
+    # Product execution is not dependent on the SDK's optional tracing upload.
+    # Keep packaged/offline diagnostics local and avoid a second auth path.
+    os.environ.setdefault("OPENAI_AGENTS_DISABLE_TRACING", "1")
     from openai import AsyncOpenAI
     from agents import Agent, OpenAIChatCompletionsModel, Runner
 

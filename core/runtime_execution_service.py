@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from contextvars import ContextVar
+import os
 from typing import Callable, Iterable
 
 from .agent_directory import ChatAgent
@@ -81,3 +82,19 @@ class RuntimeExecutionService:
             return result
         finally:
             self._employee_scope.reset(scope_token)
+
+    def diagnostics(self) -> dict[str, object]:
+        adapters = self.selector.adapters
+        return {
+            "registered_runtime_ids": sorted(adapters),
+            "promoted_runtime_ids": sorted(self.selector.promoted_runtime_ids),
+            "default_non_deterministic": "openai-agents" if "openai-agents" in adapters and "openai-agents" in self.selector.promoted_runtime_ids else "native",
+            "sidecar_diagnostics": {
+                runtime_id: {
+                    **dict(getattr(getattr(adapter, "_executor", None), "last_diagnostic", {}) or {}),
+                    "credential_configured": bool(getattr(getattr(adapter, "_executor", None), "credential", "") or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or os.environ.get("OPENAI_API_KEY")),
+                }
+                for runtime_id, adapter in adapters.items()
+                if runtime_id != "native"
+            },
+        }

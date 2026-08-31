@@ -51,13 +51,15 @@ class ExternalExecutionPayload:
 class SubprocessRuntimeBridge:
     """Bounded JSON IPC bridge for an SDK running outside Product/Core."""
 
-    def __init__(self, command: Sequence[str], timeout_seconds: float = 45.0, runtime_id: str = "", credential: str = "") -> None:
+    def __init__(self, command: Sequence[str], timeout_seconds: float = 45.0, runtime_id: str = "", credential: str = "", inherit_environment_credentials: bool = True) -> None:
         if not command or timeout_seconds <= 0:
             raise ValueError("command and positive timeout are required")
         self.command = tuple(str(part) for part in command)
         self.timeout_seconds = timeout_seconds
         self.runtime_id = runtime_id
         self.credential = credential
+        self.inherit_environment_credentials = inherit_environment_credentials
+        self.last_diagnostic: dict[str, object] = {"runtime_id": runtime_id, "status": "NOT_RUN"}
 
     def __call__(self, request: ExecutionRequest) -> ExternalExecutionPayload:
         creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
@@ -66,6 +68,9 @@ class SubprocessRuntimeBridge:
             environment.setdefault("GEMINI_API_KEY", self.credential)
             environment.setdefault("GOOGLE_API_KEY", self.credential)
             environment.setdefault("OPENAI_API_KEY", self.credential)
+        elif not self.inherit_environment_credentials:
+            for name in ("GEMINI_API_KEY", "GOOGLE_API_KEY", "OPENAI_API_KEY"):
+                environment.pop(name, None)
         process = subprocess.Popen(
             self.command,
             stdin=subprocess.PIPE,
@@ -98,11 +103,14 @@ class SubprocessRuntimeBridge:
                 os.killpg(process.pid, signal.SIGKILL)
             process.kill()
             process.communicate()
+            self.last_diagnostic = {"runtime_id": self.runtime_id, "status": "TIMEOUT", "timeout_seconds": self.timeout_seconds}
             timeout_error = TimeoutError(f"external runtime timed out after {self.timeout_seconds}s")
             setattr(timeout_error, "side_effects_committed", False)
             raise timeout_error from error
         if process.returncode != 0:
-            error = RuntimeError(f"external runtime exited with code {process.returncode}")
+            diagnostic = (stderr or "").strip().splitlines()[-8:]
+            self.last_diagnostic = {"runtime_id": self.runtime_id, "status": "EXITED", "exit_code": process.returncode, "diagnostic": diagnostic}
+            error = RuntimeError(f"external runtime exited with code {process.returncode}: {diagnostic[-1] if diagnostic else 'no diagnostic'}")
             setattr(error, "side_effects_committed", False)
             raise error
         try:
@@ -123,7 +131,9 @@ class SubprocessRuntimeBridge:
                 raise ValueError("external runtime returned invalid JSON payload")
         if not isinstance(value, Mapping):
             raise ValueError("external runtime payload must be a JSON object")
-        return ExternalExecutionPayload.from_mapping(value)
+        payload = ExternalExecutionPayload.from_mapping(value)
+        self.last_diagnostic = {"runtime_id": self.runtime_id, "status": "COMPLETED", "ok": payload.ok, "artifact_count": len(payload.artifact_refs), "evidence_count": len(payload.evidence_refs)}
+        return payload
 
 
 class CallbackRuntimeAdapter(RuntimeAdapter):
