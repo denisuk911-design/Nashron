@@ -1,0 +1,17 @@
+{
+  "organization_id": "ORG-285543D2AF07",
+  "team_member_count": 4,
+  "chat_result": true,
+  "goal_id": "PLAN-3965AB3AA4A2",
+  "goal_start_result": {
+    "ok": false,
+    "summary": "Цель пока не завершена.\nПлан: 3 рабочих пункта.\nАртефакты: 1.\nИсточники/доказательства: 1.\nПроверка: замечаний нет.\nРезультаты:\n- work-d55c1f2ccab1.md, ревизия 1\nРабота приостановлена: ожидается подтверждение владельца для продолжения.",
+    "work_items": 3,
+    "artifacts": 1,
+    "evidence": 2,
+    "findings": 0,
+    "receipt_ready": false
+  },
+  "persistence_after_webcore_restart": true,
+  "checks_passed": false
+}
