@@ -241,6 +241,7 @@ class WebCore:
             journal=RuntimeExecutionJournal(self.workspace_root / "runtime_execution"),
             promoted_runtime_ids={"openai-agents"} if "openai-agents" in external_runtime_adapters else set(),
             permission_resolver=lambda agent_id: effective_permissions_for_agent(self.database, agent_id),
+            provider_settings=self.settings,
         )
         # Capability implementations are registered by dedicated tool services;
         # an empty registry honestly reports unavailable capabilities in Beta.

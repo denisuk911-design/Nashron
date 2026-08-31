@@ -3,10 +3,46 @@ from __future__ import annotations
 import ctypes
 from ctypes import wintypes
 import os
+from pathlib import Path
 
 
 class SecureStorageUnavailable(RuntimeError):
     pass
+
+
+class FileCredentialStore:
+    """Opt-in isolated store used only by disposable integration-test profiles."""
+
+    def __init__(self, path: str | os.PathLike[str]) -> None:
+        self.path = Path(path)
+
+    def _load(self) -> dict[str, str]:
+        try:
+            import json
+            return json.loads(self.path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+
+    def _save(self, values: dict[str, str]) -> None:
+        import json
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.write_text(json.dumps(values), encoding="utf-8")
+
+    def write(self, key: str, secret: str, username: str = "Team2050") -> str:
+        values = self._load()
+        values[key] = secret
+        self._save(values)
+        return f"test-store/{key}"
+
+    def read(self, key: str) -> str | None:
+        return self._load().get(key)
+
+    def delete(self, key: str) -> bool:
+        values = self._load()
+        existed = key in values
+        values.pop(key, None)
+        self._save(values)
+        return existed
 
 
 class WindowsCredentialStore:

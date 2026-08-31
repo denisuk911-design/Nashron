@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from .database import Database
-from .secure_storage import SecureStorageUnavailable, WindowsCredentialStore
+import os
+
+from .secure_storage import FileCredentialStore, SecureStorageUnavailable, WindowsCredentialStore
 
 
 class ProviderCredentialService:
@@ -35,5 +37,6 @@ class ProviderCredentialService:
 
     def _credential_store(self):
         if self._store is None:
-            self._store = WindowsCredentialStore()
+            test_store = os.environ.get("TEAM2050_TEST_CREDENTIAL_STORE")
+            self._store = FileCredentialStore(test_store) if test_store else WindowsCredentialStore()
         return self._store

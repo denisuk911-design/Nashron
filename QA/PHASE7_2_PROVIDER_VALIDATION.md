@@ -6,6 +6,8 @@
 - Every provider returned by the catalog completed a real Core health check.
 - Active provider/model selection was saved through `/api/settings` and survived
   a packaged restart with an isolated Team2050 profile.
+- Isolated packaged save/remove passed with `TEAM2050_TEST_CREDENTIAL_STORE`; no
+  real Windows Credential Manager entry was touched.
 - Provider states are explicit (`Ready`, `Login required`, `Unavailable`,
   `Busy`, or `Error`); no secret or credential value was read or rendered.
 - Packaged result: `scripts/luminifera_phase72_provider_e2e.py` PASS.
@@ -13,12 +15,11 @@
 
 ## Blocker
 
-The full requirement that Iris and the `openai-agents` worker use the selected
-provider/model is not yet proven. `/api/chat` currently routes through the
-existing Supervisor chat service without a provider/model selection argument,
-and the external worker currently reads its model from runtime environment.
-The safe smoke therefore does not overwrite or remove any existing protected
-credential and does not claim provider execution PASS.
+The runtime metadata path is now wired and unit-tested: selected provider/model
+are carried into the external worker and the worker chooses the request model
+over its environment default. The final live provider inference gate remains
+unrun because this validation intentionally uses an isolated credential store;
+no paid/provider call or real credential overwrite was performed.
 
 ## Evidence
 

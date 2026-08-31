@@ -23,10 +23,12 @@ class RuntimeExecutionService:
         journal: RuntimeExecutionJournal | None = None,
         promoted_runtime_ids: set[str] | None = None,
         permission_resolver: Callable[[str], Iterable[str]] | None = None,
+        provider_settings: dict[str, object] | None = None,
     ) -> None:
         self._native_service = native_service
         self._employee_scope: ContextVar[dict[str, ChatAgent]] = ContextVar("runtime_employee_scope", default={})
         self._permission_resolver = permission_resolver or (lambda _agent_id: ())
+        self._provider_settings = provider_settings if provider_settings is not None else {}
         self.journal = journal
         native = NativeRuntimeAdapter(native_service, lambda employee: self._employee_scope.get().get(employee.employee_id))
         self.selector = RuntimeSelector(
@@ -50,6 +52,9 @@ class RuntimeExecutionService:
         workspace_root = getattr(self._native_service, "workspace_root", None)
         if workspace_root:
             metadata["workspace_root"] = str(workspace_root)
+        if self._provider_settings.get("active_provider_id"):
+            metadata["provider_id"] = str(self._provider_settings["active_provider_id"])
+            metadata["provider_model"] = str(self._provider_settings.get("active_model_id") or "")
         request = ExecutionRequest(
             organization_id=organization_id,
             objective=objective,

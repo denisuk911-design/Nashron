@@ -89,6 +89,8 @@ class SubprocessRuntimeBridge:
             "employees": [employee.employee_id for employee in request.employees],
             "workspace_root": request.metadata.get("workspace_root", "."),
             "runtime_id": self.runtime_id or request.metadata.get("runtime_id", ""),
+            "provider_id": request.metadata.get("provider_id", ""),
+            "provider_model": request.metadata.get("provider_model", ""),
         })
         try:
             stdout, stderr = process.communicate(request_payload, timeout=self.timeout_seconds)

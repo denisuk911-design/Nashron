@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 from pathlib import Path
 
@@ -15,6 +16,7 @@ def main() -> int:
     if work.exists():
         shutil.rmtree(work)
     work.mkdir(parents=True)
+    os.environ["TEAM2050_TEST_CREDENTIAL_STORE"] = str(work / "isolated-credentials.json")
     result = {"checks": {}, "errors": [], "configured_provider_count": None}
     process = None
     try:
@@ -27,6 +29,10 @@ def main() -> int:
             result["checks"][f"check_{provider['id']}"] = checked.get("id") == provider["id"] and "state" in checked
         if providers:
             selected = providers[0]
+            connected = request(api, f"/api/providers/{selected['id']}/connect", "POST", {"credential": "isolated-phase72-secret"})
+            result["checks"]["isolated_save"] = connected.get("configured") is True
+            removed = request(api, f"/api/providers/{selected['id']}/disconnect", "POST")
+            result["checks"]["isolated_remove"] = removed.get("configured") is False
             saved = request(api, "/api/settings", "PATCH", {"active_provider_id": selected["id"], "active_model_id": selected.get("model_id", "")})
             result["checks"]["selection_saved"] = saved.get("active_provider_id") == selected["id"]
         stop(process, work / "stop")

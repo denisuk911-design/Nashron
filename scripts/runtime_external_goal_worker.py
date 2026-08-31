@@ -55,8 +55,12 @@ async def _openai(request: dict[str, Any]) -> str:
     key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or os.environ.get("OPENAI_API_KEY")
     if not key:
         raise RuntimeError("model credentials are not configured")
-    client = AsyncOpenAI(api_key=key, base_url=os.environ.get("RUNTIME_OPENAI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/"), timeout=20)
-    model = OpenAIChatCompletionsModel(model=os.environ.get("RUNTIME_MODEL", "gemini-3.6-flash"), openai_client=client)
+    provider_id = str(request.get("provider_id") or "")
+    base_url = os.environ.get("RUNTIME_OPENAI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/")
+    if provider_id == "OPENAI_API":
+        base_url = "https://api.openai.com/v1"
+    client = AsyncOpenAI(api_key=key, base_url=base_url, timeout=20)
+    model = OpenAIChatCompletionsModel(model=str(request.get("provider_model") or os.environ.get("RUNTIME_MODEL", "gemini-3.6-flash")), openai_client=client)
     agent = Agent(name="team2050_external_worker", instructions="Return exactly WORK and nothing else.", model=model)
     result = await asyncio.wait_for(Runner.run(agent, request["objective"], max_turns=2), timeout=25)
     output = str(result.final_output).strip().upper()
@@ -75,7 +79,7 @@ def _langgraph(request: dict[str, Any]) -> str:
     key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
     if not key:
         raise RuntimeError("model credentials are not configured")
-    model = ChatGoogleGenerativeAI(model=os.environ.get("RUNTIME_MODEL", "gemini-3.6-flash"), google_api_key=key, max_output_tokens=16)
+    model = ChatGoogleGenerativeAI(model=str(request.get("provider_model") or os.environ.get("RUNTIME_MODEL", "gemini-3.6-flash")), google_api_key=key, max_output_tokens=16)
 
     def infer(state: State) -> dict[str, str]:
         return {"result": str(model.invoke(f"Reply exactly WORK. Objective: {state['objective']}").content).strip().upper()}
@@ -98,7 +102,8 @@ async def _autogen(request: dict[str, Any]) -> str:
     key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or os.environ.get("OPENAI_API_KEY")
     if not key:
         raise RuntimeError("model credentials are not configured")
-    client = OpenAIChatCompletionClient(model=os.environ.get("RUNTIME_MODEL", "gemini-3.6-flash"), api_key=key, base_url=os.environ.get("RUNTIME_OPENAI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/"), model_info={"vision": False, "function_calling": False, "json_output": False, "family": ModelFamily.GPT_4O, "structured_output": False, "multiple_system_messages": True})
+    base_url = "https://api.openai.com/v1" if request.get("provider_id") == "OPENAI_API" else os.environ.get("RUNTIME_OPENAI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/")
+    client = OpenAIChatCompletionClient(model=str(request.get("provider_model") or os.environ.get("RUNTIME_MODEL", "gemini-3.6-flash")), api_key=key, base_url=base_url, model_info={"vision": False, "function_calling": False, "json_output": False, "family": ModelFamily.GPT_4O, "structured_output": False, "multiple_system_messages": True})
     agent = AssistantAgent("team2050_external_worker", model_client=client, system_message="Return exactly WORK and nothing else.")
     try:
         result = await asyncio.wait_for(agent.on_messages([TextMessage(content=request["objective"], source="user")], CancellationToken()), timeout=25)
@@ -112,7 +117,7 @@ async def _adk(request: dict[str, Any]) -> str:
     from google.adk.agents import LlmAgent
     from google.adk.runners import InMemoryRunner
 
-    agent = LlmAgent(name="team2050_external_worker", model=os.environ.get("RUNTIME_MODEL", "gemini-3.6-flash"), instruction="Return exactly WORK and nothing else.")
+    agent = LlmAgent(name="team2050_external_worker", model=str(request.get("provider_model") or os.environ.get("RUNTIME_MODEL", "gemini-3.6-flash")), instruction="Return exactly WORK and nothing else.")
     runner = InMemoryRunner(agent=agent, app_name="team2050-external-runtime")
     events = await asyncio.wait_for(runner.run_debug(request["objective"]), timeout=25)
     return "WORK" if "WORK" in " ".join(str(event).upper() for event in events) else "UNKNOWN"

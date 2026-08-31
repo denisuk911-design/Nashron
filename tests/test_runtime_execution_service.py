@@ -153,3 +153,26 @@ def test_product_permissions_are_carried_into_external_request():
     )
     service.execute("org-a", "task", [employee], ExecutionPolicy.DIRECT_ACTION)
     assert seen["permissions"] == ("CHAT", "WRITE_WORKSPACE")
+
+
+def test_selected_provider_and_model_are_carried_to_external_runtime_metadata():
+    seen = {}
+
+    class NativeService:
+        def run_goal(self, *args):
+            raise AssertionError("promoted external adapter should be used")
+
+    external = LangGraphRuntimeAdapter(
+        lambda request: (seen.update(request.metadata), ExternalExecutionPayload(True, "done"))[1]
+    )
+    employee = ChatAgent(
+        key="worker", agent_id="employee-1", display_name="Worker", provider_id="GEMINI_API",
+        roles=["ENGINEER"], persona_id=None, description="", avatar_path=None,
+    )
+    service = RuntimeExecutionService(
+        NativeService(), {"langgraph": external}, promoted_runtime_ids={"langgraph"},
+        provider_settings={"active_provider_id": "GEMINI_API", "active_model_id": "gemini-2.5-flash"},
+    )
+    service.execute("org-a", "task", [employee], ExecutionPolicy.DIRECT_ACTION)
+    assert seen["provider_id"] == "GEMINI_API"
+    assert seen["provider_model"] == "gemini-2.5-flash"
