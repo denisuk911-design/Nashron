@@ -1,0 +1,42 @@
+{
+  "matrix_version": "1",
+  "results": [
+    {
+      "candidate": "openai-agents",
+      "status": "PASS",
+      "exit_code": 0,
+      "evidence": [
+        "PASS openai-agents real model tool observation=WORK"
+      ],
+      "diagnostic": ""
+    },
+    {
+      "candidate": "langgraph",
+      "status": "PASS",
+      "exit_code": 0,
+      "evidence": [
+        "PASS langgraph real model tool observation=WORK"
+      ],
+      "diagnostic": ""
+    },
+    {
+      "candidate": "google-adk",
+      "status": "PASS",
+      "exit_code": 0,
+      "evidence": [
+        "runtime_bakeoff_probe > I have prepared and recorded the PCB converter specification.",
+        "PASS google-adk real model tool observation=WORK"
+      ],
+      "diagnostic": ""
+    },
+    {
+      "candidate": "autogen",
+      "status": "PASS",
+      "exit_code": 0,
+      "evidence": [
+        "PASS autogen real model tool observation=WORK"
+      ],
+      "diagnostic": ""
+    }
+  ]
+}
