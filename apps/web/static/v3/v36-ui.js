@@ -16,6 +16,23 @@
     });
   }
 
+  function normalizeSettingsCopy() {
+    document.querySelectorAll("#preview-media").forEach(button => button.remove());
+    const replacements = [
+      [/Bridge подключён/gi, "Система подключена"],
+      [/Bridge не подключён/gi, "Система не подключена"],
+      [/Перечитать config\.js/gi, "Обновить медиа"],
+      [/Проверить подключение/gi, "Проверить систему"]
+    ];
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach(node => {
+      if (node.parentElement?.closest("script,style")) return;
+      replacements.forEach(([pattern, value]) => { node.nodeValue = (node.nodeValue || "").replace(pattern, value); });
+    });
+  }
+
   function decorateWorkEmpty() {
     const stage = document.querySelector("#work-stage");
     if (!stage || stage.querySelector(".work-empty-flow") || stage.querySelector(".work-summary")) return;
@@ -27,7 +44,7 @@
     flow.innerHTML = ["GOAL", "WORK", "ARTIFACTS", "REVIEW"].map((label, index) =>
       `<span class="flow-step"><i>${index + 1}</i><b>${label}</b></span>${index < 3 ? '<span class="flow-link"></span>' : ""}`
     ).join("");
-    stage.prepend(flow);
+    copy.insertBefore(flow, copy.firstChild);
   }
 
   function decorateTeam() {
@@ -43,10 +60,12 @@
 
   function observe() {
     normalizeWorkspaceLabel();
+    normalizeSettingsCopy();
     decorateWorkEmpty();
     decorateTeam();
     const observer = new MutationObserver(() => {
       normalizeWorkspaceLabel();
+      normalizeSettingsCopy();
       decorateWorkEmpty();
       decorateTeam();
     });
