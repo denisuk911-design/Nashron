@@ -342,6 +342,12 @@ def health() -> dict[str, Any]:
     return {"status": "ready", "product": "Luminifera", "engine": "Python Core / Runtime V3"}
 
 
+@app.get("/api/diagnostics/runtime")
+def runtime_diagnostics() -> dict[str, Any]:
+    """Non-secret diagnostics for packaged runtime activation and fallback."""
+    return core.runtime_execution.diagnostics()
+
+
 @app.get("/api/session")
 def session(x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
     organization_id = core.organization_id(x_organization_id)
