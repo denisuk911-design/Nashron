@@ -1,0 +1,106 @@
+{
+  "commit": "ee1ea71",
+  "screens": [
+    "bootstrap-1920-dark-ru.png",
+    "login-1920-dark-ru.png",
+    "registration-off-1440-light-uk.png",
+    "registration-off-1920-light-uk.png",
+    "registration-on-1920-dark-en.png",
+    "login-1440-light-en.png",
+    "member-onboarding-1920-dark-en.png",
+    "returning-user-1920-light-ru.png"
+  ],
+  "states": [
+    {
+      "state": "bootstrap",
+      "setup": "fresh isolated profile; owner bootstrap is open",
+      "action": "load packaged app",
+      "request": "GET /api/admin/security -> bootstrap available",
+      "expected": "bootstrap form visible",
+      "actual": "bootstrap form visible",
+      "viewport": "1920x1080",
+      "theme": "dark",
+      "locale": "ru"
+    },
+    {
+      "state": "login",
+      "setup": "bootstrap closed; token cleared",
+      "action": "load packaged app",
+      "request": "POST /api/auth/bootstrap -> 201; POST /api/auth/login -> 200",
+      "expected": "login form visible",
+      "actual": "login form visible",
+      "viewport": "1920x1080",
+      "theme": "dark",
+      "locale": "ru"
+    },
+    {
+      "state": "registration-off",
+      "setup": "admin API registration_enabled=false",
+      "action": "select Create account; fill; real form.requestSubmit",
+      "request": "POST /api/auth/register -> expected 403",
+      "expected": "localized registration-disabled error",
+      "actual": "Регистрация сейчас отключена владельцем.",
+      "viewport": "1920x1080",
+      "theme": "light",
+      "locale": "uk"
+    },
+    {
+      "state": "registration-on",
+      "setup": "admin API registration_enabled=true",
+      "action": "fill registration; real requestSubmit",
+      "request": "POST /api/auth/register -> 201",
+      "expected": "profile created and login mode shown",
+      "actual": "Войдите в своё рабочее пространство",
+      "viewport": "1920x1080",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "state": "member-onboarding",
+      "setup": "member created through registration ON",
+      "action": "real member login form requestSubmit",
+      "request": "POST /api/auth/login -> 200; GET /api/auth/me -> 200",
+      "expected": "Product UI opens and Iris onboarding is available",
+      "actual": "auth-ready=true; onboarding=True",
+      "viewport": "1920x1080",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "state": "returning-user",
+      "setup": "valid owner credentials and existing profile",
+      "action": "real login form requestSubmit after restart-like reload",
+      "request": "POST /api/auth/login -> 200; GET /api/auth/me -> 200",
+      "expected": "auth gate closes and Product UI opens",
+      "actual": "auth-ready=true",
+      "viewport": "1920x1080",
+      "theme": "light",
+      "locale": "ru"
+    },
+    {
+      "state": "password-change-screen",
+      "setup": "authenticated owner session",
+      "action": "open profile and select change password",
+      "request": "GET /api/auth/me -> 200",
+      "expected": "password form visible",
+      "actual": "Сохранить пароль",
+      "viewport": "1920x1080",
+      "theme": "dark",
+      "locale": "ru"
+    },
+    {
+      "state": "password-change",
+      "setup": "authenticated owner session",
+      "action": "real password form requestSubmit",
+      "request": "PUT /api/auth/password -> 200; session revoked",
+      "expected": "login mode after password rotation",
+      "actual": "Обновите пароль профиля",
+      "viewport": "1920x1080",
+      "theme": "dark",
+      "locale": "ru"
+    }
+  ],
+  "errors": [
+    "TimeoutError: Page.wait_for_function: Timeout 15000ms exceeded."
+  ]
+}
