@@ -25,7 +25,7 @@ class AdminCenterService:
         self.settings = settings
         self.management = management
         self.providers = providers
-        self.health = health
+        self.provider_health = health
 
     @classmethod
     def authorize(cls, role: str | None, *, require_explicit: bool = False) -> str:
@@ -54,14 +54,20 @@ class AdminCenterService:
                 "artifacts": int(conn.execute("SELECT COUNT(*) FROM artifacts").fetchone()[0]),
                 "evidence": int(conn.execute("SELECT COUNT(*) FROM tool_evidence").fetchone()[0]),
                 "errors": int(conn.execute("SELECT COUNT(*) FROM app_events WHERE event_type LIKE '%error%' OR event_type LIKE '%failure%'").fetchone()[0]),
+                "active_users": int(conn.execute("SELECT COUNT(*) FROM admin_users WHERE status = 'ACTIVE'").fetchone()[0]),
+                "unique_visitors": int(conn.execute("SELECT COUNT(DISTINCT user_id) FROM product_telemetry_events WHERE event_type = 'visit'").fetchone()[0]),
+                "goals_completed": int(conn.execute("SELECT COUNT(*) FROM project_plans WHERE status IN ('COMPLETED', 'COMPLETE')").fetchone()[0]),
             }
+            for window, days in (("dau", 1), ("wau", 7), ("mau", 30)):
+                counts[window] = int(conn.execute("SELECT COUNT(DISTINCT user_id) FROM product_telemetry_events WHERE datetime(created_at) >= datetime('now', ?)", (f"-{days} days",)).fetchone()[0])
+            usage_rows = conn.execute("SELECT provider, COUNT(*) AS total FROM agent_runs GROUP BY provider ORDER BY total DESC").fetchall()
             events = conn.execute(
                 "SELECT event_type, COUNT(*) AS total FROM product_telemetry_events GROUP BY event_type ORDER BY total DESC"
             ).fetchall()
         provider_rows = self.providers.profiles()
         provider_health = []
         for profile in provider_rows:
-            current = self.health.latest_health(profile.provider_id)
+            current = self.provider_health.latest_health(profile.provider_id)
             provider_health.append({
                 "name": profile.display_name,
                 "state": current.health_status if current else "UNKNOWN",
@@ -72,6 +78,8 @@ class AdminCenterService:
             "activation": self._activation_funnel(),
             "event_types": [{"name": str(row["event_type"]), "count": int(row["total"])} for row in events],
             "providers": provider_health,
+            "runtime_usage": [{"provider": str(row["provider"]), "runs": int(row["total"])} for row in usage_rows],
+            "cost": {"status": "unavailable", "reason": "cost telemetry is not configured"},
             "source": "database",
             "generated_at": datetime.now(timezone.utc).isoformat(),
         }
@@ -89,7 +97,7 @@ class AdminCenterService:
     def provider_read_model(self) -> list[dict[str, Any]]:
         result = []
         for profile in self.providers.profiles():
-            current = self.health.latest_health(profile.provider_id)
+            current = self.provider_health.latest_health(profile.provider_id)
             result.append({
                 "name": profile.display_name,
                 "family": profile.provider_family,
@@ -129,6 +137,20 @@ class AdminCenterService:
     def advanced(self) -> dict[str, Any]:
         allowed = {"theme", "interface_language", "message_sounds_enabled", "reduce_motion", "runtime_engine", "codex_timeout_seconds", "response_timeout_seconds", "goal_turn_limit"}
         return {"settings": {key: self.settings.get(key) for key in sorted(allowed)}, "storage": "local durable database", "secrets": "masked"}
+
+    def health(self) -> dict[str, Any]:
+        with self.database.connect() as conn:
+            integrity = str(conn.execute("PRAGMA integrity_check").fetchone()[0])
+            foreign_keys = len(conn.execute("PRAGMA foreign_key_check").fetchall())
+        return {"database": "OK" if integrity.lower() == "ok" else "ERROR", "foreign_keys": foreign_keys, "runtime": "available", "status": "READY" if integrity.lower() == "ok" and foreign_keys == 0 else "DEGRADED"}
+
+    def security(self) -> dict[str, Any]:
+        return {"credential_storage": "protected", "secret_response": "never returned", "audit": "enabled", "rbac": "owner/admin", "recent": self.audit(40)}
+
+    def plans(self) -> dict[str, Any]:
+        with self.database.connect() as conn:
+            rows = conn.execute("SELECT plan, COUNT(*) AS total FROM admin_users GROUP BY plan ORDER BY plan").fetchall()
+        return {"plans": [{"name": str(row["plan"]), "users": int(row["total"])} for row in rows], "limits": "not configured", "source": "database"}
 
     def set_user_status(self, user_id: str, status: str, actor: str) -> bool:
         if status not in {"ACTIVE", "BLOCKED"}:

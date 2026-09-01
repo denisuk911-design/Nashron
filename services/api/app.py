@@ -481,6 +481,29 @@ def admin_advanced(actor: str = Depends(_admin_actor)) -> dict[str, Any]:
     return core.admin.advanced()
 
 
+@app.get("/api/admin/health")
+def admin_health(actor: str = Depends(_admin_actor)) -> dict[str, Any]:
+    return core.admin.health()
+
+
+@app.get("/api/admin/security")
+def admin_security(actor: str = Depends(_admin_actor)) -> dict[str, Any]:
+    return core.admin.security()
+
+
+@app.get("/api/admin/plans")
+def admin_plans(actor: str = Depends(_admin_actor)) -> dict[str, Any]:
+    return core.admin.plans()
+
+
+@app.get("/api/admin/users/{user_id}")
+def admin_user_detail(user_id: str, actor: str = Depends(_admin_actor)) -> dict[str, Any]:
+    item = next((user for user in core.admin.users() if user["user_id"] == user_id), None)
+    if item is None:
+        raise HTTPException(status_code=404, detail="admin_user_not_found")
+    return item
+
+
 @app.patch("/api/admin/users/{user_id}/status")
 def admin_user_status(user_id: str, request: AdminUserStatusRequest, actor: str = Depends(_admin_actor)) -> dict[str, Any]:
     if not request.confirm:

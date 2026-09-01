@@ -14,6 +14,9 @@ def test_admin_center_is_real_read_model_and_rejects_member(tmp_path, monkeypatc
     assert client.get("/api/admin/users").status_code == 200
     assert client.get("/api/admin/advanced").status_code == 200
     assert client.get("/api/admin/audit").status_code == 200
+    assert client.get("/api/admin/health").json()["foreign_keys"] == 0
+    assert client.get("/api/admin/security").json()["rbac"] == "owner/admin"
+    assert client.get("/api/admin/plans").status_code == 200
     assert client.get("/api/admin/dashboard", headers={"X-User-Role": "member"}).status_code == 403
 
 
