@@ -109,17 +109,17 @@
             </div>
           </div>
 
-          <aside class="iris-panel">
+          <aside class="iris-panel" data-iris-state="idle">
             <div class="iris-header">
               <div>
                 <span class="eyebrow">SUPERVISOR</span>
                 <h2>Iris</h2>
                 <p>Ваш главный интерфейс к Luminifera</p>
               </div>
-              <span class="online"><i></i>на связи</span>
+              <div class="iris-presence"><span class="iris-state-label" id="iris-state-label">готова слушать</span><span class="online"><i></i>на связи</span></div>
             </div>
 
-            <div id="iris-media" class="iris-media"></div>
+            <div id="iris-media" class="iris-media"><span class="iris-state-line" id="iris-state-line" aria-live="polite"></span></div>
 
             <div class="iris-chat-shell">
               <div id="iris-empty" class="chat-empty">

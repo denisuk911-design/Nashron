@@ -78,6 +78,9 @@ def main() -> int:
                     result["checks"]["goal_started_from_ui"] = page.evaluate("location.hash") == "#work"
                     page.locator('.brand[data-route="home"]').click()
                     page.locator('[data-screen="home"]').wait_for(state="visible", timeout=10_000)
+                    page.wait_for_timeout(900)
+                else:
+                    page.wait_for_timeout(900)
                 page.screenshot(path=str(evidence / f"home-{width}x{height}.png"), full_page=True)
                 page.locator(".viewport").hover()
                 page.mouse.wheel(0, 700)
