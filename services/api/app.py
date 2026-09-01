@@ -161,6 +161,23 @@ class AdminUserStatusRequest(BaseModel):
     confirm: bool = False
 
 
+class AdminProviderPolicyRequest(BaseModel):
+    priority: int = Field(default=100, ge=0, le=10_000)
+    fallback_provider_id: str | None = Field(default=None, max_length=80)
+    max_requests: int | None = Field(default=None, ge=1, le=10_000_000)
+    timeout_seconds: int = Field(default=180, ge=1, le=3600)
+    retries: int = Field(default=1, ge=0, le=10)
+    enabled: bool = True
+
+
+class AdminSettingsRequest(BaseModel):
+    retention_days: int | None = Field(default=None, ge=1, le=3650)
+    registration_enabled: bool | None = None
+    session_ttl_hours: int | None = Field(default=None, ge=1, le=8760)
+    rate_limit_per_minute: int | None = Field(default=None, ge=1, le=100_000)
+    maintenance_mode: bool | None = None
+
+
 class TelemetryRequest(BaseModel):
     event_type: str = Field(min_length=2, max_length=80)
     user_id: str = Field(default="owner", min_length=1, max_length=120)
@@ -393,6 +410,7 @@ def runtime_diagnostics() -> dict[str, Any]:
 def _admin_actor(
     x_admin_role: str | None = Header(default=None),
     x_user_role: str | None = Header(default=None),
+    x_account_id: str | None = Header(default=None),
 ) -> str:
     """Resolve the authenticated role at the HTTP boundary.
 
@@ -402,7 +420,7 @@ def _admin_actor(
     """
     role = x_admin_role or x_user_role
     try:
-        return core.admin.authorize(role, require_explicit=os.environ.get("LUMINIFERA_REQUIRE_ADMIN_AUTH") == "1")
+        return core.admin.authorize_account(x_account_id, role, require_explicit=os.environ.get("LUMINIFERA_REQUIRE_ADMIN_AUTH") == "1")
     except AdminAccessError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
 
@@ -414,21 +432,32 @@ def admin_access(actor: str = Depends(_admin_actor)) -> dict[str, Any]:
 
 
 @app.post("/api/telemetry")
-def record_telemetry(request: TelemetryRequest, x_organization_id: str | None = Header(default=None)) -> dict[str, str]:
+def record_telemetry(request: TelemetryRequest, x_organization_id: str | None = Header(default=None), x_account_id: str | None = Header(default=None)) -> dict[str, str]:
     """Record a bounded product event for real analytics, without secrets."""
     organization_id = core.organization_id(x_organization_id)
-    allowed = {"visit", "registration", "session_started", "iris_opened", "constellation_opened", "goal_created", "goal_completed", "artifact_created", "feedback_submitted"}
+    allowed = {"visit", "registration", "login", "session_started", "iris_opened", "constellation_opened", "goal_created", "goal_completed", "artifact_created", "evidence_created", "provider_call", "runtime_execution", "error", "fallback", "feedback_submitted"}
     if request.event_type not in allowed:
         raise HTTPException(status_code=422, detail="unsupported_telemetry_event")
-    user_id = "".join(ch for ch in request.user_id if ch.isalnum() or ch in "._-")[:120] or "owner"
+    user_id = "".join(ch for ch in (x_account_id or request.user_id) if ch.isalnum() or ch in "._-")[:120] or "owner"
     core.admin.touch_user(user_id, display_name=user_id, role="member", organization_id=organization_id, language=str(core.settings.get("interface_language") or "ru"))
     event_id = core.database.record_product_telemetry(request.event_type, user_id=user_id, organization_id=organization_id, detail={"source": "product", "keys": sorted(str(key) for key in request.detail)[:20]})
     return {"event_id": event_id, "status": "recorded"}
 
 
 @app.get("/api/admin/dashboard")
-def admin_dashboard(actor: str = Depends(_admin_actor)) -> dict[str, Any]:
-    return core.admin.dashboard()
+def admin_dashboard(period: str = Query(default="30d"), since: str | None = Query(default=None), until: str | None = Query(default=None), actor: str = Depends(_admin_actor)) -> dict[str, Any]:
+    try:
+        return core.admin.dashboard(period, since=since, until=until)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get("/api/admin/analytics")
+def admin_analytics(period: str = Query(default="30d"), since: str | None = Query(default=None), until: str | None = Query(default=None), actor: str = Depends(_admin_actor)) -> dict[str, Any]:
+    try:
+        return core.admin.dashboard(period, since=since, until=until)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.get("/api/admin/providers")
@@ -467,6 +496,16 @@ def admin_provider_disconnect(provider_id: str, actor: str = Depends(_admin_acto
     return {"name": profile.display_name, "state": "NOT_CONNECTED", "available": False, "configured": False}
 
 
+@app.patch("/api/admin/providers/{provider_id}/policy")
+def admin_provider_policy(provider_id: str, request: AdminProviderPolicyRequest, actor: str = Depends(_admin_actor)) -> dict[str, Any]:
+    try:
+        if not core.admin.update_provider_policy(provider_id, **request.model_dump(), actor=actor):
+            raise HTTPException(status_code=404, detail="provider_not_found")
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return next(item for item in core.admin.provider_read_model() if item["id"] == provider_id)
+
+
 @app.get("/api/admin/users")
 def admin_users(query: str = Query(default="", max_length=120), actor: str = Depends(_admin_actor)) -> list[dict[str, Any]]:
     return core.admin.users(query)
@@ -480,6 +519,14 @@ def admin_audit(limit: int = Query(default=100, ge=1, le=500), actor: str = Depe
 @app.get("/api/admin/advanced")
 def admin_advanced(actor: str = Depends(_admin_actor)) -> dict[str, Any]:
     return core.admin.advanced()
+
+
+@app.patch("/api/admin/advanced")
+def update_admin_advanced(request: AdminSettingsRequest, actor: str = Depends(_admin_actor)) -> dict[str, Any]:
+    try:
+        return core.admin.save_advanced_controls(request.model_dump(exclude_none=True), actor)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.get("/api/admin/health")

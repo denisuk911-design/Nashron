@@ -36,6 +36,16 @@ class AdminCenterService:
             raise AdminAccessError("admin_access_required")
         return normalized
 
+    def authorize_account(self, account_id: str | None, role: str | None, *, require_explicit: bool = False) -> str:
+        """Prefer the durable account role when an account identity is supplied."""
+        if account_id:
+            with self.database.connect() as conn:
+                row = conn.execute("SELECT role, status FROM admin_accounts WHERE account_id = ?", (account_id,)).fetchone()
+            if row is None or str(row["status"]).upper() != "ACTIVE":
+                raise AdminAccessError("admin_account_not_found_or_blocked")
+            return self.authorize(str(row["role"]), require_explicit=True)
+        return self.authorize(role, require_explicit=require_explicit)
+
     def touch_user(self, user_id: str, *, display_name: str, role: str, organization_id: str | None, language: str) -> None:
         self.database.upsert_admin_user({
             "user_id": user_id,
@@ -45,24 +55,34 @@ class AdminCenterService:
             "language": language,
         })
 
-    def dashboard(self) -> dict[str, Any]:
+    def dashboard(self, period: str = "30d", *, since: str | None = None, until: str | None = None) -> dict[str, Any]:
+        if period not in {"today", "7d", "30d", "custom"}:
+            raise ValueError("unsupported_analytics_period")
+        if period == "today":
+            since = datetime.now(timezone.utc).strftime("%Y-%m-%d 00:00:00")
+        elif period in {"7d", "30d"}:
+            since = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+            days = 7 if period == "7d" else 30
+            from datetime import timedelta
+            since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+        metrics = self.database.list_telemetry_metrics(since=since, until=until)
         with self.database.connect() as conn:
             counts = {
-                "users": int(conn.execute("SELECT COUNT(*) FROM admin_users").fetchone()[0]),
-                "visits": int(conn.execute("SELECT COUNT(*) FROM product_telemetry_events WHERE event_type = 'visit'").fetchone()[0]),
-                "registrations": int(conn.execute("SELECT COUNT(*) FROM product_telemetry_events WHERE event_type = 'registration'").fetchone()[0]),
-                "sessions": int(conn.execute("SELECT COUNT(*) FROM product_telemetry_events WHERE event_type = 'session_started'").fetchone()[0]),
+                "users": int(conn.execute("SELECT COUNT(*) FROM admin_accounts").fetchone()[0]),
+                "visits": metrics.get("visit", 0),
+                "registrations": metrics.get("registration", 0),
+                "sessions": metrics.get("session_started", 0),
                 "goals": int(conn.execute("SELECT COUNT(*) FROM project_plans").fetchone()[0]),
                 "artifacts": int(conn.execute("SELECT COUNT(*) FROM artifacts").fetchone()[0]),
                 "evidence": int(conn.execute("SELECT COUNT(*) FROM tool_evidence").fetchone()[0]),
                 "errors": int(conn.execute("SELECT COUNT(*) FROM app_events WHERE event_type LIKE '%error%' OR event_type LIKE '%failure%'").fetchone()[0]),
-                "active_users": int(conn.execute("SELECT COUNT(*) FROM admin_users WHERE status = 'ACTIVE'").fetchone()[0]),
-                "unique_visitors": int(conn.execute("SELECT COUNT(DISTINCT user_id) FROM product_telemetry_events WHERE event_type = 'visit'").fetchone()[0]),
+                "active_users": int(conn.execute("SELECT COUNT(*) FROM admin_accounts WHERE status = 'ACTIVE'").fetchone()[0]),
+                "unique_visitors": self._unique_event_users(conn, "visit", since, until),
                 "goals_completed": int(conn.execute("SELECT COUNT(*) FROM project_plans WHERE status IN ('COMPLETED', 'COMPLETE')").fetchone()[0]),
             }
             for window, days in (("dau", 1), ("wau", 7), ("mau", 30)):
                 counts[window] = int(conn.execute("SELECT COUNT(DISTINCT user_id) FROM product_telemetry_events WHERE datetime(created_at) >= datetime('now', ?)", (f"-{days} days",)).fetchone()[0])
-            usage_rows = conn.execute("SELECT provider, COUNT(*) AS total FROM agent_runs GROUP BY provider ORDER BY total DESC").fetchall()
+            usage_rows = conn.execute("SELECT provider, COUNT(*) AS total, SUM(CASE WHEN ok = 1 THEN 1 ELSE 0 END) AS succeeded, AVG(duration_seconds) AS avg_latency, SUM(CASE WHEN error IS NOT NULL AND error <> '' THEN 1 ELSE 0 END) AS errors FROM agent_runs GROUP BY provider ORDER BY total DESC").fetchall()
             events = conn.execute(
                 "SELECT event_type, COUNT(*) AS total FROM product_telemetry_events GROUP BY event_type ORDER BY total DESC"
             ).fetchall()
@@ -77,30 +97,56 @@ class AdminCenterService:
             })
         return {
             "counts": counts,
-            "activation": self._activation_funnel(),
+            "activation": self._activation_funnel(since=since, until=until),
             "event_types": [{"name": str(row["event_type"]), "count": int(row["total"])} for row in events],
             "providers": provider_health,
-            "runtime_usage": [{"provider": str(row["provider"]), "runs": int(row["total"])} for row in usage_rows],
+            "runtime_usage": [{"provider": str(row["provider"]), "runs": int(row["total"]), "succeeded": int(row["succeeded"] or 0), "errors": int(row["errors"] or 0), "avg_latency_seconds": round(float(row["avg_latency"] or 0), 3)} for row in usage_rows],
+            "usage": {"provider_calls": metrics.get("provider_call", 0), "runtime_executions": metrics.get("runtime_execution", 0), "errors": metrics.get("error", 0), "fallbacks": metrics.get("fallback", 0), "tokens": {"status": "unavailable", "reason": "token telemetry is not configured"}, "latency": "from agent_runs"},
             "cost": {"status": "unavailable", "reason": "cost telemetry is not configured"},
+            "period": period,
+            "range": {"since": since, "until": until},
             "source": "database",
             "generated_at": datetime.now(timezone.utc).isoformat(),
         }
 
-    def _activation_funnel(self) -> list[dict[str, Any]]:
+    @staticmethod
+    def _unique_event_users(conn: Any, event_type: str, since: str | None, until: str | None) -> int:
+        clauses = ["event_type = ?"]
+        params: list[Any] = [event_type]
+        if since:
+            clauses.append("datetime(created_at) >= datetime(?)")
+            params.append(since)
+        if until:
+            clauses.append("datetime(created_at) < datetime(?)")
+            params.append(until)
+        return int(conn.execute(f"SELECT COUNT(DISTINCT user_id) FROM product_telemetry_events WHERE {' AND '.join(clauses)}", params).fetchone()[0])
+
+    def _activation_funnel(self, *, since: str | None = None, until: str | None = None) -> list[dict[str, Any]]:
         order = ["visit", "registration", "iris_opened", "constellation_opened", "goal_created", "goal_completed"]
+        clauses = [f"event_type IN ({','.join('?' for _ in order)})"]
+        params: list[Any] = list(order)
+        if since:
+            clauses.append("datetime(created_at) >= datetime(?)")
+            params.append(since)
+        if until:
+            clauses.append("datetime(created_at) < datetime(?)")
+            params.append(until)
         with self.database.connect() as conn:
-            rows = conn.execute(
-                "SELECT event_type, COUNT(*) AS total FROM product_telemetry_events WHERE event_type IN (%s) GROUP BY event_type"
-                % ",".join("?" for _ in order), order,
-            ).fetchall()
+            rows = conn.execute(f"SELECT event_type, COUNT(*) AS total FROM product_telemetry_events WHERE {' AND '.join(clauses)} GROUP BY event_type", params).fetchall()
         values = {str(row["event_type"]): int(row["total"]) for row in rows}
         return [{"stage": stage, "count": values.get(stage, 0)} for stage in order]
 
     def provider_read_model(self) -> list[dict[str, Any]]:
         result = []
+        policies = {str(row["provider_id"]): row for row in self.database.list_provider_admin_policies()}
         for profile in self.providers.profiles():
+            if profile.provider_id not in policies:
+                self.database.upsert_provider_admin_policy(profile.provider_id)
+                policies = {str(row["provider_id"]): row for row in self.database.list_provider_admin_policies()}
             current = self.provider_health.latest_health(profile.provider_id)
+            policy = policies.get(profile.provider_id)
             result.append({
+                "id": profile.provider_id,
                 "name": profile.display_name,
                 "family": profile.provider_family,
                 "support": profile.support_status,
@@ -109,13 +155,17 @@ class AdminCenterService:
                 "capabilities": list(profile.capability_matrix),
                 "active": self.settings.get("active_provider_id") == profile.provider_id,
                 "credential_saved": bool(self.credentials.is_configured(profile.provider_id)) if self.credentials is not None else False,
+                "priority": int(policy["priority"]) if policy else 100,
+                "fallback": None if not policy or not policy["fallback_provider_id"] else str(policy["fallback_provider_id"]),
+                "limits": {"max_requests": policy["max_requests"] if policy else None, "timeout_seconds": int(policy["timeout_seconds"]) if policy else 180, "retries": int(policy["retries"]) if policy else 1},
+                "enabled": bool(policy["enabled"]) if policy else True,
             })
         return result
 
     def users(self, query: str = "") -> list[dict[str, Any]]:
         return [
-            {key: row[key] for key in ("user_id", "display_name", "role", "organization_id", "language", "plan", "status", "usage_count", "created_at", "last_activity_at")}
-            for row in self.database.list_admin_users(query)
+            {"account_id": row["account_id"], "user_id": row["account_id"], "display_name": row["display_name"], "role": row["role"], "organization_id": row["organization_id"], "language": row["language"], "plan": row["plan"], "status": row["status"], "usage_count": int(row["usage_count"]), "created_at": row["created_at"], "last_activity_at": row["last_activity_at"]}
+            for row in self.database.list_admin_accounts(query)
         ]
 
     def audit(self, limit: int = 100) -> list[dict[str, Any]]:
@@ -138,7 +188,8 @@ class AdminCenterService:
 
     def advanced(self) -> dict[str, Any]:
         allowed = {"theme", "interface_language", "message_sounds_enabled", "reduce_motion", "runtime_engine", "codex_timeout_seconds", "response_timeout_seconds", "goal_turn_limit"}
-        return {"settings": {key: self.settings.get(key) for key in sorted(allowed)}, "storage": "local durable database", "secrets": "masked"}
+        persisted = self.database.list_admin_settings()
+        return {"settings": {key: persisted.get(key, self.settings.get(key)) for key in sorted(allowed)}, "storage": "local durable database", "secrets": "masked", "controls": {"retention_days": persisted.get("retention_days", 90), "registration_enabled": persisted.get("registration_enabled", True), "session_ttl_hours": persisted.get("session_ttl_hours", 24), "rate_limit_per_minute": persisted.get("rate_limit_per_minute", 60), "maintenance_mode": persisted.get("maintenance_mode", False)}}
 
     def health(self) -> dict[str, Any]:
         with self.database.connect() as conn:
@@ -157,7 +208,8 @@ class AdminCenterService:
     def set_user_status(self, user_id: str, status: str, actor: str) -> bool:
         if status not in {"ACTIVE", "BLOCKED"}:
             raise ValueError("unsupported_user_status")
-        changed = self.database.update_admin_user(user_id, status=status)
+        changed = self.database.update_admin_account(user_id, status=status)
+        self.database.update_admin_user(user_id, status=status)
         if changed:
             detail = {"actor": actor, "user_id": user_id, "status": status}
             self.database.log_event("admin_user_status_changed", json.dumps(detail))
@@ -167,3 +219,36 @@ class AdminCenterService:
                     (f"ADMIN-{uuid.uuid4().hex[:12].upper()}", actor, "admin_user", user_id, "status_changed", json.dumps({"status": status}), "Owner Center action"),
                 )
         return changed
+
+    def update_provider_policy(self, provider_id: str, *, priority: int, fallback_provider_id: str | None,
+                               max_requests: int | None, timeout_seconds: int, retries: int,
+                               enabled: bool, actor: str) -> bool:
+        if self.providers.get(provider_id) is None:
+            return False
+        if fallback_provider_id and self.providers.get(fallback_provider_id) is None:
+            raise ValueError("fallback_provider_not_found")
+        if fallback_provider_id == provider_id:
+            raise ValueError("provider_cannot_fallback_to_itself")
+        self.database.upsert_provider_admin_policy(
+            provider_id, priority=priority, fallback_provider_id=fallback_provider_id,
+            max_requests=max_requests, timeout_seconds=timeout_seconds, retries=retries, enabled=enabled,
+        )
+        with self.database.connect() as conn:
+            conn.execute(
+                "INSERT INTO management_audit_events (id, actor, object_type, object_id, action, new_value, reason) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (f"ADMIN-{uuid.uuid4().hex[:12].upper()}", actor, "provider_policy", provider_id, "updated", json.dumps({"priority": priority, "fallback": fallback_provider_id, "max_requests": max_requests, "timeout_seconds": timeout_seconds, "retries": retries, "enabled": enabled}), "Admin provider policy action"),
+            )
+        return True
+
+    def save_advanced_controls(self, values: dict[str, Any], actor: str) -> dict[str, Any]:
+        allowed = {"retention_days", "registration_enabled", "session_ttl_hours", "rate_limit_per_minute", "maintenance_mode"}
+        for key, value in values.items():
+            if key not in allowed:
+                raise ValueError("unsupported_admin_setting")
+            self.database.save_admin_setting(key, value)
+        with self.database.connect() as conn:
+            conn.execute(
+                "INSERT INTO management_audit_events (id, actor, object_type, object_id, action, new_value, reason) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (f"ADMIN-{uuid.uuid4().hex[:12].upper()}", actor, "admin_settings", "global", "updated", json.dumps(values), "Admin settings action"),
+            )
+        return self.advanced()

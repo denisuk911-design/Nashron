@@ -166,6 +166,36 @@ class Database:
             );
             CREATE INDEX IF NOT EXISTS idx_admin_users_activity ON admin_users(last_activity_at);
             CREATE INDEX IF NOT EXISTS idx_product_telemetry_type ON product_telemetry_events(event_type, created_at);
+            CREATE TABLE IF NOT EXISTS admin_accounts (
+                account_id TEXT PRIMARY KEY,
+                display_name TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'member',
+                organization_id TEXT,
+                language TEXT NOT NULL DEFAULT 'ru',
+                plan TEXT NOT NULL DEFAULT 'local',
+                status TEXT NOT NULL DEFAULT 'ACTIVE',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                last_activity_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE SET NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_admin_accounts_activity ON admin_accounts(last_activity_at);
+            CREATE TABLE IF NOT EXISTS provider_admin_policies (
+                provider_id TEXT PRIMARY KEY,
+                priority INTEGER NOT NULL DEFAULT 100,
+                fallback_provider_id TEXT,
+                max_requests INTEGER,
+                timeout_seconds INTEGER NOT NULL DEFAULT 180,
+                retries INTEGER NOT NULL DEFAULT 1,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (provider_id) REFERENCES provider_definitions(provider_id),
+                FOREIGN KEY (fallback_provider_id) REFERENCES provider_definitions(provider_id)
+            );
+            CREATE TABLE IF NOT EXISTS admin_persisted_settings (
+                setting_key TEXT PRIMARY KEY,
+                setting_value TEXT NOT NULL,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
             """
         )
 
@@ -1911,6 +1941,26 @@ class Database:
                     str(values.get("status") or "ACTIVE"),
                 ),
             )
+            conn.execute(
+                """
+                INSERT INTO admin_accounts
+                    (account_id, display_name, role, organization_id, language, plan, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(account_id) DO UPDATE SET
+                    display_name = excluded.display_name,
+                    role = excluded.role,
+                    organization_id = excluded.organization_id,
+                    language = excluded.language,
+                    plan = excluded.plan,
+                    last_activity_at = CURRENT_TIMESTAMP
+                """ ,
+                (
+                    str(values["user_id"]), str(values.get("display_name") or "User"),
+                    str(values.get("role") or "member"), values.get("organization_id"),
+                    str(values.get("language") or "ru"), str(values.get("plan") or "local"),
+                    str(values.get("status") or "ACTIVE"),
+                ),
+            )
 
     def list_admin_users(self, query: str = "", limit: int = 200) -> list[sqlite3.Row]:
         with self.connect() as conn:
@@ -1923,6 +1973,41 @@ class Database:
             return conn.execute(
                 "SELECT * FROM admin_users ORDER BY last_activity_at DESC LIMIT ?", (limit,)
             ).fetchall()
+
+    def list_admin_accounts(self, query: str = "", limit: int = 200) -> list[sqlite3.Row]:
+        term = f"%{query.strip()}%"
+        where = "WHERE a.display_name LIKE ? OR a.account_id LIKE ?" if query.strip() else ""
+        params: list[Any] = [term, term] if query.strip() else []
+        params.append(limit)
+        with self.connect() as conn:
+            return conn.execute(
+                f"""
+                SELECT a.*, COUNT(t.event_id) AS usage_count
+                FROM admin_accounts a
+                LEFT JOIN product_telemetry_events t ON t.user_id = a.account_id
+                {where}
+                GROUP BY a.account_id
+                ORDER BY a.last_activity_at DESC
+                LIMIT ?
+                """,
+                params,
+            ).fetchall()
+
+    def update_admin_account(self, account_id: str, *, status: str | None = None, role: str | None = None) -> bool:
+        changes = []
+        params: list[Any] = []
+        if status is not None:
+            changes.append("status = ?")
+            params.append(status)
+        if role is not None:
+            changes.append("role = ?")
+            params.append(role)
+        if not changes:
+            return False
+        params.append(account_id)
+        with self.connect() as conn:
+            cur = conn.execute(f"UPDATE admin_accounts SET {', '.join(changes)} WHERE account_id = ?", params)
+            return cur.rowcount > 0
 
     def update_admin_user(self, user_id: str, *, status: str | None = None, role: str | None = None) -> bool:
         changes = []
@@ -1952,6 +2037,58 @@ class Database:
                 (user_id,),
             )
         return event_id
+
+    def list_telemetry_metrics(self, *, since: str | None = None, until: str | None = None) -> dict[str, int]:
+        clauses = []
+        params: list[Any] = []
+        if since:
+            clauses.append("datetime(created_at) >= datetime(?)")
+            params.append(since)
+        if until:
+            clauses.append("datetime(created_at) < datetime(?)")
+            params.append(until)
+        where = " WHERE " + " AND ".join(clauses) if clauses else ""
+        with self.connect() as conn:
+            rows = conn.execute(
+                f"SELECT event_type, COUNT(*) AS total FROM product_telemetry_events{where} GROUP BY event_type",
+                params,
+            ).fetchall()
+        return {str(row["event_type"]): int(row["total"]) for row in rows}
+
+    def upsert_provider_admin_policy(self, provider_id: str, *, priority: int = 100,
+                                     fallback_provider_id: str | None = None,
+                                     max_requests: int | None = None,
+                                     timeout_seconds: int = 180, retries: int = 1,
+                                     enabled: bool = True) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO provider_admin_policies
+                    (provider_id, priority, fallback_provider_id, max_requests, timeout_seconds, retries, enabled)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(provider_id) DO UPDATE SET
+                    priority=excluded.priority, fallback_provider_id=excluded.fallback_provider_id,
+                    max_requests=excluded.max_requests, timeout_seconds=excluded.timeout_seconds,
+                    retries=excluded.retries, enabled=excluded.enabled, updated_at=CURRENT_TIMESTAMP
+                """,
+                (provider_id, int(priority), fallback_provider_id, max_requests, int(timeout_seconds), int(retries), 1 if enabled else 0),
+            )
+
+    def list_provider_admin_policies(self) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM provider_admin_policies ORDER BY priority ASC, provider_id ASC").fetchall()
+
+    def save_admin_setting(self, key: str, value: Any) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO admin_persisted_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value, updated_at=CURRENT_TIMESTAMP",
+                (key, self._json(value)),
+            )
+
+    def list_admin_settings(self) -> dict[str, Any]:
+        with self.connect() as conn:
+            rows = conn.execute("SELECT setting_key, setting_value FROM admin_persisted_settings ORDER BY setting_key").fetchall()
+        return {str(row["setting_key"]): self.loads(row["setting_value"], row["setting_value"]) for row in rows}
 
     def list_product_telemetry(self, limit: int = 500) -> list[sqlite3.Row]:
         with self.connect() as conn:
