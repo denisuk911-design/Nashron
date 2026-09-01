@@ -35,6 +35,17 @@
       "locale": "en"
     },
     {
+      "state": "expired",
+      "setup": "active member session expired by isolated test-only SQLite fixture",
+      "action": "reload with expired bearer token",
+      "request": "GET /api/auth/me -> 401",
+      "expected": "login/denial gate",
+      "actual": "Войдите в своё рабочее пространство",
+      "viewport": "1920x1080",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
       "state": "password-screen",
       "setup": "valid owner bearer session",
       "action": "open profile and change-password action",
@@ -59,10 +70,10 @@
     {
       "state": "logout",
       "setup": "authenticated owner session",
-      "action": "real logout button click",
-      "request": "POST /api/auth/logout -> 200; old GET /api/auth/me -> 200",
+      "action": "real logout button click; browser_token_present=True",
+      "request": "POST /api/auth/logout -> 200; old GET /api/auth/me -> 401",
       "expected": "login gate returns and session denied",
-      "actual": "Обновите пароль профиля",
+      "actual": "Войдите в своё рабочее пространство",
       "viewport": "1920x1080",
       "theme": "dark",
       "locale": "ru"
@@ -85,6 +96,7 @@
     "blocked-1440-light-uk.png",
     "revoked-1920-1080-dark-en.png",
     "revoked-1440-light-en.png",
+    "expired-1920-1080-dark-en.png",
     "password-screen-1920-1080-light-ru.png",
     "returning-login-1920-1080-light-ru.png"
   ],
@@ -104,8 +116,8 @@
     "expired_api_contract": "not reproducible without time travel API"
   },
   "build_info": {
-    "url": "http://127.0.0.1:50993/app",
-    "api": "http://127.0.0.1:50992/api/health",
+    "url": "http://127.0.0.1:51928/app",
+    "api": "http://127.0.0.1:51927/api/health",
     "status": "ready"
   }
 }

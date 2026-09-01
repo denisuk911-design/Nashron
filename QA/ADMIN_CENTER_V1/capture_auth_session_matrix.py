@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import sqlite3
 import subprocess
 import time
 import urllib.error
@@ -121,6 +122,19 @@ def main() -> int:
             result["screens"].append("revoked-1440-light-en.png")
 
             page.set_viewport_size({"width": 1920, "height": 1080})
+            expired_login_status, expired_login = http(api, "/api/auth/login", "POST", {"account_id": "session-member", "password": "session-member-pass-123"})
+            expired_token = expired_login.get("token", "")
+            database_path = profile / "data" / "team2050.sqlite3"
+            with sqlite3.connect(database_path) as database:
+                database.execute("UPDATE admin_sessions SET expires_at = ? WHERE token_hash = ?", ("2000-01-01T00:00:00+00:00", __import__("hashlib").sha256(expired_token.encode()).hexdigest()))
+                database.commit()
+            page.evaluate("token => localStorage.setItem('luminifera.authToken', token)", expired_token)
+            page.reload(wait_until="networkidle")
+            wait_login()
+            expired_me_status, _ = http(api, "/api/auth/me", headers={"Authorization": f"Bearer {expired_token}"})
+            record("expired", "active member session expired by isolated test-only SQLite fixture", "reload with expired bearer token", f"GET /api/auth/me -> {expired_me_status}", "login/denial gate", page.locator("#auth-title").inner_text(), locale="en")
+
+            page.set_viewport_size({"width": 1920, "height": 1080})
             owner_status, owner = http(api, "/api/auth/login", "POST", {"account_id": "session-owner", "password": "session-owner-pass-123"})
             owner_token = owner.get("token", "")
             page.evaluate("token => localStorage.setItem('luminifera.authToken', token)", owner_token)
@@ -148,10 +162,11 @@ def main() -> int:
             wait_ready()
             page.locator("#profile-button").evaluate("button => button.click()")
             page.wait_for_function("document.querySelector('#auth-logout')?.hidden === false", timeout=5_000)
+            logout_token_present = bool(page.evaluate("() => localStorage.getItem('luminifera.authToken')"))
             page.locator("#auth-logout").evaluate("button => button.click()")
-            page.wait_for_function("document.querySelector('#auth-name-label')?.hidden === true", timeout=10_000)
+            page.wait_for_function("document.querySelector('#auth-logout')?.hidden === true && document.querySelector('#auth-password-change')?.hidden === true", timeout=10_000)
             logout_status, _ = http(api, "/api/auth/me", headers={"Authorization": f"Bearer {new_token}"})
-            record("logout", "authenticated owner session", "real logout button click", f"POST /api/auth/logout -> 200; old GET /api/auth/me -> {logout_status}", "login gate returns and session denied", page.locator("#auth-title").inner_text(), capture=False)
+            record("logout", "authenticated owner session", f"real logout button click; browser_token_present={logout_token_present}", f"POST /api/auth/logout -> 200; old GET /api/auth/me -> {logout_status}", "login gate returns and session denied", page.locator("#auth-title").inner_text(), capture=False)
 
             page.set_viewport_size({"width": 1440, "height": 900})
             fill_form("session-owner", "session-owner-new-pass-123")
@@ -162,7 +177,7 @@ def main() -> int:
                 page.reload(wait_until="networkidle")
             wait_ready()
             record("returning-login", "logout completed; valid new password", "real login button click", f"POST /api/auth/login -> {returning_login_status}", "Product UI opens", "auth-ready=true", theme="light")
-            result["checks"] = {"no_global_scroll": page.evaluate("document.documentElement.scrollHeight <= innerHeight"), "real_api": True, "no_raw_secrets": True, "race_fix": True, "expired_api_contract": "not reproducible without time travel API"}
+            result["checks"] = {"no_global_scroll": page.evaluate("document.documentElement.scrollHeight <= innerHeight"), "real_api": True, "no_raw_secrets": True, "race_fix": True, "expired_session_fixture": "isolated SQLite test-only"}
             context.close()
             browser.close()
         result["build_info"] = metadata

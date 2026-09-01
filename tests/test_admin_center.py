@@ -1,3 +1,5 @@
+import hashlib
+
 from fastapi.testclient import TestClient
 
 
@@ -155,7 +157,19 @@ def test_phase6_first_owner_bootstrap_password_rotation_and_restart(tmp_path, mo
     rotated = client.put("/api/auth/password", headers={"Authorization": f"Bearer {token}"}, json={"password": "rotated-pass-456"})
     assert rotated.status_code == 200
     assert client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"}).status_code == 401
-    assert client.post("/api/auth/login", json={"account_id": "first-owner", "password": "rotated-pass-456"}).status_code == 200
+    new_login = client.post("/api/auth/login", json={"account_id": "first-owner", "password": "rotated-pass-456"})
+    assert new_login.status_code == 200
+    new_token = new_login.json()["token"]
+    assert client.post("/api/auth/logout", headers={"Authorization": f"Bearer {new_token}"}).json()["revoked"] is True
+    assert client.get("/api/auth/me", headers={"Authorization": f"Bearer {new_token}"}).status_code == 401
+    expired_login = client.post("/api/auth/login", json={"account_id": "first-owner", "password": "rotated-pass-456"})
+    assert expired_login.status_code == 200
+    expired_token = expired_login.json()["token"]
+    with isolated.database.connect() as conn:
+        conn.execute("UPDATE admin_sessions SET expires_at = ? WHERE token_hash = ?", ("2000-01-01T00:00:00+00:00", hashlib.sha256(expired_token.encode()).hexdigest()))
+    expired_response = client.get("/api/auth/me", headers={"Authorization": f"Bearer {expired_token}"})
+    assert expired_response.status_code == 401
+    assert expired_response.json()["detail"] == "session_expired"
     assert client.get("/api/admin/security").json()["owner_bootstrap"] == "closed"
     restarted = app_module.WebCore()
     assert restarted.admin.security()["owner_bootstrap"] == "closed"
