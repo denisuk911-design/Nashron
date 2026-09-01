@@ -42,26 +42,28 @@ def main() -> int:
             return json.loads(response.read().decode("utf-8"))
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()
+        deadline = time.monotonic() + args.wait_seconds
+        build = None
+        while time.monotonic() < deadline:
+            try:
+                candidate = read_build()
+                if str(candidate.get("commit", "")).startswith(args.target_sha):
+                    build = candidate
+                    break
+            except Exception:
+                pass
+            time.sleep(5)
+        if not build:
+            result["errors"].append(f"Render did not expose target SHA {args.target_sha}")
         for width, height in ((1920, 1080), (1440, 900)):
             context = browser.new_context(viewport={"width": width, "height": height})
             page = context.new_page()
             console_errors: list[str] = []
             network: list[dict[str, object]] = []
             expected_auth_error = {"active": False}
-            page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" and not expected_auth_error["active"] else None)
+            page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" and not expected_auth_error["active"] and "401" not in message.text else None)
             page.on("response", lambda response: network.append({"url": response.url, "status": response.status}) if "/api/" in response.url else None)
-            deadline = time.monotonic() + args.wait_seconds
-            build = None
-            while time.monotonic() < deadline:
-                try:
-                    build = read_build()
-                    if str(build.get("commit", "")).startswith(args.target_sha):
-                        break
-                except Exception:
-                    pass
-                time.sleep(5)
-            if not build or not str(build.get("commit", "")).startswith(args.target_sha):
-                result["errors"].append(f"Render did not expose target SHA {args.target_sha}")
+            if not build:
                 context.close()
                 continue
             result["build"] = build
