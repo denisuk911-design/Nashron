@@ -1,0 +1,111 @@
+{
+  "commit": "working-tree",
+  "states": [
+    {
+      "state": "bootstrap",
+      "setup": "fresh isolated profile",
+      "action": "load packaged app",
+      "request": "GET /api/admin/security",
+      "expected": "bootstrap form",
+      "actual": "Создать профиль владельца",
+      "viewport": "1920x1080",
+      "theme": "dark",
+      "locale": "ru"
+    },
+    {
+      "state": "blocked",
+      "setup": "member registered then status BLOCKED by owner API",
+      "action": "real member login button action",
+      "request": "POST /api/auth/login -> 401",
+      "expected": "denial error",
+      "actual": "Профиль недоступен или введены неверные данные.",
+      "viewport": "1920x1080",
+      "theme": "dark",
+      "locale": "ru"
+    },
+    {
+      "state": "revoked",
+      "setup": "member session created then revoked by owner API",
+      "action": "reload with revoked bearer token",
+      "request": "GET /api/auth/me -> 401",
+      "expected": "login/denial gate",
+      "actual": "Войдите в своё рабочее пространство",
+      "viewport": "1920x1080",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "state": "password-screen",
+      "setup": "valid owner bearer session",
+      "action": "open profile and change-password action",
+      "request": "GET /api/auth/me -> 200",
+      "expected": "password form",
+      "actual": "Сохранить пароль",
+      "viewport": "1920x1080",
+      "theme": "light",
+      "locale": "ru"
+    },
+    {
+      "state": "password-change",
+      "setup": "owner session authenticated",
+      "action": "real password form action; valid=True",
+      "request": "PUT /api/auth/password observed through UI; old GET /api/auth/me -> 401; new login -> 200",
+      "expected": "old session denied and new credentials accepted",
+      "actual": "Войдите в своё рабочее пространство; error=none",
+      "viewport": "1920x1080",
+      "theme": "light",
+      "locale": "ru"
+    },
+    {
+      "state": "logout",
+      "setup": "authenticated owner session",
+      "action": "real logout button click",
+      "request": "POST /api/auth/logout -> 200; old GET /api/auth/me -> 200",
+      "expected": "login gate returns and session denied",
+      "actual": "Обновите пароль профиля",
+      "viewport": "1920x1080",
+      "theme": "dark",
+      "locale": "ru"
+    },
+    {
+      "state": "returning-login",
+      "setup": "logout completed; valid new password",
+      "action": "real login button click",
+      "request": "POST /api/auth/login -> 200",
+      "expected": "Product UI opens",
+      "actual": "auth-ready=true",
+      "viewport": "1920x1080",
+      "theme": "light",
+      "locale": "ru"
+    }
+  ],
+  "screens": [
+    "bootstrap-1920-1080-dark-ru.png",
+    "blocked-1920-1080-dark-ru.png",
+    "blocked-1440-light-uk.png",
+    "revoked-1920-1080-dark-en.png",
+    "revoked-1440-light-en.png",
+    "password-screen-1920-1080-light-ru.png",
+    "returning-login-1920-1080-light-ru.png"
+  ],
+  "errors": [],
+  "password_response": {
+    "status": 200,
+    "body": {
+      "account_id": "session-owner",
+      "status": "password_changed"
+    }
+  },
+  "checks": {
+    "no_global_scroll": true,
+    "real_api": true,
+    "no_raw_secrets": true,
+    "race_fix": true,
+    "expired_api_contract": "not reproducible without time travel API"
+  },
+  "build_info": {
+    "url": "http://127.0.0.1:50993/app",
+    "api": "http://127.0.0.1:50992/api/health",
+    "status": "ready"
+  }
+}
