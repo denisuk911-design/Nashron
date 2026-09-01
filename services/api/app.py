@@ -435,6 +435,37 @@ def admin_providers(actor: str = Depends(_admin_actor)) -> list[dict[str, Any]]:
     return core.admin.provider_read_model()
 
 
+@app.post("/api/admin/providers/{provider_id}/check")
+def admin_provider_check(provider_id: str, actor: str = Depends(_admin_actor)) -> dict[str, Any]:
+    profile = core.provider_registry.get(provider_id) or next((item for item in core.provider_registry.profiles() if item.display_name == provider_id), None)
+    if profile is None:
+        raise HTTPException(status_code=404, detail="provider_not_found")
+    health = core.provider_health.check_provider(profile.provider_id)
+    return {"name": profile.display_name, "state": health.health_status, "authentication": health.authentication_status, "available": health.health_status == "READY"}
+
+
+@app.post("/api/admin/providers/{provider_id}/connect")
+def admin_provider_connect(provider_id: str, request: ProviderConnectionRequest, actor: str = Depends(_admin_actor)) -> dict[str, Any]:
+    profile = core.provider_registry.get(provider_id) or next((item for item in core.provider_registry.profiles() if item.display_name == provider_id), None)
+    if profile is None:
+        raise HTTPException(status_code=404, detail="provider_not_found")
+    try:
+        core.provider_credentials.save(profile.provider_id, request.credential)
+        health = core.provider_health.check_provider(profile.provider_id)
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail="provider_connection_failed") from exc
+    return {"name": profile.display_name, "state": health.health_status, "available": health.health_status == "READY", "configured": True}
+
+
+@app.post("/api/admin/providers/{provider_id}/disconnect")
+def admin_provider_disconnect(provider_id: str, actor: str = Depends(_admin_actor)) -> dict[str, Any]:
+    profile = core.provider_registry.get(provider_id) or next((item for item in core.provider_registry.profiles() if item.display_name == provider_id), None)
+    if profile is None:
+        raise HTTPException(status_code=404, detail="provider_not_found")
+    core.provider_credentials.remove(profile.provider_id)
+    return {"name": profile.display_name, "state": "NOT_CONNECTED", "available": False, "configured": False}
+
+
 @app.get("/api/admin/users")
 def admin_users(query: str = Query(default="", max_length=120), actor: str = Depends(_admin_actor)) -> list[dict[str, Any]]:
     return core.admin.users(query)
