@@ -35,8 +35,32 @@ def main() -> int:
             browser = playwright.chromium.launch()
             for width, height in ((1920, 1080), (1440, 900)):
                 page = browser.new_page(viewport={"width": width, "height": height})
+                auth_responses = []
+                def record_auth_response(response):
+                    if "/api/auth/" not in response.url:
+                        return
+                    try:
+                        auth_responses.append((response.url, response.status, response.text()[:400]))
+                    except Exception:
+                        auth_responses.append((response.url, response.status, "<unreadable>"))
+                page.on("response", record_auth_response)
                 page.goto(app_url, wait_until="networkidle", timeout=20_000)
+                if not page.locator("#auth-gate.auth-ready").count():
+                    page.wait_for_timeout(1_500)
+                    page.locator("#auth-form").evaluate("form => { form.querySelector('#auth-account').value = 'visual-owner'; form.querySelector('#auth-name').value = 'Visual Owner'; form.querySelector('#auth-password').value = 'Visual-owner-pass-123'; }")
+                    page.locator("#auth-form").dispatch_event("submit")
+                    try:
+                        page.locator("#auth-gate.auth-ready").wait_for(state="attached", timeout=15_000)
+                    except Exception as error:
+                        auth_error = page.locator("#auth-error").inner_text() if page.locator("#auth-error").count() else ""
+                        auth_status = page.locator("#auth-status").inner_text() if page.locator("#auth-status").count() else ""
+                        title = page.locator("#auth-title").inner_text() if page.locator("#auth-title").count() else ""
+                        requests = page.evaluate("performance.getEntriesByType('resource').map(entry => entry.name).filter(name => name.includes('/api/auth/'))")
+                        raise RuntimeError(f"first_run_auth_failed: title={title}; error={auth_error}; status={auth_status}; requests={requests}; responses={auth_responses}") from error
                 page.locator('[data-screen="home"]').wait_for(state="visible")
+                if page.locator(".onboarding-dialog[open]").count():
+                    page.locator("#onboarding-start").click(force=True)
+                    page.locator(".onboarding-dialog[open]").wait_for(state="detached", timeout=10_000)
                 page.screenshot(path=str(evidence / f"home-{width}x{height}.png"), full_page=True)
                 page.locator(".viewport").hover()
                 page.mouse.wheel(0, 700)

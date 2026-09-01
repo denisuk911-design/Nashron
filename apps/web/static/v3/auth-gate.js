@@ -41,7 +41,7 @@
     if (mode === "bootstrap" || mode === "register") { payload.display_name = $("#auth-name").value.trim(); payload.language = $("#auth-language").value; }
     try {
       let result;
-      if (mode === "bootstrap") result = await request("/api/auth/bootstrap", { method: "POST", body: JSON.stringify(payload) });
+      if (mode === "bootstrap") { await request("/api/auth/bootstrap", { method: "POST", body: JSON.stringify(payload) }); result = await request("/api/auth/login", { method: "POST", body: JSON.stringify({ account_id: payload.account_id, password: payload.password }) }); }
       else if (mode === "register") { await request("/api/auth/register", { method: "POST", body: JSON.stringify(payload) }); setMode("login"); $("#auth-account").value = payload.account_id; $("#auth-status").textContent = "Профиль создан. Войдите, чтобы продолжить."; return; }
       else if (mode === "password") { await request("/api/auth/password", { method: "PUT", headers: { Authorization: `Bearer ${localStorage.getItem("luminifera.authToken")}` }, body: { password: payload.password } }); localStorage.removeItem("luminifera.authToken"); setMode("login"); $("#auth-status").textContent = "Пароль изменён. Войдите снова."; return; }
       else result = await request("/api/auth/login", { method: "POST", body: JSON.stringify(payload) });
