@@ -95,6 +95,7 @@ class Database:
             self._ensure_organization_scope_schema(conn)
             self._ensure_runtime_v2_schema(conn)
             self._ensure_chat_attachment_schema(conn)
+            self._ensure_admin_schema(conn)
             self._repair_renamed_message_foreign_keys(conn)
             self._repair_orphaned_routing_decisions(conn)
         # A legacy writable-schema migration could leave freed pages outside
@@ -128,6 +129,43 @@ class Database:
             );
             CREATE INDEX IF NOT EXISTS idx_chat_attachments_conversation_message
                 ON chat_attachments(conversation_id, message_id, created_at);
+            """
+        )
+
+    @staticmethod
+    def _ensure_admin_schema(conn: sqlite3.Connection) -> None:
+        """Persistent owner-console identities and product telemetry.
+
+        This is deliberately additive: existing product records remain the
+        source of truth, while the admin console gets durable user/activity
+        records instead of inventing metrics in the UI.
+        """
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS admin_users (
+                user_id TEXT PRIMARY KEY,
+                display_name TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'owner',
+                organization_id TEXT,
+                language TEXT NOT NULL DEFAULT 'ru',
+                plan TEXT NOT NULL DEFAULT 'local',
+                status TEXT NOT NULL DEFAULT 'ACTIVE',
+                usage_count INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                last_activity_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE SET NULL
+            );
+            CREATE TABLE IF NOT EXISTS product_telemetry_events (
+                event_id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                organization_id TEXT,
+                event_type TEXT NOT NULL,
+                detail TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE SET NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_admin_users_activity ON admin_users(last_activity_at);
+            CREATE INDEX IF NOT EXISTS idx_product_telemetry_type ON product_telemetry_events(event_type, created_at);
             """
         )
 
@@ -1850,6 +1888,76 @@ class Database:
                 "INSERT INTO feedback_items (id, organization_id, category, description, source) VALUES (?, ?, ?, ?, ?)",
                 (feedback_id, organization_id, category, description, source),
             )
+
+    def upsert_admin_user(self, values: dict[str, Any]) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO admin_users
+                    (user_id, display_name, role, organization_id, language, plan, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET
+                    display_name = excluded.display_name,
+                    role = excluded.role,
+                    organization_id = excluded.organization_id,
+                    language = excluded.language,
+                    plan = excluded.plan,
+                    last_activity_at = CURRENT_TIMESTAMP
+                """,
+                (
+                    str(values["user_id"]), str(values.get("display_name") or "User"),
+                    str(values.get("role") or "owner"), values.get("organization_id"),
+                    str(values.get("language") or "ru"), str(values.get("plan") or "local"),
+                    str(values.get("status") or "ACTIVE"),
+                ),
+            )
+
+    def list_admin_users(self, query: str = "", limit: int = 200) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            if query.strip():
+                term = f"%{query.strip()}%"
+                return conn.execute(
+                    "SELECT * FROM admin_users WHERE display_name LIKE ? OR user_id LIKE ? ORDER BY last_activity_at DESC LIMIT ?",
+                    (term, term, limit),
+                ).fetchall()
+            return conn.execute(
+                "SELECT * FROM admin_users ORDER BY last_activity_at DESC LIMIT ?", (limit,)
+            ).fetchall()
+
+    def update_admin_user(self, user_id: str, *, status: str | None = None, role: str | None = None) -> bool:
+        changes = []
+        params: list[Any] = []
+        if status is not None:
+            changes.append("status = ?")
+            params.append(status)
+        if role is not None:
+            changes.append("role = ?")
+            params.append(role)
+        if not changes:
+            return False
+        params.append(user_id)
+        with self.connect() as conn:
+            cur = conn.execute(f"UPDATE admin_users SET {', '.join(changes)} WHERE user_id = ?", params)
+            return cur.rowcount > 0
+
+    def record_product_telemetry(self, event_type: str, *, user_id: str = "owner", organization_id: str | None = None, detail: dict[str, Any] | None = None) -> str:
+        event_id = f"TEL-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO product_telemetry_events (event_id, user_id, organization_id, event_type, detail) VALUES (?, ?, ?, ?, ?)",
+                (event_id, user_id, organization_id, event_type, self._json(detail or {})),
+            )
+            conn.execute(
+                "UPDATE admin_users SET usage_count = usage_count + 1, last_activity_at = CURRENT_TIMESTAMP WHERE user_id = ?",
+                (user_id,),
+            )
+        return event_id
+
+    def list_product_telemetry(self, limit: int = 500) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM product_telemetry_events ORDER BY created_at DESC, event_id DESC LIMIT ?", (limit,)
+            ).fetchall()
 
     def list_feedback(self, organization_id: str, limit: int = 100) -> list[sqlite3.Row]:
         with self.connect() as conn:

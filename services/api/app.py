@@ -10,7 +10,7 @@ from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, File, Header, HTTPException, Query, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -55,6 +55,7 @@ from core.capability_registry import CapabilityRegistry
 from core.capability_router import CapabilityRouter
 from core.capability_service import CapabilityExecutionService
 from core.avatar_catalog import list_avatar_files
+from core.admin_center_service import AdminAccessError, AdminCenterService
 from runtime_v3.models import load_state
 from services.api.events import EventEnvelope
 
@@ -155,6 +156,17 @@ class TeamRequest(BaseModel):
     team_size: str = Field(default="STANDARD", max_length=30)
 
 
+class AdminUserStatusRequest(BaseModel):
+    status: str = Field(min_length=1, max_length=20)
+    confirm: bool = False
+
+
+class TelemetryRequest(BaseModel):
+    event_type: str = Field(min_length=2, max_length=80)
+    user_id: str = Field(default="owner", min_length=1, max_length=120)
+    detail: dict[str, Any] = Field(default_factory=dict)
+
+
 class ConnectionHub:
     def __init__(self) -> None:
         self._clients: dict[WebSocket, str | None] = {}
@@ -226,6 +238,13 @@ class WebCore:
         self.provider_registry = ProviderRegistry(self.database)
         self.provider_registry.ensure_defaults()
         self.provider_health = ProviderHealthService(self.database, self.provider_registry, self.provider_adapters)
+        self.admin = AdminCenterService(
+            self.database,
+            settings=self.settings,
+            management=self.management,
+            providers=self.provider_registry,
+            health=self.provider_health,
+        )
         self.runtime_v3 = RuntimeV3GoalService(
             self.workspace_root / "runtime_v3_goals",
             provider_adapters=self.provider_adapters,
@@ -368,6 +387,76 @@ def build_info() -> dict[str, str]:
 def runtime_diagnostics() -> dict[str, Any]:
     """Non-secret diagnostics for packaged runtime activation and fallback."""
     return core.runtime_execution.diagnostics()
+
+
+def _admin_actor(
+    x_admin_role: str | None = Header(default=None),
+    x_user_role: str | None = Header(default=None),
+) -> str:
+    """Resolve the authenticated role at the HTTP boundary.
+
+    Existing local installs have no account server and therefore default to
+    the owner profile. Deployments can require an explicit identity with
+    LUMINIFERA_REQUIRE_ADMIN_AUTH=1; ordinary roles are always rejected.
+    """
+    role = x_admin_role or x_user_role
+    try:
+        return core.admin.authorize(role, require_explicit=os.environ.get("LUMINIFERA_REQUIRE_ADMIN_AUTH") == "1")
+    except AdminAccessError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+
+@app.get("/api/admin/access")
+def admin_access(actor: str = Depends(_admin_actor)) -> dict[str, Any]:
+    core.admin.touch_user("owner", display_name=str(core.settings.get("owner_display_name") or "Owner"), role=actor, organization_id=core.database.get_active_organization_id(), language=str(core.settings.get("interface_language") or "ru"))
+    return {"allowed": True, "role": actor}
+
+
+@app.post("/api/telemetry")
+def record_telemetry(request: TelemetryRequest, x_organization_id: str | None = Header(default=None)) -> dict[str, str]:
+    """Record a bounded product event for real analytics, without secrets."""
+    organization_id = core.organization_id(x_organization_id)
+    allowed = {"visit", "registration", "session_started", "iris_opened", "constellation_opened", "goal_created", "goal_completed", "artifact_created", "feedback_submitted"}
+    if request.event_type not in allowed:
+        raise HTTPException(status_code=422, detail="unsupported_telemetry_event")
+    user_id = "".join(ch for ch in request.user_id if ch.isalnum() or ch in "._-")[:120] or "owner"
+    core.admin.touch_user(user_id, display_name=user_id, role="member", organization_id=organization_id, language=str(core.settings.get("interface_language") or "ru"))
+    event_id = core.database.record_product_telemetry(request.event_type, user_id=user_id, organization_id=organization_id, detail={"source": "product", "keys": sorted(str(key) for key in request.detail)[:20]})
+    return {"event_id": event_id, "status": "recorded"}
+
+
+@app.get("/api/admin/dashboard")
+def admin_dashboard(actor: str = Depends(_admin_actor)) -> dict[str, Any]:
+    return core.admin.dashboard()
+
+
+@app.get("/api/admin/providers")
+def admin_providers(actor: str = Depends(_admin_actor)) -> list[dict[str, Any]]:
+    return core.admin.provider_read_model()
+
+
+@app.get("/api/admin/users")
+def admin_users(query: str = Query(default="", max_length=120), actor: str = Depends(_admin_actor)) -> list[dict[str, Any]]:
+    return core.admin.users(query)
+
+
+@app.get("/api/admin/audit")
+def admin_audit(limit: int = Query(default=100, ge=1, le=500), actor: str = Depends(_admin_actor)) -> list[dict[str, Any]]:
+    return core.admin.audit(limit)
+
+
+@app.get("/api/admin/advanced")
+def admin_advanced(actor: str = Depends(_admin_actor)) -> dict[str, Any]:
+    return core.admin.advanced()
+
+
+@app.patch("/api/admin/users/{user_id}/status")
+def admin_user_status(user_id: str, request: AdminUserStatusRequest, actor: str = Depends(_admin_actor)) -> dict[str, Any]:
+    if not request.confirm:
+        raise HTTPException(status_code=409, detail="confirmation_required")
+    if not core.admin.set_user_status(user_id, request.status.upper(), actor):
+        raise HTTPException(status_code=404, detail="admin_user_not_found")
+    return {"user_id": user_id, "status": request.status.upper()}
 
 
 @app.get("/api/session")
