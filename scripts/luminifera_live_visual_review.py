@@ -47,7 +47,8 @@ def main() -> int:
             page = context.new_page()
             console_errors: list[str] = []
             network: list[dict[str, object]] = []
-            page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" else None)
+            expected_auth_error = {"active": False}
+            page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" and not expected_auth_error["active"] else None)
             page.on("response", lambda response: network.append({"url": response.url, "status": response.status}) if "/api/" in response.url else None)
             deadline = time.monotonic() + args.wait_seconds
             build = None
@@ -74,8 +75,10 @@ def main() -> int:
             result["scenarios"].append(f"login-{width}x{height}.png")
             page.locator("#auth-account").fill("invalid@example.com")
             page.locator("#auth-password").fill("wrong-pass-123")
+            expected_auth_error["active"] = True
             page.locator("#auth-form").dispatch_event("submit")
             page.locator("#auth-error").wait_for(state="visible", timeout=15_000)
+            expected_auth_error["active"] = False
             page.screenshot(path=str(args.output_dir / f"error-{width}x{height}.png"), full_page=True)
             result["scenarios"].append(f"error-{width}x{height}.png")
             account = os.environ.get("LUMINIFERA_REVIEW_EMAIL", "").strip()
