@@ -11,7 +11,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: luminifera-live-review
+  group: luminifera-live-review-${{ github.sha }}
   cancel-in-progress: true
 
 jobs:
