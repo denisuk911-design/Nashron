@@ -125,15 +125,17 @@ def test_phase5_public_auth_gate_rate_limit_and_security_read_model(tmp_path, mo
     isolated = app_module.WebCore()
     monkeypatch.setattr(app_module, "core", isolated)
     client = TestClient(app_module.app)
-    assert client.post("/api/auth/register", json={"account_id": "new-user", "display_name": "New User", "password": "safe-pass-123"}).status_code == 403
+    first = client.post("/api/auth/register", json={"account_id": "new-user", "display_name": "New User", "password": "safe-pass-123", "language": "en"})
+    assert first.status_code == 201
+    assert client.get("/api/auth/bootstrap-status").json()["owner_bootstrap"] == "closed"
     assert client.get("/api/admin/security").json()["registration"] == "disabled by default"
     assert client.patch("/api/admin/advanced", json={"registration_enabled": True, "rate_limit_per_minute": 2}).status_code == 200
-    created = client.post("/api/auth/register", json={"account_id": "new-user", "display_name": "New User", "password": "safe-pass-123", "language": "en"})
+    created = client.post("/api/auth/register", json={"account_id": "second-user", "display_name": "Second User", "password": "safe-pass-123", "language": "en"})
     assert created.status_code == 201
-    assert client.post("/api/auth/register", json={"account_id": "new-user", "display_name": "Again", "password": "safe-pass-123"}).status_code == 409
-    assert client.post("/api/auth/login", json={"account_id": "new-user", "password": "wrong-pass-123"}).status_code == 401
-    assert client.post("/api/auth/login", json={"account_id": "new-user", "password": "wrong-pass-123"}).status_code == 401
-    assert client.post("/api/auth/login", json={"account_id": "new-user", "password": "safe-pass-123"}).json().get("token") is None
+    assert client.post("/api/auth/register", json={"account_id": "second-user", "display_name": "Again", "password": "safe-pass-123"}).status_code == 409
+    assert client.post("/api/auth/login", json={"account_id": "second-user", "password": "wrong-pass-123"}).status_code == 401
+    assert client.post("/api/auth/login", json={"account_id": "second-user", "password": "wrong-pass-123"}).status_code == 401
+    assert client.post("/api/auth/login", json={"account_id": "second-user", "password": "safe-pass-123"}).json().get("token") is None
     security = client.get("/api/admin/security").json()
     assert security["failed_logins_last_15m"] >= 2
     assert security["registration"] == "enabled"

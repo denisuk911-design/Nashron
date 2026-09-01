@@ -557,6 +557,17 @@ def auth_bootstrap(request: AuthBootstrapRequest) -> dict[str, Any]:
 
 @app.post("/api/auth/register", status_code=201)
 def auth_register(request: AuthRegisterRequest) -> dict[str, Any]:
+    # The first public sign-up is the owner bootstrap flow. The UI should not
+    # require users to know about a separate bootstrap endpoint or policy.
+    if core.admin.security().get("owner_bootstrap") == "available for fresh install":
+        try:
+            result = core.auth.bootstrap_owner(request.account_id, request.display_name, request.password, language=request.language)
+        except AuthenticationError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        core.database.log_event("account_registered", json.dumps({"account_id": result["account_id"], "source": "public_owner_bootstrap"}))
+        return result
     controls = core.admin.advanced().get("controls", {})
     if controls.get("registration_enabled") is not True:
         raise HTTPException(status_code=403, detail="registration_disabled")
