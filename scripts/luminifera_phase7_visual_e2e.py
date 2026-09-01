@@ -61,6 +61,22 @@ def main() -> int:
                 if page.locator(".onboarding-dialog[open]").count():
                     page.locator("#onboarding-start").click(force=True)
                     page.locator(".onboarding-dialog[open]").wait_for(state="detached", timeout=10_000)
+                if width == 1920:
+                    page.locator("#iris-input").fill("Мне нужен результат: техническая спецификация преобразователя 24 В в 12 В, 5 А")
+                    page.locator("#iris-form").dispatch_event("submit")
+                    page.locator("#iris-action").wait_for(state="visible", timeout=30_000)
+                    result["checks"]["iris_goal_proposal"] = page.locator("#iris-action").inner_text() == "Собрать созвездие"
+                    page.locator("#iris-action").click()
+                    page.locator("#iris-action").wait_for(state="visible", timeout=30_000)
+                    result["checks"]["team_created_from_ui"] = page.locator("#iris-action").inner_text() == "Создать цель из запроса"
+                    page.locator("#iris-action").click()
+                    page.locator("#iris-action").wait_for(state="visible", timeout=15_000)
+                    result["checks"]["goal_created_from_ui"] = page.locator("#iris-action").inner_text() == "Запустить работу"
+                    page.locator("#iris-action").click()
+                    page.locator('[data-screen="work"]').wait_for(state="visible", timeout=30_000)
+                    result["checks"]["goal_started_from_ui"] = page.evaluate("location.hash") == "#work"
+                    page.locator('.brand[data-route="home"]').click()
+                    page.locator('[data-screen="home"]').wait_for(state="visible", timeout=10_000)
                 page.screenshot(path=str(evidence / f"home-{width}x{height}.png"), full_page=True)
                 page.locator(".viewport").hover()
                 page.mouse.wheel(0, 700)
