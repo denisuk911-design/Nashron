@@ -17,6 +17,7 @@ concurrency:
 jobs:
   capture-and-publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -37,6 +38,7 @@ jobs:
           python scripts/luminifera_live_visual_review.py
           --target-sha "${{ github.sha }}"
           --output-dir site
+          --wait-seconds 180
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
