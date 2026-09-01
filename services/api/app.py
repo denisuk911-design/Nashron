@@ -96,6 +96,7 @@ class ExecutionApiRequest(BaseModel):
 class SettingsRequest(BaseModel):
     interface_language: str | None = None
     theme: str | None = None
+    onboarding_skipped: bool | None = None
     message_sounds_enabled: bool | None = None
     reduce_motion: bool | None = None
     developer_mode: bool | None = None
@@ -1136,7 +1137,7 @@ def settings() -> dict[str, Any]:
     return {key: core.settings.get(key) for key in (
         "interface_language", "theme", "message_sounds_enabled", "reduce_motion",
         "developer_mode", "owner_display_name", "user_avatar_path",
-        "active_provider_id", "active_model_id",
+        "active_provider_id", "active_model_id", "onboarding_skipped",
     )}
 
 
