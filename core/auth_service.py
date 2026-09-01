@@ -87,6 +87,29 @@ class AccountAuthService:
         self.database.record_auth_attempt(self._identifier_hash(normalized), account_id=normalized, succeeded=True)
         return {"account_id": normalized, "status": "created"}
 
+    def bootstrap_owner(self, account_id: str, display_name: str, password: str, *, language: str = "ru") -> dict[str, Any]:
+        """Create the first owner only on a fresh profile; never re-open it."""
+        with self.database.connect() as conn:
+            privileged = conn.execute("SELECT COUNT(*) FROM admin_accounts WHERE lower(role) IN ('owner', 'admin', 'organization_owner', 'organization_admin')").fetchone()[0]
+        if int(privileged or 0):
+            raise AuthenticationError("owner_bootstrap_closed")
+        normalized = account_id.strip()
+        if len(normalized) < 3 or any(ch.isspace() for ch in normalized):
+            raise ValueError("invalid_account_id")
+        if self.database.get_account_credential(normalized) is not None:
+            raise ValueError("account_already_exists")
+        self.database.upsert_admin_user({"user_id": normalized, "display_name": display_name.strip(), "role": "owner", "organization_id": None, "language": language if language in {"ru", "uk", "en"} else "ru", "plan": "local", "status": "ACTIVE"})
+        self.set_password(normalized, password)
+        self.database.record_auth_attempt(self._identifier_hash(normalized), account_id=normalized, succeeded=True)
+        return {"account_id": normalized, "status": "owner_created"}
+
+    def change_password(self, token: str, password: str) -> dict[str, str]:
+        session = self.authenticate(token)
+        self.set_password(str(session["account_id"]), password)
+        with self.database.connect() as conn:
+            conn.execute("UPDATE admin_sessions SET revoked_at = CURRENT_TIMESTAMP WHERE account_id = ? AND revoked_at IS NULL", (session["account_id"],))
+        return {"account_id": str(session["account_id"]), "status": "password_changed"}
+
     def login(self, account_id: str, password: str, *, max_attempts: int = 10) -> dict[str, Any]:
         identifier = self._identifier_hash(account_id)
         if self.database.count_auth_failures(identifier) >= max_attempts:

@@ -178,6 +178,14 @@ class AuthRegisterRequest(BaseModel):
     language: str = Field(default="ru", pattern="^(ru|uk|en)$")
 
 
+class AuthBootstrapRequest(AuthRegisterRequest):
+    pass
+
+
+class AuthPasswordRequest(BaseModel):
+    password: str = Field(min_length=1, max_length=500)
+
+
 class AdminCredentialRequest(BaseModel):
     password: str = Field(min_length=1, max_length=500)
     confirm: bool = False
@@ -518,6 +526,16 @@ def auth_login(request: AuthLoginRequest) -> dict[str, Any]:
         raise HTTPException(status_code=401, detail=str(exc)) from exc
 
 
+@app.post("/api/auth/bootstrap", status_code=201)
+def auth_bootstrap(request: AuthBootstrapRequest) -> dict[str, Any]:
+    try:
+        return core.auth.bootstrap_owner(request.account_id, request.display_name, request.password, language=request.language)
+    except AuthenticationError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
 @app.post("/api/auth/register", status_code=201)
 def auth_register(request: AuthRegisterRequest) -> dict[str, Any]:
     controls = core.admin.advanced().get("controls", {})
@@ -549,6 +567,16 @@ def auth_logout(authorization: str | None = Header(default=None)) -> dict[str, b
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(status_code=401, detail="authentication_required")
     return {"revoked": core.auth.logout(authorization[7:].strip())}
+
+
+@app.put("/api/auth/password")
+def auth_password(request: AuthPasswordRequest, authorization: str | None = Header(default=None)) -> dict[str, str]:
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="authentication_required")
+    try:
+        return core.auth.change_password(authorization[7:].strip(), request.password)
+    except (AuthenticationError, ValueError) as exc:
+        raise HTTPException(status_code=401 if isinstance(exc, AuthenticationError) else 422, detail=str(exc)) from exc
 
 
 @app.post("/api/telemetry")

@@ -136,3 +136,26 @@ def test_phase5_public_auth_gate_rate_limit_and_security_read_model(tmp_path, mo
     assert security["failed_logins_last_15m"] >= 2
     assert security["registration"] == "enabled"
     assert client.get("/api/health").headers["X-Content-Type-Options"] == "nosniff"
+
+
+def test_phase6_first_owner_bootstrap_password_rotation_and_restart(tmp_path, monkeypatch):
+    monkeypatch.setenv("TEAM2050_HOME", str(tmp_path / "profile"))
+    import services.api.app as app_module
+
+    isolated = app_module.WebCore()
+    monkeypatch.setattr(app_module, "core", isolated)
+    client = TestClient(app_module.app)
+    bootstrap = client.post("/api/auth/bootstrap", json={"account_id": "first-owner", "display_name": "First Owner", "password": "owner-pass-123", "language": "en"})
+    assert bootstrap.status_code == 201
+    assert client.post("/api/auth/bootstrap", json={"account_id": "second-owner", "display_name": "Second", "password": "owner-pass-123"}).status_code == 409
+    login = client.post("/api/auth/login", json={"account_id": "first-owner", "password": "owner-pass-123"})
+    assert login.status_code == 200
+    token = login.json()["token"]
+    assert client.patch("/api/admin/users/first-owner", headers={"Authorization": f"Bearer {token}"}, json={"role": "member"}).status_code == 422
+    rotated = client.put("/api/auth/password", headers={"Authorization": f"Bearer {token}"}, json={"password": "rotated-pass-456"})
+    assert rotated.status_code == 200
+    assert client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"}).status_code == 401
+    assert client.post("/api/auth/login", json={"account_id": "first-owner", "password": "rotated-pass-456"}).status_code == 200
+    assert client.get("/api/admin/security").json()["owner_bootstrap"] == "closed"
+    restarted = app_module.WebCore()
+    assert restarted.admin.security()["owner_bootstrap"] == "closed"

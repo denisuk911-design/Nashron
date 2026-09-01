@@ -223,6 +223,7 @@ class AdminCenterService:
         with self.database.connect() as conn:
             sessions = int(conn.execute("SELECT COUNT(*) FROM admin_sessions WHERE revoked_at IS NULL AND datetime(expires_at) > CURRENT_TIMESTAMP").fetchone()[0])
             accounts = int(conn.execute("SELECT COUNT(*) FROM admin_accounts").fetchone()[0])
+            privileged = int(conn.execute("SELECT COUNT(*) FROM admin_accounts WHERE lower(role) IN ('owner', 'admin', 'organization_owner', 'organization_admin')").fetchone()[0])
         attempts = self.database.auth_security_counts()
         return {
             "credential_storage": "PBKDF2-SHA256 protected",
@@ -230,6 +231,7 @@ class AdminCenterService:
             "audit": "enabled",
             "rbac": "authenticated account role",
             "registration": "enabled" if persisted.get("registration_enabled") is True else "disabled by default",
+            "owner_bootstrap": "closed" if privileged else "available for fresh install",
             "active_sessions": sessions,
             "accounts": accounts,
             "failed_logins_last_15m": attempts["failed"],
@@ -288,6 +290,12 @@ class AdminCenterService:
                        revoke_sessions: bool = False) -> bool:
         if role is not None and role.lower() not in {"owner", "admin", "member"}:
             raise ValueError("unsupported_account_role")
+        if role is not None:
+            with self.database.connect() as conn:
+                current = conn.execute("SELECT role FROM admin_accounts WHERE account_id = ?", (account_id,)).fetchone()
+                owners = int(conn.execute("SELECT COUNT(*) FROM admin_accounts WHERE lower(role) IN ('owner', 'organization_owner') AND status = 'ACTIVE'").fetchone()[0])
+            if current is not None and str(current["role"]).lower() in {"owner", "organization_owner"} and role.lower() not in {"owner", "organization_owner"} and owners <= 1:
+                raise ValueError("last_owner_protected")
         if plan is not None and not any(str(row["plan_id"]) == plan for row in self.database.list_admin_plans()):
             raise ValueError("unsupported_plan")
         changed = self.database.update_admin_account(account_id, role=role.lower() if role else None, plan=plan, revoke_sessions=revoke_sessions)
