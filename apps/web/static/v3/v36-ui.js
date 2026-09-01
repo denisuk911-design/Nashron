@@ -47,6 +47,26 @@
     copy.insertBefore(flow, copy.firstChild);
   }
 
+  async function decorateWorkData() {
+    const stage = document.querySelector("#work-stage .data-stage");
+    const bridge = window.LuminiferaBridge;
+    if (!stage || !bridge || stage.querySelector(".work-proof")) return;
+    try {
+      const state = await bridge.getWorkState();
+      const work = state.work || {};
+      const receipt = state.receipt || {};
+      const artifacts = Array.isArray(work.artifacts) ? work.artifacts : [];
+      const evidence = Number(work.evidence_count ?? receipt.evidence_count ?? 0);
+      const review = String(receipt.review_status || (state.review?.length ? "В проверке" : "Не начата"));
+      const proof = document.createElement("section");
+      proof.className = "work-proof";
+      proof.innerHTML = `<div><span class="eyebrow">РЕЗУЛЬТАТЫ</span><strong>${artifacts.length ? artifacts.map(item => esc(item.title || "Артефакт")).join(" · ") : "Артефакты ещё не созданы"}</strong><small>${artifacts.length} артефакта подтверждены движком</small></div><div><span class="eyebrow">ДОКАЗАТЕЛЬСТВА</span><strong>${evidence}</strong><small>зафиксировано в рабочем цикле</small></div><div><span class="eyebrow">ПРОВЕРКА</span><strong>${esc(review)}</strong><small>${Number(receipt.findings_count || 0)} замечаний</small></div>`;
+      stage.append(proof);
+    } catch (_) {
+      // Keep the normal Work state authoritative when the read fails.
+    }
+  }
+
   function decorateTeam() {
     const board = document.querySelector("#team-stage .constellation-board");
     if (!board || board.dataset.flowReady) return;
@@ -76,11 +96,13 @@
     normalizeWorkspaceLabel();
     normalizeSettingsCopy();
     decorateWorkEmpty();
+    decorateWorkData();
     decorateTeam();
     const observer = new MutationObserver(() => {
       normalizeWorkspaceLabel();
       normalizeSettingsCopy();
       decorateWorkEmpty();
+      decorateWorkData();
       decorateTeam();
     });
     observer.observe(document.body, {childList: true, subtree: true});
