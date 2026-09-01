@@ -161,6 +161,10 @@ class AdminUserStatusRequest(BaseModel):
     confirm: bool = False
 
 
+class AdminConfirmationRequest(BaseModel):
+    confirm: bool = False
+
+
 class AdminProviderPolicyRequest(BaseModel):
     priority: int = Field(default=100, ge=0, le=10_000)
     fallback_provider_id: str | None = Field(default=None, max_length=80)
@@ -168,6 +172,34 @@ class AdminProviderPolicyRequest(BaseModel):
     timeout_seconds: int = Field(default=180, ge=1, le=3600)
     retries: int = Field(default=1, ge=0, le=10)
     enabled: bool = True
+    allowed_models: list[str] = Field(default_factory=list, max_length=100)
+    default_model: str | None = Field(default=None, max_length=160)
+    daily_request_limit: int | None = Field(default=None, ge=1)
+    monthly_request_limit: int | None = Field(default=None, ge=1)
+    daily_token_limit: int | None = Field(default=None, ge=1)
+    monthly_token_limit: int | None = Field(default=None, ge=1)
+    daily_cost_limit: float | None = Field(default=None, ge=0)
+    monthly_cost_limit: float | None = Field(default=None, ge=0)
+
+
+class AdminAccountRequest(BaseModel):
+    role: str | None = Field(default=None, max_length=30)
+    plan: str | None = Field(default=None, max_length=80)
+    revoke_sessions: bool = False
+
+
+class ProviderUsageRequest(BaseModel):
+    account_id: str = Field(default="owner", min_length=1, max_length=120)
+    provider_id: str = Field(min_length=1, max_length=80)
+    organization_id: str | None = Field(default=None, max_length=120)
+    model_id: str | None = Field(default=None, max_length=160)
+    runtime: str | None = Field(default=None, max_length=80)
+    input_tokens: int | None = Field(default=None, ge=0)
+    output_tokens: int | None = Field(default=None, ge=0)
+    latency_ms: int | None = Field(default=None, ge=0)
+    fallback: bool = False
+    cost: float | None = Field(default=None, ge=0)
+    cost_status: str = Field(default="unavailable", max_length=30)
 
 
 class AdminSettingsRequest(BaseModel):
@@ -444,6 +476,16 @@ def record_telemetry(request: TelemetryRequest, x_organization_id: str | None = 
     return {"event_id": event_id, "status": "recorded"}
 
 
+@app.post("/api/usage")
+def record_provider_usage(request: ProviderUsageRequest, x_account_id: str | None = Header(default=None)) -> dict[str, str]:
+    account_id = x_account_id or request.account_id
+    if core.provider_registry.get(request.provider_id) is None:
+        raise HTTPException(status_code=404, detail="provider_not_found")
+    core.admin.touch_user(account_id, display_name=account_id, role="member", organization_id=request.organization_id, language=str(core.settings.get("interface_language") or "ru"))
+    usage_id = core.database.record_provider_usage(account_id=account_id, provider_id=request.provider_id, organization_id=request.organization_id, model_id=request.model_id, runtime=request.runtime, input_tokens=request.input_tokens, output_tokens=request.output_tokens, latency_ms=request.latency_ms, fallback=request.fallback, cost=request.cost, cost_status=request.cost_status if request.cost is not None else "unavailable")
+    return {"usage_id": usage_id, "status": "recorded"}
+
+
 @app.get("/api/admin/dashboard")
 def admin_dashboard(period: str = Query(default="30d"), since: str | None = Query(default=None), until: str | None = Query(default=None), actor: str = Depends(_admin_actor)) -> dict[str, Any]:
     try:
@@ -550,6 +592,25 @@ def admin_user_detail(user_id: str, actor: str = Depends(_admin_actor)) -> dict[
     if item is None:
         raise HTTPException(status_code=404, detail="admin_user_not_found")
     return item
+
+
+@app.patch("/api/admin/users/{user_id}")
+def admin_account_update(user_id: str, request: AdminAccountRequest, actor: str = Depends(_admin_actor)) -> dict[str, Any]:
+    try:
+        if not core.admin.update_account(user_id, actor, **request.model_dump()):
+            raise HTTPException(status_code=404, detail="admin_user_not_found")
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return next(item for item in core.admin.users() if item["account_id"] == user_id)
+
+
+@app.post("/api/admin/users/{user_id}/revoke-sessions")
+def admin_revoke_sessions(user_id: str, request: AdminConfirmationRequest, actor: str = Depends(_admin_actor)) -> dict[str, Any]:
+    if not request.confirm:
+        raise HTTPException(status_code=409, detail="confirmation_required")
+    if not core.admin.update_account(user_id, actor, revoke_sessions=True):
+        raise HTTPException(status_code=404, detail="admin_user_not_found")
+    return {"account_id": user_id, "sessions": "revoked"}
 
 
 @app.patch("/api/admin/users/{user_id}/status")

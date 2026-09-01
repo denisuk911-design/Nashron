@@ -83,6 +83,17 @@ class AdminCenterService:
             for window, days in (("dau", 1), ("wau", 7), ("mau", 30)):
                 counts[window] = int(conn.execute("SELECT COUNT(DISTINCT user_id) FROM product_telemetry_events WHERE datetime(created_at) >= datetime('now', ?)", (f"-{days} days",)).fetchone()[0])
             usage_rows = conn.execute("SELECT provider, COUNT(*) AS total, SUM(CASE WHEN ok = 1 THEN 1 ELSE 0 END) AS succeeded, AVG(duration_seconds) AS avg_latency, SUM(CASE WHEN error IS NOT NULL AND error <> '' THEN 1 ELSE 0 END) AS errors FROM agent_runs GROUP BY provider ORDER BY total DESC").fetchall()
+            usage_filter = []
+            usage_params: list[Any] = []
+            if since:
+                usage_filter.append("datetime(created_at) >= datetime(?)"); usage_params.append(since)
+            if until:
+                usage_filter.append("datetime(created_at) < datetime(?)"); usage_params.append(until)
+            usage_where = " WHERE " + " AND ".join(usage_filter) if usage_filter else ""
+            usage_events = conn.execute(
+                f"SELECT provider_id, model_id, runtime, COUNT(*) AS requests, SUM(COALESCE(input_tokens, 0)) AS input_tokens, SUM(COALESCE(output_tokens, 0)) AS output_tokens, SUM(COALESCE(cost, 0)) AS cost, COUNT(cost) AS priced_requests, AVG(latency_ms) AS latency_ms, SUM(fallback) AS fallbacks FROM provider_usage_events{usage_where} GROUP BY provider_id, model_id, runtime ORDER BY requests DESC",
+                usage_params,
+            ).fetchall()
             events = conn.execute(
                 "SELECT event_type, COUNT(*) AS total FROM product_telemetry_events GROUP BY event_type ORDER BY total DESC"
             ).fetchall()
@@ -102,6 +113,7 @@ class AdminCenterService:
             "providers": provider_health,
             "runtime_usage": [{"provider": str(row["provider"]), "runs": int(row["total"]), "succeeded": int(row["succeeded"] or 0), "errors": int(row["errors"] or 0), "avg_latency_seconds": round(float(row["avg_latency"] or 0), 3)} for row in usage_rows],
             "usage": {"provider_calls": metrics.get("provider_call", 0), "runtime_executions": metrics.get("runtime_execution", 0), "errors": metrics.get("error", 0), "fallbacks": metrics.get("fallback", 0), "tokens": {"status": "unavailable", "reason": "token telemetry is not configured"}, "latency": "from agent_runs"},
+            "metered_usage": [{"provider": str(row["provider_id"]), "model": str(row["model_id"] or "unknown"), "runtime": str(row["runtime"] or "unknown"), "requests": int(row["requests"]), "input_tokens": int(row["input_tokens"] or 0), "output_tokens": int(row["output_tokens"] or 0), "cost": float(row["cost"] or 0) if int(row["priced_requests"] or 0) else None, "cost_status": "known" if int(row["priced_requests"] or 0) else "unavailable", "latency_ms": round(float(row["latency_ms"] or 0), 2), "fallbacks": int(row["fallbacks"] or 0)} for row in usage_events],
             "cost": {"status": "unavailable", "reason": "cost telemetry is not configured"},
             "period": period,
             "range": {"since": since, "until": until},
@@ -159,12 +171,15 @@ class AdminCenterService:
                 "fallback": None if not policy or not policy["fallback_provider_id"] else str(policy["fallback_provider_id"]),
                 "limits": {"max_requests": policy["max_requests"] if policy else None, "timeout_seconds": int(policy["timeout_seconds"]) if policy else 180, "retries": int(policy["retries"]) if policy else 1},
                 "enabled": bool(policy["enabled"]) if policy else True,
+                "allowed_models": self.database.loads(policy["allowed_models"], []) if policy else [],
+                "default_model": policy["default_model"] if policy else None,
+                "quota": {"daily_requests": policy["daily_request_limit"] if policy else None, "monthly_requests": policy["monthly_request_limit"] if policy else None, "daily_tokens": policy["daily_token_limit"] if policy else None, "monthly_tokens": policy["monthly_token_limit"] if policy else None, "daily_cost": policy["daily_cost_limit"] if policy else None, "monthly_cost": policy["monthly_cost_limit"] if policy else None},
             })
         return result
 
     def users(self, query: str = "") -> list[dict[str, Any]]:
         return [
-            {"account_id": row["account_id"], "user_id": row["account_id"], "display_name": row["display_name"], "role": row["role"], "organization_id": row["organization_id"], "language": row["language"], "plan": row["plan"], "status": row["status"], "usage_count": int(row["usage_count"]), "created_at": row["created_at"], "last_activity_at": row["last_activity_at"]}
+            {"account_id": row["account_id"], "user_id": row["account_id"], "display_name": row["display_name"], "role": row["role"], "organization_id": row["organization_id"], "language": row["language"], "plan": row["plan"], "status": row["status"], "usage_count": int(row["usage_count"]), "created_at": row["created_at"], "last_activity_at": row["last_activity_at"], "last_login": row["last_login"], "session_revoked_at": row["session_revoked_at"]}
             for row in self.database.list_admin_accounts(query)
         ]
 
@@ -201,9 +216,12 @@ class AdminCenterService:
         return {"credential_storage": "protected", "secret_response": "never returned", "audit": "enabled", "rbac": "owner/admin", "recent": self.audit(40)}
 
     def plans(self) -> dict[str, Any]:
+        plans = []
         with self.database.connect() as conn:
-            rows = conn.execute("SELECT plan, COUNT(*) AS total FROM admin_users GROUP BY plan ORDER BY plan").fetchall()
-        return {"plans": [{"name": str(row["plan"]), "users": int(row["total"])} for row in rows], "limits": "not configured", "source": "database"}
+            counts = {str(row["plan"]): int(row["total"]) for row in conn.execute("SELECT plan, COUNT(*) AS total FROM admin_accounts GROUP BY plan").fetchall()}
+        for row in self.database.list_admin_plans():
+            plans.append({"id": str(row["plan_id"]), "name": str(row["display_name"]), "users": counts.get(str(row["plan_id"]), 0), "quotas": self.database.loads(row["quotas"], {})})
+        return {"plans": plans, "source": "database", "enforcement": "safe hooks only; unsupported quotas remain read-only"}
 
     def set_user_status(self, user_id: str, status: str, actor: str) -> bool:
         if status not in {"ACTIVE", "BLOCKED"}:
@@ -220,9 +238,28 @@ class AdminCenterService:
                 )
         return changed
 
+    def update_account(self, account_id: str, actor: str, *, role: str | None = None, plan: str | None = None,
+                       revoke_sessions: bool = False) -> bool:
+        if role is not None and role.lower() not in {"owner", "admin", "member"}:
+            raise ValueError("unsupported_account_role")
+        if plan is not None and not any(str(row["plan_id"]) == plan for row in self.database.list_admin_plans()):
+            raise ValueError("unsupported_plan")
+        changed = self.database.update_admin_account(account_id, role=role.lower() if role else None, plan=plan, revoke_sessions=revoke_sessions)
+        if changed:
+            with self.database.connect() as conn:
+                conn.execute(
+                    "INSERT INTO management_audit_events (id, actor, object_type, object_id, action, new_value, reason) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (f"ADMIN-{uuid.uuid4().hex[:12].upper()}", actor, "account", account_id, "updated", json.dumps({"role": role, "plan": plan, "revoke_sessions": revoke_sessions}), "Admin account action"),
+                )
+        return changed
+
     def update_provider_policy(self, provider_id: str, *, priority: int, fallback_provider_id: str | None,
                                max_requests: int | None, timeout_seconds: int, retries: int,
-                               enabled: bool, actor: str) -> bool:
+                               enabled: bool, actor: str, allowed_models: list[str] | None = None,
+                               default_model: str | None = None, daily_request_limit: int | None = None,
+                               monthly_request_limit: int | None = None, daily_token_limit: int | None = None,
+                               monthly_token_limit: int | None = None, daily_cost_limit: float | None = None,
+                               monthly_cost_limit: float | None = None) -> bool:
         if self.providers.get(provider_id) is None:
             return False
         if fallback_provider_id and self.providers.get(fallback_provider_id) is None:
@@ -232,6 +269,10 @@ class AdminCenterService:
         self.database.upsert_provider_admin_policy(
             provider_id, priority=priority, fallback_provider_id=fallback_provider_id,
             max_requests=max_requests, timeout_seconds=timeout_seconds, retries=retries, enabled=enabled,
+            allowed_models=allowed_models, default_model=default_model,
+            daily_request_limit=daily_request_limit, monthly_request_limit=monthly_request_limit,
+            daily_token_limit=daily_token_limit, monthly_token_limit=monthly_token_limit,
+            daily_cost_limit=daily_cost_limit, monthly_cost_limit=monthly_cost_limit,
         )
         with self.database.connect() as conn:
             conn.execute(

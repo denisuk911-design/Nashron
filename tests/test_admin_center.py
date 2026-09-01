@@ -79,3 +79,6 @@ def test_phase2_analytics_periods_accounts_and_provider_policy_are_persistent(tm
     assert controls.json()["controls"]["retention_days"] == 180
     assert controls.json()["controls"]["maintenance_mode"] is True
     assert any(item["object"] in {"provider_policy", "admin_settings"} for item in client.get("/api/admin/audit").json())
+    revoke = client.post("/api/admin/users/acct-1/revoke-sessions", json={"confirm": True})
+    assert revoke.status_code == 200
+    assert client.get("/api/admin/users/acct-1").json()["session_revoked_at"] is not None

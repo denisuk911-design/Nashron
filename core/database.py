@@ -196,7 +196,66 @@ class Database:
                 setting_value TEXT NOT NULL,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
+            CREATE TABLE IF NOT EXISTS provider_usage_events (
+                usage_id TEXT PRIMARY KEY,
+                account_id TEXT NOT NULL,
+                organization_id TEXT,
+                provider_id TEXT NOT NULL,
+                model_id TEXT,
+                runtime TEXT,
+                input_tokens INTEGER,
+                output_tokens INTEGER,
+                request_count INTEGER NOT NULL DEFAULT 1,
+                latency_ms INTEGER,
+                fallback INTEGER NOT NULL DEFAULT 0,
+                cost REAL,
+                cost_status TEXT NOT NULL DEFAULT 'unavailable',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (account_id) REFERENCES admin_accounts(account_id) ON DELETE CASCADE,
+                FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE SET NULL,
+                FOREIGN KEY (provider_id) REFERENCES provider_definitions(provider_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_provider_usage_account_time ON provider_usage_events(account_id, created_at);
+            CREATE TABLE IF NOT EXISTS admin_plans (
+                plan_id TEXT PRIMARY KEY,
+                display_name TEXT NOT NULL,
+                quotas TEXT NOT NULL DEFAULT '{}',
+                enabled INTEGER NOT NULL DEFAULT 1,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS admin_sessions (
+                session_id TEXT PRIMARY KEY,
+                account_id TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                last_activity_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                revoked_at TEXT,
+                FOREIGN KEY (account_id) REFERENCES admin_accounts(account_id) ON DELETE CASCADE
+            );
             """
+        )
+        columns = {str(row["name"]) for row in conn.execute("PRAGMA table_info(provider_admin_policies)").fetchall()}
+        for name, definition in {
+            "allowed_models": "TEXT NOT NULL DEFAULT '[]'",
+            "default_model": "TEXT",
+            "daily_request_limit": "INTEGER",
+            "monthly_request_limit": "INTEGER",
+            "daily_token_limit": "INTEGER",
+            "monthly_token_limit": "INTEGER",
+            "daily_cost_limit": "REAL",
+            "monthly_cost_limit": "REAL",
+        }.items():
+            if name not in columns:
+                conn.execute(f"ALTER TABLE provider_admin_policies ADD COLUMN {name} {definition}")
+        account_columns = {str(row["name"]) for row in conn.execute("PRAGMA table_info(admin_accounts)").fetchall()}
+        for name, definition in {"last_login": "TEXT", "session_revoked_at": "TEXT"}.items():
+            if name not in account_columns:
+                conn.execute(f"ALTER TABLE admin_accounts ADD COLUMN {name} {definition}")
+        conn.executemany(
+            "INSERT OR IGNORE INTO admin_plans (plan_id, display_name, quotas) VALUES (?, ?, ?)",
+            [("free", "Free", '{"agents":2,"goals":3,"storage_mb":100,"ai_requests":50,"concurrency":1}'),
+             ("starter", "Starter", '{"agents":5,"goals":20,"storage_mb":1000,"ai_requests":500,"concurrency":2}'),
+             ("pro", "Pro", '{"agents":20,"goals":100,"storage_mb":10000,"ai_requests":5000,"concurrency":5}'),
+             ("business", "Business", '{"agents":100,"goals":1000,"storage_mb":100000,"ai_requests":50000,"concurrency":20}')],
         )
 
     def _prepare_existing_storage(self) -> None:
@@ -1993,7 +2052,8 @@ class Database:
                 params,
             ).fetchall()
 
-    def update_admin_account(self, account_id: str, *, status: str | None = None, role: str | None = None) -> bool:
+    def update_admin_account(self, account_id: str, *, status: str | None = None, role: str | None = None,
+                             plan: str | None = None, revoke_sessions: bool = False) -> bool:
         changes = []
         params: list[Any] = []
         if status is not None:
@@ -2002,11 +2062,18 @@ class Database:
         if role is not None:
             changes.append("role = ?")
             params.append(role)
+        if plan is not None:
+            changes.append("plan = ?")
+            params.append(plan)
+        if revoke_sessions:
+            changes.append("session_revoked_at = CURRENT_TIMESTAMP")
         if not changes:
             return False
         params.append(account_id)
         with self.connect() as conn:
             cur = conn.execute(f"UPDATE admin_accounts SET {', '.join(changes)} WHERE account_id = ?", params)
+            if revoke_sessions:
+                conn.execute("UPDATE admin_sessions SET revoked_at = CURRENT_TIMESTAMP WHERE account_id = ? AND revoked_at IS NULL", (account_id,))
             return cur.rowcount > 0
 
     def update_admin_user(self, user_id: str, *, status: str | None = None, role: str | None = None) -> bool:
@@ -2059,24 +2126,66 @@ class Database:
                                      fallback_provider_id: str | None = None,
                                      max_requests: int | None = None,
                                      timeout_seconds: int = 180, retries: int = 1,
-                                     enabled: bool = True) -> None:
+                                     enabled: bool = True, allowed_models: list[str] | None = None,
+                                     default_model: str | None = None,
+                                     daily_request_limit: int | None = None,
+                                     monthly_request_limit: int | None = None,
+                                     daily_token_limit: int | None = None,
+                                     monthly_token_limit: int | None = None,
+                                     daily_cost_limit: float | None = None,
+                                     monthly_cost_limit: float | None = None) -> None:
         with self.connect() as conn:
             conn.execute(
                 """
                 INSERT INTO provider_admin_policies
-                    (provider_id, priority, fallback_provider_id, max_requests, timeout_seconds, retries, enabled)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                    (provider_id, priority, fallback_provider_id, max_requests, timeout_seconds, retries, enabled, allowed_models, default_model, daily_request_limit, monthly_request_limit, daily_token_limit, monthly_token_limit, daily_cost_limit, monthly_cost_limit)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(provider_id) DO UPDATE SET
                     priority=excluded.priority, fallback_provider_id=excluded.fallback_provider_id,
                     max_requests=excluded.max_requests, timeout_seconds=excluded.timeout_seconds,
-                    retries=excluded.retries, enabled=excluded.enabled, updated_at=CURRENT_TIMESTAMP
+                    retries=excluded.retries, enabled=excluded.enabled, updated_at=CURRENT_TIMESTAMP,
+                    allowed_models=excluded.allowed_models, default_model=excluded.default_model,
+                    daily_request_limit=excluded.daily_request_limit, monthly_request_limit=excluded.monthly_request_limit,
+                    daily_token_limit=excluded.daily_token_limit, monthly_token_limit=excluded.monthly_token_limit,
+                    daily_cost_limit=excluded.daily_cost_limit, monthly_cost_limit=excluded.monthly_cost_limit
                 """,
-                (provider_id, int(priority), fallback_provider_id, max_requests, int(timeout_seconds), int(retries), 1 if enabled else 0),
+                (provider_id, int(priority), fallback_provider_id, max_requests, int(timeout_seconds), int(retries), 1 if enabled else 0, self._json(allowed_models or []), default_model, daily_request_limit, monthly_request_limit, daily_token_limit, monthly_token_limit, daily_cost_limit, monthly_cost_limit),
             )
 
     def list_provider_admin_policies(self) -> list[sqlite3.Row]:
         with self.connect() as conn:
             return conn.execute("SELECT * FROM provider_admin_policies ORDER BY priority ASC, provider_id ASC").fetchall()
+
+    def record_provider_usage(self, *, account_id: str, provider_id: str, organization_id: str | None = None,
+                              model_id: str | None = None, runtime: str | None = None,
+                              input_tokens: int | None = None, output_tokens: int | None = None,
+                              latency_ms: int | None = None, fallback: bool = False, cost: float | None = None,
+                              cost_status: str = "unavailable") -> str:
+        usage_id = f"USAGE-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO provider_usage_events (usage_id, account_id, organization_id, provider_id, model_id, runtime, input_tokens, output_tokens, latency_ms, fallback, cost, cost_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (usage_id, account_id, organization_id, provider_id, model_id, runtime, input_tokens, output_tokens, latency_ms, 1 if fallback else 0, cost, cost_status),
+            )
+        return usage_id
+
+    def list_provider_usage(self, *, since: str | None = None, until: str | None = None,
+                            account_id: str | None = None) -> list[sqlite3.Row]:
+        clauses: list[str] = []
+        params: list[Any] = []
+        if since:
+            clauses.append("datetime(created_at) >= datetime(?)"); params.append(since)
+        if until:
+            clauses.append("datetime(created_at) < datetime(?)"); params.append(until)
+        if account_id:
+            clauses.append("account_id = ?"); params.append(account_id)
+        where = " WHERE " + " AND ".join(clauses) if clauses else ""
+        with self.connect() as conn:
+            return conn.execute(f"SELECT * FROM provider_usage_events{where} ORDER BY created_at DESC, usage_id DESC", params).fetchall()
+
+    def list_admin_plans(self) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM admin_plans WHERE enabled = 1 ORDER BY plan_id").fetchall()
 
     def save_admin_setting(self, key: str, value: Any) -> None:
         with self.connect() as conn:
