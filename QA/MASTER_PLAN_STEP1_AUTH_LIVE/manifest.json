@@ -1,0 +1,199 @@
+{
+  "url": "https://nashron.onrender.com/app",
+  "build": {
+    "product": "Luminifera",
+    "commit": "e127798e18c5741bd685b9219ce371fb4fc09aeb",
+    "build_time": "unknown",
+    "environment": "render"
+  },
+  "screens": [
+    "auth-1920x1080.png",
+    "auth-1440x900.png"
+  ],
+  "checks": {
+    "auth_gate_visible": true,
+    "bootstrap_status_ok": true,
+    "iris_media_loaded": true,
+    "no_console_errors": true
+  },
+  "errors": [],
+  "api_responses": [
+    {
+      "url": "https://nashron.onrender.com/api/settings",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/organizations",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/auth/bootstrap-status",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/admin/access",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/settings",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/providers",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/settings",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/feedback",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/settings",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/providers",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/settings",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/feedback",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/settings",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/providers",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/settings",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/feedback",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/settings",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/settings",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/providers",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/settings",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/settings",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/feedback",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/settings",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/settings",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/providers",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/feedback",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/providers",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/feedback",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/providers",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/feedback",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/providers",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/feedback",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/providers",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/feedback",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/providers",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/feedback",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/providers",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/feedback",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/providers",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/feedback",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/providers",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/feedback",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/build-info",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/auth/bootstrap-status",
+      "status": 200
+    }
+  ],
+  "passed": true
+}
