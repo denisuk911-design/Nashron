@@ -55,7 +55,8 @@ from core.capability_registry import CapabilityRegistry
 from core.capability_router import CapabilityRouter
 from core.capability_service import CapabilityExecutionService
 from core.avatar_catalog import list_avatar_files
-from core.admin_center_service import AdminAccessError, AdminCenterService
+from core.admin_center_service import AdminAccessError, AdminCenterService, PolicyDeniedError
+from core.auth_service import AccountAuthService, AuthenticationError
 from runtime_v3.models import load_state
 from services.api.events import EventEnvelope
 
@@ -165,6 +166,16 @@ class AdminConfirmationRequest(BaseModel):
     confirm: bool = False
 
 
+class AuthLoginRequest(BaseModel):
+    account_id: str = Field(min_length=1, max_length=120)
+    password: str = Field(min_length=1, max_length=500)
+
+
+class AdminCredentialRequest(BaseModel):
+    password: str = Field(min_length=1, max_length=500)
+    confirm: bool = False
+
+
 class AdminProviderPolicyRequest(BaseModel):
     priority: int = Field(default=100, ge=0, le=10_000)
     fallback_provider_id: str | None = Field(default=None, max_length=80)
@@ -200,6 +211,17 @@ class ProviderUsageRequest(BaseModel):
     fallback: bool = False
     cost: float | None = Field(default=None, ge=0)
     cost_status: str = Field(default="unavailable", max_length=30)
+
+
+class PricingRequest(BaseModel):
+    provider_id: str = Field(min_length=1, max_length=80)
+    model_id: str = Field(min_length=1, max_length=160)
+    input_price_per_million: float | None = Field(default=None, ge=0)
+    output_price_per_million: float | None = Field(default=None, ge=0)
+    effective_from: str = Field(min_length=10, max_length=40)
+    currency: str = Field(default="USD", min_length=3, max_length=8)
+    source_note: str = Field(default="", max_length=500)
+    version: str = Field(default="1", max_length=40)
 
 
 class AdminSettingsRequest(BaseModel):
@@ -295,6 +317,7 @@ class WebCore:
             health=self.provider_health,
             credentials=self.provider_credentials,
         )
+        self.auth = AccountAuthService(self.database)
         self.runtime_v3 = RuntimeV3GoalService(
             self.workspace_root / "runtime_v3_goals",
             provider_adapters=self.provider_adapters,
@@ -443,6 +466,7 @@ def _admin_actor(
     x_admin_role: str | None = Header(default=None),
     x_user_role: str | None = Header(default=None),
     x_account_id: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
 ) -> str:
     """Resolve the authenticated role at the HTTP boundary.
 
@@ -450,9 +474,14 @@ def _admin_actor(
     the owner profile. Deployments can require an explicit identity with
     LUMINIFERA_REQUIRE_ADMIN_AUTH=1; ordinary roles are always rejected.
     """
-    role = x_admin_role or x_user_role
     try:
+        if authorization and authorization.lower().startswith("bearer "):
+            session = core.auth.authenticate(authorization[7:].strip())
+            return core.admin.authorize(session["role"], require_explicit=True)
+        role = x_admin_role or x_user_role
         return core.admin.authorize_account(x_account_id, role, require_explicit=os.environ.get("LUMINIFERA_REQUIRE_ADMIN_AUTH") == "1")
+    except AuthenticationError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
     except AdminAccessError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
 
@@ -461,6 +490,31 @@ def _admin_actor(
 def admin_access(actor: str = Depends(_admin_actor)) -> dict[str, Any]:
     core.admin.touch_user("owner", display_name=str(core.settings.get("owner_display_name") or "Owner"), role=actor, organization_id=core.database.get_active_organization_id(), language=str(core.settings.get("interface_language") or "ru"))
     return {"allowed": True, "role": actor}
+
+
+@app.post("/api/auth/login")
+def auth_login(request: AuthLoginRequest) -> dict[str, Any]:
+    try:
+        return core.auth.login(request.account_id, request.password)
+    except AuthenticationError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
+
+
+@app.get("/api/auth/me")
+def auth_me(authorization: str | None = Header(default=None)) -> dict[str, Any]:
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="authentication_required")
+    try:
+        return core.auth.authenticate(authorization[7:].strip())
+    except AuthenticationError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
+
+
+@app.post("/api/auth/logout")
+def auth_logout(authorization: str | None = Header(default=None)) -> dict[str, bool]:
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="authentication_required")
+    return {"revoked": core.auth.logout(authorization[7:].strip())}
 
 
 @app.post("/api/telemetry")
@@ -482,7 +536,14 @@ def record_provider_usage(request: ProviderUsageRequest, x_account_id: str | Non
     if core.provider_registry.get(request.provider_id) is None:
         raise HTTPException(status_code=404, detail="provider_not_found")
     core.admin.touch_user(account_id, display_name=account_id, role="member", organization_id=request.organization_id, language=str(core.settings.get("interface_language") or "ru"))
-    usage_id = core.database.record_provider_usage(account_id=account_id, provider_id=request.provider_id, organization_id=request.organization_id, model_id=request.model_id, runtime=request.runtime, input_tokens=request.input_tokens, output_tokens=request.output_tokens, latency_ms=request.latency_ms, fallback=request.fallback, cost=request.cost, cost_status=request.cost_status if request.cost is not None else "unavailable")
+    cost, cost_status = request.cost, request.cost_status
+    if cost is None and request.model_id:
+        pricing = core.database.active_provider_pricing(request.provider_id, request.model_id)
+        if pricing is not None:
+            input_cost = (request.input_tokens or 0) * float(pricing["input_price_per_million"] or 0) / 1_000_000
+            output_cost = (request.output_tokens or 0) * float(pricing["output_price_per_million"] or 0) / 1_000_000
+            cost, cost_status = input_cost + output_cost, "known"
+    usage_id = core.database.record_provider_usage(account_id=account_id, provider_id=request.provider_id, organization_id=request.organization_id, model_id=request.model_id, runtime=request.runtime, input_tokens=request.input_tokens, output_tokens=request.output_tokens, latency_ms=request.latency_ms, fallback=request.fallback, cost=cost, cost_status=cost_status if cost is not None else "unavailable")
     return {"usage_id": usage_id, "status": "recorded"}
 
 
@@ -586,6 +647,19 @@ def admin_plans(actor: str = Depends(_admin_actor)) -> dict[str, Any]:
     return core.admin.plans()
 
 
+@app.get("/api/admin/pricing")
+def admin_pricing(actor: str = Depends(_admin_actor)) -> list[dict[str, Any]]:
+    return core.admin.pricing()
+
+
+@app.put("/api/admin/pricing")
+def admin_save_pricing(request: PricingRequest, actor: str = Depends(_admin_actor)) -> dict[str, Any]:
+    try:
+        return core.admin.save_pricing(request.model_dump(), actor)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
 @app.get("/api/admin/users/{user_id}")
 def admin_user_detail(user_id: str, actor: str = Depends(_admin_actor)) -> dict[str, Any]:
     item = next((user for user in core.admin.users() if user["user_id"] == user_id), None)
@@ -602,6 +676,25 @@ def admin_account_update(user_id: str, request: AdminAccountRequest, actor: str 
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return next(item for item in core.admin.users() if item["account_id"] == user_id)
+
+
+@app.put("/api/admin/users/{user_id}/credential")
+def admin_set_credential(user_id: str, request: AdminCredentialRequest, actor: str = Depends(_admin_actor)) -> dict[str, str]:
+    if not request.confirm:
+        raise HTTPException(status_code=409, detail="confirmation_required")
+    if not any(item["account_id"] == user_id for item in core.admin.users()):
+        raise HTTPException(status_code=404, detail="admin_user_not_found")
+    try:
+        core.auth.set_password(user_id, request.password)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    core.database.log_event("admin_credential_changed", json.dumps({"actor": actor, "account_id": user_id}))
+    with core.database.connect() as conn:
+        conn.execute(
+            "INSERT INTO management_audit_events (id, actor, object_type, object_id, action, new_value, reason) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (f"ADMIN-{uuid.uuid4().hex[:12].upper()}", actor, "account_credential", user_id, "changed", '{"stored":"hash_only"}', "Credential write-only action"),
+        )
+    return {"account_id": user_id, "status": "credential_saved"}
 
 
 @app.post("/api/admin/users/{user_id}/revoke-sessions")
@@ -632,6 +725,7 @@ def session(x_organization_id: str | None = Header(default=None)) -> dict[str, A
 async def execute_runtime_neutral(
     request: ExecutionApiRequest,
     x_organization_id: str | None = Header(default=None),
+    x_account_id: str | None = Header(default=None),
 ) -> dict[str, Any]:
     """Execute an Iris request through the runtime-neutral Product boundary."""
     organization_id = core.organization_id(x_organization_id)
@@ -640,6 +734,15 @@ async def execute_runtime_neutral(
     agents = list_chat_agents(core.database, organization_id=organization_id)
     if not agents:
         raise HTTPException(status_code=409, detail="team_required_before_execution")
+    provider_id = str(core.settings.get("active_provider_id") or "")
+    if request.preferred_runtime and core.provider_registry.get(request.preferred_runtime):
+        provider_id = request.preferred_runtime
+    if provider_id:
+        try:
+            core.admin.enforce_provider_policy(x_account_id or "owner", provider_id, model_id=str(core.settings.get("active_model_id") or "") or None)
+        except PolicyDeniedError as exc:
+            core.admin.audit_policy_denial(x_account_id or "owner", exc.reason, provider_id)
+            raise HTTPException(status_code=429 if exc.reason.startswith("quota_exceeded") else 403, detail={"code": "execution_policy_denied", "reason": exc.reason}) from exc
     result = await asyncio.to_thread(
         core.iris_orchestration.execute,
         IrisExecutionContext(

@@ -231,6 +231,28 @@ class Database:
                 revoked_at TEXT,
                 FOREIGN KEY (account_id) REFERENCES admin_accounts(account_id) ON DELETE CASCADE
             );
+            CREATE TABLE IF NOT EXISTS account_credentials (
+                account_id TEXT PRIMARY KEY,
+                password_hash TEXT NOT NULL,
+                salt TEXT NOT NULL,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (account_id) REFERENCES admin_accounts(account_id) ON DELETE CASCADE
+            );
+            CREATE TABLE IF NOT EXISTS provider_pricing_registry (
+                pricing_id TEXT PRIMARY KEY,
+                provider_id TEXT NOT NULL,
+                model_id TEXT NOT NULL,
+                input_price_per_million REAL,
+                output_price_per_million REAL,
+                effective_from TEXT NOT NULL,
+                currency TEXT NOT NULL DEFAULT 'USD',
+                source_note TEXT NOT NULL DEFAULT '',
+                version TEXT NOT NULL DEFAULT '1',
+                active INTEGER NOT NULL DEFAULT 1,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (provider_id) REFERENCES provider_definitions(provider_id)
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_provider_pricing_active ON provider_pricing_registry(provider_id, model_id, effective_from);
             """
         )
         columns = {str(row["name"]) for row in conn.execute("PRAGMA table_info(provider_admin_policies)").fetchall()}
@@ -250,6 +272,10 @@ class Database:
         for name, definition in {"last_login": "TEXT", "session_revoked_at": "TEXT"}.items():
             if name not in account_columns:
                 conn.execute(f"ALTER TABLE admin_accounts ADD COLUMN {name} {definition}")
+        session_columns = {str(row["name"]) for row in conn.execute("PRAGMA table_info(admin_sessions)").fetchall()}
+        for name, definition in {"token_hash": "TEXT", "expires_at": "TEXT"}.items():
+            if name not in session_columns:
+                conn.execute(f"ALTER TABLE admin_sessions ADD COLUMN {name} {definition}")
         conn.executemany(
             "INSERT OR IGNORE INTO admin_plans (plan_id, display_name, quotas) VALUES (?, ?, ?)",
             [("free", "Free", '{"agents":2,"goals":3,"storage_mb":100,"ai_requests":50,"concurrency":1}'),
@@ -2186,6 +2212,62 @@ class Database:
     def list_admin_plans(self) -> list[sqlite3.Row]:
         with self.connect() as conn:
             return conn.execute("SELECT * FROM admin_plans WHERE enabled = 1 ORDER BY plan_id").fetchall()
+
+    def upsert_provider_pricing(self, *, provider_id: str, model_id: str,
+                                input_price_per_million: float | None,
+                                output_price_per_million: float | None,
+                                effective_from: str, currency: str, source_note: str,
+                                version: str = "1") -> str:
+        pricing_id = f"PRICE-{uuid.uuid4().hex[:12].upper()}"
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO provider_pricing_registry (pricing_id, provider_id, model_id, input_price_per_million, output_price_per_million, effective_from, currency, source_note, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(provider_id, model_id, effective_from) DO UPDATE SET input_price_per_million=excluded.input_price_per_million, output_price_per_million=excluded.output_price_per_million, currency=excluded.currency, source_note=excluded.source_note, version=excluded.version, updated_at=CURRENT_TIMESTAMP",
+                (pricing_id, provider_id, model_id, input_price_per_million, output_price_per_million, effective_from, currency, source_note, version),
+            )
+        return pricing_id
+
+    def list_provider_pricing(self, provider_id: str | None = None) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            if provider_id:
+                return conn.execute("SELECT * FROM provider_pricing_registry WHERE provider_id = ? ORDER BY effective_from DESC", (provider_id,)).fetchall()
+            return conn.execute("SELECT * FROM provider_pricing_registry ORDER BY provider_id, model_id, effective_from DESC").fetchall()
+
+    def active_provider_pricing(self, provider_id: str, model_id: str, at: str | None = None) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM provider_pricing_registry WHERE provider_id = ? AND model_id = ? AND active = 1 AND datetime(effective_from) <= datetime(COALESCE(?, CURRENT_TIMESTAMP)) ORDER BY datetime(effective_from) DESC LIMIT 1",
+                (provider_id, model_id, at),
+            ).fetchone()
+
+    def save_account_credential(self, account_id: str, password_hash: str, salt: str) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO account_credentials (account_id, password_hash, salt) VALUES (?, ?, ?) ON CONFLICT(account_id) DO UPDATE SET password_hash=excluded.password_hash, salt=excluded.salt, updated_at=CURRENT_TIMESTAMP",
+                (account_id, password_hash, salt),
+            )
+
+    def get_account_credential(self, account_id: str) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM account_credentials WHERE account_id = ?", (account_id,)).fetchone()
+
+    def create_admin_session(self, session_id: str, account_id: str, token_hash: str, expires_at: str) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO admin_sessions (session_id, account_id, token_hash, expires_at) VALUES (?, ?, ?, ?)",
+                (session_id, account_id, token_hash, expires_at),
+            )
+
+    def get_admin_session(self, token_hash: str) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT s.*, a.role, a.status, a.organization_id, a.language, a.plan FROM admin_sessions s JOIN admin_accounts a ON a.account_id = s.account_id WHERE s.token_hash = ?",
+                (token_hash,),
+            ).fetchone()
+
+    def revoke_admin_session(self, session_id: str) -> bool:
+        with self.connect() as conn:
+            cur = conn.execute("UPDATE admin_sessions SET revoked_at = CURRENT_TIMESTAMP WHERE session_id = ? AND revoked_at IS NULL", (session_id,))
+            return cur.rowcount > 0
 
     def save_admin_setting(self, key: str, value: Any) -> None:
         with self.connect() as conn:

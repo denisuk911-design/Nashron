@@ -82,3 +82,35 @@ def test_phase2_analytics_periods_accounts_and_provider_policy_are_persistent(tm
     revoke = client.post("/api/admin/users/acct-1/revoke-sessions", json={"confirm": True})
     assert revoke.status_code == 200
     assert client.get("/api/admin/users/acct-1").json()["session_revoked_at"] is not None
+
+
+def test_phase4_auth_pricing_and_quota_denial_are_real(tmp_path, monkeypatch):
+    monkeypatch.setenv("TEAM2050_HOME", str(tmp_path / "profile"))
+    import services.api.app as app_module
+
+    isolated = app_module.WebCore()
+    monkeypatch.setattr(app_module, "core", isolated)
+    client = TestClient(app_module.app)
+    assert client.get("/api/admin/access").status_code == 200
+    credential = client.put("/api/admin/users/owner/credential", json={"password": "phase4-pass-123", "confirm": True})
+    assert credential.status_code == 200
+    login = client.post("/api/auth/login", json={"account_id": "owner", "password": "phase4-pass-123"})
+    assert login.status_code == 200
+    token = login.json()["token"]
+    assert client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"}).json()["account_id"] == "owner"
+    assert client.get("/api/admin/access", headers={"Authorization": f"Bearer {token}"}).status_code == 200
+    provider = isolated.provider_registry.profiles()[0].provider_id
+    price = client.put("/api/admin/pricing", json={"provider_id": provider, "model_id": "phase4-model", "input_price_per_million": 1.0, "output_price_per_million": 2.0, "effective_from": "2026-01-01T00:00:00Z", "source_note": "test registry"})
+    assert price.status_code == 200
+    usage = client.post("/api/usage", json={"account_id": "owner", "provider_id": provider, "model_id": "phase4-model", "input_tokens": 1000, "output_tokens": 500})
+    assert usage.status_code == 200
+    assert client.get("/api/admin/analytics").json()["metered_usage"][0]["cost_status"] == "known"
+    policy = client.patch(f"/api/admin/providers/{provider}/policy", json={"daily_request_limit": 1, "enabled": True})
+    assert policy.status_code == 200
+    with __import__("pytest").raises(Exception, match="quota_exceeded:daily_request_limit"):
+        isolated.admin.enforce_provider_policy("owner", provider)
+    blocked = client.patch("/api/admin/users/owner/status", json={"status": "BLOCKED", "confirm": True})
+    assert blocked.status_code == 200
+    assert client.get("/api/admin/access", headers={"X-Account-Id": "owner"}).status_code == 403
+    assert client.post("/api/auth/logout", headers={"Authorization": f"Bearer {token}"}).json()["revoked"] is True
+    assert client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"}).status_code == 401

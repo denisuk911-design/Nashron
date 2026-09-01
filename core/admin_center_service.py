@@ -12,6 +12,12 @@ class AdminAccessError(PermissionError):
     """Raised when a non-owner/non-admin reaches the owner console."""
 
 
+class PolicyDeniedError(PermissionError):
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.reason = reason
+
+
 class AdminCenterService:
     """Owner-console read models and audited administrative mutations.
 
@@ -223,6 +229,29 @@ class AdminCenterService:
             plans.append({"id": str(row["plan_id"]), "name": str(row["display_name"]), "users": counts.get(str(row["plan_id"]), 0), "quotas": self.database.loads(row["quotas"], {})})
         return {"plans": plans, "source": "database", "enforcement": "safe hooks only; unsupported quotas remain read-only"}
 
+    def pricing(self) -> list[dict[str, Any]]:
+        return [
+            {"provider": str(row["provider_id"]), "model": str(row["model_id"]), "input_price_per_million": row["input_price_per_million"], "output_price_per_million": row["output_price_per_million"], "effective_from": str(row["effective_from"]), "currency": str(row["currency"]), "source_note": str(row["source_note"]), "version": str(row["version"]), "active": bool(row["active"])}
+            for row in self.database.list_provider_pricing()
+        ]
+
+    def save_pricing(self, values: dict[str, Any], actor: str) -> dict[str, Any]:
+        if self.providers.get(str(values["provider_id"])) is None:
+            raise ValueError("provider_not_found")
+        pricing_id = self.database.upsert_provider_pricing(
+            provider_id=str(values["provider_id"]), model_id=str(values["model_id"]),
+            input_price_per_million=values.get("input_price_per_million"),
+            output_price_per_million=values.get("output_price_per_million"),
+            effective_from=str(values["effective_from"]), currency=str(values.get("currency") or "USD"),
+            source_note=str(values.get("source_note") or ""), version=str(values.get("version") or "1"),
+        )
+        with self.database.connect() as conn:
+            conn.execute(
+                "INSERT INTO management_audit_events (id, actor, object_type, object_id, action, new_value, reason) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (f"ADMIN-{uuid.uuid4().hex[:12].upper()}", actor, "provider_pricing", pricing_id, "upserted", json.dumps({"provider_id": values["provider_id"], "model_id": values["model_id"], "version": values.get("version", "1")}), "Pricing registry action"),
+            )
+        return {"pricing_id": pricing_id, "status": "saved"}
+
     def set_user_status(self, user_id: str, status: str, actor: str) -> bool:
         if status not in {"ACTIVE", "BLOCKED"}:
             raise ValueError("unsupported_user_status")
@@ -293,3 +322,49 @@ class AdminCenterService:
                 (f"ADMIN-{uuid.uuid4().hex[:12].upper()}", actor, "admin_settings", "global", "updated", json.dumps(values), "Admin settings action"),
             )
         return self.advanced()
+
+    def enforce_provider_policy(self, account_id: str, provider_id: str, *, model_id: str | None = None,
+                                requested_capabilities: set[str] | None = None) -> dict[str, Any]:
+        profile = self.providers.get(provider_id)
+        if profile is None:
+            raise PolicyDeniedError("provider_not_found")
+        with self.database.connect() as conn:
+            account = conn.execute("SELECT status, plan FROM admin_accounts WHERE account_id = ?", (account_id,)).fetchone()
+        if account is not None and str(account["status"]).upper() != "ACTIVE":
+            raise PolicyDeniedError("account_blocked")
+        policy = next((row for row in self.database.list_provider_admin_policies() if str(row["provider_id"]) == provider_id), None)
+        if policy is not None and not bool(policy["enabled"]):
+            raise PolicyDeniedError("provider_disabled")
+        allowed_models = self.database.loads(policy["allowed_models"], []) if policy else []
+        effective_model = model_id or (str(policy["default_model"]) if policy and policy["default_model"] else None)
+        if allowed_models and effective_model not in allowed_models:
+            raise PolicyDeniedError("model_not_allowed")
+        if requested_capabilities and not requested_capabilities.issubset(set(profile.capability_matrix)):
+            raise PolicyDeniedError("capability_not_allowed")
+        with self.database.connect() as conn:
+            daily_requests = int(conn.execute("SELECT COALESCE(SUM(request_count),0) FROM provider_usage_events WHERE account_id = ? AND provider_id = ? AND datetime(created_at) >= datetime('now','-1 day')", (account_id, provider_id)).fetchone()[0])
+            monthly_requests = int(conn.execute("SELECT COALESCE(SUM(request_count),0) FROM provider_usage_events WHERE account_id = ? AND provider_id = ? AND datetime(created_at) >= datetime('now','-30 days')", (account_id, provider_id)).fetchone()[0])
+            daily_tokens = int(conn.execute("SELECT COALESCE(SUM(input_tokens),0)+COALESCE(SUM(output_tokens),0) FROM provider_usage_events WHERE account_id = ? AND provider_id = ? AND datetime(created_at) >= datetime('now','-1 day')", (account_id, provider_id)).fetchone()[0])
+            monthly_tokens = int(conn.execute("SELECT COALESCE(SUM(input_tokens),0)+COALESCE(SUM(output_tokens),0) FROM provider_usage_events WHERE account_id = ? AND provider_id = ? AND datetime(created_at) >= datetime('now','-30 days')", (account_id, provider_id)).fetchone()[0])
+            daily_cost = float(conn.execute("SELECT COALESCE(SUM(cost),0) FROM provider_usage_events WHERE account_id = ? AND provider_id = ? AND datetime(created_at) >= datetime('now','-1 day')", (account_id, provider_id)).fetchone()[0])
+            monthly_cost = float(conn.execute("SELECT COALESCE(SUM(cost),0) FROM provider_usage_events WHERE account_id = ? AND provider_id = ? AND datetime(created_at) >= datetime('now','-30 days')", (account_id, provider_id)).fetchone()[0])
+            plan_row = conn.execute("SELECT quotas FROM admin_plans WHERE plan_id = ?", (str(account["plan"]) if account else "",)).fetchone()
+            monthly_account_requests = int(conn.execute("SELECT COALESCE(SUM(request_count),0) FROM provider_usage_events WHERE account_id = ? AND datetime(created_at) >= datetime('now','-30 days')", (account_id,)).fetchone()[0])
+        checks = (("daily_request_limit", daily_requests), ("monthly_request_limit", monthly_requests), ("daily_token_limit", daily_tokens), ("monthly_token_limit", monthly_tokens), ("daily_cost_limit", daily_cost), ("monthly_cost_limit", monthly_cost))
+        for limit_name, current in checks:
+            limit = policy[limit_name] if policy else None
+            if limit is not None and current >= int(limit):
+                raise PolicyDeniedError(f"quota_exceeded:{limit_name}")
+        if plan_row is not None:
+            quotas = self.database.loads(plan_row["quotas"], {})
+            plan_limit = quotas.get("ai_requests")
+            if plan_limit is not None and monthly_account_requests >= int(plan_limit):
+                raise PolicyDeniedError("plan_quota_exceeded:ai_requests")
+        return {"provider_id": provider_id, "model_id": effective_model, "status": "allowed"}
+
+    def audit_policy_denial(self, account_id: str, reason: str, provider_id: str, actor: str = "system") -> None:
+        with self.database.connect() as conn:
+            conn.execute(
+                "INSERT INTO management_audit_events (id, actor, object_type, object_id, action, new_value, reason) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (f"ADMIN-{uuid.uuid4().hex[:12].upper()}", actor, "execution_policy", account_id, "denied", json.dumps({"provider_id": provider_id, "reason": reason}), "Policy enforcement denial"),
+            )
