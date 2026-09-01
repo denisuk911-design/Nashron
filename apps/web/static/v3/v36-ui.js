@@ -80,6 +80,33 @@
     }
   }
 
+  async function decorateFilesData() {
+    const rows = [...document.querySelectorAll("#files-stage .file-row")];
+    const bridge = window.LuminiferaBridge;
+    if (!rows.length || !bridge || rows.some(row => row.querySelector(".file-source"))) return;
+    try {
+      const artifacts = (await bridge.getFilesState()).artifacts || [];
+      const typeNames = { WORK_PRODUCT: "Рабочий результат", SOURCE_RESEARCH: "Исследование" };
+      const statusNames = { VERIFIED: "Проверено", PASSED: "Проверено", PENDING: "На проверке" };
+      rows.forEach((row, index) => {
+        const item = artifacts[index];
+        if (!item) return;
+        const detail = row.querySelector("div");
+        const meta = row.querySelector("small");
+        if (meta) meta.textContent = `${typeNames[item.artifact_type] || "Результат"} · ${statusNames[item.review_status || item.status] || "Статус уточняется"}`;
+        if (detail) {
+          const source = document.createElement("small");
+          source.className = "file-source";
+          const date = item.modified ? new Date(item.modified).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" }) : "время не указано";
+          source.textContent = `Цель: ${item.source_goal || "источник не указан"} · ${date}`;
+          detail.append(source);
+        }
+      });
+    } catch (_) {
+      // Keep the normal Files state authoritative when the read fails.
+    }
+  }
+
   function decorateTeam() {
     const board = document.querySelector("#team-stage .constellation-board");
     if (!board || board.dataset.flowReady) return;
@@ -110,12 +137,14 @@
     normalizeSettingsCopy();
     decorateWorkEmpty();
     decorateWorkData();
+    decorateFilesData();
     decorateTeam();
     const observer = new MutationObserver(() => {
       normalizeWorkspaceLabel();
       normalizeSettingsCopy();
       decorateWorkEmpty();
       decorateWorkData();
+      decorateFilesData();
       decorateTeam();
     });
     observer.observe(document.body, {childList: true, subtree: true});
