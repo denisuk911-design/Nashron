@@ -1221,7 +1221,9 @@ async def events(socket: WebSocket, organization_id: str | None = None) -> None:
 
 STATIC = ROOT / "apps" / "web" / "static"
 if STATIC.is_dir():
-    app.mount("/assets", StaticFiles(directory=STATIC / "assets"), name="assets")
+    # Product pages reference both legacy root assets and the V3 shell under
+    # /assets/v3/*; mounting the static root keeps both paths valid on Render.
+    app.mount("/assets", StaticFiles(directory=STATIC), name="assets")
 
 
 @app.get("/", include_in_schema=False)
