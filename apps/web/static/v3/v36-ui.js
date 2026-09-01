@@ -49,13 +49,27 @@
 
   function decorateTeam() {
     const board = document.querySelector("#team-stage .constellation-board");
-    if (!board || board.querySelector(".constellation-pulse")) return;
-    ["p1", "p2", "p3", "p4"].forEach(name => {
-      const pulse = document.createElement("span");
-      pulse.className = `constellation-pulse ${name}`;
-      pulse.setAttribute("aria-hidden", "true");
-      board.append(pulse);
+    if (!board || board.dataset.flowReady) return;
+    const svg = board.querySelector("svg");
+    if (!svg) return;
+    const paths = [...svg.querySelectorAll("path")];
+    paths.forEach((path, index) => {
+      path.id = `constellation-path-${index}`;
+      const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      circle.setAttribute("class", "constellation-flow");
+      circle.setAttribute("r", "5");
+      circle.setAttribute("aria-hidden", "true");
+      const motion = document.createElementNS("http://www.w3.org/2000/svg", "animateMotion");
+      motion.setAttribute("dur", `${6 + index * 1.5}s`);
+      motion.setAttribute("repeatCount", "indefinite");
+      motion.setAttribute("begin", `${index * 1.2}s`);
+      const mpath = document.createElementNS("http://www.w3.org/2000/svg", "mpath");
+      mpath.setAttribute("href", `#constellation-path-${index}`);
+      motion.append(mpath);
+      circle.append(motion);
+      svg.append(circle);
     });
+    board.dataset.flowReady = "1";
   }
 
   function observe() {
