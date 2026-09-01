@@ -352,6 +352,17 @@ def health() -> dict[str, Any]:
     return {"status": "ready", "product": "Luminifera", "engine": "Python Core / Runtime V3"}
 
 
+@app.get("/api/build-info")
+def build_info() -> dict[str, str]:
+    """Expose deployment provenance without credentials or internal identifiers."""
+    return {
+        "product": "Luminifera",
+        "commit": os.environ.get("RENDER_GIT_COMMIT", os.environ.get("GIT_COMMIT", "unknown")),
+        "build_time": os.environ.get("RENDER_GIT_COMMIT_TIMESTAMP", os.environ.get("BUILD_TIME", "unknown")),
+        "environment": "render" if os.environ.get("RENDER_SERVICE_ID") else "local",
+    }
+
+
 @app.get("/api/diagnostics/runtime")
 def runtime_diagnostics() -> dict[str, Any]:
     """Non-secret diagnostics for packaged runtime activation and fallback."""

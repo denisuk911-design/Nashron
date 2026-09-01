@@ -11,6 +11,7 @@ def test_web_health_and_openapi():
 
     client = TestClient(app)
     assert client.get("/api/health").json()["product"] == "Luminifera"
+    assert client.get("/api/build-info").json()["product"] == "Luminifera"
     assert client.get("/api/docs").status_code == 200
     schema = client.get("/openapi.json").json()
     assert "/api/organizations" in schema["paths"]
