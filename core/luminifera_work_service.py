@@ -92,19 +92,19 @@ class LuminiferaWorkService:
         self._database = database
         self._runtime_root = Path(runtime_root) if runtime_root else None
 
-    def snapshot(self, organization_id: str | None) -> WorkSnapshot:
+    def snapshot(self, organization_id: str | None, project_id: str | None = None) -> WorkSnapshot:
         if not organization_id:
             return WorkSnapshot()
         organization = next((row for row in self._database.list_organizations() if str(row["id"]) == organization_id), None)
         if organization is None:
             return WorkSnapshot()
-        runtime_snapshot = self._runtime_snapshot(organization_id, str(organization["name"]))
+        runtime_snapshot = self._runtime_snapshot(organization_id, str(organization["name"]), project_id)
         if runtime_snapshot is not None:
             return runtime_snapshot
         tasks = self._database.list_tasks(limit=1, organization_id=organization_id)
         artifacts = self._database.list_artifacts(limit=6, organization_id=organization_id)
         findings = self._database.list_findings(limit=100, organization_id=organization_id)
-        plans = self._database.list_project_plans(organization_id)
+        plans = self._database.list_project_plans(organization_id, project_id)
         steps: tuple[WorkStep, ...] = ()
         if plans:
             assignments = self._database.list_work_assignments(str(plans[0]["id"]))
@@ -131,7 +131,7 @@ class LuminiferaWorkService:
             steps=steps,
         )
 
-    def receipt(self, organization_id: str | None) -> WorkReceiptView:
+    def receipt(self, organization_id: str | None, project_id: str | None = None) -> WorkReceiptView:
         if not organization_id or self._runtime_root is None:
             return WorkReceiptView()
         state_path = self._runtime_root / organization_id / "checkpoints" / "state.json"
@@ -141,7 +141,7 @@ class LuminiferaWorkService:
             state = load_state(state_path)
         except (OSError, ValueError, KeyError, TypeError):
             return WorkReceiptView()
-        goals = sorted(state.goals.values(), key=lambda item: (item.updated_at, item.created_at), reverse=True)
+        goals = self._runtime_goals(state, organization_id, project_id)
         if not goals:
             return WorkReceiptView()
         goal = goals[0]
@@ -162,7 +162,7 @@ class LuminiferaWorkService:
             review_status="PASSED" if receipt is not None and goal.status == GoalStatus.COMPLETED else "IN_PROGRESS" if goal.status != GoalStatus.COMPLETED else "NEEDS_ATTENTION",
         )
 
-    def items(self, organization_id: str | None) -> tuple[WorkItemView, ...]:
+    def items(self, organization_id: str | None, project_id: str | None = None) -> tuple[WorkItemView, ...]:
         if not organization_id or self._runtime_root is None:
             return ()
         state_path = self._runtime_root / organization_id / "checkpoints" / "state.json"
@@ -172,7 +172,7 @@ class LuminiferaWorkService:
             state = load_state(state_path)
         except (OSError, ValueError, KeyError, TypeError):
             return ()
-        goals = sorted(state.goals.values(), key=lambda item: (item.updated_at, item.created_at), reverse=True)
+        goals = self._runtime_goals(state, organization_id, project_id)
         if not goals:
             return ()
         goal_id = goals[0].goal_id
@@ -195,7 +195,7 @@ class LuminiferaWorkService:
             if item.goal_id == goal_id
         )
 
-    def review_findings(self, organization_id: str | None) -> tuple[ReviewFindingView, ...]:
+    def review_findings(self, organization_id: str | None, project_id: str | None = None) -> tuple[ReviewFindingView, ...]:
         if not organization_id or self._runtime_root is None:
             return ()
         state_path = self._runtime_root / organization_id / "checkpoints" / "state.json"
@@ -205,7 +205,7 @@ class LuminiferaWorkService:
             state = load_state(state_path)
         except (OSError, ValueError, KeyError, TypeError):
             return ()
-        goals = sorted(state.goals.values(), key=lambda item: (item.updated_at, item.created_at), reverse=True)
+        goals = self._runtime_goals(state, organization_id, project_id)
         if not goals:
             return ()
         names = {
@@ -223,12 +223,12 @@ class LuminiferaWorkService:
             if finding.goal_id == goals[0].goal_id
         )
 
-    def timeline(self, organization_id: str | None) -> tuple[WorkTimelineEvent, ...]:
+    def timeline(self, organization_id: str | None, project_id: str | None = None) -> tuple[WorkTimelineEvent, ...]:
         """Return a human-facing replay of durable Runtime V3 progress."""
         state = self._load_runtime_state(organization_id)
         if state is None:
             return ()
-        goals = sorted(state.goals.values(), key=lambda item: (item.updated_at, item.created_at), reverse=True)
+        goals = self._runtime_goals(state, organization_id, project_id)
         if not goals:
             return ()
         goal_id = goals[0].goal_id
@@ -266,7 +266,14 @@ class LuminiferaWorkService:
         except (OSError, ValueError, KeyError, TypeError):
             return None
 
-    def _runtime_snapshot(self, organization_id: str, organization_name: str) -> WorkSnapshot | None:
+    def _runtime_goals(self, state, organization_id: str, project_id: str | None):
+        goals = sorted(state.goals.values(), key=lambda item: (item.updated_at, item.created_at), reverse=True)
+        if not project_id:
+            return goals
+        allowed = {str(row["goal"]) for row in self._database.list_project_plans(organization_id, project_id)}
+        return [goal for goal in goals if goal.objective in allowed]
+
+    def _runtime_snapshot(self, organization_id: str, organization_name: str, project_id: str | None = None) -> WorkSnapshot | None:
         """Project the durable V3 checkpoint into the product Work view."""
         if self._runtime_root is None:
             return None
@@ -277,7 +284,7 @@ class LuminiferaWorkService:
             state = load_state(state_path)
         except (OSError, ValueError, KeyError, TypeError):
             return None
-        goals = sorted(state.goals.values(), key=lambda item: (item.updated_at, item.created_at), reverse=True)
+        goals = self._runtime_goals(state, organization_id, project_id)
         if not goals:
             return None
         goal = goals[0]

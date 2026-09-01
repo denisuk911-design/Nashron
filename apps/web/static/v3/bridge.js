@@ -23,12 +23,15 @@
     getProjectId() { return projectId; },
     async getProjects() { return unwrap(await request("/api/projects")) || []; },
     async createProject(title, description) { return request("/api/projects", { method:"POST", body:JSON.stringify({title, description}) }); },
+    async archiveProject(projectId) { return request(`/api/projects/${encodeURIComponent(projectId)}/archive`, { method:"POST" }); },
+    async restoreProject(projectId) { return request(`/api/projects/${encodeURIComponent(projectId)}/restore`, { method:"POST" }); },
     async getOrganizations() { return unwrap(await request("/api/organizations")); },
     async createOrganization(name, purpose) { return request("/api/organizations", { method: "POST", body: JSON.stringify({ name, purpose }) }); },
     async renameOrganization(name, purpose) { return request(`/api/organizations/${encodeURIComponent(organizationId)}`, { method: "PATCH", body: JSON.stringify({ name, purpose }) }); },
     async getHomeState() {
       if (!organizationId) return { organization: null, team: null, work: null, files: null, message: "Создайте рабочее пространство" };
-      const [home, filesPayload, messagesPayload] = await Promise.all([request(`/api/organizations/${encodeURIComponent(organizationId)}/home`), request("/api/files"), request("/api/chat")]);
+      const projectQuery = projectId ? `?project_id=${encodeURIComponent(projectId)}` : "";
+      const [home, filesPayload, messagesPayload] = await Promise.all([request(`/api/organizations/${encodeURIComponent(organizationId)}/home`), request(`/api/files${projectQuery}`), request("/api/chat")]);
       const files = unwrap(filesPayload) || [], messages = unwrap(messagesPayload) || [];
       return { organization: { name: home.organization_name }, team: { count: home.team_size || 0 }, work: { activeGoal: home.goal_title || null, state: home.goal_state, progress: home.goal_progress || 0 }, files: { count: files.length }, messages };
     },
@@ -41,12 +44,12 @@
     async getWorkState() {
       if (!organizationId) return { work: null, goals: [], items: [], review: [], timeline: [], receipt: null };
       const [work, goalsPayload, items, review, timeline, receipt] = await Promise.all([
-        request("/api/work"), request("/api/goals"), request("/api/work/items"),
-        request("/api/work/review"), request("/api/work/timeline"), request("/api/work/receipt"),
+        request(`/api/work${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ""}`), request(`/api/goals${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ""}`), request(`/api/work/items${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ""}`),
+        request(`/api/work/review${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ""}`), request(`/api/work/timeline${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ""}`), request(`/api/work/receipt${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ""}`),
       ]);
       return { work, goals: unwrap(goalsPayload) || [], items: unwrap(items) || [], review: unwrap(review) || [], timeline: unwrap(timeline) || [], receipt };
     },
-    async getFilesState() { return { artifacts: organizationId ? (unwrap(await request("/api/files")) || []) : [] }; },
+    async getFilesState() { return { artifacts: organizationId ? (unwrap(await request(`/api/files${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ""}`)) || []) : [] }; },
     async getSettingsState() { return { settings: await request("/api/settings"), providers: unwrap(await request("/api/providers")) || [], feedback: unwrap(await request("/api/feedback")) || [] }; },
     async recordTelemetry(eventType, detail = {}) { return request("/api/telemetry", { method: "POST", body: JSON.stringify({ event_type: eventType, user_id: "owner", detail }) }); },
     async connectProvider(providerId, credential) { return request(`/api/providers/${encodeURIComponent(providerId)}/connect`, { method: "POST", body: JSON.stringify({ credential }) }); },

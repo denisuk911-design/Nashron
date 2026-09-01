@@ -4793,8 +4793,10 @@ class Database:
                 (*updates.values(), plan_id),
             )
 
-    def list_project_plans(self, organization_id: str | None = None) -> list[sqlite3.Row]:
+    def list_project_plans(self, organization_id: str | None = None, project_id: str | None = None) -> list[sqlite3.Row]:
         with self.connect() as conn:
+            if organization_id and project_id:
+                return conn.execute("SELECT * FROM project_plans WHERE organization_id = ? AND project_id = ? ORDER BY created_at DESC, id DESC", (organization_id, project_id)).fetchall()
             if organization_id:
                 return conn.execute(
                     "SELECT * FROM project_plans WHERE organization_id = ? ORDER BY created_at DESC, id DESC",

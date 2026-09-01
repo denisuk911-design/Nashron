@@ -25,10 +25,12 @@ class LuminiferaFilesService:
         self._database = database
         self._runtime_root = Path(runtime_root) if runtime_root else None
 
-    def list_files(self, organization_id: str | None) -> tuple[ProductArtifact, ...]:
+    def list_files(self, organization_id: str | None, project_id: str | None = None) -> tuple[ProductArtifact, ...]:
         if not organization_id:
             return ()
         rows = self._database.list_artifacts(limit=50, organization_id=organization_id)
+        if project_id:
+            rows = [row for row in rows if str(row["project_id"] or "") == project_id]
         legacy = tuple(
             ProductArtifact(
                 title=str(row["relative_path"] or row["artifact_type"] or "Результат"),
@@ -40,7 +42,7 @@ class LuminiferaFilesService:
             )
             for row in rows
         )
-        runtime = self._runtime_files(organization_id)
+        runtime = self._runtime_files(organization_id, project_id)
         seen = {item.title for item in runtime}
         return runtime + tuple(item for item in legacy if item.title not in seen)
 
@@ -62,7 +64,7 @@ class LuminiferaFilesService:
             return None
         return path if path.is_file() else None
 
-    def _runtime_files(self, organization_id: str) -> tuple[ProductArtifact, ...]:
+    def _runtime_files(self, organization_id: str, project_id: str | None = None) -> tuple[ProductArtifact, ...]:
         if self._runtime_root is None:
             return ()
         state_path = self._runtime_root / organization_id / "checkpoints" / "state.json"
@@ -75,7 +77,8 @@ class LuminiferaFilesService:
         goals = sorted(state.goals.values(), key=lambda item: (item.updated_at, item.created_at), reverse=True)
         if not goals:
             return ()
-        goal_ids = {item.goal_id for item in goals[:5]}
+        allowed_goals = {str(row["goal"]) for row in self._database.list_project_plans(organization_id, project_id)} if project_id else set()
+        goal_ids = {item.goal_id for item in goals[:5] if not allowed_goals or item.objective in allowed_goals}
         goal_names = {item.goal_id: item.objective for item in goals}
         employee_names = {key: str(value.get("display_name") or "") for key, value in state.employee_snapshots.items()}
         return tuple(

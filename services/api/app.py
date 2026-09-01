@@ -895,6 +895,28 @@ async def update_project(project_id: str, request: ProjectRequest, x_organizatio
     return _row(core.database.get_project(project_id))
 
 
+@app.post("/api/projects/{project_id}/archive")
+async def archive_project(project_id: str, x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
+    organization_id = core.organization_id(x_organization_id)
+    project = core.database.get_project(project_id)
+    if project is None or str(project["organization_id"] or "") != organization_id:
+        raise HTTPException(status_code=404, detail="project_not_found")
+    core.database.update_project(project_id, {"status": "ARCHIVED"})
+    await core.events.publish({"type": "project.updated", "data": {"project_id": project_id, "status": "ARCHIVED"}})
+    return _row(core.database.get_project(project_id))
+
+
+@app.post("/api/projects/{project_id}/restore")
+async def restore_project(project_id: str, x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
+    organization_id = core.organization_id(x_organization_id)
+    project = core.database.get_project(project_id)
+    if project is None or str(project["organization_id"] or "") != organization_id:
+        raise HTTPException(status_code=404, detail="project_not_found")
+    core.database.update_project(project_id, {"status": "ACTIVE"})
+    await core.events.publish({"type": "project.updated", "data": {"project_id": project_id, "status": "ACTIVE"}})
+    return _row(core.database.get_project(project_id))
+
+
 @app.get("/api/organizations/{organization_id}/employees")
 def employees(organization_id: str) -> list[dict[str, Any]]:
     core.organization_id(organization_id)
@@ -1093,9 +1115,10 @@ def download_chat_attachment(attachment_id: str, x_organization_id: str | None =
 
 
 @app.get("/api/goals")
-def goals(x_organization_id: str | None = Header(default=None)) -> list[dict[str, Any]]:
+def goals(project_id: str | None = Query(default=None), x_organization_id: str | None = Header(default=None)) -> list[dict[str, Any]]:
     organization_id = core.organization_id(x_organization_id)
-    return [_public_plan(plan) for plan in core.supervisor.list_plans(organization_id)]
+    plans = core.supervisor.list_plans(organization_id)
+    return [_public_plan(plan) for plan in plans if not project_id or plan.project_id == project_id]
 
 
 @app.post("/api/goals")
@@ -1240,33 +1263,33 @@ async def start_goal(plan_id: str, x_organization_id: str | None = Header(defaul
 
 
 @app.get("/api/work")
-def work(x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
-    return _plain(core.work.snapshot(core.organization_id(x_organization_id)))
+def work(project_id: str | None = Query(default=None), x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
+    return _plain(core.work.snapshot(core.organization_id(x_organization_id), project_id))
 
 
 @app.get("/api/work/receipt")
-def work_receipt(x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
-    return _plain(core.work.receipt(core.organization_id(x_organization_id)))
+def work_receipt(project_id: str | None = Query(default=None), x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
+    return _plain(core.work.receipt(core.organization_id(x_organization_id), project_id))
 
 
 @app.get("/api/work/items")
-def work_items(x_organization_id: str | None = Header(default=None)) -> list[dict[str, Any]]:
-    return [_plain(item) for item in core.work.items(core.organization_id(x_organization_id))]
+def work_items(project_id: str | None = Query(default=None), x_organization_id: str | None = Header(default=None)) -> list[dict[str, Any]]:
+    return [_plain(item) for item in core.work.items(core.organization_id(x_organization_id), project_id)]
 
 
 @app.get("/api/work/review")
-def work_review(x_organization_id: str | None = Header(default=None)) -> list[dict[str, Any]]:
-    return [_plain(item) for item in core.work.review_findings(core.organization_id(x_organization_id))]
+def work_review(project_id: str | None = Query(default=None), x_organization_id: str | None = Header(default=None)) -> list[dict[str, Any]]:
+    return [_plain(item) for item in core.work.review_findings(core.organization_id(x_organization_id), project_id)]
 
 
 @app.get("/api/work/timeline")
-def work_timeline(x_organization_id: str | None = Header(default=None)) -> list[dict[str, Any]]:
-    return [_plain(item) for item in core.work.timeline(core.organization_id(x_organization_id))]
+def work_timeline(project_id: str | None = Query(default=None), x_organization_id: str | None = Header(default=None)) -> list[dict[str, Any]]:
+    return [_plain(item) for item in core.work.timeline(core.organization_id(x_organization_id), project_id)]
 
 
 @app.get("/api/files")
-def files(x_organization_id: str | None = Header(default=None)) -> list[dict[str, Any]]:
-    return [_plain(item) for item in core.files.list_files(core.organization_id(x_organization_id))]
+def files(project_id: str | None = Query(default=None), x_organization_id: str | None = Header(default=None)) -> list[dict[str, Any]]:
+    return [_plain(item) for item in core.files.list_files(core.organization_id(x_organization_id), project_id)]
 
 
 def _file_path_for_scope(file_id: str, organization_id: str | None) -> Path:
