@@ -171,6 +171,13 @@ class AuthLoginRequest(BaseModel):
     password: str = Field(min_length=1, max_length=500)
 
 
+class AuthRegisterRequest(BaseModel):
+    account_id: str = Field(min_length=3, max_length=120)
+    display_name: str = Field(min_length=1, max_length=120)
+    password: str = Field(min_length=1, max_length=500)
+    language: str = Field(default="ru", pattern="^(ru|uk|en)$")
+
+
 class AdminCredentialRequest(BaseModel):
     password: str = Field(min_length=1, max_length=500)
     confirm: bool = False
@@ -440,6 +447,16 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "same-origin")
+    response.headers.setdefault("Cache-Control", "no-store" if request.url.path.startswith("/api/auth") else "no-cache")
+    return response
+
+
 @app.get("/api/health")
 def health() -> dict[str, Any]:
     return {"status": "ready", "product": "Luminifera", "engine": "Python Core / Runtime V3"}
@@ -495,9 +512,26 @@ def admin_access(actor: str = Depends(_admin_actor)) -> dict[str, Any]:
 @app.post("/api/auth/login")
 def auth_login(request: AuthLoginRequest) -> dict[str, Any]:
     try:
-        return core.auth.login(request.account_id, request.password)
+        controls = core.admin.advanced().get("controls", {})
+        return core.auth.login(request.account_id, request.password, max_attempts=int(controls.get("rate_limit_per_minute", 60)))
     except AuthenticationError as exc:
         raise HTTPException(status_code=401, detail=str(exc)) from exc
+
+
+@app.post("/api/auth/register", status_code=201)
+def auth_register(request: AuthRegisterRequest) -> dict[str, Any]:
+    controls = core.admin.advanced().get("controls", {})
+    if controls.get("registration_enabled") is not True:
+        raise HTTPException(status_code=403, detail="registration_disabled")
+    try:
+        result = core.auth.register(request.account_id, request.display_name, request.password, language=request.language)
+    except ValueError as exc:
+        detail = str(exc)
+        if detail == "account_already_exists":
+            raise HTTPException(status_code=409, detail=detail) from exc
+        raise HTTPException(status_code=422, detail=detail) from exc
+    core.database.log_event("account_registered", json.dumps({"account_id": result["account_id"], "source": "public_auth"}))
+    return result
 
 
 @app.get("/api/auth/me")

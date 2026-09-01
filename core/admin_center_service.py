@@ -210,7 +210,7 @@ class AdminCenterService:
     def advanced(self) -> dict[str, Any]:
         allowed = {"theme", "interface_language", "message_sounds_enabled", "reduce_motion", "runtime_engine", "codex_timeout_seconds", "response_timeout_seconds", "goal_turn_limit"}
         persisted = self.database.list_admin_settings()
-        return {"settings": {key: persisted.get(key, self.settings.get(key)) for key in sorted(allowed)}, "storage": "local durable database", "secrets": "masked", "controls": {"retention_days": persisted.get("retention_days", 90), "registration_enabled": persisted.get("registration_enabled", True), "session_ttl_hours": persisted.get("session_ttl_hours", 24), "rate_limit_per_minute": persisted.get("rate_limit_per_minute", 60), "maintenance_mode": persisted.get("maintenance_mode", False)}}
+        return {"settings": {key: persisted.get(key, self.settings.get(key)) for key in sorted(allowed)}, "storage": "local durable database", "secrets": "masked", "controls": {"retention_days": persisted.get("retention_days", 90), "registration_enabled": persisted.get("registration_enabled", False), "session_ttl_hours": persisted.get("session_ttl_hours", 24), "rate_limit_per_minute": persisted.get("rate_limit_per_minute", 60), "maintenance_mode": persisted.get("maintenance_mode", False)}}
 
     def health(self) -> dict[str, Any]:
         with self.database.connect() as conn:
@@ -219,7 +219,24 @@ class AdminCenterService:
         return {"database": "OK" if integrity.lower() == "ok" else "ERROR", "foreign_keys": foreign_keys, "runtime": "available", "status": "READY" if integrity.lower() == "ok" and foreign_keys == 0 else "DEGRADED"}
 
     def security(self) -> dict[str, Any]:
-        return {"credential_storage": "protected", "secret_response": "never returned", "audit": "enabled", "rbac": "owner/admin", "recent": self.audit(40)}
+        persisted = self.database.list_admin_settings()
+        with self.database.connect() as conn:
+            sessions = int(conn.execute("SELECT COUNT(*) FROM admin_sessions WHERE revoked_at IS NULL AND datetime(expires_at) > CURRENT_TIMESTAMP").fetchone()[0])
+            accounts = int(conn.execute("SELECT COUNT(*) FROM admin_accounts").fetchone()[0])
+        attempts = self.database.auth_security_counts()
+        return {
+            "credential_storage": "PBKDF2-SHA256 protected",
+            "secret_response": "never returned",
+            "audit": "enabled",
+            "rbac": "authenticated account role",
+            "registration": "enabled" if persisted.get("registration_enabled") is True else "disabled by default",
+            "active_sessions": sessions,
+            "accounts": accounts,
+            "failed_logins_last_15m": attempts["failed"],
+            "successful_logins_last_15m": attempts["successful"],
+            "rate_limit": int(persisted.get("rate_limit_per_minute", 60)),
+            "recent": self.audit(40),
+        }
 
     def plans(self) -> dict[str, Any]:
         plans = []

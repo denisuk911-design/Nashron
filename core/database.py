@@ -238,6 +238,15 @@ class Database:
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (account_id) REFERENCES admin_accounts(account_id) ON DELETE CASCADE
             );
+            CREATE TABLE IF NOT EXISTS auth_attempts (
+                attempt_id TEXT PRIMARY KEY,
+                account_id TEXT,
+                identifier_hash TEXT NOT NULL,
+                succeeded INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (account_id) REFERENCES admin_accounts(account_id) ON DELETE SET NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_auth_attempts_identifier_time ON auth_attempts(identifier_hash, created_at);
             CREATE TABLE IF NOT EXISTS provider_pricing_registry (
                 pricing_id TEXT PRIMARY KEY,
                 provider_id TEXT NOT NULL,
@@ -2249,6 +2258,29 @@ class Database:
     def get_account_credential(self, account_id: str) -> sqlite3.Row | None:
         with self.connect() as conn:
             return conn.execute("SELECT * FROM account_credentials WHERE account_id = ?", (account_id,)).fetchone()
+
+    def record_auth_attempt(self, identifier_hash: str, *, account_id: str | None = None, succeeded: bool = False) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO auth_attempts (attempt_id, account_id, identifier_hash, succeeded) VALUES (?, ?, ?, ?)",
+                (f"AUTH-{uuid.uuid4().hex[:16].upper()}", account_id, identifier_hash, 1 if succeeded else 0),
+            )
+
+    def count_auth_failures(self, identifier_hash: str, *, since_minutes: int = 15) -> int:
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) AS total FROM auth_attempts WHERE identifier_hash = ? AND succeeded = 0 AND datetime(created_at) >= datetime('now', ?)",
+                (identifier_hash, f"-{int(since_minutes)} minutes"),
+            ).fetchone()
+            return int(row["total"] or 0)
+
+    def auth_security_counts(self, *, since_minutes: int = 15) -> dict[str, int]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT succeeded, COUNT(*) AS total FROM auth_attempts WHERE datetime(created_at) >= datetime('now', ?) GROUP BY succeeded",
+                (f"-{int(since_minutes)} minutes",),
+            ).fetchall()
+        return {"failed": sum(int(row["total"]) for row in rows if not row["succeeded"]), "successful": sum(int(row["total"]) for row in rows if row["succeeded"])}
 
     def create_admin_session(self, session_id: str, account_id: str, token_hash: str, expires_at: str) -> None:
         with self.connect() as conn:

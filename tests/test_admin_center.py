@@ -15,7 +15,7 @@ def test_admin_center_is_real_read_model_and_rejects_member(tmp_path, monkeypatc
     assert client.get("/api/admin/advanced").status_code == 200
     assert client.get("/api/admin/audit").status_code == 200
     assert client.get("/api/admin/health").json()["foreign_keys"] == 0
-    assert client.get("/api/admin/security").json()["rbac"] == "owner/admin"
+    assert client.get("/api/admin/security").json()["rbac"] == "authenticated account role"
     assert client.get("/api/admin/plans").status_code == 200
     assert client.get("/api/admin/dashboard", headers={"X-User-Role": "member"}).status_code == 403
 
@@ -114,3 +114,25 @@ def test_phase4_auth_pricing_and_quota_denial_are_real(tmp_path, monkeypatch):
     assert client.get("/api/admin/access", headers={"X-Account-Id": "owner"}).status_code == 403
     assert client.post("/api/auth/logout", headers={"Authorization": f"Bearer {token}"}).json()["revoked"] is True
     assert client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"}).status_code == 401
+
+
+def test_phase5_public_auth_gate_rate_limit_and_security_read_model(tmp_path, monkeypatch):
+    monkeypatch.setenv("TEAM2050_HOME", str(tmp_path / "profile"))
+    import services.api.app as app_module
+
+    isolated = app_module.WebCore()
+    monkeypatch.setattr(app_module, "core", isolated)
+    client = TestClient(app_module.app)
+    assert client.post("/api/auth/register", json={"account_id": "new-user", "display_name": "New User", "password": "safe-pass-123"}).status_code == 403
+    assert client.get("/api/admin/security").json()["registration"] == "disabled by default"
+    assert client.patch("/api/admin/advanced", json={"registration_enabled": True, "rate_limit_per_minute": 2}).status_code == 200
+    created = client.post("/api/auth/register", json={"account_id": "new-user", "display_name": "New User", "password": "safe-pass-123", "language": "en"})
+    assert created.status_code == 201
+    assert client.post("/api/auth/register", json={"account_id": "new-user", "display_name": "Again", "password": "safe-pass-123"}).status_code == 409
+    assert client.post("/api/auth/login", json={"account_id": "new-user", "password": "wrong-pass-123"}).status_code == 401
+    assert client.post("/api/auth/login", json={"account_id": "new-user", "password": "wrong-pass-123"}).status_code == 401
+    assert client.post("/api/auth/login", json={"account_id": "new-user", "password": "safe-pass-123"}).json().get("token") is None
+    security = client.get("/api/admin/security").json()
+    assert security["failed_logins_last_15m"] >= 2
+    assert security["registration"] == "enabled"
+    assert client.get("/api/health").headers["X-Content-Type-Options"] == "nosniff"
