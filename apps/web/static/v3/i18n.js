@@ -25,10 +25,10 @@
   const canonical = Object.assign({}, ...Object.values(dicts).map(dict => Object.fromEntries(Object.entries(dict).map(([key, value]) => [value, key]))));
   function apply(root=document) {
     const dict = dicts[document.documentElement.lang] || dicts.ru;
-    root.querySelectorAll?.("input,textarea,select,button").forEach(el => ["placeholder","title","aria-label"].forEach(attr => { const v=el.getAttribute(attr); if(!v) return; const previous=originalAttrs.get(el)?.[attr]||v; const key=canonical[previous]||previous; if(!originalAttrs.has(el)) originalAttrs.set(el,{}); originalAttrs.get(el)[attr]=key; el.setAttribute(attr,dict[key]||key); }));
+    root.querySelectorAll?.("input,textarea,select,button").forEach(el => ["placeholder","title","aria-label"].forEach(attr => { const v=el.getAttribute(attr); if(!v) return; const previous=originalAttrs.get(el)?.[attr]||v; const key=canonical[previous]||previous; if(!originalAttrs.has(el)) originalAttrs.set(el,{}); originalAttrs.get(el)[attr]=key; const next=dict[key]||key; if(v!==next) el.setAttribute(attr,next); }));
     const walker=document.createTreeWalker(root.body||root,NodeFilter.SHOW_TEXT), nodes=[];
     while(walker.nextNode()) nodes.push(walker.currentNode);
-    nodes.forEach(node => { if(node.parentElement?.closest(".message,script,style")) return; if(!originalText.has(node)) originalText.set(node,node.nodeValue); const source=originalText.get(node), raw=source.trim(), key=canonical[raw]||raw; if(key) node.nodeValue=source.replace(raw,dict[key]||key); });
+    nodes.forEach(node => { if(node.parentElement?.closest(".message,script,style")) return; if(!originalText.has(node)) originalText.set(node,node.nodeValue); const source=originalText.get(node), raw=source.trim(), key=canonical[raw]||raw; if(key){const next=source.replace(raw,dict[key]||key);if(node.nodeValue!==next) node.nodeValue=next;} });
   }
   window.LuminiferaI18n={apply};
   const start=()=>{apply();new MutationObserver(()=>apply()).observe(document.body,{childList:true,subtree:true});};
