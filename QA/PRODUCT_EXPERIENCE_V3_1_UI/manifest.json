@@ -1,0 +1,30 @@
+{
+  "checks": {
+    "iris_goal_proposal": true,
+    "team_created_from_ui": true,
+    "goal_created_from_ui": true,
+    "goal_started_from_ui": true,
+    "wheel_home_to_team_1920": true,
+    "wheel_team_to_work_1920": true,
+    "theme_applies_1920": true,
+    "edge_spring_1920": true,
+    "wheel_home_to_team_1440": true,
+    "wheel_team_to_work_1440": true,
+    "theme_applies_1440": true,
+    "edge_spring_1440": true
+  },
+  "captures": [
+    "home-1920x1080.png",
+    "team-1920x1080.png",
+    "work-1920x1080.png",
+    "files-1920x1080.png",
+    "settings-1920x1080.png",
+    "home-1440x900.png",
+    "team-1440x900.png",
+    "work-1440x900.png",
+    "files-1440x900.png",
+    "settings-1440x900.png"
+  ],
+  "errors": [],
+  "passed": true
+}

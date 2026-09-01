@@ -29,3 +29,8 @@ html[data-theme="light"] .settings-card input,html[data-theme="light"] .settings
 .activity-dot.review { background:#8da7ff; box-shadow:0 0 12px rgba(141,167,255,.7); }
 .activity-dot.complete { background:#b9a6ff; box-shadow:0 0 12px rgba(185,166,255,.7); }
 .completion-card { border-color:rgba(185,166,255,.45); }
+.work-activity { position:relative; overflow:hidden; }
+.work-activity::before { content:""; position:absolute; inset:0 auto 0 0; width:2px; background:linear-gradient(#6edbb0,#a796ff); opacity:.7; }
+.completion-card strong { display:block; font:26px Georgia,serif; margin:8px 0; color:#efeaff; }
+.completion-card p { color:var(--muted); margin:0 0 14px; }
+.completion-message { border-color:rgba(185,166,255,.5); background:linear-gradient(135deg,rgba(73,55,145,.7),rgba(17,27,56,.9))!important; box-shadow:0 0 28px rgba(126,103,255,.18)!important; }
