@@ -12,6 +12,15 @@ class ReviewProxy(BaseHTTPRequestHandler):
     api_port = 18000
     blocked = ("/api/admin", "/api/docs", "/api/openapi.json")
 
+    def _same_origin_runtime_config(self) -> None:
+        payload = b'window.LUMINIFERA_API_BASE = "";\n'
+        self.send_response(200)
+        self.send_header("Content-Type", "application/javascript; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
+
     def _forward(self, target_port: int) -> None:
         path = self.path
         if path.startswith("/api") and any(path.startswith(prefix) for prefix in self.blocked):
@@ -38,7 +47,11 @@ class ReviewProxy(BaseHTTPRequestHandler):
             connection.close()
 
     def do_GET(self) -> None:
-        self._forward(self.api_port if urlsplit(self.path).path.startswith("/api/") else self.web_port)
+        path = urlsplit(self.path).path
+        if path == "/runtime-config.js":
+            self._same_origin_runtime_config()
+            return
+        self._forward(self.api_port if path.startswith("/api/") else self.web_port)
 
     def do_POST(self) -> None:
         self._forward(self.api_port)
