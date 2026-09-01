@@ -12,6 +12,7 @@ import os
 import time
 from pathlib import Path
 from urllib.parse import urljoin
+from urllib.request import Request, urlopen
 
 from playwright.sync_api import sync_playwright
 
@@ -34,6 +35,11 @@ def main() -> int:
         "console": [],
         "errors": [],
     }
+    build_url = urljoin(base, "api/build-info")
+    def read_build() -> dict[str, object]:
+        request = Request(build_url, headers={"Cache-Control": "no-cache"})
+        with urlopen(request, timeout=20) as response:
+            return json.loads(response.read().decode("utf-8"))
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()
         for width, height in ((1920, 1080), (1440, 900)):
@@ -47,7 +53,7 @@ def main() -> int:
             build = None
             while time.monotonic() < deadline:
                 try:
-                    build = page.evaluate("async url => (await fetch(url, {cache:'no-store'})).json()", urljoin(base, "api/build-info"))
+                    build = read_build()
                     if str(build.get("commit", "")).startswith(args.target_sha):
                         break
                 except Exception:
