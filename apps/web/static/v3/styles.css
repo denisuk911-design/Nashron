@@ -29,6 +29,15 @@ html[data-theme="light"] .settings-card input,html[data-theme="light"] .settings
 .activity-dot.review { background:#8da7ff; box-shadow:0 0 12px rgba(141,167,255,.7); }
 .activity-dot.complete { background:#b9a6ff; box-shadow:0 0 12px rgba(185,166,255,.7); }
 .completion-card { border-color:rgba(185,166,255,.45); }
+.employee-panel { position:absolute; z-index:8; right:18px; top:18px; width:min(330px,calc(100% - 36px)); padding:22px; border:1px solid rgba(171,157,255,.42); border-radius:24px; background:linear-gradient(145deg,rgba(21,29,67,.97),rgba(6,13,32,.98)); box-shadow:0 24px 80px rgba(0,0,0,.48); }
+.employee-panel h3 { margin:8px 0 4px; font:26px Georgia,serif; color:#f3f0ff; }
+.employee-panel p { margin:0; color:var(--muted); line-height:1.45; }
+.employee-role { color:#c6cfff!important; }
+.employee-panel-close { position:absolute; right:14px; top:10px; border:0; background:transparent; color:#cbd5e9; font-size:24px; cursor:pointer; }
+.employee-state { display:flex; align-items:center; gap:8px; margin:14px 0; color:#73e0b0; font-size:12px; }
+.employee-state i { width:7px; height:7px; border-radius:50%; background:#63d9a6; box-shadow:0 0 12px #63d9a6; }
+.employee-section { margin-top:14px; padding-top:12px; border-top:1px solid rgba(145,161,226,.14); }
+.employee-section b { display:block; margin-bottom:4px; color:#eeeaff; font-size:12px; }
 .work-activity { position:relative; overflow:hidden; }
 .work-activity::before { content:""; position:absolute; inset:0 auto 0 0; width:2px; background:linear-gradient(#6edbb0,#a796ff); opacity:.7; }
 .completion-card strong { display:block; font:26px Georgia,serif; margin:8px 0; color:#efeaff; }
