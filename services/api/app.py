@@ -1229,3 +1229,9 @@ if STATIC.is_dir():
 @app.get("/", include_in_schema=False)
 def index() -> FileResponse:
     return FileResponse(STATIC / "index.html")
+
+
+@app.get("/app", include_in_schema=False)
+@app.get("/app/", include_in_schema=False)
+def workspace_app() -> FileResponse:
+    return FileResponse(STATIC / "app.html")

@@ -17,6 +17,17 @@ def test_web_health_and_openapi():
     assert "/api/executions" in schema["paths"]
 
 
+def test_product_shell_and_assets_are_served_by_fastapi():
+    from services.api.app import app
+
+    client = TestClient(app)
+    assert client.get("/").status_code == 200
+    assert client.get("/app").status_code == 200
+    assert client.get("/assets/app.css").status_code == 200
+    assert client.get("/assets/v3/app.js").status_code == 200
+    assert client.get("/assets/v3/config.js").status_code == 200
+
+
 def test_runtime_neutral_execution_endpoint_uses_iris_boundary(tmp_path, monkeypatch):
     monkeypatch.setenv("TEAM2050_HOME", str(tmp_path / "profile"))
     import services.api.app as app_module
