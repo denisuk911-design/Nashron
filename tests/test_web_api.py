@@ -24,6 +24,7 @@ def test_product_shell_and_assets_are_served_by_fastapi():
     client = TestClient(app)
     assert client.get("/").status_code == 200
     assert client.get("/app").status_code == 200
+    assert client.get("/runtime-config.js").text.startswith("window.LUMINIFERA_API_BASE")
     assert client.get("/assets/app.css").status_code == 200
     assert client.get("/assets/v3/app.js").status_code == 200
     assert client.get("/assets/v3/config.js").status_code == 200

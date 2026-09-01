@@ -12,7 +12,7 @@ from typing import Any
 
 from fastapi import FastAPI, File, Header, HTTPException, Query, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -1246,3 +1246,9 @@ def index() -> FileResponse:
 @app.get("/app/", include_in_schema=False)
 def workspace_app() -> FileResponse:
     return FileResponse(STATIC / "app.html")
+
+
+@app.get("/runtime-config.js", include_in_schema=False)
+def runtime_config() -> Response:
+    """Keep the browser bridge same-origin in the hosted deployment."""
+    return Response("window.LUMINIFERA_API_BASE = '';\n", media_type="application/javascript")
