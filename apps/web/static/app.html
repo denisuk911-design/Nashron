@@ -8,13 +8,31 @@
   <link rel="stylesheet" href="/assets/v3/styles.css">
   <link rel="stylesheet" href="/assets/v3/refinement.css?v=f13686d">
   <link rel="stylesheet" href="/assets/v3/provider-settings.css">
+  <link rel="stylesheet" href="/assets/v3/auth-gate.css">
 </head>
-<body>
+<body class="auth-gate-pending">
   <div id="background-media" class="background-media" aria-hidden="true"></div>
   <div class="background-overlay"></div>
   <div class="stars"></div>
   <div class="ambient ambient-a"></div>
   <div class="ambient ambient-b"></div>
+
+  <section id="auth-gate" class="auth-gate" aria-live="polite">
+    <div class="auth-orbit" aria-hidden="true"><span></span><i></i><b></b></div>
+    <div class="auth-copy"><span class="eyebrow">LUMINIFERA · IRIS</span><h1 id="auth-title">Войдите в своё рабочее пространство</h1><p id="auth-subtitle">Ваши команды, цели и проверенные результаты сохранены в профиле.</p></div>
+    <form id="auth-form" class="auth-form">
+      <label id="auth-account-label">Идентификатор профиля<input id="auth-account" name="account_id" autocomplete="username" required maxlength="120"></label>
+      <label id="auth-name-label" hidden>Ваше имя<input id="auth-name" name="display_name" autocomplete="name" maxlength="120"></label>
+      <label>Пароль<input id="auth-password" name="password" type="password" autocomplete="current-password" required maxlength="500"></label>
+      <label id="auth-language-label" hidden>Язык<select id="auth-language"><option value="ru">Русский</option><option value="uk">Українська</option><option value="en">English</option></select></label>
+      <div id="auth-error" class="auth-error" role="alert" hidden></div>
+      <button id="auth-submit" class="primary" type="submit">Войти</button>
+      <button id="auth-alt" class="auth-alt" type="button">Создать аккаунт</button>
+      <button id="auth-password-change" class="auth-alt" type="button" hidden>Сменить пароль</button>
+      <button id="auth-logout" class="auth-alt" type="button" hidden>Выйти</button>
+    </form>
+    <small id="auth-status" class="auth-status"></small>
+  </section>
 
   <div class="app">
     <header class="topbar">
@@ -274,6 +292,7 @@
   <script src="/assets/v3/bridge.js?v=admin-v1"></script>
   <script src="/assets/v3/i18n.js?v=c257b25"></script>
   <script src="/assets/v3/app.js?v=c257b25"></script>
+  <script src="/assets/v3/auth-gate.js?v=phase6-auth"></script>
   <script src="/assets/v3/provider-settings.js"></script>
   <script src="/assets/v3/v36-ui.js"></script>
   <script src="/assets/v3/v37-ui.js"></script>

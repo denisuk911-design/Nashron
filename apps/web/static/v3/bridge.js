@@ -8,7 +8,7 @@
       const response = await fetch(`${apiBase}${path}`, {
         ...options,
         signal: controller.signal,
-        headers: { "Content-Type": "application/json", ...(organizationId ? { "X-Organization-Id": organizationId } : {}), ...(options.headers || {}) },
+        headers: { "Content-Type": "application/json", ...(organizationId ? { "X-Organization-Id": organizationId } : {}), ...(localStorage.getItem("luminifera.authToken") ? { "Authorization": `Bearer ${localStorage.getItem("luminifera.authToken")}` } : {}), ...(options.headers || {}) },
       });
       if (!response.ok) throw new Error((await response.text()) || `HTTP ${response.status}`);
       return response.json();
