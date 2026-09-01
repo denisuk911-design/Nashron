@@ -57,6 +57,7 @@ from core.capability_service import CapabilityExecutionService
 from core.avatar_catalog import list_avatar_files
 from core.admin_center_service import AdminAccessError, AdminCenterService, PolicyDeniedError
 from core.auth_service import AccountAuthService, AuthenticationError
+from core.staging_recovery_service import recover_auth_state_once
 from runtime_v3.models import load_state
 from services.api.events import EventEnvelope
 
@@ -289,6 +290,7 @@ class WebCore:
         self.settings = self.settings_service.load()
         self.database = Database(self.paths.database_path)
         self.database.initialize()
+        recover_auth_state_once(self.database)
         self.management = ManagementService(
             self.database, ConfigurationRepository(self.paths.management_config_dir)
         )
