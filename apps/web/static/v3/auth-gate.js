@@ -4,6 +4,7 @@
   if (!gate) return;
   const $ = id => document.querySelector(id);
   let mode = "login";
+  let initialized = false;
   async function request(path, options = {}) {
     const response = await fetch(`${apiBase}${path}`, { headers: { "Content-Type": "application/json", ...(options.headers || {}) }, ...options });
     const data = await response.json().catch(() => ({}));
@@ -28,13 +29,13 @@
   async function open() {
     const token = localStorage.getItem("luminifera.authToken");
     if (token) { try { await request("/api/auth/me", { headers: { Authorization: `Bearer ${token}` } }); ready(); return; } catch (_) { localStorage.removeItem("luminifera.authToken"); } }
-    try { const security = await request("/api/admin/security", { headers: { "X-Admin-Role": "owner" } }); setMode(security.owner_bootstrap === "available for fresh install" ? "bootstrap" : "login"); } catch (_) { setMode("login"); }
+    try { const security = await request("/api/admin/security", { headers: { "X-Admin-Role": "owner" } }); setMode(security.owner_bootstrap === "available for fresh install" ? "bootstrap" : "login"); initialized = true; } catch (_) { setMode("login"); initialized = true; }
   }
-  $("#auth-alt").onclick = () => setMode(mode === "login" ? "register" : "login"); $("#auth-password-change").onclick = () => setMode("password");
+  $("#auth-alt").onclick = () => { if (initialized) setMode(mode === "login" ? "register" : "login"); }; $("#auth-password-change").onclick = () => { if (initialized) setMode("password"); };
   $("#profile-button")?.addEventListener("click", event => { event.preventDefault(); showAccount(); });
   $("#auth-logout").onclick = async () => { try { await request("/api/auth/logout", { method: "POST", headers: { Authorization: `Bearer ${localStorage.getItem("luminifera.authToken")}` } }); } catch (_) {} localStorage.removeItem("luminifera.authToken"); $("#auth-logout").hidden = true; $("#auth-password-change").hidden = true; setMode("login"); $("#auth-status").textContent = "Вы вышли из профиля."; };
   $("#auth-form").onsubmit = async event => {
-    event.preventDefault(); const error = $("#auth-error"); error.hidden = true; const payload = { account_id: $("#auth-account").value.trim(), password: $("#auth-password").value };
+    event.preventDefault(); if (!initialized) return; const error = $("#auth-error"); error.hidden = true; const payload = { account_id: $("#auth-account").value.trim(), password: $("#auth-password").value };
     if (mode === "bootstrap" || mode === "register") { payload.display_name = $("#auth-name").value.trim(); payload.language = $("#auth-language").value; }
     try {
       let result;
