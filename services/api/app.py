@@ -244,6 +244,7 @@ class WebCore:
             management=self.management,
             providers=self.provider_registry,
             health=self.provider_health,
+            credentials=self.provider_credentials,
         )
         self.runtime_v3 = RuntimeV3GoalService(
             self.workspace_root / "runtime_v3_goals",

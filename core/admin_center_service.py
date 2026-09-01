@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 from datetime import datetime, timezone
 from typing import Any
 
@@ -20,12 +21,13 @@ class AdminCenterService:
 
     ADMIN_ROLES = {"owner", "admin", "organization_owner", "organization_admin"}
 
-    def __init__(self, database: Database, *, settings: dict[str, Any], management: Any, providers: Any, health: Any) -> None:
+    def __init__(self, database: Database, *, settings: dict[str, Any], management: Any, providers: Any, health: Any, credentials: Any | None = None) -> None:
         self.database = database
         self.settings = settings
         self.management = management
         self.providers = providers
         self.provider_health = health
+        self.credentials = credentials
 
     @classmethod
     def authorize(cls, role: str | None, *, require_explicit: bool = False) -> str:
@@ -71,7 +73,7 @@ class AdminCenterService:
             provider_health.append({
                 "name": profile.display_name,
                 "state": current.health_status if current else "UNKNOWN",
-                "configured": bool(self.settings.get("active_provider_id") == profile.provider_id),
+                "configured": bool(self.credentials.is_configured(profile.provider_id)) if self.credentials is not None else bool(self.settings.get("active_provider_id") == profile.provider_id),
             })
         return {
             "counts": counts,
@@ -106,7 +108,7 @@ class AdminCenterService:
                 "authentication": current.authentication_status if current else "NOT_CHECKED",
                 "capabilities": list(profile.capability_matrix),
                 "active": self.settings.get("active_provider_id") == profile.provider_id,
-                "credential_saved": bool(self.settings.get("active_provider_id") == profile.provider_id),
+                "credential_saved": bool(self.credentials.is_configured(profile.provider_id)) if self.credentials is not None else False,
             })
         return result
 
@@ -157,5 +159,11 @@ class AdminCenterService:
             raise ValueError("unsupported_user_status")
         changed = self.database.update_admin_user(user_id, status=status)
         if changed:
-            self.database.log_event("admin_user_status_changed", json.dumps({"actor": actor, "user_id": user_id, "status": status}))
+            detail = {"actor": actor, "user_id": user_id, "status": status}
+            self.database.log_event("admin_user_status_changed", json.dumps(detail))
+            with self.database.connect() as conn:
+                conn.execute(
+                    "INSERT INTO management_audit_events (id, actor, object_type, object_id, action, new_value, reason) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (f"ADMIN-{uuid.uuid4().hex[:12].upper()}", actor, "admin_user", user_id, "status_changed", json.dumps({"status": status}), "Owner Center action"),
+                )
         return changed
