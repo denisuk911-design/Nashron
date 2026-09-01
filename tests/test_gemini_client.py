@@ -84,7 +84,7 @@ def test_generate_uses_gemini_prompt_and_env(monkeypatch, tmp_path):
     result = GeminiClient(workspace=tmp_path, api_key="secret").generate("prompt")
     assert result.ok
     assert result.content == "Ответ Петра"
-    assert captured["command"][:5] == ["gemini", "--skip-trust", "-m", "gemini-3.1-flash-lite", "-p"]
+    assert captured["command"][:5] == ["gemini", "--skip-trust", "-m", "gemini-3.5-flash-lite", "-p"]
     assert captured["command"][5] == ""
     assert captured["process"].input == b"prompt"
     assert captured["env"]["GEMINI_API_KEY"] == "secret"

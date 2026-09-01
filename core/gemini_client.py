@@ -22,7 +22,7 @@ class GeminiClient:
         timeout_seconds: int = 180,
         api_key: str | None = None,
         credential_lookup: Callable[[], str | None] | None = None,
-        model: str = "gemini-3.1-flash-lite",
+        model: str = "gemini-3.5-flash-lite",
         logger: logging.Logger | None = None,
     ) -> None:
         self.executable = executable
