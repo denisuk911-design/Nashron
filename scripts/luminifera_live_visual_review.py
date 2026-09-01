@@ -58,7 +58,9 @@ def main() -> int:
                 context.close()
                 continue
             result["build"] = build
-            page.goto(args.url, wait_until="networkidle", timeout=60_000)
+            page.goto(args.url, wait_until="domcontentloaded", timeout=60_000)
+            page.locator("#auth-form").wait_for(state="visible", timeout=30_000)
+            page.wait_for_function("() => document.querySelector('#auth-gate')?.getAttribute('aria-busy') !== 'true'")
             page.screenshot(path=str(args.output_dir / f"registration-{width}x{height}.png"), full_page=True)
             result["scenarios"].append(f"registration-{width}x{height}.png")
             page.locator("#auth-alt").click()
@@ -85,6 +87,8 @@ def main() -> int:
                 page.wait_for_timeout(1000)
                 page.screenshot(path=str(args.output_dir / f"iris-after-{width}x{height}.png"), full_page=True)
                 result["scenarios"].extend([f"iris-before-{width}x{height}.png", f"iris-after-{width}x{height}.png"])
+            else:
+                result["errors"].append("LUMINIFERA_REVIEW_EMAIL and LUMINIFERA_REVIEW_PASSWORD are required for Iris live captures")
             result["network"].extend(network)
             result["console"].extend(console_errors)
             context.close()
@@ -92,6 +96,7 @@ def main() -> int:
     result["checks"] = {
         "target_sha": bool(result["build"]),
         "auth_screens": all(any(name.startswith(prefix) and name.endswith(f"{size}.png") for name in result["scenarios"]) for prefix in ("registration-", "login-", "error-") for size in ("1920x1080", "1440x900")),
+        "iris_screens": all(any(name.startswith(prefix) and name.endswith(f"{size}.png") for name in result["scenarios"]) for prefix in ("iris-before-", "iris-after-") for size in ("1920x1080", "1440x900")),
         "no_console_errors": not result["console"],
     }
     result["passed"] = not result["errors"] and all(bool(value) for value in result["checks"].values())
