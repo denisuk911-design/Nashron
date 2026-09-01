@@ -1,0 +1,533 @@
+{
+  "actions": {
+    "action-76ee165e5110": {
+      "action_id": "action-76ee165e5110",
+      "action_type": "filesystem.write",
+      "created_at": "2026-09-01T16:49:52.704946+00:00",
+      "employee_id": "agent-employee-283382",
+      "payload": {
+        "content": "# Research notes\n\nObjective: Research sources, constraints, and options relevant to: Мне нужен результат: техническая спецификация преобразователя 24 В в 12 В, 5 А\n\nSource evidence: research requires an authoritative source before release.\n",
+        "path": "artifacts/research.md"
+      },
+      "work_item_id": "work-42768e2797f4"
+    },
+    "action-ff0439915f81": {
+      "action_id": "action-ff0439915f81",
+      "action_type": "filesystem.write",
+      "created_at": "2026-09-01T16:49:52.704839+00:00",
+      "employee_id": "agent-employee-283382",
+      "payload": {
+        "content": "# Work product\n\nObjective: Create the primary deliverable for: Мне нужен результат: техническая спецификация преобразователя 24 В в 12 В, 5 А\n\nResult: a concise draft prepared for independent review.\n",
+        "path": "artifacts/work_product.md"
+      },
+      "work_item_id": "work-a7fd46c993e8"
+    }
+  },
+  "artifacts": {
+    "artifact-3786b6b01b10": {
+      "artifact_id": "artifact-3786b6b01b10",
+      "artifact_type": "WORK_PRODUCT",
+      "content_hash": "b350353a40538c3aca1ebc4d06d824c9ade874f729ad4d9cc5503dd772161531",
+      "created_at": "2026-09-01T16:49:52.705976+00:00",
+      "created_by_employee_id": "agent-employee-283382",
+      "created_from_action_id": "action-ff0439915f81",
+      "created_from_observation_id": "obs-c6e90b4559e4",
+      "goal_id": "goal-3857d9c8e712",
+      "logical_uri": "artifact://goal-3857d9c8e712/work-a7fd46c993e8/1",
+      "path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\MASTER_PLAN_STEP1_AUTH_FINAL_2\\profile\\workspace\\runtime_v3_goals\\ORG-BCC640F2F08A\\workspace\\artifacts\\work_product.md",
+      "revision": 1,
+      "work_item_id": "work-a7fd46c993e8"
+    },
+    "artifact-45bfe281d9ea": {
+      "artifact_id": "artifact-45bfe281d9ea",
+      "artifact_type": "SOURCE_RESEARCH",
+      "content_hash": "d2d5b221ee5bf9c79e0711fbcd49ad3a9ad9c585cf21a9b85baa12c4992143e9",
+      "created_at": "2026-09-01T16:49:52.708204+00:00",
+      "created_by_employee_id": "agent-employee-283382",
+      "created_from_action_id": "action-76ee165e5110",
+      "created_from_observation_id": "obs-b520ab5e8419",
+      "goal_id": "goal-3857d9c8e712",
+      "logical_uri": "artifact://goal-3857d9c8e712/work-42768e2797f4/1",
+      "path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\MASTER_PLAN_STEP1_AUTH_FINAL_2\\profile\\workspace\\runtime_v3_goals\\ORG-BCC640F2F08A\\workspace\\artifacts\\research.md",
+      "revision": 1,
+      "work_item_id": "work-42768e2797f4"
+    }
+  },
+  "checkpoints": [
+    "checkpoint-a75b81554039",
+    "checkpoint-e4da9c47e224",
+    "checkpoint-e35618f9df1a",
+    "checkpoint-57f4c95b95aa",
+    "checkpoint-d5cc8fdbf7e2",
+    "checkpoint-0b77e82f76cb",
+    "checkpoint-aec38bcf2008"
+  ],
+  "employee_snapshots": {
+    "agent-employee-0db207": {
+      "capabilities": [
+        "QA_ENGINEER",
+        "QA_ENGINEER",
+        "не настроенный провайдер"
+      ],
+      "permissions": [
+        "CHAT",
+        "CREATE_DOCUMENTS",
+        "CREATE_FINDINGS",
+        "READ_WORKSPACE",
+        "REQUEST_APPROVAL",
+        "REVIEW_ARTIFACTS",
+        "RUN_COMMANDS",
+        "WRITE_WORKSPACE"
+      ],
+      "provider_binding_id": "UNAVAILABLE",
+      "provider_capabilities": [],
+      "provider_contract_version": "1.0",
+      "role": "QA_ENGINEER"
+    },
+    "agent-employee-283382": {
+      "capabilities": [
+        "DESIGN_ENGINEER",
+        "DESIGN_ENGINEER",
+        "не настроенный провайдер"
+      ],
+      "permissions": [
+        "CHAT",
+        "CREATE_DOCUMENTS",
+        "MODIFY_PROJECT",
+        "READ_WORKSPACE",
+        "RUN_COMMANDS",
+        "WRITE_WORKSPACE"
+      ],
+      "provider_binding_id": "UNAVAILABLE",
+      "provider_capabilities": [],
+      "provider_contract_version": "1.0",
+      "role": "DESIGN_ENGINEER"
+    },
+    "agent-employee-651212": {
+      "capabilities": [
+        "CUSTOM_TEST_ENGINEER",
+        "CUSTOM_TEST_ENGINEER",
+        "не настроенный провайдер"
+      ],
+      "permissions": [
+        "CHAT",
+        "CREATE_DOCUMENTS",
+        "READ_WORKSPACE",
+        "RUN_COMMANDS",
+        "WRITE_WORKSPACE"
+      ],
+      "provider_binding_id": "UNAVAILABLE",
+      "provider_capabilities": [],
+      "provider_contract_version": "1.0",
+      "role": "CUSTOM_TEST_ENGINEER"
+    },
+    "agent-employee-65fc03": {
+      "capabilities": [
+        "DOCUMENT_CONTROL_OFFICER",
+        "DOCUMENT_CONTROL_OFFICER",
+        "не настроенный провайдер"
+      ],
+      "permissions": [
+        "CHAT",
+        "CREATE_DOCUMENTS",
+        "READ_WORKSPACE",
+        "RUN_COMMANDS",
+        "WRITE_WORKSPACE"
+      ],
+      "provider_binding_id": "UNAVAILABLE",
+      "provider_capabilities": [],
+      "provider_contract_version": "1.0",
+      "role": "DOCUMENT_CONTROL_OFFICER"
+    },
+    "agent-employee-7e4b85": {
+      "capabilities": [
+        "CUSTOM_SPECIALIST",
+        "CUSTOM_SPECIALIST",
+        "не настроенный провайдер"
+      ],
+      "permissions": [
+        "CHAT",
+        "CREATE_DOCUMENTS",
+        "READ_WORKSPACE",
+        "RUN_COMMANDS",
+        "WRITE_WORKSPACE"
+      ],
+      "provider_binding_id": "UNAVAILABLE",
+      "provider_capabilities": [],
+      "provider_contract_version": "1.0",
+      "role": "CUSTOM_SPECIALIST"
+    },
+    "agent-employee-90b5d2": {
+      "capabilities": [
+        "PROJECT_MANAGER",
+        "PROJECT_MANAGER",
+        "не настроенный провайдер"
+      ],
+      "permissions": [
+        "CHAT",
+        "MODIFY_PROJECT",
+        "READ_WORKSPACE",
+        "REQUEST_APPROVAL"
+      ],
+      "provider_binding_id": "UNAVAILABLE",
+      "provider_capabilities": [],
+      "provider_contract_version": "1.0",
+      "role": "PROJECT_MANAGER"
+    }
+  },
+  "evidence": {
+    "evidence-18726bcda426": {
+      "created_at": "2026-09-01T16:49:52.708221+00:00",
+      "evidence_id": "evidence-18726bcda426",
+      "evidence_type": "TOOL_OBSERVATION",
+      "goal_id": "goal-3857d9c8e712",
+      "passed": true,
+      "source_action_id": "action-76ee165e5110",
+      "source_observation_id": "obs-b520ab5e8419",
+      "summary": "filesystem.write succeeded",
+      "work_item_id": "work-42768e2797f4"
+    },
+    "evidence-19d3db206a37": {
+      "created_at": "2026-09-01T16:49:52.708357+00:00",
+      "evidence_id": "evidence-19d3db206a37",
+      "evidence_type": "SOURCE_RECORD",
+      "goal_id": "goal-3857d9c8e712",
+      "passed": true,
+      "source_action_id": "action-76ee165e5110",
+      "source_observation_id": "obs-b520ab5e8419",
+      "summary": "research artifact contains source evidence section",
+      "work_item_id": "work-42768e2797f4"
+    },
+    "evidence-bbfa48ed26ce": {
+      "created_at": "2026-09-01T16:49:52.706003+00:00",
+      "evidence_id": "evidence-bbfa48ed26ce",
+      "evidence_type": "TOOL_OBSERVATION",
+      "goal_id": "goal-3857d9c8e712",
+      "passed": true,
+      "source_action_id": "action-ff0439915f81",
+      "source_observation_id": "obs-c6e90b4559e4",
+      "summary": "filesystem.write succeeded",
+      "work_item_id": "work-a7fd46c993e8"
+    }
+  },
+  "findings": {},
+  "goals": {
+    "goal-3857d9c8e712": {
+      "created_at": "2026-09-01T16:49:52.691567+00:00",
+      "definition_of_done": [
+        {
+          "criterion_id": "dod-7618ecc576dc",
+          "description": "Создан проверяемый артефакт технической спецификации",
+          "required_artifact_type": "WORK_PRODUCT",
+          "required_evidence_type": "TOOL_OBSERVATION"
+        },
+        {
+          "criterion_id": "dod-abf8eb3137d4",
+          "description": "Исследование содержит подтвержденные источники",
+          "required_artifact_type": "SOURCE_RESEARCH",
+          "required_evidence_type": "SOURCE_RECORD"
+        },
+        {
+          "criterion_id": "dod-8f077db5e6c5",
+          "description": "Независимая проверка артефактов завершена без открытых замечаний",
+          "required_artifact_type": "",
+          "required_evidence_type": "REVIEW_RECORD"
+        }
+      ],
+      "goal_id": "goal-3857d9c8e712",
+      "intelligence_budget": {
+        "max_cost_units": 6,
+        "provider_cost_units": {},
+        "provider_spend_units": {},
+        "spent_cost_units": 0
+      },
+      "objective": "Мне нужен результат: техническая спецификация преобразователя 24 В в 12 В, 5 А",
+      "plan_id": "plan-4231da4fd62e",
+      "status": "RUNNING",
+      "updated_at": "2026-09-01T16:49:52.693343+00:00",
+      "work_receipt_id": null
+    }
+  },
+  "handoffs": {},
+  "interrupts": {},
+  "observations": {
+    "obs-b520ab5e8419": {
+      "action_id": "action-76ee165e5110",
+      "created_at": "2026-09-01T16:49:52.708157+00:00",
+      "data": {
+        "bytes": 299,
+        "path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\MASTER_PLAN_STEP1_AUTH_FINAL_2\\profile\\workspace\\runtime_v3_goals\\ORG-BCC640F2F08A\\workspace\\artifacts\\research.md",
+        "sha256": "d2d5b221ee5bf9c79e0711fbcd49ad3a9ad9c585cf21a9b85baa12c4992143e9"
+      },
+      "observation_id": "obs-b520ab5e8419",
+      "status": "OK",
+      "summary": "wrote research.md"
+    },
+    "obs-c6e90b4559e4": {
+      "action_id": "action-ff0439915f81",
+      "created_at": "2026-09-01T16:49:52.705929+00:00",
+      "data": {
+        "bytes": 259,
+        "path": "D:\\My Project\\PI-Witcher\\Roman2050\\QA\\MASTER_PLAN_STEP1_AUTH_FINAL_2\\profile\\workspace\\runtime_v3_goals\\ORG-BCC640F2F08A\\workspace\\artifacts\\work_product.md",
+        "sha256": "b350353a40538c3aca1ebc4d06d824c9ade874f729ad4d9cc5503dd772161531"
+      },
+      "observation_id": "obs-c6e90b4559e4",
+      "status": "OK",
+      "summary": "wrote work_product.md"
+    }
+  },
+  "organization_id": "ORG-BCC640F2F08A",
+  "plans": {
+    "plan-4231da4fd62e": {
+      "created_at": "2026-09-01T16:49:52.693305+00:00",
+      "goal_id": "goal-3857d9c8e712",
+      "plan_id": "plan-4231da4fd62e",
+      "strategy": "HANDOFF",
+      "supervisor_employee_id": "supervisor",
+      "work_item_ids": [
+        "work-a7fd46c993e8",
+        "work-42768e2797f4",
+        "work-204ec4bb2716"
+      ]
+    }
+  },
+  "provider_runs": {},
+  "replans": {},
+  "supervisor_decisions": {
+    "supervisor-decision-3b59cc60f674": {
+      "complexity": "COMPLEX",
+      "cost": "LOW",
+      "created_at": "2026-09-01T16:49:52.693333+00:00",
+      "decision_id": "supervisor-decision-3b59cc60f674",
+      "goal_id": "goal-3857d9c8e712",
+      "level": "DETERMINISTIC",
+      "reason": "adapter_unavailable_fallback",
+      "required_capabilities": [],
+      "risk": "LOW",
+      "step": "planning",
+      "work_item_id": ""
+    }
+  },
+  "trace_events": {
+    "trace-4952ffa8c160": {
+      "action_id": "",
+      "artifact_id": "",
+      "created_at": "2026-09-01T16:49:52.701833+00:00",
+      "detail": "",
+      "event_id": "trace-4952ffa8c160",
+      "goal_id": "goal-3857d9c8e712",
+      "observation_id": "",
+      "stage": "work_item_running:work-a7fd46c993e8",
+      "work_item_id": ""
+    },
+    "trace-699712a16776": {
+      "action_id": "action-76ee165e5110",
+      "artifact_id": "",
+      "created_at": "2026-09-01T16:49:52.708182+00:00",
+      "detail": "",
+      "event_id": "trace-699712a16776",
+      "goal_id": "goal-3857d9c8e712",
+      "observation_id": "obs-b520ab5e8419",
+      "stage": "tool_observed",
+      "work_item_id": "work-42768e2797f4"
+    },
+    "trace-70708290d143": {
+      "action_id": "",
+      "artifact_id": "",
+      "created_at": "2026-09-01T16:49:52.691655+00:00",
+      "detail": "",
+      "event_id": "trace-70708290d143",
+      "goal_id": "goal-3857d9c8e712",
+      "observation_id": "",
+      "stage": "goal_created",
+      "work_item_id": ""
+    },
+    "trace-9299c7d9911b": {
+      "action_id": "",
+      "artifact_id": "",
+      "created_at": "2026-09-01T16:49:52.699198+00:00",
+      "detail": "",
+      "event_id": "trace-9299c7d9911b",
+      "goal_id": "goal-3857d9c8e712",
+      "observation_id": "",
+      "stage": "goal_started",
+      "work_item_id": ""
+    },
+    "trace-9b97df09f931": {
+      "action_id": "action-ff0439915f81",
+      "artifact_id": "",
+      "created_at": "2026-09-01T16:49:52.705950+00:00",
+      "detail": "",
+      "event_id": "trace-9b97df09f931",
+      "goal_id": "goal-3857d9c8e712",
+      "observation_id": "obs-c6e90b4559e4",
+      "stage": "tool_observed",
+      "work_item_id": "work-a7fd46c993e8"
+    },
+    "trace-b0eda604a086": {
+      "action_id": "action-ff0439915f81",
+      "artifact_id": "artifact-3786b6b01b10",
+      "created_at": "2026-09-01T16:49:52.705987+00:00",
+      "detail": "",
+      "event_id": "trace-b0eda604a086",
+      "goal_id": "goal-3857d9c8e712",
+      "observation_id": "obs-c6e90b4559e4",
+      "stage": "artifact_created",
+      "work_item_id": "work-a7fd46c993e8"
+    },
+    "trace-b122569c8526": {
+      "action_id": "",
+      "artifact_id": "",
+      "created_at": "2026-09-01T16:49:52.706023+00:00",
+      "detail": "",
+      "event_id": "trace-b122569c8526",
+      "goal_id": "goal-3857d9c8e712",
+      "observation_id": "",
+      "stage": "work_item_finished:work-a7fd46c993e8",
+      "work_item_id": ""
+    },
+    "trace-be4d43228443": {
+      "action_id": "action-76ee165e5110",
+      "artifact_id": "artifact-45bfe281d9ea",
+      "created_at": "2026-09-01T16:49:52.708212+00:00",
+      "detail": "",
+      "event_id": "trace-be4d43228443",
+      "goal_id": "goal-3857d9c8e712",
+      "observation_id": "obs-b520ab5e8419",
+      "stage": "artifact_created",
+      "work_item_id": "work-42768e2797f4"
+    },
+    "trace-c97f0b826c6c": {
+      "action_id": "",
+      "artifact_id": "",
+      "created_at": "2026-09-01T16:49:52.708380+00:00",
+      "detail": "",
+      "event_id": "trace-c97f0b826c6c",
+      "goal_id": "goal-3857d9c8e712",
+      "observation_id": "",
+      "stage": "work_item_finished:work-42768e2797f4",
+      "work_item_id": ""
+    },
+    "trace-f2a87d101ae3": {
+      "action_id": "",
+      "artifact_id": "",
+      "created_at": "2026-09-01T16:49:52.703103+00:00",
+      "detail": "",
+      "event_id": "trace-f2a87d101ae3",
+      "goal_id": "goal-3857d9c8e712",
+      "observation_id": "",
+      "stage": "work_item_running:work-42768e2797f4",
+      "work_item_id": ""
+    },
+    "trace-ff8da99b735d": {
+      "action_id": "",
+      "artifact_id": "",
+      "created_at": "2026-09-01T16:49:52.693359+00:00",
+      "detail": "",
+      "event_id": "trace-ff8da99b735d",
+      "goal_id": "goal-3857d9c8e712",
+      "observation_id": "",
+      "stage": "plan_created",
+      "work_item_id": ""
+    }
+  },
+  "work_items": {
+    "work-204ec4bb2716": {
+      "acceptance_criteria": [
+        "all findings resolved"
+      ],
+      "assigned_employee_id": "agent-employee-0db207",
+      "attempt": 0,
+      "checkpoint_id": null,
+      "dependencies": [
+        "work-a7fd46c993e8",
+        "work-42768e2797f4"
+      ],
+      "evidence_requirements": [
+        "review observation"
+      ],
+      "expected_artifact_types": [
+        "REVIEW_RESULT"
+      ],
+      "goal_id": "goal-3857d9c8e712",
+      "input_artifact_ids": [],
+      "objective": "Review artifacts and evidence",
+      "required_capabilities": [
+        "review"
+      ],
+      "required_tools": [
+        "artifact.review",
+        "filesystem.read"
+      ],
+      "result": {},
+      "status": "PENDING",
+      "work_item_id": "work-204ec4bb2716"
+    },
+    "work-42768e2797f4": {
+      "acceptance_criteria": [
+        "contains source evidence",
+        "is relevant to the stated goal"
+      ],
+      "assigned_employee_id": "agent-employee-283382",
+      "attempt": 1,
+      "checkpoint_id": null,
+      "dependencies": [],
+      "evidence_requirements": [
+        "successful filesystem.write observation"
+      ],
+      "expected_artifact_types": [
+        "SOURCE_RESEARCH"
+      ],
+      "goal_id": "goal-3857d9c8e712",
+      "input_artifact_ids": [],
+      "objective": "Research sources, constraints, and options relevant to: Мне нужен результат: техническая спецификация преобразователя 24 В в 12 В, 5 А",
+      "required_capabilities": [
+        "research"
+      ],
+      "required_tools": [
+        "filesystem.write"
+      ],
+      "result": {
+        "artifact_ids": [
+          "artifact-45bfe281d9ea"
+        ]
+      },
+      "status": "COMPLETED",
+      "work_item_id": "work-42768e2797f4"
+    },
+    "work-a7fd46c993e8": {
+      "acceptance_criteria": [
+        "addresses the stated goal",
+        "contains a usable result"
+      ],
+      "assigned_employee_id": "agent-employee-283382",
+      "attempt": 1,
+      "checkpoint_id": null,
+      "dependencies": [],
+      "evidence_requirements": [
+        "successful filesystem.write observation"
+      ],
+      "expected_artifact_types": [
+        "WORK_PRODUCT"
+      ],
+      "goal_id": "goal-3857d9c8e712",
+      "input_artifact_ids": [],
+      "objective": "Create the primary deliverable for: Мне нужен результат: техническая спецификация преобразователя 24 В в 12 В, 5 А",
+      "required_capabilities": [
+        "specification"
+      ],
+      "required_tools": [
+        "filesystem.write"
+      ],
+      "result": {
+        "artifact_ids": [
+          "artifact-3786b6b01b10"
+        ]
+      },
+      "status": "COMPLETED",
+      "work_item_id": "work-a7fd46c993e8"
+    }
+  },
+  "work_receipts": {},
+  "worker_sessions": {}
+}

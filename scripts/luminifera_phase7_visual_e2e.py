@@ -57,6 +57,7 @@ def main() -> int:
                         title = page.locator("#auth-title").inner_text() if page.locator("#auth-title").count() else ""
                         requests = page.evaluate("performance.getEntriesByType('resource').map(entry => entry.name).filter(name => name.includes('/api/auth/'))")
                         raise RuntimeError(f"first_run_auth_failed: title={title}; error={auth_error}; status={auth_status}; requests={requests}; responses={auth_responses}") from error
+                result.setdefault("auth_responses", []).append({"viewport": f"{width}x{height}", "responses": [{"path": url.split("/api", 1)[-1] if "/api" in url else url, "status": status} for url, status, _ in auth_responses]})
                 page.locator('[data-screen="home"]').wait_for(state="visible")
                 if page.locator(".onboarding-dialog[open]").count():
                     page.locator("#onboarding-start").click(force=True)

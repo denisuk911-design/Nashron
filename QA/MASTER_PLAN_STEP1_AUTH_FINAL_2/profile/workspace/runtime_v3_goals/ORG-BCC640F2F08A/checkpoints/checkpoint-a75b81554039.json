@@ -1,0 +1,183 @@
+{
+  "actions": {},
+  "artifacts": {},
+  "checkpoints": [
+    "checkpoint-a75b81554039"
+  ],
+  "employee_snapshots": {
+    "agent-employee-0db207": {
+      "capabilities": [
+        "QA_ENGINEER",
+        "QA_ENGINEER",
+        "не настроенный провайдер"
+      ],
+      "permissions": [
+        "CHAT",
+        "CREATE_DOCUMENTS",
+        "CREATE_FINDINGS",
+        "READ_WORKSPACE",
+        "REQUEST_APPROVAL",
+        "REVIEW_ARTIFACTS",
+        "RUN_COMMANDS",
+        "WRITE_WORKSPACE"
+      ],
+      "provider_binding_id": "UNAVAILABLE",
+      "provider_capabilities": [],
+      "provider_contract_version": "1.0",
+      "role": "QA_ENGINEER"
+    },
+    "agent-employee-283382": {
+      "capabilities": [
+        "DESIGN_ENGINEER",
+        "DESIGN_ENGINEER",
+        "не настроенный провайдер"
+      ],
+      "permissions": [
+        "CHAT",
+        "CREATE_DOCUMENTS",
+        "MODIFY_PROJECT",
+        "READ_WORKSPACE",
+        "RUN_COMMANDS",
+        "WRITE_WORKSPACE"
+      ],
+      "provider_binding_id": "UNAVAILABLE",
+      "provider_capabilities": [],
+      "provider_contract_version": "1.0",
+      "role": "DESIGN_ENGINEER"
+    },
+    "agent-employee-651212": {
+      "capabilities": [
+        "CUSTOM_TEST_ENGINEER",
+        "CUSTOM_TEST_ENGINEER",
+        "не настроенный провайдер"
+      ],
+      "permissions": [
+        "CHAT",
+        "CREATE_DOCUMENTS",
+        "READ_WORKSPACE",
+        "RUN_COMMANDS",
+        "WRITE_WORKSPACE"
+      ],
+      "provider_binding_id": "UNAVAILABLE",
+      "provider_capabilities": [],
+      "provider_contract_version": "1.0",
+      "role": "CUSTOM_TEST_ENGINEER"
+    },
+    "agent-employee-65fc03": {
+      "capabilities": [
+        "DOCUMENT_CONTROL_OFFICER",
+        "DOCUMENT_CONTROL_OFFICER",
+        "не настроенный провайдер"
+      ],
+      "permissions": [
+        "CHAT",
+        "CREATE_DOCUMENTS",
+        "READ_WORKSPACE",
+        "RUN_COMMANDS",
+        "WRITE_WORKSPACE"
+      ],
+      "provider_binding_id": "UNAVAILABLE",
+      "provider_capabilities": [],
+      "provider_contract_version": "1.0",
+      "role": "DOCUMENT_CONTROL_OFFICER"
+    },
+    "agent-employee-7e4b85": {
+      "capabilities": [
+        "CUSTOM_SPECIALIST",
+        "CUSTOM_SPECIALIST",
+        "не настроенный провайдер"
+      ],
+      "permissions": [
+        "CHAT",
+        "CREATE_DOCUMENTS",
+        "READ_WORKSPACE",
+        "RUN_COMMANDS",
+        "WRITE_WORKSPACE"
+      ],
+      "provider_binding_id": "UNAVAILABLE",
+      "provider_capabilities": [],
+      "provider_contract_version": "1.0",
+      "role": "CUSTOM_SPECIALIST"
+    },
+    "agent-employee-90b5d2": {
+      "capabilities": [
+        "PROJECT_MANAGER",
+        "PROJECT_MANAGER",
+        "не настроенный провайдер"
+      ],
+      "permissions": [
+        "CHAT",
+        "MODIFY_PROJECT",
+        "READ_WORKSPACE",
+        "REQUEST_APPROVAL"
+      ],
+      "provider_binding_id": "UNAVAILABLE",
+      "provider_capabilities": [],
+      "provider_contract_version": "1.0",
+      "role": "PROJECT_MANAGER"
+    }
+  },
+  "evidence": {},
+  "findings": {},
+  "goals": {
+    "goal-3857d9c8e712": {
+      "created_at": "2026-09-01T16:49:52.691567+00:00",
+      "definition_of_done": [
+        {
+          "criterion_id": "dod-7618ecc576dc",
+          "description": "Создан проверяемый артефакт технической спецификации",
+          "required_artifact_type": "WORK_PRODUCT",
+          "required_evidence_type": "TOOL_OBSERVATION"
+        },
+        {
+          "criterion_id": "dod-abf8eb3137d4",
+          "description": "Исследование содержит подтвержденные источники",
+          "required_artifact_type": "SOURCE_RESEARCH",
+          "required_evidence_type": "SOURCE_RECORD"
+        },
+        {
+          "criterion_id": "dod-8f077db5e6c5",
+          "description": "Независимая проверка артефактов завершена без открытых замечаний",
+          "required_artifact_type": "",
+          "required_evidence_type": "REVIEW_RECORD"
+        }
+      ],
+      "goal_id": "goal-3857d9c8e712",
+      "intelligence_budget": {
+        "max_cost_units": 6,
+        "provider_cost_units": {},
+        "provider_spend_units": {},
+        "spent_cost_units": 0
+      },
+      "objective": "Мне нужен результат: техническая спецификация преобразователя 24 В в 12 В, 5 А",
+      "plan_id": null,
+      "status": "DRAFT",
+      "updated_at": "2026-09-01T16:49:52.691585+00:00",
+      "work_receipt_id": null
+    }
+  },
+  "handoffs": {},
+  "interrupts": {},
+  "observations": {},
+  "organization_id": "ORG-BCC640F2F08A",
+  "plans": {},
+  "provider_runs": {},
+  "replans": {},
+  "supervisor_decisions": {},
+  "trace_events": {
+    "trace-70708290d143": {
+      "action_id": "",
+      "artifact_id": "",
+      "created_at": "2026-09-01T16:49:52.691655+00:00",
+      "detail": "",
+      "event_id": "trace-70708290d143",
+      "goal_id": "goal-3857d9c8e712",
+      "observation_id": "",
+      "stage": "goal_created",
+      "work_item_id": ""
+    }
+  },
+  "work_items": {},
+  "work_receipts": {},
+  "worker_sessions": {}
+}

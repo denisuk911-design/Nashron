@@ -535,6 +535,16 @@ def auth_login(request: AuthLoginRequest) -> dict[str, Any]:
         raise HTTPException(status_code=401, detail=str(exc)) from exc
 
 
+@app.get("/api/auth/bootstrap-status")
+def auth_bootstrap_status() -> dict[str, Any]:
+    """Public, secret-free first-run state used by the unauthenticated UI."""
+    security = core.admin.security()
+    return {
+        "owner_bootstrap": security["owner_bootstrap"],
+        "registration_enabled": security["registration"] == "enabled",
+    }
+
+
 @app.post("/api/auth/bootstrap", status_code=201)
 def auth_bootstrap(request: AuthBootstrapRequest) -> dict[str, Any]:
     try:

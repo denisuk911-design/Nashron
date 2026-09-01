@@ -173,3 +173,18 @@ def test_phase6_first_owner_bootstrap_password_rotation_and_restart(tmp_path, mo
     assert client.get("/api/admin/security").json()["owner_bootstrap"] == "closed"
     restarted = app_module.WebCore()
     assert restarted.admin.security()["owner_bootstrap"] == "closed"
+
+
+def test_public_bootstrap_status_is_available_without_admin_headers(tmp_path, monkeypatch):
+    monkeypatch.setenv("TEAM2050_HOME", str(tmp_path / "profile"))
+    import services.api.app as app_module
+
+    isolated = app_module.WebCore()
+    monkeypatch.setattr(app_module, "core", isolated)
+    client = TestClient(app_module.app)
+    status = client.get("/api/auth/bootstrap-status")
+    assert status.status_code == 200
+    assert status.json() == {"owner_bootstrap": "available for fresh install", "registration_enabled": False}
+    created = client.post("/api/auth/bootstrap", json={"account_id": "owner@example.com", "display_name": "Owner", "password": "owner-pass-123", "language": "uk"})
+    assert created.status_code == 201
+    assert client.get("/api/auth/bootstrap-status").json()["owner_bootstrap"] == "closed"
