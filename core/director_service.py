@@ -50,6 +50,7 @@ class ProjectPlan:
     missing_roles: tuple[str, ...]
     owner_approval_required: bool
     assignments: tuple[PlannedAssignment, ...]
+    project_id: str = ""
     summary: str = ""
     owner_message_id: int | None = None
     max_rework_attempts: int = 2
@@ -80,6 +81,7 @@ class DirectorService:
         goal: str,
         *,
         owner_message_id: int | None = None,
+        project_id: str | None = None,
         max_rework_attempts: int = 2,
     ) -> ProjectPlan:
         goal = " ".join(goal.strip().split())
@@ -98,7 +100,10 @@ class DirectorService:
         if reviewer is None:
             missing_roles.append("REVIEWER")
         owner_approval_required = any(token in goal.casefold() for token in OWNER_APPROVAL_KEYWORDS)
-        project_id = f"project-{organization_id}"
+        project_id = project_id or f"project-{organization_id}"
+        existing_project = self.database.get_project(project_id)
+        if existing_project is not None and str(existing_project["organization_id"] or "") != organization_id:
+            raise ValueError("project_not_in_organization")
         self.database.ensure_project(project_id, "Team2050 Project", organization_id)
         status = "AWAITING_OWNER_APPROVAL" if owner_approval_required else "READY"
         if missing_roles:
@@ -152,6 +157,7 @@ class DirectorService:
         return ProjectPlan(
             plan_id=str(row["id"]),
             organization_id=str(row["organization_id"]),
+            project_id=str(row["project_id"]),
             director_agent_id=str(row["director_agent_id"]),
             director_name=str(profile["display_name"]) if profile is not None else "Удалённый сотрудник",
             goal=str(row["goal"]),

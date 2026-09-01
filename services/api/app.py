@@ -88,6 +88,13 @@ class OrganizationUpdateRequest(BaseModel):
 
 class GoalRequest(BaseModel):
     objective: str = Field(min_length=1, max_length=10_000)
+    project_id: str | None = Field(default=None, max_length=120)
+
+
+class ProjectRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=160)
+    description: str = Field(default="", max_length=2_000)
+    status: str = Field(default="ACTIVE", max_length=30)
 
 
 class ExecutionApiRequest(BaseModel):
@@ -859,6 +866,35 @@ def home(organization_id: str) -> dict[str, Any]:
     return _plain(core.home.snapshot(organization_id))
 
 
+@app.get("/api/projects")
+def projects(x_organization_id: str | None = Header(default=None)) -> list[dict[str, Any]]:
+    return [_row(row) for row in core.database.list_projects(core.organization_id(x_organization_id))]
+
+
+@app.post("/api/projects")
+async def create_project(request: ProjectRequest, x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
+    organization_id = core.organization_id(x_organization_id)
+    if not organization_id:
+        raise HTTPException(status_code=400, detail="organization_required")
+    project_id = f"project-{uuid.uuid4().hex[:12]}"
+    core.database.ensure_project(project_id, request.title.strip(), organization_id)
+    core.database.update_project(project_id, {"description": request.description.strip(), "status": request.status.upper()})
+    project = core.database.get_project(project_id)
+    await core.events.publish({"type": "project.updated", "data": {"project_id": project_id}})
+    return _row(project) if project is not None else {"id": project_id, "title": request.title.strip()}
+
+
+@app.patch("/api/projects/{project_id}")
+async def update_project(project_id: str, request: ProjectRequest, x_organization_id: str | None = Header(default=None)) -> dict[str, Any]:
+    organization_id = core.organization_id(x_organization_id)
+    project = core.database.get_project(project_id)
+    if project is None or str(project["organization_id"] or "") != organization_id:
+        raise HTTPException(status_code=404, detail="project_not_found")
+    core.database.update_project(project_id, {"title": request.title.strip(), "description": request.description.strip(), "status": request.status.upper()})
+    await core.events.publish({"type": "project.updated", "data": {"project_id": project_id}})
+    return _row(core.database.get_project(project_id))
+
+
 @app.get("/api/organizations/{organization_id}/employees")
 def employees(organization_id: str) -> list[dict[str, Any]]:
     core.organization_id(organization_id)
@@ -1068,7 +1104,7 @@ async def create_goal(request: GoalRequest, x_organization_id: str | None = Head
     if not organization_id:
         raise HTTPException(status_code=400, detail="organization_required")
     try:
-        plan = core.supervisor.director(organization_id, request.objective)
+        plan = core.supervisor.director(organization_id, request.objective, project_id=request.project_id)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     result = _public_plan(plan)

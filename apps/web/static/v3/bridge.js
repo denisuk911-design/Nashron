@@ -1,6 +1,6 @@
 (function () {
   const apiBase = window.LUMINIFERA_API_BASE || "";
-  let organizationId = localStorage.getItem("luminifera.organizationId") || null;
+  let organizationId = localStorage.getItem("luminifera.organizationId") || null, projectId = localStorage.getItem("luminifera.projectId") || null;
   const request = async (path, options = {}) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
@@ -19,6 +19,10 @@
     connected: true,
     setOrganization(id) { organizationId = id || null; if (organizationId) localStorage.setItem("luminifera.organizationId", organizationId); else localStorage.removeItem("luminifera.organizationId"); },
     getOrganizationId() { return organizationId; },
+    setProject(id) { projectId = id || null; if (projectId) localStorage.setItem("luminifera.projectId", projectId); else localStorage.removeItem("luminifera.projectId"); },
+    getProjectId() { return projectId; },
+    async getProjects() { return unwrap(await request("/api/projects")) || []; },
+    async createProject(title, description) { return request("/api/projects", { method:"POST", body:JSON.stringify({title, description}) }); },
     async getOrganizations() { return unwrap(await request("/api/organizations")); },
     async createOrganization(name, purpose) { return request("/api/organizations", { method: "POST", body: JSON.stringify({ name, purpose }) }); },
     async renameOrganization(name, purpose) { return request(`/api/organizations/${encodeURIComponent(organizationId)}`, { method: "PATCH", body: JSON.stringify({ name, purpose }) }); },
@@ -79,7 +83,7 @@
       };
     },
     async chat(message) { const payload = await request("/api/chat", { method: "POST", body: JSON.stringify({ content: message }) }); return { ...payload.result, text: payload.result?.message || payload.result?.text || "Ответ от Iris не получен." }; },
-    async createGoal(objective) { return request("/api/goals", { method: "POST", body: JSON.stringify({ objective }) }); },
+    async createGoal(objective) { return request("/api/goals", { method: "POST", body: JSON.stringify({ objective, project_id: projectId }) }); },
     async startGoal(planId) { return request(`/api/goals/${encodeURIComponent(planId)}/start`, { method: "POST" }); },
     async approveGoal(planId) { return request(`/api/goals/${encodeURIComponent(planId)}/approve`, { method: "POST" }); },
     async replanGoal(planId) { return request(`/api/goals/${encodeURIComponent(planId)}/replan`, { method: "POST" }); },

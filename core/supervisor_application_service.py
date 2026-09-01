@@ -38,9 +38,9 @@ class SupervisorApplicationService:
         """Resolve the next executable handoff without executing tools implicitly."""
         return self._director.next_action(plan_id)
 
-    def director(self, organization_id: str, goal: str, *, owner_message_id: int | None = None) -> ProjectPlan:
+    def director(self, organization_id: str, goal: str, *, owner_message_id: int | None = None, project_id: str | None = None) -> ProjectPlan:
         """Create a persistent plan through the Director application service."""
-        return self._director.create_plan(organization_id, goal, owner_message_id=owner_message_id)
+        return self._director.create_plan(organization_id, goal, owner_message_id=owner_message_id, project_id=project_id)
 
     def approve(self, plan_id: str) -> ProjectPlan:
         return self._director.approve_owner_action(plan_id)

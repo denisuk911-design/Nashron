@@ -801,6 +801,9 @@ class Database:
             SELECT organization_id FROM projects WHERE projects.id = tasks.project_id
         ) WHERE organization_id IS NULL""")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_projects_organization ON projects(organization_id)")
+        project_columns = {str(row["name"]) for row in conn.execute("PRAGMA table_info(projects)").fetchall()}
+        if "description" not in project_columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN description TEXT NOT NULL DEFAULT ''")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_tasks_organization ON tasks(organization_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_learning_queue_organization ON learning_queue(organization_id)")
         skill_columns = {str(row["name"]) for row in conn.execute("PRAGMA table_info(skill_packages)").fetchall()}
@@ -3464,6 +3467,24 @@ class Database:
                 """,
                 (project_id, title, organization_id),
             )
+
+    def list_projects(self, organization_id: str | None = None) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            if organization_id:
+                return conn.execute("SELECT * FROM projects WHERE organization_id = ? ORDER BY updated_at DESC, created_at DESC", (organization_id,)).fetchall()
+            return conn.execute("SELECT * FROM projects ORDER BY updated_at DESC, created_at DESC").fetchall()
+
+    def get_project(self, project_id: str) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
+
+    def update_project(self, project_id: str, values: dict[str, Any]) -> None:
+        allowed = {key: value for key, value in values.items() if key in {"title", "description", "status"}}
+        if not allowed:
+            return
+        assignments = ", ".join(f"{key} = ?" for key in allowed)
+        with self.connect() as conn:
+            conn.execute(f"UPDATE projects SET {assignments}, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (*allowed.values(), project_id))
 
     def create_task(
         self,
