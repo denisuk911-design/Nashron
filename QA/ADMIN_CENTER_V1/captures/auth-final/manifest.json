@@ -1,0 +1,154 @@
+{
+  "screens": [
+    "bootstrap-1920.png",
+    "login-1920.png",
+    "registration-off-1920.png"
+  ],
+  "checks": {
+    "bootstrap_visible": true,
+    "bootstrap_no_document_scroll": true,
+    "bootstrap_api_used": true,
+    "registration_policy_off": true,
+    "login_visible_after_bootstrap": true,
+    "registration_screen": true,
+    "auth_dom": {
+      "formOuterHTML": "<form id=\"auth-form\" class=\"auth-form\">\n      <label id=\"auth-account-label\">Идентификатор профиля<input id=\"auth-account\" name=\"account_id\" autocomplete=\"username\" required=\"\" maxlength=\"120\" style=\"\"></label>\n      <label id=\"auth-name-label\">Ваше имя<input id=\"auth-name\" name=\"display_name\" autocomplete=\"name\" maxlength=\"120\" style=\"\"></label>\n      <label>Пароль<input id=\"auth-password\" name=\"password\" type=\"password\" autocomplete=\"current-password\" required=\"\" maxlength=\"500\" style=\"\"></label>\n      <label id=\"auth-language-label\">Язык<select id=\"auth-language\"><option value=\"ru\">Русский</option><option value=\"uk\">Українська</option><option value=\"en\">English</option></select></label>\n      <div id=\"auth-error\" class=\"auth-error\" role=\"alert\" hidden=\"\"></div>\n      <button id=\"auth-submit\" class=\"primary\" type=\"submit\">Создать аккаунт</button>\n      <button id=\"auth-alt\" class=\"auth-alt\" type=\"button\">Уже есть профиль? Войти</button>\n      <button id=\"auth-password-change\" class=\"auth-alt\" type=\"button\" hidden=\"\">Сменить пароль</button>\n      <button id=\"auth-logout\" class=\"auth-alt\" type=\"button\" hidden=\"\">Выйти</button>\n    </form>",
+      "submitType": "submit",
+      "submitDisabled": false,
+      "formHidden": false,
+      "gateHidden": false,
+      "gateDisplay": "grid",
+      "gatePointer": "auto",
+      "gateZ": "50",
+      "duplicateForm": 1,
+      "duplicateSubmit": 1,
+      "onsubmit": "async event => {\n    event.preventDefault(); if (!initialized) return; const error = $(\"#auth-error\"); error.hidden = true; const payload = { account_id: $(\"#auth-account\").value.t"
+    },
+    "real_click": {
+      "trace": [],
+      "pageTrace": [],
+      "dom": {
+        "errorHidden": true,
+        "errorText": "",
+        "mode": "Создать аккаунт"
+      }
+    },
+    "request_submit": {
+      "trace": [
+        {
+          "type": "request",
+          "method": "POST",
+          "url": "http://127.0.0.1:63955/api/auth/register"
+        },
+        {
+          "type": "response",
+          "status": 403,
+          "url": "http://127.0.0.1:63955/api/auth/register"
+        },
+        {
+          "type": "console",
+          "level": "error",
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+        },
+        {
+          "type": "request",
+          "method": "GET",
+          "url": "http://127.0.0.1:63955/api/settings"
+        },
+        {
+          "type": "response",
+          "status": 200,
+          "url": "http://127.0.0.1:63955/api/settings"
+        },
+        {
+          "type": "request",
+          "method": "GET",
+          "url": "http://127.0.0.1:63955/api/providers"
+        },
+        {
+          "type": "response",
+          "status": 200,
+          "url": "http://127.0.0.1:63955/api/providers"
+        },
+        {
+          "type": "request",
+          "method": "GET",
+          "url": "http://127.0.0.1:63955/api/feedback"
+        },
+        {
+          "type": "response",
+          "status": 200,
+          "url": "http://127.0.0.1:63955/api/feedback"
+        }
+      ],
+      "pageTrace": [],
+      "dom": {
+        "errorHidden": false,
+        "errorText": "Регистрация сейчас отключена владельцем.",
+        "mode": "Создать аккаунт"
+      }
+    },
+    "submit_event": {
+      "trace": [
+        {
+          "type": "request",
+          "method": "POST",
+          "url": "http://127.0.0.1:63955/api/auth/register"
+        },
+        {
+          "type": "response",
+          "status": 403,
+          "url": "http://127.0.0.1:63955/api/auth/register"
+        },
+        {
+          "type": "console",
+          "level": "error",
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+        },
+        {
+          "type": "request",
+          "method": "GET",
+          "url": "http://127.0.0.1:63955/api/settings"
+        },
+        {
+          "type": "response",
+          "status": 200,
+          "url": "http://127.0.0.1:63955/api/settings"
+        },
+        {
+          "type": "request",
+          "method": "GET",
+          "url": "http://127.0.0.1:63955/api/providers"
+        },
+        {
+          "type": "response",
+          "status": 200,
+          "url": "http://127.0.0.1:63955/api/providers"
+        },
+        {
+          "type": "request",
+          "method": "GET",
+          "url": "http://127.0.0.1:63955/api/feedback"
+        },
+        {
+          "type": "response",
+          "status": 200,
+          "url": "http://127.0.0.1:63955/api/feedback"
+        }
+      ],
+      "pageTrace": [],
+      "dom": {
+        "errorHidden": false,
+        "errorText": "Регистрация сейчас отключена владельцем.",
+        "mode": "Создать аккаунт"
+      }
+    },
+    "registration_off_error": true,
+    "build_info": {
+      "url": "http://127.0.0.1:63956/app",
+      "api": "http://127.0.0.1:63955/api/health",
+      "status": "ready"
+    }
+  },
+  "errors": []
+}
