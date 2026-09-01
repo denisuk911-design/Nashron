@@ -31,6 +31,7 @@ jobs:
           python -m pip install --upgrade pip playwright
           python -m playwright install --with-deps chromium
       - name: Capture deployed Render UI
+        continue-on-error: true
         env:
           LUMINIFERA_REVIEW_EMAIL: ${{ secrets.LUMINIFERA_REVIEW_EMAIL }}
           LUMINIFERA_REVIEW_PASSWORD: ${{ secrets.LUMINIFERA_REVIEW_PASSWORD }}
@@ -44,3 +45,6 @@ jobs:
           path: site
       - id: deployment
         uses: actions/deploy-pages@v4
+      - name: Verify live review result
+        if: always()
+        run: python -c "import json,sys; result=json.load(open('site/manifest.json',encoding='utf-8')); print(json.dumps(result.get('checks',{}),ensure_ascii=False)); sys.exit(0 if result.get('passed') else 1)"
