@@ -1,6 +1,7 @@
 (function () {
   const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;", "'":"&#039;"}[c]));
-  const api = (path, options = {}) => fetch(path, {headers: {"Content-Type": "application/json", ...(localStorage.getItem("luminifera.authToken") ? {Authorization: `Bearer ${localStorage.getItem("luminifera.authToken")}`} : {}), ...(options.headers || {})}, ...options}).then(async response => {
+  const apiBase = window.LUMINIFERA_API_BASE || "";
+  const api = (path, options = {}) => fetch(`${apiBase}${path}`, {headers: {"Content-Type": "application/json", ...(localStorage.getItem("luminifera.authToken") ? {Authorization: `Bearer ${localStorage.getItem("luminifera.authToken")}`} : {}), ...(options.headers || {})}, ...options}).then(async response => {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.detail || "Не удалось выполнить запрос");
     return data;

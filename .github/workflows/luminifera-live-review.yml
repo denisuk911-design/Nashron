@@ -1,0 +1,44 @@
+name: Luminifera live visual review
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: luminifera-live-review
+  cancel-in-progress: true
+
+jobs:
+  capture-and-publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install browser runner
+        run: |
+          python -m pip install --upgrade pip playwright
+          python -m playwright install --with-deps chromium
+      - name: Capture deployed Render UI
+        env:
+          LUMINIFERA_REVIEW_EMAIL: ${{ secrets.LUMINIFERA_REVIEW_EMAIL }}
+          LUMINIFERA_REVIEW_PASSWORD: ${{ secrets.LUMINIFERA_REVIEW_PASSWORD }}
+        run: >-
+          python scripts/luminifera_live_visual_review.py
+          --target-sha "${{ github.sha }}"
+          --output-dir site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

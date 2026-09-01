@@ -21,10 +21,10 @@
     <div class="auth-orbit" aria-hidden="true"><span></span><i></i><b></b></div><div class="auth-iris-presence" aria-hidden="true"></div>
     <div class="auth-copy"><span class="eyebrow">LUMINIFERA · IRIS</span><h1 id="auth-title">Войдите в своё рабочее пространство</h1><p id="auth-subtitle">Ваши команды, цели и проверенные результаты сохранены в профиле.</p></div>
     <form id="auth-form" class="auth-form">
-      <label id="auth-account-label">Идентификатор профиля<input id="auth-account" name="account_id" autocomplete="username" required maxlength="120"></label>
+      <label id="auth-account-label">Email<input id="auth-account" name="account_id" type="email" autocomplete="email" required maxlength="120"></label>
       <label id="auth-name-label" hidden>Ваше имя<input id="auth-name" name="display_name" autocomplete="name" maxlength="120"></label>
       <label id="auth-password-label">Пароль<input id="auth-password" name="password" type="password" autocomplete="current-password" required maxlength="500"></label>
-      <label id="auth-language-label" hidden>Язык<select id="auth-language"><option value="ru">Русский</option><option value="uk">Українська</option><option value="en">English</option></select></label>
+      <label id="auth-language-label" hidden>Язык интерфейса<select id="auth-language"><option value="ru">Русский</option><option value="uk">Українська</option><option value="en">English</option></select></label>
       <div id="auth-error" class="auth-error" role="alert" hidden></div>
       <button id="auth-submit" class="primary" type="submit">Войти</button>
       <button id="auth-alt" class="auth-alt" type="button">Создать аккаунт</button>

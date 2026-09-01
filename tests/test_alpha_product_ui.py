@@ -119,13 +119,13 @@ def test_standalone_web_launcher_and_package_spec_exist():
     assert "apps/web/static" in spec and 'name="Luminifera"' in spec
 
 
-def test_v37_interaction_layer_provides_wheel_edges_iris_containment_and_theme_preview():
+def test_v37_interaction_layer_preserves_standard_wheel_scroll_and_theme_preview():
     html = (STATIC / "app.html").read_text(encoding="utf-8")
     script = (STATIC / "v3/v37-ui.js").read_text(encoding="utf-8")
     css = (STATIC / "v3/refinement.css").read_text(encoding="utf-8")
     assert "/assets/v3/v37-ui.js" in html
-    assert 'addEventListener("wheel", onWheel' in script
-    assert "internalCanScroll" in script and "edgeSpring" in script
+    assert 'addEventListener("wheel"' not in script
+    assert "preventDefault" not in script
     assert 'data-theme-choice="night_city"' in script
     assert 'object-fit:contain' in css
     assert 'html[data-theme="light"]' in css

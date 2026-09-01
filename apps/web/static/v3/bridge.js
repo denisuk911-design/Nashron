@@ -29,10 +29,12 @@
     async createOrganization(name, purpose) { return request("/api/organizations", { method: "POST", body: JSON.stringify({ name, purpose }) }); },
     async renameOrganization(name, purpose) { return request(`/api/organizations/${encodeURIComponent(organizationId)}`, { method: "PATCH", body: JSON.stringify({ name, purpose }) }); },
     async getHomeState() {
-      if (!organizationId) return { organization: null, team: null, work: null, files: null, message: "Создайте рабочее пространство" };
+      const messagesPayload = await request("/api/chat");
+      const messages = unwrap(messagesPayload) || [];
+      if (!organizationId) return { organization: null, team: null, work: null, files: null, messages, message: "Создайте рабочее пространство" };
       const projectQuery = projectId ? `?project_id=${encodeURIComponent(projectId)}` : "";
-      const [home, filesPayload, messagesPayload] = await Promise.all([request(`/api/organizations/${encodeURIComponent(organizationId)}/home`), request(`/api/files${projectQuery}`), request("/api/chat")]);
-      const files = unwrap(filesPayload) || [], messages = unwrap(messagesPayload) || [];
+      const [home, filesPayload] = await Promise.all([request(`/api/organizations/${encodeURIComponent(organizationId)}/home`), request(`/api/files${projectQuery}`)]);
+      const files = unwrap(filesPayload) || [];
       return { organization: { name: home.organization_name }, team: { count: home.team_size || 0 }, work: { activeGoal: home.goal_title || null, state: home.goal_state, progress: home.goal_progress || 0 }, files: { count: files.length }, messages };
     },
     async getTeamState() { return { members: organizationId ? (unwrap(await request(`/api/organizations/${encodeURIComponent(organizationId)}/employees`)) || []) : [] }; },
