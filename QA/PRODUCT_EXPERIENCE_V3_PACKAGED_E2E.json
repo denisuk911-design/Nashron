@@ -1,0 +1,24 @@
+{
+  "exe": "D:\\My Project\\PI-Witcher\\Roman2050\\dist\\Luminifera.exe",
+  "checks": {
+    "health": {
+      "status": "ready",
+      "product": "Luminifera",
+      "engine": "Python Core / Runtime V3"
+    },
+    "team_created": true,
+    "iris_chat": true,
+    "goal_created": true,
+    "goal_started": true,
+    "work_state": true,
+    "review_state": true,
+    "files_state": true,
+    "settings_persisted": true,
+    "restart_persistence": true
+  },
+  "errors": [],
+  "first_url": "http://127.0.0.1:58741/app",
+  "organization_id": "ORG-B3091F008F90",
+  "second_url": "http://127.0.0.1:58788/app",
+  "passed": true
+}

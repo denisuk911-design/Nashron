@@ -95,5 +95,15 @@
     async saveSettings(settings) { return request("/api/settings", { method: "PATCH", body: JSON.stringify(settings) }); },
     async submitFeedback(category, description) { return request("/api/feedback", { method: "POST", body: JSON.stringify({ category, description }) }); },
     async refresh() { return this.getHomeState(); },
+    connectEvents(onEvent) {
+      if (!organizationId || typeof WebSocket === "undefined") return () => {};
+      const base = apiBase || window.location.origin;
+      let socket;
+      try {
+        socket = new WebSocket(`${base.replace(/^http/, "ws")}/api/events?organization_id=${encodeURIComponent(organizationId)}`);
+        socket.onmessage = event => { try { onEvent(JSON.parse(event.data)); } catch (_) {} };
+      } catch (_) { return () => {}; }
+      return () => socket?.close();
+    },
   };
 })();
