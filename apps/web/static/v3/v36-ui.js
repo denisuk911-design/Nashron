@@ -58,6 +58,19 @@
       const artifacts = Array.isArray(work.artifacts) ? work.artifacts : [];
       const evidence = Number(work.evidence_count ?? receipt.evidence_count ?? 0);
       const review = String(receipt.review_status || (state.review?.length ? "В проверке" : "Не начата"));
+      const assignments = Array.isArray(state.goals?.[0]?.assignments) ? state.goals[0].assignments : [];
+      if (String(work.goal_state || "").toUpperCase() === "COMPLETED") {
+        stage.querySelectorAll(".goal-actions").forEach(node => node.remove());
+      }
+      stage.querySelectorAll(".work-details").forEach(details => {
+        [...details.querySelectorAll(":scope > div")].forEach((row, index) => {
+          const small = row.querySelector("small");
+          const assignee = assignments[index]?.employee_name;
+          if (small && assignee && !small.textContent.trim().startsWith(assignee)) {
+            small.textContent = `${assignee} · ${small.textContent.replace(/^\s*·\s*/, "")}`;
+          }
+        });
+      });
       const proof = document.createElement("section");
       proof.className = "work-proof";
       proof.innerHTML = `<div><span class="eyebrow">РЕЗУЛЬТАТЫ</span><strong>${artifacts.length ? artifacts.map(item => esc(item.title || "Артефакт")).join(" · ") : "Артефакты ещё не созданы"}</strong><small>${artifacts.length} артефакта подтверждены движком</small></div><div><span class="eyebrow">ДОКАЗАТЕЛЬСТВА</span><strong>${evidence}</strong><small>зафиксировано в рабочем цикле</small></div><div><span class="eyebrow">ПРОВЕРКА</span><strong>${esc(review)}</strong><small>${Number(receipt.findings_count || 0)} замечаний</small></div>`;
