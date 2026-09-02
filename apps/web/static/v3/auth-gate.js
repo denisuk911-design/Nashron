@@ -82,17 +82,29 @@
     gate.removeAttribute("aria-busy");
   }
 }
-  $("#auth-language").onchange = event => { language = event.target.value; applyLanguage(); }; $("#auth-alt").onclick = () => {
+  $("#auth-language").onchange = event => {
+  language = event.target.value;
+  applyLanguage();
+};
+
+$("#auth-alt").onclick = () => {
   setMode(mode === "login" ? "register" : "login");
-}; }; $("#auth-password-change").onclick = () => {
+};
+
+$("#auth-password-change").onclick = () => {
   setMode("password");
-}; }; $("#profile-button")?.addEventListener("click", event => { event.preventDefault(); showAccount(); });
+};
+
+$("#profile-button")?.addEventListener("click", event => {
+  event.preventDefault();
+  showAccount();
+});
   $("#auth-logout").onclick = async () => { try { await request("/api/auth/logout", { method:"POST", headers:{Authorization:`Bearer ${localStorage.getItem("luminifera.authToken")}`} }); } catch (_) {} localStorage.removeItem("luminifera.authToken"); gate.classList.remove("auth-ready"); document.body.classList.add("auth-gate-pending"); $("#auth-logout").hidden=true; $("#auth-password-change").hidden=true; setMode("login"); $("#auth-status").textContent = text("login"); window.dispatchEvent(new CustomEvent("luminifera:signed_out")); };
 $("#auth-form").onsubmit = async event => {
   event.preventDefault();
 
   const submit = $("#auth-submit");
-  submit.disabled = true;; const error=$("#auth-error"); error.hidden=true; const payload={account_id:$("#auth-account").value.trim(),password:$("#auth-password").value}; if (mode === "bootstrap" || mode === "register") { payload.display_name=$("#auth-name").value.trim(); payload.language=language; } try { let result; if (mode === "bootstrap") { await request("/api/auth/bootstrap", {method:"POST",body:payload}); result=await request("/api/auth/login", {method:"POST",body:{account_id:payload.account_id,password:payload.password}}); } else if (mode === "register") { await request("/api/auth/register", {method:"POST",body:payload}); $("#auth-status").textContent=text("statusCreated"); result=await request("/api/auth/login", {method:"POST",body:{account_id:payload.account_id,password:payload.password}}); } else if (mode === "password") { await request("/api/auth/password", {method:"PUT",headers:{Authorization:`Bearer ${localStorage.getItem("luminifera.authToken")}`},body:{password:payload.password}}); localStorage.removeItem("luminifera.authToken"); setMode("login"); $("#auth-status").textContent=text("statusChanged"); return; } else result=await request("/api/auth/login", {method:"POST",body:payload}); if (result.token) { localStorage.setItem("luminifera.authToken",result.token); await request("/api/settings", {method:"PATCH",body:{interface_language:language}}).catch(()=>{}); ready(); } } catch (err) {
+  submit.disabled = true; const error=$("#auth-error"); error.hidden=true; const payload={account_id:$("#auth-account").value.trim(),password:$("#auth-password").value}; if (mode === "bootstrap" || mode === "register") { payload.display_name=$("#auth-name").value.trim(); payload.language=language; } try { let result; if (mode === "bootstrap") { await request("/api/auth/bootstrap", {method:"POST",body:payload}); result=await request("/api/auth/login", {method:"POST",body:{account_id:payload.account_id,password:payload.password}}); } else if (mode === "register") { await request("/api/auth/register", {method:"POST",body:payload}); $("#auth-status").textContent=text("statusCreated"); result=await request("/api/auth/login", {method:"POST",body:{account_id:payload.account_id,password:payload.password}}); } else if (mode === "password") { await request("/api/auth/password", {method:"PUT",headers:{Authorization:`Bearer ${localStorage.getItem("luminifera.authToken")}`},body:{password:payload.password}}); localStorage.removeItem("luminifera.authToken"); setMode("login"); $("#auth-status").textContent=text("statusChanged"); return; } else result=await request("/api/auth/login", {method:"POST",body:payload}); if (result.token) { localStorage.setItem("luminifera.authToken",result.token); await request("/api/settings", {method:"PATCH",body:{interface_language:language}}).catch(()=>{}); ready(); } } catch (err) {
   error.textContent = errorText(err);
   error.hidden = false;
 } finally {
