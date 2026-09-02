@@ -29,7 +29,7 @@ set "APP_PYTHON=.venv\Scripts\python.exe"
 
 :install_deps
 echo Ustanovka zavisimostey...
-"%APP_PYTHON%" -m pip install -r requirements.txt
+"%APP_PYTHON%" -m pip install -r requirements-desktop.txt
 if errorlevel 1 (
   echo Ne udalos ustanovit zavisimosti.
   pause

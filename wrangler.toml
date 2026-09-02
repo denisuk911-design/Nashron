@@ -1,0 +1,7 @@
+name = "nashron"
+main = "cloudflare/worker.js"
+compatibility_date = "2026-09-02"
+
+[assets]
+directory = "./apps/web/static"
+not_found_handling = "single-page-application"
