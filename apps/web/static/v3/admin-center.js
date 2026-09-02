@@ -1,4 +1,8 @@
 (function () {
+  if (!localStorage.getItem("luminifera.authToken")) {
+    window.addEventListener("luminifera:authenticated", () => window.location.reload(), {once: true});
+    return;
+  }
   const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;", "'":"&#039;"}[c]));
   const apiBase = window.LUMINIFERA_API_BASE || "";
   const api = (path, options = {}) => fetch(`${apiBase}${path}`, {headers: {"Content-Type": "application/json", ...(localStorage.getItem("luminifera.authToken") ? {Authorization: `Bearer ${localStorage.getItem("luminifera.authToken")}`} : {}), ...(options.headers || {})}, ...options}).then(async response => {
@@ -48,5 +52,6 @@
     try { const path = current === "dashboard" || current === "analytics" ? `/api/admin/${current === "analytics" ? "analytics" : "dashboard"}?period=${encodeURIComponent(period)}` : current === "users" ? `/api/admin/users?query=${encodeURIComponent(userQuery)}` : `/api/admin/${current}`; const data = await api(path); content.innerHTML = current === "dashboard" || current === "analytics" ? renderDashboard(data) : current === "providers" ? renderProviders(data) : current === "users" ? renderUsers(data) : current === "pricing" ? renderPricing(data) : current === "advanced" ? renderAdvanced(data) : current === "audit" ? renderAudit(data) : renderGeneric(data); bindActions(); const selector = content.querySelector("#admin-period"); if (selector) selector.value = period; } catch (error) { content.innerHTML = `<div class="admin-empty admin-bad">Не удалось загрузить раздел: ${esc(error.message)}</div>`; }
   }
   async function init() { try { const access = await api("/api/admin/access"); if (!access.allowed) return; const actions = document.querySelector(".top-actions"); if (!actions) return; const button = document.createElement("button"); button.id = "admin-entry"; button.className = "ghost"; button.type = "button"; button.textContent = "Управление"; actions.append(button); shell(); button.style.display = "inline-flex"; button.onclick = () => { current = "dashboard"; dialog.showModal(); load(); }; } catch (_) { /* ordinary users do not see the owner center */ } }
+  window.addEventListener("luminifera:authenticated", init);
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, {once: true}); else init();
 })();
