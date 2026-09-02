@@ -1,0 +1,139 @@
+{
+  "checks": {
+    "signup_to_iris": true,
+    "iris_message": true,
+    "history_after_route_switch": true,
+    "history_after_reload": true,
+    "logout": true,
+    "history_after_relogin": true,
+    "wheel_does_not_switch_route": true
+  },
+  "errors": [],
+  "screens": [
+    "iris-before.png",
+    "iris-after.png"
+  ],
+  "form_values": {
+    "account": "recovery-owner@example.com",
+    "name": "Recovery Owner",
+    "passwordLength": 17,
+    "submit": "Создать аккаунт"
+  },
+  "relogin_chat_probe": {
+    "dom": 2,
+    "status": 200,
+    "api": [
+      {
+        "id": 1,
+        "conversation_id": 1,
+        "role": "owner",
+        "content": "Что ты умеешь?",
+        "created_at": "2026-09-02T16:48:15",
+        "status": "ok",
+        "attachments": []
+      },
+      {
+        "id": 2,
+        "conversation_id": 1,
+        "role": "assistant",
+        "content": "Понял запрос. Уточните, какую цель или действие нужно выполнить.",
+        "created_at": "2026-09-02T16:48:15",
+        "status": "ok",
+        "attachments": []
+      }
+    ]
+  },
+  "passed": true,
+  "auth_responses": [
+    {
+      "url": "http://127.0.0.1:53015/api/auth/bootstrap-status",
+      "status": 200,
+      "body": {
+        "owner_bootstrap": "available for fresh install",
+        "registration_enabled": false
+      }
+    },
+    {
+      "url": "http://127.0.0.1:53015/api/auth/bootstrap",
+      "status": 201,
+      "body": {
+        "account_id": "recovery-owner@example.com",
+        "status": "owner_created"
+      }
+    },
+    {
+      "url": "http://127.0.0.1:53015/api/auth/login",
+      "status": 200,
+      "body": {
+        "session_id": "SES-82A64F5866B4E15A",
+        "expires_at": "2026-09-03T13:48:12.060268+00:00",
+        "account_id": "recovery-owner@example.com"
+      }
+    },
+    {
+      "url": "http://127.0.0.1:53015/api/auth/me",
+      "status": 200,
+      "body": {
+        "session_id": "SES-82A64F5866B4E15A",
+        "account_id": "recovery-owner@example.com",
+        "role": "owner",
+        "status": "ACTIVE",
+        "organization_id": null,
+        "language": "ru",
+        "plan": "local"
+      }
+    },
+    {
+      "url": "http://127.0.0.1:53015/api/auth/me",
+      "status": 200,
+      "body": {
+        "session_id": "SES-82A64F5866B4E15A",
+        "account_id": "recovery-owner@example.com",
+        "role": "owner",
+        "status": "ACTIVE",
+        "organization_id": null,
+        "language": "ru",
+        "plan": "local"
+      }
+    },
+    {
+      "url": "http://127.0.0.1:53015/api/auth/logout",
+      "status": 200,
+      "body": {
+        "revoked": true
+      }
+    },
+    {
+      "url": "http://127.0.0.1:53015/api/auth/bootstrap-status",
+      "status": 200,
+      "body": {
+        "owner_bootstrap": "closed",
+        "registration_enabled": false
+      }
+    },
+    {
+      "url": "http://127.0.0.1:53015/api/auth/login",
+      "status": 200,
+      "body": {
+        "session_id": "SES-04EF72E5A70E6CAE",
+        "expires_at": "2026-09-03T13:48:24.812527+00:00",
+        "account_id": "recovery-owner@example.com"
+      }
+    },
+    {
+      "url": "http://127.0.0.1:53015/api/auth/me",
+      "status": 200,
+      "body": {
+        "session_id": "SES-04EF72E5A70E6CAE",
+        "account_id": "recovery-owner@example.com",
+        "role": "owner",
+        "status": "ACTIVE",
+        "organization_id": null,
+        "language": "ru",
+        "plan": "local"
+      }
+    }
+  ],
+  "page_errors": [],
+  "failed_resources": []
+}
