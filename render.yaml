@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: nashron
+    runtime: python
+    buildCommand: pip install -r requirements-web.txt
+    startCommand: uvicorn services.api.app:app --host 0.0.0.0 --port $PORT --workers 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"

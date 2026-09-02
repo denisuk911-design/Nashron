@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import sys
+import time
 import uuid
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
@@ -22,6 +23,36 @@ if os.environ.get("TEAM2050_PROJECT_ROOT"):
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+
+def _process_rss_mb() -> float | None:
+    """Read Linux process RSS without adding a monitoring dependency."""
+    try:
+        for line in Path("/proc/self/status").read_text(encoding="utf-8").splitlines():
+            if line.startswith("VmRSS:"):
+                return round(float(line.split()[1]) / 1024, 2)
+    except (OSError, ValueError, IndexError):
+        return None
+    return None
+
+
+_PROCESS_STARTED_AT = time.time()
+_STARTUP_RSS_MB = _process_rss_mb()
+_PEAK_RSS_MB = _STARTUP_RSS_MB
+
+
+def _memory_diagnostics() -> dict[str, Any]:
+    global _PEAK_RSS_MB
+    current = _process_rss_mb()
+    if current is not None:
+        _PEAK_RSS_MB = max(_PEAK_RSS_MB or current, current)
+    return {
+        "rss_mb": current,
+        "peak_rss_mb": _PEAK_RSS_MB,
+        "startup_rss_mb": _STARTUP_RSS_MB,
+        "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(_PROCESS_STARTED_AT)),
+        "pid": os.getpid(),
+    }
+
 from core.agent_directory import list_chat_agents
 from core.config_repository import ConfigurationRepository
 from core.database import Database
@@ -38,7 +69,6 @@ from core.provider_credentials import ProviderCredentialService
 from core.provider_service import CodexProviderAdapter, GeminiProviderAdapter, ProviderHealthService, ProviderRegistry
 from core.runtime_v3_service import RuntimeV3GoalService
 from core.runtime_execution_service import RuntimeExecutionService
-from core.external_runtime_factory import build_external_runtime_adapters
 from core.runtime_journal import RuntimeExecutionJournal
 from core.iris_orchestration_service import IrisExecutionContext, IrisOrchestrationService
 from core.runtime_contracts import ExecutionPolicy
@@ -350,15 +380,22 @@ class WebCore:
         runtime_root = Path(os.environ.get("TEAM2050_RUNTIME_ROOT") or ROOT).resolve()
         active_provider = str(self.settings.get("active_provider_id") or "")
         selected_credential = self.provider_credentials.read(active_provider) if active_provider else None
-        external_runtime_adapters = build_external_runtime_adapters(
-            runtime_root,
-            credential=(
-                selected_credential
-                or self.provider_credentials.read("OPENAI_API")
-                or self.provider_credentials.read("GEMINI_CLI")
-                or ""
-            ),
-        )
+        external_runtime_adapters: dict[str, object] = {}
+        # Render only needs the native API path at startup. External SDK
+        # environments are loaded on explicitly enabled deployments so their
+        # imports and subprocess checks do not inflate the web process.
+        if not os.environ.get("RENDER_SERVICE_ID") or os.environ.get("LUMINIFERA_ENABLE_EXTERNAL_RUNTIMES") == "1":
+            from core.external_runtime_factory import build_external_runtime_adapters
+
+            external_runtime_adapters = build_external_runtime_adapters(
+                runtime_root,
+                credential=(
+                    selected_credential
+                    or self.provider_credentials.read("OPENAI_API")
+                    or self.provider_credentials.read("GEMINI_CLI")
+                    or ""
+                ),
+            )
         self.runtime_execution = RuntimeExecutionService(
             self.runtime_v3,
             external_adapters=external_runtime_adapters,
@@ -453,11 +490,13 @@ def _public_plan(plan: Any) -> dict[str, Any]:
 
 
 core = WebCore()
+_INITIALIZED_RSS_MB = _process_rss_mb()
 app = FastAPI(title="Luminifera API", version="0.1.0", docs_url="/api/docs", redoc_url="/api/redoc")
+_configured_origins = [item.strip().rstrip("/") for item in os.environ.get("LUMINIFERA_WEB_ORIGINS", "").split(",") if item.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
-    allow_origin_regex=r"^http://(?:localhost|127\.0\.0\.1)(?::\d+)?$",
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", *_configured_origins],
+    allow_origin_regex=r"^(?:https://[a-z0-9-]+\.pages\.dev|https://[a-z0-9.-]+\.[a-z]{2,}|http://(?:localhost|127\.0\.0\.1)(?::\d+)?)$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -476,7 +515,12 @@ async def security_headers(request, call_next):
 
 @app.get("/api/health")
 def health() -> dict[str, Any]:
-    return {"status": "ready", "product": "Luminifera", "engine": "Python Core / Runtime V3"}
+    return {"status": "ready", "product": "Luminifera", "engine": "Python Core / Runtime V3", "memory": _memory_diagnostics()}
+
+
+@app.get("/api/diagnostics/memory")
+def memory_diagnostics() -> dict[str, Any]:
+    return {"product": "Luminifera", "initialized_rss_mb": _INITIALIZED_RSS_MB, **_memory_diagnostics()}
 
 
 @app.get("/api/build-info")
