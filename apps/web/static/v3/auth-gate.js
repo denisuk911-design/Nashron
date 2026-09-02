@@ -8,15 +8,23 @@
     uk: { eyebrow:"LUMINIFERA · IRIS", loginTitle:"Увійдіть у свій робочий простір", loginSub:"Ваші команди, цілі та перевірені результати збережені у профілі.", bootstrapTitle:"Відкрийте свій робочий простір", bootstrapSub:"Створіть перший профіль власника. Iris зустріне вас усередині та допоможе почати.", registerTitle:"Створіть профіль Luminifera", registerSub:"Після реєстрації Iris зустріне вас і допоможе розпочати роботу.", passwordTitle:"Оновіть пароль профілю", passwordSub:"Новий пароль захистить доступ до вашого робочого простору.", account:"Email", name:"Ваше ім'я", password:"Пароль", language:"Мова інтерфейсу", login:"Увійти", bootstrap:"Створити акаунт", register:"Створити акаунт", change:"Зберегти пароль", create:"Створити акаунт", back:"Вже маєте профіль? Увійти", logout:"Вийти", statusCreated:"Профіль створено. Входимо до робочого простору…", statusChanged:"Пароль змінено. Увійдіть знову.", invalidEmail:"Введіть коректний email.", nameRequired:"Вкажіть ім'я.", shortPassword:"Пароль має містити щонайменше 10 символів.", passwordRules:"Пароль має містити літери та цифри.", disabled:"Реєстрація зараз недоступна. Для першого запуску створіть робочий простір.", duplicate:"Профіль із таким email уже існує.", invalid:"Профіль не знайдено або введено невірні дані.", rate:"Забагато спроб. Повторіть пізніше.", closed:"Перший профіль уже створено. Увійдіть із його даними.", network:"Не вдалося зв'язатися з Luminifera. Перевірте підключення та повторіть спробу.", generic:"Не вдалося виконати дію. Перевірте дані та повторіть спробу." },
     en: { eyebrow:"LUMINIFERA · IRIS", loginTitle:"Enter your workspace", loginSub:"Your teams, goals, and verified results are saved in your profile.", bootstrapTitle:"Open your workspace", bootstrapSub:"Create the first owner profile. Iris will meet you inside and help you begin.", registerTitle:"Create your Luminifera profile", registerSub:"After registration, Iris will meet you and help you get started.", passwordTitle:"Update your profile password", passwordSub:"A new password protects access to your workspace.", account:"Email", name:"Your name", password:"Password", language:"Interface language", login:"Sign in", bootstrap:"Create workspace", register:"Create account", change:"Save password", create:"Create account", back:"Already have a profile? Sign in", logout:"Sign out", statusCreated:"Profile created. Sign in to continue.", statusChanged:"Password changed. Sign in again.", invalidEmail:"Enter a valid email.", nameRequired:"Enter your name.", shortPassword:"Password must contain at least 10 characters.", passwordRules:"Password must contain letters and numbers.", disabled:"Registration is currently unavailable. Use workspace creation for the first launch.", duplicate:"A profile with this email already exists.", invalid:"Profile not found or the credentials are incorrect.", rate:"Too many attempts. Try again later.", closed:"The first profile already exists. Sign in with its credentials.", network:"Luminifera could not be reached. Check your connection and try again.", generic:"The action could not be completed. Check the details and try again." }
   };
-  let mode = "login", initialized = false, language = localStorage.getItem("luminifera.authLanguage") || document.documentElement.lang || "ru";
+ let mode = "login", language = localStorage.getItem("luminifera.authLanguage") || document.documentElement.lang || "ru";
   const text = key => (copy[language] || copy.ru)[key] || copy.ru[key] || key;
   async function request(path, options = {}) {
     const requestOptions = { ...options, headers: { "Content-Type": "application/json", ...(options.headers || {}) } };
     if (requestOptions.body && typeof requestOptions.body !== "string") requestOptions.body = JSON.stringify(requestOptions.body);
     let lastError;
     for (let attempt = 0; attempt < 3; attempt += 1) {
-      try {
-        const response = await fetch(`${apiBase}${path}`, requestOptions);
+     try {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+
+  const response = await fetch(`${apiBase}${path}`, {
+    ...requestOptions,
+    signal: controller.signal
+  });
+
+  clearTimeout(timer);
         const data = await response.json().catch(() => ({}));
         if (!response.ok) { const error = new Error(typeof data.detail === "string" ? data.detail : `HTTP ${response.status}`); error.status = response.status; throw error; }
         return data;
@@ -40,9 +48,52 @@
   function applyLanguage() { document.documentElement.lang = language; localStorage.setItem("luminifera.authLanguage", language); $(".auth-copy .eyebrow").textContent = text("eyebrow"); $("#auth-account-label").childNodes[0].textContent = text("account"); $("#auth-name-label").childNodes[0].textContent = text("name"); $("#auth-password-label").childNodes[0].textContent = text("password"); $("#auth-language-label").childNodes[0].textContent = text("language"); ["Русский", "Українська", "English"].forEach((label, index) => { $("#auth-language").options[index].textContent = label; }); $("#auth-logout").textContent = text("logout"); setMode(mode); }
   function ready() { gate.classList.add("auth-ready"); document.body.classList.remove("auth-gate-pending"); window.dispatchEvent(new CustomEvent("luminifera:authenticated")); }
   function showAccount() { gate.classList.remove("auth-ready"); $("#auth-logout").hidden = false; $("#auth-password-change").hidden = false; setMode("password"); }
-  async function open() { const controls = [...$("#auth-form").elements]; controls.forEach(control => { control.disabled = true; }); gate.setAttribute("aria-busy", "true"); try { const token = localStorage.getItem("luminifera.authToken"); if (token) { try { await request("/api/auth/me", { headers:{Authorization:`Bearer ${token}`} }); initialized=true; ready(); return; } catch (_) { localStorage.removeItem("luminifera.authToken"); } } try { const status = await request("/api/auth/bootstrap-status"); setMode(status.owner_bootstrap === "available for fresh install" ? "bootstrap" : "login"); } catch (_) { setMode("login"); } initialized = true; applyLanguage(); } finally { controls.forEach(control => { control.disabled = false; }); gate.removeAttribute("aria-busy"); } }
+  async function open() {
+  gate.setAttribute("aria-busy", "true");
+
+  try {
+    const token = localStorage.getItem("luminifera.authToken");
+
+    if (token) {
+      try {
+        await request("/api/auth/me", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        ready();
+        return;
+      } catch (_) {
+        localStorage.removeItem("luminifera.authToken");
+      }
+    }
+
+    try {
+      const status = await request("/api/auth/bootstrap-status");
+      setMode(
+        status.owner_bootstrap === "available for fresh install"
+          ? "bootstrap"
+          : "login"
+      );
+    } catch (_) {
+      setMode("login");
+    }
+
+    applyLanguage();
+  } finally {
+    gate.removeAttribute("aria-busy");
+  }
+}
   $("#auth-language").onchange = event => { language = event.target.value; applyLanguage(); }; $("#auth-alt").onclick = () => { if (initialized) setMode(mode === "login" ? "register" : "login"); }; $("#auth-password-change").onclick = () => { if (initialized) setMode("password"); }; $("#profile-button")?.addEventListener("click", event => { event.preventDefault(); showAccount(); });
   $("#auth-logout").onclick = async () => { try { await request("/api/auth/logout", { method:"POST", headers:{Authorization:`Bearer ${localStorage.getItem("luminifera.authToken")}`} }); } catch (_) {} localStorage.removeItem("luminifera.authToken"); gate.classList.remove("auth-ready"); document.body.classList.add("auth-gate-pending"); $("#auth-logout").hidden=true; $("#auth-password-change").hidden=true; setMode("login"); $("#auth-status").textContent = text("login"); window.dispatchEvent(new CustomEvent("luminifera:signed_out")); };
-  $("#auth-form").onsubmit = async event => { event.preventDefault(); if (!initialized) return; const error=$("#auth-error"); error.hidden=true; const payload={account_id:$("#auth-account").value.trim(),password:$("#auth-password").value}; if (mode === "bootstrap" || mode === "register") { payload.display_name=$("#auth-name").value.trim(); payload.language=language; } try { let result; if (mode === "bootstrap") { await request("/api/auth/bootstrap", {method:"POST",body:payload}); result=await request("/api/auth/login", {method:"POST",body:{account_id:payload.account_id,password:payload.password}}); } else if (mode === "register") { await request("/api/auth/register", {method:"POST",body:payload}); $("#auth-status").textContent=text("statusCreated"); result=await request("/api/auth/login", {method:"POST",body:{account_id:payload.account_id,password:payload.password}}); } else if (mode === "password") { await request("/api/auth/password", {method:"PUT",headers:{Authorization:`Bearer ${localStorage.getItem("luminifera.authToken")}`},body:{password:payload.password}}); localStorage.removeItem("luminifera.authToken"); setMode("login"); $("#auth-status").textContent=text("statusChanged"); return; } else result=await request("/api/auth/login", {method:"POST",body:payload}); if (result.token) { localStorage.setItem("luminifera.authToken",result.token); await request("/api/settings", {method:"PATCH",body:{interface_language:language}}).catch(()=>{}); ready(); } } catch (err) { error.textContent=errorText(err); error.hidden=false; } };
+$("#auth-form").onsubmit = async event => {
+  event.preventDefault();
+
+  const submit = $("#auth-submit");
+  submit.disabled = true;; const error=$("#auth-error"); error.hidden=true; const payload={account_id:$("#auth-account").value.trim(),password:$("#auth-password").value}; if (mode === "bootstrap" || mode === "register") { payload.display_name=$("#auth-name").value.trim(); payload.language=language; } try { let result; if (mode === "bootstrap") { await request("/api/auth/bootstrap", {method:"POST",body:payload}); result=await request("/api/auth/login", {method:"POST",body:{account_id:payload.account_id,password:payload.password}}); } else if (mode === "register") { await request("/api/auth/register", {method:"POST",body:payload}); $("#auth-status").textContent=text("statusCreated"); result=await request("/api/auth/login", {method:"POST",body:{account_id:payload.account_id,password:payload.password}}); } else if (mode === "password") { await request("/api/auth/password", {method:"PUT",headers:{Authorization:`Bearer ${localStorage.getItem("luminifera.authToken")}`},body:{password:payload.password}}); localStorage.removeItem("luminifera.authToken"); setMode("login"); $("#auth-status").textContent=text("statusChanged"); return; } else result=await request("/api/auth/login", {method:"POST",body:payload}); if (result.token) { localStorage.setItem("luminifera.authToken",result.token); await request("/api/settings", {method:"PATCH",body:{interface_language:language}}).catch(()=>{}); ready(); } } catch (err) {
+  error.textContent = errorText(err);
+  error.hidden = false;
+} finally {
+  submit.disabled = false;
+}
+};
   open();
 })();
