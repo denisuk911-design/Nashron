@@ -1,0 +1,16 @@
+{
+  "task": "PRODUCT RECOVERY 03",
+  "commit": "25fef54",
+  "screenshots": [
+    "QA\\PRODUCT_RECOVERY_03\\captures\\1920x1080\\product-recovery-03-home-1920.png",
+    "QA\\PRODUCT_RECOVERY_03\\captures\\1920x1080\\product-recovery-03-team-1920.png",
+    "QA\\PRODUCT_RECOVERY_03\\captures\\1920x1080\\product-recovery-03-work-1920.png",
+    "QA\\PRODUCT_RECOVERY_03\\captures\\1920x1080\\product-recovery-03-files-1920.png",
+    "QA\\PRODUCT_RECOVERY_03\\captures\\1920x1080\\product-recovery-03-settings-1920.png",
+    "QA\\PRODUCT_RECOVERY_03\\captures\\1440x900\\product-recovery-03-home-1440.png",
+    "QA\\PRODUCT_RECOVERY_03\\captures\\1440x900\\product-recovery-03-team-1440.png",
+    "QA\\PRODUCT_RECOVERY_03\\captures\\1440x900\\product-recovery-03-work-1440.png",
+    "QA\\PRODUCT_RECOVERY_03\\captures\\1440x900\\product-recovery-03-files-1440.png",
+    "QA\\PRODUCT_RECOVERY_03\\captures\\1440x900\\product-recovery-03-settings-1440.png"
+  ]
+}
