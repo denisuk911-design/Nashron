@@ -12,7 +12,8 @@
     "work",
     "files",
     "settings",
-    "iris-before-1920x1080"
+    "iris-before-1920x1080",
+    "visual-review-contact-sheet"
   ],
   "captures": {
     "1920x1080": [
@@ -36,6 +37,18 @@
     "registration-1920x1080.png": "captured from live bootstrap/register state",
     "login-1440x900.png": "captured from live auth gate",
     "registration-1440x900.png": "not captured: browser screenshot timed out on auth animation; no substitute used"
+  },
+  "contact_sheet": {
+    "file": "visual-review-contact-sheet.png",
+    "source_captures": [
+      "home-1920x1080.png",
+      "iris-before-1920x1080.png",
+      "team-1920x1080.png",
+      "work-1920x1080.png",
+      "files-1920x1080.png",
+      "settings-1920x1080.png"
+    ],
+    "missing": ["registration-1440x900.png", "iris-after-1920x1080.png"]
   },
   "live_checks": {
     "/app": 200,
