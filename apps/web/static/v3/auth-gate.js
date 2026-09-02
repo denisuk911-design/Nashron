@@ -84,7 +84,9 @@
 }
   $("#auth-language").onchange = event => { language = event.target.value; applyLanguage(); }; $("#auth-alt").onclick = () => {
   setMode(mode === "login" ? "register" : "login");
-}; }; $("#auth-password-change").onclick = () => { if (initialized) setMode("password"); }; $("#profile-button")?.addEventListener("click", event => { event.preventDefault(); showAccount(); });
+}; }; $("#auth-password-change").onclick = () => {
+  setMode("password");
+}; }; $("#profile-button")?.addEventListener("click", event => { event.preventDefault(); showAccount(); });
   $("#auth-logout").onclick = async () => { try { await request("/api/auth/logout", { method:"POST", headers:{Authorization:`Bearer ${localStorage.getItem("luminifera.authToken")}`} }); } catch (_) {} localStorage.removeItem("luminifera.authToken"); gate.classList.remove("auth-ready"); document.body.classList.add("auth-gate-pending"); $("#auth-logout").hidden=true; $("#auth-password-change").hidden=true; setMode("login"); $("#auth-status").textContent = text("login"); window.dispatchEvent(new CustomEvent("luminifera:signed_out")); };
 $("#auth-form").onsubmit = async event => {
   event.preventDefault();
