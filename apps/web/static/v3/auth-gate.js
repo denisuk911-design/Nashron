@@ -11,14 +11,23 @@
   let mode = "login", initialized = false, language = localStorage.getItem("luminifera.authLanguage") || document.documentElement.lang || "ru";
   const text = key => (copy[language] || copy.ru)[key] || copy.ru[key] || key;
   async function request(path, options = {}) {
-    try {
-      const requestOptions = { ...options, headers: { "Content-Type": "application/json", ...(options.headers || {}) } };
-      if (requestOptions.body && typeof requestOptions.body !== "string") requestOptions.body = JSON.stringify(requestOptions.body);
-      const response = await fetch(`${apiBase}${path}`, requestOptions);
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) { const error = new Error(typeof data.detail === "string" ? data.detail : `HTTP ${response.status}`); error.status = response.status; throw error; }
-      return data;
-    } catch (error) { if (error instanceof TypeError || error.name === "AbortError") throw new Error("network_unavailable"); throw error; }
+    const requestOptions = { ...options, headers: { "Content-Type": "application/json", ...(options.headers || {}) } };
+    if (requestOptions.body && typeof requestOptions.body !== "string") requestOptions.body = JSON.stringify(requestOptions.body);
+    let lastError;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const response = await fetch(`${apiBase}${path}`, requestOptions);
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) { const error = new Error(typeof data.detail === "string" ? data.detail : `HTTP ${response.status}`); error.status = response.status; throw error; }
+        return data;
+      } catch (error) {
+        lastError = error;
+        if (!(error instanceof TypeError || error.name === "AbortError") || attempt === 2) break;
+        await new Promise(resolve => setTimeout(resolve, 250 * (attempt + 1)));
+      }
+    }
+    if (lastError instanceof TypeError || lastError?.name === "AbortError") throw new Error("network_unavailable");
+    throw lastError;
   }
   function errorText(error) { return ({ registration_disabled:text("disabled"), invalid_credentials_or_blocked_account:text("invalid"), login_rate_limited:text("rate"), owner_bootstrap_closed:text("closed"), account_already_exists:text("duplicate"), invalid_account_id:text("invalidEmail"), invalid_display_name:text("nameRequired"), password_too_short:text("shortPassword"), password_requires_letters_and_digits:text("passwordRules"), network_unavailable:text("network") })[error.message] || text("generic"); }
   function setMode(next) {

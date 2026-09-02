@@ -58,6 +58,27 @@ def main() -> int:
     web_thread = threading.Thread(target=web.serve_forever, name="luminifera-web", daemon=True)
     web_thread.start()
     url = f"http://127.0.0.1:{web_port}/app"
+    # Do not open a browser until the static host can serve both the product
+    # shell and the runtime API binding. This removes the first-load race on
+    # fresh Windows machines.
+    web_ready = False
+    runtime_config = f"http://127.0.0.1:{web_port}/runtime-config.js"
+    for _ in range(40):
+        try:
+            with urllib.request.urlopen(url, timeout=1) as response:
+                shell_ready = response.status == 200
+            with urllib.request.urlopen(runtime_config, timeout=1) as response:
+                config_ready = response.status == 200 and str(api_port).encode() in response.read()
+            if shell_ready and config_ready:
+                web_ready = True
+                break
+        except (OSError, urllib.error.URLError):
+            time.sleep(0.1)
+    if not web_ready:
+        web.shutdown()
+        api_server.should_exit = True
+        api_thread.join(timeout=5)
+        raise RuntimeError("Luminifera Web did not become ready")
     report_path = os.environ.get("LUMINIFERA_LAUNCHER_REPORT")
     stop_path = os.environ.get("LUMINIFERA_LAUNCHER_STOP")
     if report_path:
