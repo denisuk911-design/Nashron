@@ -1,0 +1,160 @@
+{
+  "url": "https://nashron.onrender.com/app",
+  "target_sha": "8a9eb93d3dc98bd5c637299c9fd1ed702e82d06b",
+  "build": {
+    "product": "Luminifera",
+    "commit": "8a9eb93d3dc98bd5c637299c9fd1ed702e82d06b",
+    "build_time": "unknown",
+    "environment": "render"
+  },
+  "scenarios": [
+    "registration-1920x1080.png",
+    "login-1920x1080.png",
+    "error-1920x1080.png",
+    "registration-1440x900.png",
+    "login-1440x900.png",
+    "error-1440x900.png"
+  ],
+  "network": [
+    {
+      "url": "https://nashron.onrender.com/api/settings",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/organizations",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/auth/bootstrap-status",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/admin/access",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/settings",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/settings",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/chat",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/settings",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/providers",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/settings",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/feedback",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/settings",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/auth/register",
+      "status": 422
+    },
+    {
+      "url": "https://nashron.onrender.com/api/providers",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/settings",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/feedback",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/settings",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/providers",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/settings",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/organizations",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/admin/access",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/settings",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/auth/bootstrap-status",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/settings",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/settings",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/chat",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/settings",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/providers",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/settings",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/auth/register",
+      "status": 422
+    },
+    {
+      "url": "https://nashron.onrender.com/api/settings",
+      "status": 200
+    },
+    {
+      "url": "https://nashron.onrender.com/api/feedback",
+      "status": 200
+    }
+  ],
+  "console": [],
+  "errors": [
+    "LUMINIFERA_REVIEW_EMAIL and LUMINIFERA_REVIEW_PASSWORD are required for Iris live captures",
+    "LUMINIFERA_REVIEW_EMAIL and LUMINIFERA_REVIEW_PASSWORD are required for Iris live captures"
+  ],
+  "checks": {
+    "target_sha": true,
+    "auth_screens": true,
+    "iris_screens": false,
+    "no_console_errors": true
+  },
+  "passed": false
+}
