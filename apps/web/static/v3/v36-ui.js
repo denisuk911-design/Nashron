@@ -109,7 +109,7 @@
 
   function decorateTeam() {
     const board = document.querySelector("#team-stage .constellation-board");
-    if (!board || board.dataset.flowReady) return;
+    if (!board || board.dataset.flowReady || board.dataset.v40Ready === "1") return;
     const svg = board.querySelector("svg");
     if (!svg) return;
     const paths = [...svg.querySelectorAll("path")];

@@ -1,0 +1,12 @@
+{
+  "scene": true,
+  "irisCenter": true,
+  "realNodes": 0,
+  "dormantNodes": 8,
+  "orbitPaths": 2,
+  "motionParticles": 2,
+  "stageOverflow": true,
+  "boardWidth": 1366,
+  "boardHeight": 708,
+  "route": "#team"
+}

@@ -42,6 +42,15 @@ class WebHandler(SimpleHTTPRequestHandler):
             except ValueError:
                 return str(WEB_STATIC / "__missing__")
             return str(candidate)
+        # Packaged app.html historically references /v3/* directly. Keep this
+        # path available alongside the Pages /assets/* mapping.
+        if request_path.startswith("/v3/"):
+            candidate = WEB_STATIC / request_path.removeprefix("/")
+            try:
+                candidate.resolve().relative_to(WEB_STATIC.resolve())
+            except ValueError:
+                return str(WEB_STATIC / "__missing__")
+            return str(candidate)
         return str(WEB_STATIC / "__missing__")
 
     def send_error(self, code: int, message: str | None = None, explain: str | None = None) -> None:
