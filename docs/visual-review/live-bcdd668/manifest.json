@@ -1,0 +1,49 @@
+{
+  "product": "Luminifera",
+  "source": "https://nashron.denisuk911.workers.dev/app",
+  "backend_build_info": "004f6570e62a9413e8ba61e01c2ea58e03120dbf",
+  "capture_method": "Playwright MCP browser against Cloudflare production",
+  "locale": "ru",
+  "theme": "dark",
+  "viewports": ["1920x1080", "1440x900"],
+  "screens": [
+    "home",
+    "team",
+    "work",
+    "files",
+    "settings",
+    "iris-before-1920x1080"
+  ],
+  "captures": {
+    "1920x1080": [
+      "home-1920x1080.png",
+      "team-1920x1080.png",
+      "work-1920x1080.png",
+      "files-1920x1080.png",
+      "settings-1920x1080.png",
+      "iris-before-1920x1080.png"
+    ],
+    "1440x900": [
+      "home-1440x900.png",
+      "team-1440x900.png",
+      "work-1440x900.png",
+      "files-1440x900.png",
+      "settings-1440x900.png"
+    ]
+  },
+  "auth_captures": {
+    "login-1920x1080.png": "captured from live auth gate",
+    "registration-1920x1080.png": "captured from live bootstrap/register state",
+    "login-1440x900.png": "captured from live auth gate",
+    "registration-1440x900.png": "not captured: browser screenshot timed out on auth animation; no substitute used"
+  },
+  "live_checks": {
+    "/app": 200,
+    "/api/build-info": 200,
+    "/api/health": 200,
+    "/assets/v3/bridge.js": 200,
+    "/assets/v3/styles.css": 200,
+    "render_rss_current_mb": 246.85,
+    "render_rss_peak_mb": 246.85
+  }
+}
