@@ -11,6 +11,7 @@ export default {
       // Pages publishes the static directory contents at /v3.
       if (incoming.pathname.startsWith("/assets/")) {
         incoming.pathname = incoming.pathname.slice("/assets".length);
+        return Response.redirect(incoming.toString(), 302);
       }
       if (incoming.pathname === "/app" || incoming.pathname === "/app/") {
         incoming.pathname = "/app.html";
