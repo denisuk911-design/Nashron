@@ -97,7 +97,7 @@
     async checkHealth() { return request("/api/health"); },
     async previewFile(fileId) { return request(`/api/files/${encodeURIComponent(fileId)}/preview`); },
     async downloadArtifact(artifactId) {
-      const response = await fetch(`${apiBase}/api/files/${encodeURIComponent(artifactId)}/download`, { headers: organizationId ? { "X-Organization-Id": organizationId } : {} });
+      const response = await fetch(`${apiBase}/api/files/${encodeURIComponent(artifactId)}/download`, { headers: { ...(organizationId ? { "X-Organization-Id": organizationId } : {}), ...(localStorage.getItem("luminifera.authToken") ? { "Authorization": `Bearer ${localStorage.getItem("luminifera.authToken")}` } : {}) } });
       if (!response.ok) throw new Error(await response.text());
       const url = URL.createObjectURL(await response.blob()); const link = document.createElement("a"); link.href = url; link.download = "artifact"; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
     },

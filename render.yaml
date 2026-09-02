@@ -7,3 +7,5 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.8"
+      - key: LUMINIFERA_WEB_ORIGINS
+        value: "https://luminifera.pages.dev"

@@ -9,7 +9,7 @@ window.LUMINIFERA_UI_CONFIG = {
   // For video use .mp4 or .webm. `poster` is optional.
   background: {
     type: "image",
-    src: "/assets/v3/assets/background.jpg",
+    src: "/v3/assets/background.jpg",
     poster: null,
     overlay: 0.48
   },
@@ -20,7 +20,7 @@ window.LUMINIFERA_UI_CONFIG = {
   // { type:"video", src:"assets/iris-idle.webm", poster:"assets/iris.png", autoplay:true, loop:true, muted:true }
   iris: {
     type: "image",
-    src: "/assets/v3/assets/iris.png",
+    src: "/v3/assets/iris.png",
     poster: null,
     autoplay: true,
     loop: true,
