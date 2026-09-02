@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <!-- Legacy Worker path markers remain documented for compatibility tests; Pages loads /v3/* directly. -->
+  <!-- /assets/v3/app.js /assets/v3/bridge.js /assets/v3/config.js /assets/v3/styles.css /assets/v3/refinement.css /assets/v3/v37-ui.js -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#050816">
+  <title>Luminifera</title>
+  <link rel="stylesheet" href="/v3/styles.css">
+  <link rel="stylesheet" href="/v3/refinement.css?v=f13686d">
+  <link rel="stylesheet" href="/v3/team-scene-v40.css?v=1">
+  <link rel="stylesheet" href="/v3/provider-settings.css">
+  <link rel="stylesheet" href="/v3/auth-gate.css">
+</head>
+<body class="auth-gate-pending">
+  <div id="background-media" class="background-media" aria-hidden="true"></div>
+  <div class="background-overlay"></div>
+  <div class="stars"></div>
+  <div class="ambient ambient-a"></div>
+  <div class="ambient ambient-b"></div>
+
+  <section id="auth-gate" class="auth-gate" aria-live="polite">
+    <div class="auth-orbit" aria-hidden="true"><span></span><i></i><b></b></div><div class="auth-iris-presence" aria-hidden="true"></div>
+    <div class="auth-copy"><span class="eyebrow">LUMINIFERA · IRIS</span><h1 id="auth-title">Войдите в своё рабочее пространство</h1><p id="auth-subtitle">Ваши команды, цели и проверенные результаты сохранены в профиле.</p></div>
+    <form id="auth-form" class="auth-form">
+      <label id="auth-account-label">Email<input id="auth-account" name="account_id" type="email" autocomplete="email" required maxlength="120"></label>
+      <label id="auth-name-label" hidden>Ваше имя<input id="auth-name" name="display_name" autocomplete="name" maxlength="120"></label>
+      <label id="auth-password-label">Пароль<input id="auth-password" name="password" type="password" autocomplete="current-password" required maxlength="500"></label>
+      <label id="auth-language-label" hidden>Язык интерфейса<select id="auth-language"><option value="ru">Русский</option><option value="uk">Українська</option><option value="en">English</option></select></label>
+      <div id="auth-error" class="auth-error" role="alert" hidden></div>
+      <button id="auth-submit" class="primary" type="submit">Войти</button>
+      <button id="auth-alt" class="auth-alt" type="button">Создать аккаунт</button>
+      <button id="auth-password-change" class="auth-alt" type="button" hidden>Сменить пароль</button>
+      <button id="auth-logout" class="auth-alt" type="button" hidden>Выйти</button>
+    </form>
+    <small id="auth-status" class="auth-status"></small>
+  </section>
+
+  <div class="app">
+    <header class="topbar">
+      <button class="brand" data-route="home">
+        <span class="brand-sigil">✦</span>
+        <span>
+          <strong id="brand-name">Luminifera</strong>
+          <small id="brand-subtitle">AI operating space</small>
+        </span>
+      </button>
+
+      <nav class="nav">
+        <button data-route="team">Созвездие</button>
+        <button data-route="work">Работа</button>
+        <button data-route="files">Файлы</button>
+        <button data-route="settings">Настройки</button>
+      </nav>
+
+      <div class="top-actions">
+        <button class="ghost iris-shortcut" id="focus-iris">✦ Iris</button>
+        <span class="presence"><i></i>на связи</span>
+        <select id="workspace-select" aria-label="Рабочее пространство"><option value="">Рабочее пространство</option></select>
+        <button class="ghost" id="workspace-new" aria-label="Создать рабочее пространство">+</button>
+        <button class="profile" id="profile-button" aria-label="Профиль владельца">В</button>
+      </div>
+    </header>
+
+    <main class="viewport">
+      <!-- HOME -->
+      <section class="screen active" data-screen="home">
+        <div class="home-layout">
+          <div class="home-main">
+            <div class="hero">
+              <span class="eyebrow">✦ AI-ОРГАНИЗАЦИЯ НОВОГО ПОКОЛЕНИЯ</span>
+              <h1>Порядок.<br>Ясность.<br><em>Вдохновение.</em></h1>
+              <p>Один интерфейс для целей, команды, работы, знаний и проверенных результатов. Всё начинается с естественного разговора с Iris.</p>
+            </div>
+
+            <div class="home-actions">
+              <button class="primary" id="hero-iris">✦ Начать с Iris</button>
+              <button class="ghost" data-route="work">Открыть рабочее пространство</button>
+            </div>
+
+            <div class="module-grid">
+              <button class="module-card" data-route="team">
+                <span class="module-icon">◌</span>
+                <div><strong>Созвездие агентов</strong><small id="team-summary">Нет данных</small></div>
+                <b>→</b>
+              </button>
+              <button class="module-card" data-route="work">
+                <span class="module-icon">◇</span>
+                <div><strong>Работа</strong><small id="work-summary">Нет активной работы</small></div>
+                <b>→</b>
+              </button>
+              <button class="module-card" data-route="files">
+                <span class="module-icon">▱</span>
+                <div><strong>Файлы</strong><small id="files-summary">Результатов пока нет</small></div>
+                <b>→</b>
+              </button>
+              <button class="module-card" data-route="settings">
+                <span class="module-icon">⚙</span>
+                <div><strong>Пространство</strong><small id="org-summary">Не настроено</small></div>
+                <b>→</b>
+              </button>
+            </div>
+
+            <div class="system-strip">
+              <span class="spark">✦</span>
+              <div>
+                <strong id="system-strip-title">Luminifera готова к подключению движка</strong>
+                <small id="system-strip-subtitle">Состояние появится здесь из реального API.</small>
+              </div>
+              <button class="text-button" id="refresh-home">Обновить</button>
+            </div>
+          </div>
+
+          <aside class="iris-panel" data-iris-state="idle">
+            <div class="iris-header">
+              <div>
+                <span class="eyebrow">SUPERVISOR</span>
+                <h2>Iris</h2>
+                <p>Ваш главный интерфейс к Luminifera</p>
+              </div>
+              <div class="iris-presence"><span class="iris-state-label" id="iris-state-label">готова слушать</span><span class="online"><i></i>на связи</span></div>
+            </div>
+
+            <div id="iris-media" class="iris-media"><span class="iris-state-line" id="iris-state-line" aria-live="polite"></span></div>
+
+            <div class="iris-chat-shell">
+              <div id="iris-empty" class="chat-empty">
+                <span>✦</span>
+                <strong>Начните разговор с Iris</strong>
+                <small>Обычный разговор не создаёт Goal. Действие запускается только когда это действительно нужно.</small>
+              </div>
+
+              <div id="iris-chat" class="iris-chat" hidden></div>
+
+              <form id="iris-form" class="composer">
+                <input id="iris-input" autocomplete="off" placeholder="Скажите Iris, что нужно сделать…">
+                <button type="submit">→</button>
+              </form>
+
+              <div class="prompt-row">
+                <button type="button" data-prompt="Что ты умеешь?">Что ты умеешь?</button>
+                <button type="button" data-prompt="Что сейчас происходит?">Что происходит?</button>
+                <button type="button" data-prompt="Собери мне команду">Собрать созвездие</button>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- TEAM -->
+      <section class="screen" data-screen="team">
+        <div class="workspace-scene">
+          <div class="page-head">
+            <div>
+              <span class="eyebrow">СОЗВЕЗДИЕ АГЕНТОВ</span>
+              <h2>Созвездие агентов</h2>
+              <p>Здесь отображаются реальные сотрудники и их роли из рабочего пространства.</p>
+            </div>
+            <button class="primary" id="team-create">Собрать созвездие через Iris</button>
+          </div>
+
+          <div class="empty-stage constellation-stage" id="team-stage">
+            <svg class="constellation-lines" viewBox="0 0 1000 480" preserveAspectRatio="none">
+              <path d="M150 260 C 310 110, 520 370, 850 190"></path>
+              <path d="M110 370 C 350 280, 610 90, 900 300"></path>
+              <path d="M180 110 C 390 220, 560 150, 820 390"></path>
+            </svg>
+            <span class="runner r1"></span>
+            <span class="runner r2"></span>
+            <span class="runner r3"></span>
+            <div class="empty-copy">
+              <span class="big-sigil">✦</span>
+              <h3>Команда ещё не собрана</h3>
+              <p>После подключения API здесь появятся Employee, роли, состояние и связи между ними.</p>
+              <button class="ghost" id="team-empty-action">Попросить Iris собрать созвездие</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- WORK -->
+      <section class="screen" data-screen="work">
+        <div class="workspace-scene">
+          <div class="page-head">
+            <div>
+              <span class="eyebrow">РАБОТА</span>
+              <h2>От цели к результату</h2>
+              <p>Здесь будут реальные Goal, прогресс, действия команды, артефакты, evidence и review.</p>
+            </div>
+            <button class="primary" id="new-goal">Новая цель через Iris</button>
+          </div>
+
+          <div class="empty-stage" id="work-stage">
+            <div class="empty-copy">
+              <span class="big-sigil">◇</span>
+              <h3>Активной работы пока нет</h3>
+              <p>Когда движок вернёт активный Goal, экран превратится в рабочий поток без необходимости менять дизайн.</p>
+              <button class="ghost" id="work-empty-action">Сформулировать цель</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FILES -->
+      <section class="screen" data-screen="files">
+        <div class="workspace-scene">
+          <div class="page-head">
+            <div>
+              <span class="eyebrow">ФАЙЛЫ</span>
+              <h2>Библиотека результатов</h2>
+              <p>Только реальные artifacts и результаты. Пустая оболочка не показывает фальшивые документы.</p>
+            </div>
+            <button class="ghost" id="refresh-files">Обновить</button>
+          </div>
+
+          <div class="empty-stage" id="files-stage">
+            <div class="empty-copy">
+              <span class="big-sigil">▱</span>
+              <h3>Результатов пока нет</h3>
+              <p>Когда появятся проверенные артефакты, Codex заполнит эту сцену реальными данными API.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section class="screen" data-screen="settings">
+        <div class="workspace-scene">
+          <div class="page-head">
+            <div>
+              <span class="eyebrow">НАСТРОЙКИ</span>
+              <h2>Пространство Luminifera</h2>
+              <p>Настройте рабочее пространство, внешний вид и обратную связь для Iris.</p>
+            </div>
+          </div>
+
+          <div class="settings-grid" id="settings-stage">
+            <article class="settings-card">
+              <span class="eyebrow">ОБОЛОЧКА</span>
+              <h3>Медиа и атмосфера</h3>
+              <p>Текущие материалы интерфейса, заданные для этого рабочего пространства.</p>
+              <div class="field">
+                <label>Фон</label>
+                <code>Фоновая сцена</code>
+                <small>Изображение или видео</small>
+              </div>
+              <div class="field">
+                <label>Iris</label>
+                <code>Образ Iris</code>
+                <small>Портрет или видео</small>
+              </div>
+              <button class="ghost" id="preview-media" hidden>Обновить медиа</button>
+            </article>
+
+            <article class="settings-card">
+              <span class="eyebrow">СИСТЕМА</span>
+              <h3>Всё готово к работе</h3>
+              <div class="bridge-state">
+                <i id="bridge-dot"></i>
+                <div>
+                  <strong id="bridge-title">Система не подключена</strong>
+                    <small id="bridge-copy">Проверяем связь с рабочим пространством.</small>
+                </div>
+              </div>
+              <button class="ghost" id="bridge-check">Проверить подключение</button>
+            </article>
+
+            <article class="settings-card">
+              <span class="eyebrow">ВОЗМОЖНОСТИ</span>
+              <h3>В одном пространстве</h3>
+              <ul>
+                <li>Цели и текущая работа команды.</li>
+                <li>Проверенные результаты и файлы.</li>
+                <li>Разговор с Iris прямо на главном экране.</li>
+                <li>Настройки сохраняются в рабочем пространстве.</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="org-dialog"><form method="dialog" id="org-form"><button class="ghost" value="cancel" aria-label="Закрыть">×</button><span class="eyebrow">НОВОЕ ПРОСТРАНСТВО</span><h2>С чего начнём?</h2><label>Название<input id="org-name" required maxlength="160" placeholder="Например, Nova Lab"></label><label>Направление<textarea id="org-purpose" maxlength="2000" placeholder="Какой результат нужно получить?"></textarea></label><button class="primary" value="default">Создать пространство</button></form></dialog>
+  <div id="toast" class="toast"></div>
+  <aside id="diagnostic-panel" class="diagnostic-panel" hidden aria-live="polite">
+    <div class="diagnostic-head"><div><span class="eyebrow">DIAGNOSTICS</span><h2>Состояние Luminifera</h2></div><span id="diagnostic-time"></span></div>
+    <div id="diagnostic-content" class="diagnostic-content"><span class="bridge-state"><i></i><span>Проверка соединения…</span></span></div>
+  </aside>
+  <style>.diagnostic-panel[hidden]{display:none}.diagnostic-panel{position:fixed;z-index:30;right:22px;bottom:22px;width:min(560px,calc(100vw - 44px));max-height:min(720px,calc(100vh - 44px));overflow:auto;padding:22px;border:1px solid rgba(145,161,226,.3);border-radius:22px;background:rgba(5,10,25,.96);box-shadow:0 24px 80px rgba(0,0,0,.55);backdrop-filter:blur(18px)}.diagnostic-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}.diagnostic-head h2{font:28px Georgia,serif;margin:8px 0 0}.diagnostic-head>span{color:var(--muted);font-size:12px}.diagnostic-content{display:grid;gap:12px;margin-top:18px}.diagnostic-group{border:1px solid rgba(145,161,226,.15);border-radius:14px;padding:14px;background:rgba(255,255,255,.025)}.diagnostic-group h3{margin:0 0 10px;font-size:14px}.diagnostic-row{display:flex;justify-content:space-between;gap:16px;padding:7px 0;border-top:1px solid rgba(145,161,226,.1);font-size:12px}.diagnostic-row:first-of-type{border-top:0}.diagnostic-row b{color:#dbe5f8;text-align:right;overflow-wrap:anywhere}.diagnostic-row b.ok{color:var(--green)}.diagnostic-row b.bad{color:#ff9fa9}</style>
+
+  <script src="/v3/config.js"></script>
+  <script src="/runtime-config.js"></script>
+  <script src="/v3/bridge.js?v=admin-v1"></script>
+  <script src="/v3/i18n.js?v=c257b25"></script>
+  <script src="/v3/app.js?v=c257b25"></script>
+  <script src="/v3/auth-gate.js?v=phase6-auth"></script>
+  <script src="/v3/provider-settings.js"></script>
+  <script src="/v3/v36-ui.js"></script>
+  <script src="/v3/team-scene-v40.js?v=1"></script>
+  <script src="/v3/v37-ui.js"></script>
+  <script src="/v3/provider-hub.js"></script>
+  <link rel="stylesheet" href="/v3/admin-center.css">
+  <script src="/v3/admin-center.js?v=admin-v1"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+(function () {
+  "use strict";
+  const order = ["home", "team", "work", "files", "settings"];
+  let locked = false;
+  let wheelGestureUntil = 0;
+  const viewport = () => document.querySelector(".viewport");
+  function activeIndex() { const screen = document.querySelector(".screen.active"); return Math.max(0, order.indexOf(screen?.dataset.screen)); }
+  function internalCanScroll(target, delta) { let node = target instanceof Element ? target : null; while (node && node !== viewport()) { const style = getComputedStyle(node); if ((style.overflowY === "auto" || style.overflowY === "scroll") && node.scrollHeight > node.clientHeight + 2) return delta > 0 ? node.scrollTop + node.clientHeight < node.scrollHeight - 2 : node.scrollTop > 2; node = node.parentElement; } return false; }
+  function edgeSpring(direction) { const root = viewport(); if (!root) return; root.classList.remove("edge-pull-up", "edge-pull-down"); void root.offsetWidth; root.classList.add(direction > 0 ? "edge-pull-down" : "edge-pull-up"); setTimeout(() => root.classList.remove("edge-pull-up", "edge-pull-down"), 650); }
+  function move(delta) { const index = activeIndex(), next = index + (delta > 0 ? 1 : -1); wheelGestureUntil = Date.now() + 650; if (next < 0 || next >= order.length) { edgeSpring(delta); return; } locked = true; window.dispatchEvent(new CustomEvent("luminifera:route", { detail: order[next] })); setTimeout(() => { locked = false; }, 650); }
+  function onWheel() { /* Standard browser scrolling is intentionally preserved. */ }
+  function installWheel() { /* Route changes are explicit navigation actions, never wheel gestures. */ }
+  function installThemePreview() { const stage = document.querySelector("#settings-stage"); if (!stage || stage.querySelector(".theme-preview")) return; const select = stage.querySelector("#setting-theme"), save = stage.querySelector("#save-settings"); if (!select || !save) return; const preview = document.createElement("div"); preview.className = "theme-preview"; preview.innerHTML = `<span class="eyebrow">ПРЕДПРОСМОТР</span><div class="theme-options"><button type="button" data-theme-choice="dark">Ночная глубина</button><button type="button" data-theme-choice="light">Мягкий день</button><button type="button" data-theme-choice="night_city">Неоновый город</button></div>`; select.closest("label")?.after(preview); preview.querySelectorAll("[data-theme-choice]").forEach(button => button.onclick = () => { select.value = button.dataset.themeChoice; document.documentElement.dataset.theme = button.dataset.themeChoice; preview.querySelectorAll("button").forEach(item => item.classList.toggle("active", item === button)); save.focus(); }); preview.querySelector(`[data-theme-choice="${select.value}"]`)?.classList.add("active"); }
+  function removeLegacyMediaControls() { document.querySelectorAll("#settings-stage #preview-media, #settings-stage .settings-card:first-child .field").forEach(node => node.remove()); }
+  function observe() { removeLegacyMediaControls(); installWheel(); installThemePreview(); new MutationObserver(() => { removeLegacyMediaControls(); installWheel(); installThemePreview(); }).observe(document.body, { childList: true, subtree: true }); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", observe, { once: true }); else observe();
+})();
